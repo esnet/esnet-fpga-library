@@ -1,0 +1,31 @@
+name: fifo_ctrl_rd_mon
+info: |
+  This register map describes a generic control/monitoring interface
+  for the read-side of a FIFO controller.
+regs:
+  - default:
+      width: 32
+      access: rw
+      init: 0
+
+  - name: status
+    desc: Status register
+    access: ro
+    fields:
+        - name: reset
+          desc: read-domain reset status.
+          width: 1
+        - name: empty
+          desc: sample of fifo empty indication.
+          width: 1
+        - name: uflow
+          desc: sample of fifo underflow indication.
+          width: 1
+
+  - name: status_count
+    desc: FIFO occupancy as determined in read domain.
+    access: ro
+
+  - name: status_rd_ptr
+    desc: FIFO read pointer.
+    access: ro

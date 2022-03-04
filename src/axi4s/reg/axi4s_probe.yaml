@@ -1,0 +1,36 @@
+name: axi4s_probe
+info: |
+   axi4s_probe is the module used to monitor an axi4s interface via the regmap. 
+
+regs:
+  - default:
+      width  : 32
+      init   : 0
+
+  - name: pkt_count_upper
+    desc   : packet count (upper word).  full pkt_count is 50b (wraps after 66d when min pkt size is 64B).
+    access : ro
+
+  - name: pkt_count_lower
+    desc   : packet count (lower word).
+    access : ro
+
+  - name: byte_count_upper
+    desc   : byte count (upper word).  full byte_count is 56b (wraps after 66d for 100G of traffic).
+    access : ro
+
+  - name: byte_count_lower
+    desc   : byte count (lower word).  rd_evt is used to clear both pkt_count and byte_count.
+    access : rd_evt
+
+  - name: halt_counters
+    desc   : halts pkt_count and byte_count when set to 1. counters run when set to 0.
+    width  : 8
+    access : rw
+
+     
+
+
+
+
+        

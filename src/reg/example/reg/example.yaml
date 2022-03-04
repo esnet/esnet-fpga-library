@@ -1,0 +1,79 @@
+name: example
+info: |
+  This is an example of a register block specification.
+regs:
+  - default:
+      width: 32
+      access: ro
+      init: 0
+
+  - name: rw_example
+    desc: Read-write register with fields
+    access: rw
+    fields:
+        - name:  field0
+          desc:  field0 (8-bit scalar)
+          width: 8
+        - name:  field1
+          desc:  field1 (8-bit enum)
+          width: 8
+          enum_hex:
+              0  : ABC
+              1  : XYZ
+              ff : ERROR
+
+  - name: ro_example
+    desc: Read-only register with fields
+    access: ro
+    fields:
+        - name:  field0
+          desc:  field0 (8-bit scalar)
+          width: 8
+        - name:  field1
+          desc:  field1 (8-bit enum)
+          width: 8
+          enum_hex:
+              0  : ABC
+              1  : XYZ
+              ff : ERROR
+
+  - name: wr_evt_example
+    desc: Write-Event register |
+          generates event or notification pulse towards application logic when register is written.
+    access: wr_evt
+
+  - name: rd_evt_example
+    desc: Read-Event register |
+          generates event or notification pulse towards application logic when register is read.
+    access: rd_evt
+
+  - name: rw_monolithic_example
+    desc: Read-write register (monolithic, no fields defined)
+    access: rw
+
+  - name: ro_monolithic_example
+    desc: Read-only register (monolithic, no fields defined)
+    access: ro
+
+# Register array examples
+
+  - name: rw_array_example
+    desc: Read-write register array
+    access: rw
+    count: 8
+
+  - name: ro_array_example
+    desc: Read-only register array
+    access: ro
+    count: 5
+
+  - name: wr_evt_array_example
+    desc: Write-event register array
+    access: wr_evt
+    count: 4
+
+  - name: rd_evt_array_example
+    desc: Read-event register array
+    access: rd_evt
+    count: 2
+

@@ -1,0 +1,19 @@
+name: example
+
+blocks:
+  example_reg_blk: &example_reg_blk
+    !include src/reg/example/reg/example.yaml
+
+interfaces:
+
+  - block: *example_reg_blk
+    address: 0x0000
+    name: example_component_0
+
+  - block: *example_reg_blk
+    address: 0x1000
+    name: example_component_1
+
+  - block: *example_reg_blk
+    address: 0x4000
+    name: example_component_2

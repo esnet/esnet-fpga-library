@@ -1,0 +1,26 @@
+name: MY_IP_NAME
+info: |
+  Example register block specification.
+regs:
+  - default:
+      width: 32
+      access: rw
+      init: 0
+  - name: version
+    desc: Version register
+    access: ro
+    fields:
+        - name: major
+          desc: Major version
+          width: 8
+        - name: minor
+          desc: Minor version
+          width: 8
+        - name: debug
+          desc: Debug verison
+          width: 8
+  - name: scratchpad
+    desc: Sratchpad register.
+    width: 32
+    access: rw
+

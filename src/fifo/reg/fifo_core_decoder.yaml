@@ -1,0 +1,18 @@
+name: fifo_core
+
+blocks:
+  core: &core
+    !include src/fifo/reg/fifo_core.yaml
+decoders:
+  ctrl: &ctrl
+    !include src/fifo/reg/fifo_ctrl_decoder.yaml
+
+interfaces:
+  - block: *core
+    address: 0x0000
+    width: 8
+    name: core
+  - decoder: *ctrl
+    address: 0x0100
+    width: 8
+    name: ctrl

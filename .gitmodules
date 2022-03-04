@@ -1,0 +1,6 @@
+[submodule "regio"]
+	path = tools/regio
+	url = ../regio
+[submodule "svunit"]
+	path = tools/svunit
+	url = https://github.com/svunit/svunit.git

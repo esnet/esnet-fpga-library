@@ -1,0 +1,73 @@
+name: reg_endian_check
+info: |
+  This block describes a set of scratchpad and read-only
+  registers that can be used for endianness consistency checking.
+regs:
+  - default:
+      width: 32
+      access: ro
+      init: 0
+  - name: scratchpad_packed
+    desc: Packed scratchpad register.
+    width: 32
+    access: rw
+  - name: scratchpad_packed_monitor_byte_0
+    desc: Monitor for byte 0 of packed scratchpad register.
+    access: ro
+    fields:
+        - name: byte_0
+          desc: scratchpad_packed[0]
+          width: 8
+  - name: scratchpad_packed_monitor_byte_1
+    desc: Monitor for byte 1 of packed scratchpad register.
+    access: ro
+    fields:
+        - name: byte_1
+          desc: scratchpad_packed[1]
+          width: 8
+  - name: scratchpad_packed_monitor_byte_2
+    desc: Monitor for byte 2 of packed scratchpad register.
+    access: ro
+    fields:
+        - name: byte_2
+          desc: scratchpad_packed[2]
+          width: 8
+  - name: scratchpad_packed_monitor_byte_3
+    desc: Monitor for byte 2 of packed scratchpad register.
+    access: ro
+    fields:
+        - name: byte_2
+          desc: scratchpad_packed[3]
+          width: 8
+  - name: scratchpad_unpacked_byte_0
+    desc: Unpacked scratchpad (byte 0)
+    access: rw
+    fields:
+        - name: byte_0
+          desc: scratchpad_unpacked[0]
+          width: 8
+  - name: scratchpad_unpacked_byte_1
+    desc: Unpacked scratchpad (byte 1)
+    access: rw
+    fields:
+        - name: byte_1
+          desc: scratchpad_unpacked[1]
+          width: 8
+  - name: scratchpad_unpacked_byte_2
+    desc: Unpacked scratchpad (byte 2)
+    access: rw
+    fields:
+        - name: byte_2
+          desc: scratchpad_unpacked[2]
+          width: 8
+  - name: scratchpad_unpacked_byte_3
+    desc: Unpacked scratchpad (byte 3)
+    access: rw
+    fields:
+        - name: byte_3
+          desc: scratchpad_unpacked[3]
+          width: 8
+  - name: scratchpad_unpacked_monitor
+    desc: Monitor for unpacked scratchpad
+    width: 32
+    access: ro
