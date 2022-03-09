@@ -1,23 +1,41 @@
 # ESnet FPGA library
 
-This library contains general-purpose FPGA logic and associated verification suites.
+This library contains general-purpose FPGA RTL design files and associated verification
+suites, as well as standard Makefiles, scripts and tools for a structured FPGA design
+methodology.
 
-## Register Infrastructure
+# Directory Structure
 
-Register infrastructure makes use of the esnet/ht/regio tool. Address
-decoders and register blocks are described in yaml specifications and
-associated definitions, logic and verification components are
-auto-generated using standardized templates.
+```
+esnet-fpga-library/
+    ├── scripts/
+    ├── src/
+    ├── tools/
+    ├── paths.mk
+    └── README.md
 
-### Adding a new register block to the design
+scripts/
+  Contains common Makefiles and Tcl scripts for maintaining a standard design directory
+  structure and standard work flows for register map construction, RTL simulation and
+  synthesis.
 
-1. Create a yaml specification describing the block's registers.
-2. Connect the yaml to a parent yaml.
-3. Run regio via the make system to produce RTL.
-4. Instantiate the registers in the block.
-5. Connect the AXI-L bus from the parent to the AXI-L for the block.
+src/
+  Contains RTL source and verification code for a number of standard FPGA design components,
+  captured in System Verilog.
 
-### Simulation
+tools/
+  Contains useful productivity tools for a structured FPGA design methodology. 
 
-* Use agent functions in the testbench to read/write registers.
-* Use address-based function calls as an alternateive to named agent-based calls.
+paths.mk  - Sets environment variables for standard pathnames.
+README.md - This README file.
+
+```
+**NOTE: See lower level README files for more details.**
+
+
+
+
+# Known Issues
+
+- None to date.
+
