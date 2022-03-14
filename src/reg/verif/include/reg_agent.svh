@@ -20,6 +20,8 @@ class reg_agent #(
     parameter int DATA_WID = 32
 ) extends std_verif_pkg::agent;
 
+    local static const string __CLASS_NAME = "reg_verif_pkg::reg_agent";
+
     //===================================
     // Properties
     //===================================
@@ -46,8 +48,14 @@ class reg_agent #(
     //===================================
 
     // Constructor
-    function new(input string name="reg_verif_pkg::reg_agent");
+    function new(input string name="reg_agent");
         super.new(name);
+    endfunction
+
+    // Configure trace output
+    // [[ overrides std_verif_pkg::base.trace_msg() ]]
+    function automatic void trace_msg(input string msg);
+        _trace_msg(msg, __CLASS_NAME);
     endfunction
 
     function void set_wr_timeout(input int WR_TIMEOUT);
