@@ -27,6 +27,8 @@ rtl_sim:
   script:
     - make -C src/axi4l/tests/regression
     - grep 'PASSED.*suites passing' src/axi4l/tests/regression/run_0/sim.log
+    - make -C src/axi4s/tests/regression
+    - grep 'PASSED.*suites passing' src/axi4s/tests/regression/run_0/sim.log
     - make -C src/crc/tests/regression
     - grep 'PASSED.*suites passing' src/crc/tests/regression/run_0/sim.log
     - make -C src/fifo/tests/regression
