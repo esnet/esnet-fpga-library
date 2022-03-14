@@ -22,6 +22,8 @@ class axi4s_monitor #(
     parameter type TUSER_T = bit
 ) extends std_verif_pkg::monitor#(axi4s_transaction#(TID_T, TDEST_T, TUSER_T));
 
+    local static const string __CLASS_NAME = "axi4s_verif_pkg::axi4s_monitor";
+
     //===================================
     // Properties
     //===================================
@@ -49,6 +51,12 @@ class axi4s_monitor #(
         this._BIGENDIAN = BIGENDIAN;
     endfunction
 
+    // Configure trace output
+    // [[ overrides std_verif_pkg::base.trace_msg() ]]
+    function automatic void trace_msg(input string msg);
+        _trace_msg(msg, __CLASS_NAME);
+    endfunction
+
     // Reset monitor state
     // [[ implements _reset() virtual method of std_verif_pkg::monitor parent class ]]
     function automatic void _reset();
@@ -56,13 +64,13 @@ class axi4s_monitor #(
     endfunction
 
     // Put AXI-S monitor interface in idle state
-    // [[ implements idle() virtual method of std_verif_pkg::monitor parent class ]]
+    // [[ implements std_verif_pkg::monitor.idle() ]]
     task idle();
         axis_vif.idle_rx();
     endtask
 
     // Wait for specified number of 'cycles' on the monitored interface
-    // [[ implements _wait() virtual method of std_verif_pkg::monitor parent class ]]
+    // [[ implements std_verif_pkg::monitor._wait() ]]
     task _wait(input int cycles);
         axis_vif._wait(cycles);
     endtask
@@ -80,12 +88,17 @@ class axi4s_monitor #(
         bit [DATA_BYTE_WID-1:0] tkeep;
         bit tlast = 0;
         int byte_idx = 0;
+        int word_idx = 0;
+        int byte_cnt = 0;
         TID_T tid;
         TDEST_T tdest;
         TUSER_T tuser;
 
+        debug_msg("receive_raw: Waiting for data...");
+
         while (!tlast) begin
             axis_vif.receive(tdata, tkeep, tlast, tid, tdest, tuser, tpause);
+            trace_msg($sformatf("receive_raw: Received word %0d.", word_idx));
             if (_BIGENDIAN) begin
                 tdata = {<<byte{tdata}};
                 tkeep = {<<{tkeep}};
@@ -95,17 +108,21 @@ class axi4s_monitor #(
                 if (tkeep[byte_idx]) data.push_back(tdata[byte_idx]);
                 byte_idx++;
             end
+            byte_cnt += byte_idx;
             byte_idx = 0;
+            word_idx++;
         end
+        debug_msg($sformatf("receive_raw: Done. Received %0d bytes.", byte_cnt));
         id = tid;
         dest = tdest;
         user = tuser;
     endtask
 
 
-    // Send AXI-S transaction on AXI-S bus
-    // [[ implements receive() virtual method of std_verif_pkg::monitor parent class ]]
-    task receive(
+    // Receive AXI-S transaction from AXI-S bus
+    // [[ implements _receive() virtual method of std_verif_pkg::monitor parent class ]]
+    // [[ implements std_verif_pkg::monitor._receive() ]]
+    task _receive(
             output axi4s_transaction#(TID_T, TDEST_T, TUSER_T) transaction
         );
         // Signals
@@ -122,10 +139,10 @@ class axi4s_monitor #(
         receive_raw(data, tid, tdest, tuser);
 
         // Build Rx packet transaction
-        packet = new("Rx packet", data);
+        packet = packet_verif_pkg::packet_raw::create_from_bytes("rx_packet", data);
 
         // Build Rx AXI-S transaction
-        transaction = new(packet.get_name(), packet, tid, tdest, tuser);
+        transaction = new("rx_axi4s_transaction", packet, tid, tdest, tuser);
 
         debug_msg($sformatf("Received %s (%0d bytes).", transaction.get_name(), transaction.get_packet().size()));
     endtask
