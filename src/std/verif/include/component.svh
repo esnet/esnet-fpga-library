@@ -15,18 +15,24 @@
 //  computer software.
 // =============================================================================
 
-// Base agent class for verification
+// Base component class for verification
 // - interface class (not to be implemented directly)
-// - describes interface for 'generic' agents, where methods are to be implemented by derived class
-class agent extends component;
+// - describes interface for 'generic' components, where methods are to be
+//   implemented by sublass
+class component extends base;
 
-    local static const string __CLASS_NAME = "std_verif_pkg::agent";
+    local static const string __CLASS_NAME = "std_verif_pkg::component";
+
+    //===================================
+    // Properties
+    //===================================
+    local event __stop;
 
     //===================================
     // Methods
     //===================================
     // Constructor
-    function new(input string name="agent");
+    function new(input string name="component");
         super.new(name);
     endfunction
 
@@ -36,17 +42,43 @@ class agent extends component;
         _trace_msg(msg, __CLASS_NAME);
     endfunction
 
+    // Start component execution (run loop)
+    task start();
+        trace_msg("start()");
+        fork
+            begin
+                fork
+                    begin
+                        _start();
+                        trace_msg("_start done");
+                    end
+                    begin
+                        wait(__stop.triggered);
+                        trace_msg("Stop event received...");
+                    end
+                join_any
+                disable fork;
+            end
+        join_none;
+        trace_msg("start() Done.");
+    endtask
+
+    // Stop component execution
+    task stop();
+        trace_msg("stop()");
+        -> __stop;
+        trace_msg("stop() Done.");
+    endtask
+
     //===================================
     // Virtual Methods
     // (to be implemented by derived class)
     //===================================
-    // Reset client
-    virtual task reset_client(); endtask
-    // Put all (driven) interfaces into idle state
-    virtual task idle(); endtask
-    // Wait for specified number of 'cycles', where the definition of 'cycle' is agent-specific
-    virtual task _wait(input int cycles); endtask
-    // Wait for client to be ready (after init/reset for example)
-    virtual task wait_ready(); endtask
+    // Connect component (interfaces, etc.)
+    virtual function automatic void connect(); endfunction
+    // Reset component state
+    virtual function automatic void reset(); endfunction
+    // Start component execution
+    protected virtual task _start(); endtask
 
-endclass : agent
+endclass

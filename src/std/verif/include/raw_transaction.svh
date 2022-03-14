@@ -19,6 +19,8 @@ class raw_transaction #(
     parameter type DATA_T = bit[15:0]
 ) extends transaction;
 
+    local static const string __CLASS_NAME = "std_verif_pkg::raw_transaction";
+
     //===================================
     // Properties
     //===================================
@@ -34,6 +36,12 @@ class raw_transaction #(
         );
         super.new(name);
         this.data = data;
+    endfunction
+
+    // Configure trace output
+    // [[ overrides std_verif_pkg::base.trace_msg() ]]
+    function automatic void trace_msg(input string msg);
+        _trace_msg(msg, __CLASS_NAME);
     endfunction
 
     // Get string representation of transaction

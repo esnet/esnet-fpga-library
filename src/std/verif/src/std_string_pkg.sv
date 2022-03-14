@@ -21,7 +21,7 @@ package std_string_pkg;
     // String : indent
     function automatic string indent(
             input string str,
-            input int indent_spaces,
+            input int indent_spaces=8,
             input bit newline=1
         );
         string _str = {{indent_spaces{" "}}, str};

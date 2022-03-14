@@ -19,23 +19,27 @@ class wire_model #(
     parameter type TRANSACTION_T = transaction
 ) extends model#(TRANSACTION_T, TRANSACTION_T);
 
+    local static const string __CLASS_NAME = "std_verif_pkg::wire_model";
+
+    //===================================
+    // Methods
+    //===================================
     // Constructor
     function new(string name="wire_model");
         super.new(name);
-        // Initialize
-        this.reset();
     endfunction
 
-    // Called in superclass reset() method to reset state of reference model
-    // [[ implements std_verif_pkg::model._reset() virtual method ]]
-    function automatic void _reset();
-        return;
+    // Configure trace output
+    // [[ overrides std_verif_pkg::base.trace_msg() ]]
+    function automatic void trace_msg(input string msg);
+        _trace_msg(msg, __CLASS_NAME);
     endfunction
 
-    // Called in superclass apply() method
-    // [[ implements std_verif_pkg::model._apply() virtual method ]]
-    function automatic TRANSACTION_OUT_T _apply(input TRANSACTION_IN_T transaction_in);
-        return transaction_in;
-    endfunction
+    // Process input transaction
+    // [[ implements std_verif_pkg::model._process() ]]
+    protected task _process(input TRANSACTION_IN_T transaction);
+        // Send input transaction as output transaction
+        _enqueue(transaction);
+    endtask
 
 endclass : wire_model

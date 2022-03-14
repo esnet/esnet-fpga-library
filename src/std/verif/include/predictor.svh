@@ -15,25 +15,23 @@
 //  computer software.
 // =============================================================================
 
-class wire_env #(
-    parameter type TRANSACTION_T = transaction,
-    parameter type DRIVER_T=driver#(TRANSACTION_T),
-    parameter type MONITOR_T=monitor#(TRANSACTION_T),
-    parameter type SCOREBOARD_T=event_scoreboard#(TRANSACTION_T)
-) extends component_env#(TRANSACTION_T, TRANSACTION_T, DRIVER_T, MONITOR_T, wire_model#(TRANSACTION_T), SCOREBOARD_T);
+// Reference predictor class for verification
+// - interface class (not to be implemented directly)
+// - describes interface for model where each input transaction yields an
+//   output transaction
+class predictor #(
+    parameter type TRANSACTION_IN_T = transaction,
+    parameter type TRANSACTION_OUT_T = TRANSACTION_IN_T
+) extends model#(TRANSACTION_IN_T, TRANSACTION_OUT_T);
 
-    local static const string __CLASS_NAME = "std_verif_pkg::wire_env";
+    local static const string __CLASS_NAME = "std_verif_pkg::predictor";
 
     //===================================
     // Methods
     //===================================
     // Constructor
-    function new(string name="wire_env");
-        // Create superclass instance
+    function new(input string name="predictor");
         super.new(name);
-
-        // Create wire model component
-        this.model = new();
     endfunction
 
     // Configure trace output
@@ -42,4 +40,22 @@ class wire_env #(
         _trace_msg(msg, __CLASS_NAME);
     endfunction
 
-endclass
+    // Process input transaction
+    // [[ implements _process() virtual task of model base class ]]
+    protected task _process(input TRANSACTION_IN_T transaction);
+        TRANSACTION_OUT_T transaction_out;
+        trace_msg("_process()");
+        debug_msg(transaction.to_string());
+        transaction_out = predict(transaction);
+        _enqueue(transaction_out);
+        debug_msg(transaction_out.to_string());
+        trace_msg("_process() Done.");
+    endtask
+
+    //===================================
+    // Virtual Methods
+    //===================================
+    // Predict output transaction, given input transaction
+    virtual function automatic TRANSACTION_OUT_T predict(input TRANSACTION_IN_T transaction); endfunction
+
+endclass : predictor

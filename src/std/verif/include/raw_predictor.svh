@@ -15,18 +15,22 @@
 //  computer software.
 // =============================================================================
 
-// Base agent class for verification
-// - interface class (not to be implemented directly)
-// - describes interface for 'generic' agents, where methods are to be implemented by derived class
-class agent extends component;
+class raw_predictor #(
+    parameter type DATA_IN_T = byte,
+    parameter type DATA_OUT_T = byte
+) extends raw_model#(
+    DATA_IN_T,
+    DATA_OUT_T,
+    predictor#(raw_transaction#(DATA_IN_T), raw_transaction#(DATA_OUT_T))
+);
 
-    local static const string __CLASS_NAME = "std_verif_pkg::agent";
+    local static const string __CLASS_NAME = "std_verif_pkg::raw_predictor";
 
     //===================================
     // Methods
     //===================================
     // Constructor
-    function new(input string name="agent");
+    function new(input string name="raw_predictor");
         super.new(name);
     endfunction
 
@@ -36,17 +40,33 @@ class agent extends component;
         _trace_msg(msg, __CLASS_NAME);
     endfunction
 
+    // Predict output transaction, given input transaction
+    // [[ implements std_verif_pkg::predictor.predict() ]]
+    function automatic raw_transaction#(DATA_OUT_T) predict(input raw_transaction#(DATA_IN_T) transaction);
+        DATA_OUT_T data_out;
+        raw_transaction#(DATA_OUT_T) transaction_out;
+        trace_msg("predict()");
+        data_out = predict_raw(transaction.data);
+        transaction_out = new(.data(data_out));
+        trace_msg("predict() Done.");
+        return transaction_out;
+    endfunction
+
+    // Process (raw) input transaction
+    // [[ implements std_verif_pkg::raw_model._process_raw() ]]
+    protected task _process_raw(input DATA_IN_T data_in);
+        DATA_OUT_T data_out;
+        trace_msg("_process_raw()");
+        data_out = predict_raw(data_in);
+        _enqueue_raw(data_out);
+        trace_msg(" _process_raw() Done.");
+    endtask
+
     //===================================
     // Virtual Methods
-    // (to be implemented by derived class)
+    // (to be implemented by derived classes)
     //===================================
-    // Reset client
-    virtual task reset_client(); endtask
-    // Put all (driven) interfaces into idle state
-    virtual task idle(); endtask
-    // Wait for specified number of 'cycles', where the definition of 'cycle' is agent-specific
-    virtual task _wait(input int cycles); endtask
-    // Wait for client to be ready (after init/reset for example)
-    virtual task wait_ready(); endtask
+    // Process (raw) input data transaction
+    virtual function DATA_OUT_T predict_raw(input DATA_IN_T data_in); endfunction
 
-endclass : agent
+endclass : raw_predictor
