@@ -16,6 +16,9 @@
 // =============================================================================
 
 class packet_transaction extends std_verif_pkg::transaction;
+
+    local static const string __CLASS_NAME = "packet_verif_pkg::packet_transaction";
+
     //===================================
     // Typedefs
     //===================================
@@ -38,6 +41,12 @@ class packet_transaction extends std_verif_pkg::transaction;
         this.__packet = packet;
     endfunction
 
+    // Configure trace output
+    // [[ overrides std_verif_pkg::base.trace_msg() ]]
+    function automatic void trace_msg(input string msg);
+        _trace_msg(msg, __CLASS_NAME);
+    endfunction
+
     // Return packet
     function automatic packet get_packet();
         return this.__packet;
@@ -54,7 +63,7 @@ class packet_transaction extends std_verif_pkg::transaction;
     endfunction
 
     // Get string representation of transaction
-    // [[ implements to_string virtual method of std_verif_pkg::transaction ]]
+    // [[ implements std_verif_pkg::transaction.to_string() ]]
     function automatic string to_string();
         string str;
         str = $sformatf("Packet transaction '%s' (%0d bytes):\n", get_name(), size());
@@ -63,9 +72,9 @@ class packet_transaction extends std_verif_pkg::transaction;
     endfunction
 
     // Compare transaction against another
-    // [[ implements compare virtual method of std_verif_pkg::transaction ]]
-    function automatic bit compare(input packet_transaction b, output string msg);
-        return this.__packet.compare(b.get_packet(), msg);
+    // [[ implements std_verif_pkg::transaction.compare() ]]
+    function automatic bit compare(input packet_transaction t2, output string msg);
+        return this.__packet.compare(t2.get_packet(), msg);
     endfunction
 
 endclass

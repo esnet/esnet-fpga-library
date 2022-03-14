@@ -66,7 +66,7 @@ module packet_transaction_unit_test;
             packet_transaction the_transaction;
 
             // Create raw packet
-            the_raw_packet = new("the raw packet", payload_data);
+            the_raw_packet = packet_raw::create_from_bytes("the raw packet", payload_data);
 
             // Create transaction from packet
             the_transaction = new("the packet transaction", the_raw_packet);

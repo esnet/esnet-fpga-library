@@ -16,6 +16,9 @@
 // =============================================================================
 
 class packet_eth extends packet;
+
+    local static const string __CLASS_NAME = "packet_verif_pkg::packet_eth";
+
     //===================================
     // Parameters
     //===================================
@@ -40,7 +43,13 @@ class packet_eth extends packet;
         this.__hdr = hdr;
         this.__payload = payload;
     endfunction
- 
+
+    // Configure trace output
+    // [[ overrides std_verif_pkg::base.trace_msg() ]]
+    function automatic void trace_msg(input string msg);
+        _trace_msg(msg, __CLASS_NAME);
+    endfunction
+
     // Get string representation of packet
     function automatic string to_string();
         string str = super.to_string();
@@ -57,7 +66,7 @@ class packet_eth extends packet;
     function automatic byte_array_t header();
         return {>>byte{this.__hdr}};
     endfunction
- 
+
     function automatic byte_array_t payload();
         return this.__payload.to_bytes();
     endfunction

@@ -17,6 +17,8 @@
 
 class packet extends std_verif_pkg::base;
 
+    local static const string __CLASS_NAME = "packet_verif_pkg::packet";
+
     //===================================
     // Typedefs
     //===================================
@@ -40,6 +42,12 @@ class packet extends std_verif_pkg::base;
         this.__protocol = protocol;
     endfunction
 
+    // Configure trace output
+    // [[ overrides std_verif_pkg::base.trace_msg() ]]
+    function automatic void trace_msg(input string msg);
+        _trace_msg(msg, __CLASS_NAME);
+    endfunction
+
     // Packet type
     function automatic protocol_t protocol();
         return this.__protocol;
@@ -50,12 +58,14 @@ class packet extends std_verif_pkg::base;
         return this.to_bytes().size();
     endfunction
 
+    // Clone
+    virtual function automatic packet clone(input string name); endfunction
+
     // Get string representation of packet
-    // [[ overrides to_string() method of std_verif_pkg::base extended class ]]
     virtual function string to_string();
         string str;
         str = {str, std_string_pkg::horiz_line()};
-        str = {str, 
+        str = {str,
                 $sformatf(
                     "Packet '%s' (%s, %0d bytes):\n",
                     get_name(),
