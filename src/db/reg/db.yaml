@@ -1,0 +1,176 @@
+name: db
+info: |
+  This register map describes a register-indirect proxy interface
+  for interacting with a generic key-value database.
+regs:
+  - default:
+      width: 32
+      access: rw
+      init: 0
+
+  - name: info
+    desc: Info (type)
+    access: ro
+    fields:
+        - name: db_type
+          desc: database type identifier
+          width: 8
+          enum_hex:
+            0 : UNSPECIFIED
+            1 : CACHE
+            2 : STATE
+            3 : STATS
+        - name: db_subtype
+          desc: application-specific subtype identifier
+          width: 8
+
+  - name: info_size
+    desc: Info (size)
+    access: ro
+
+  - name: info_key
+    desc: Info (key)
+    access: ro
+    fields:
+        - name: bits
+          desc: key width (in bits); width of key as seen by hw
+          width: 16
+        - name: bytes
+          desc: key width (in bytes); width of key as seen by sw.
+                Equal to the number of bytes required to contain info_key.bits.
+          width: 8
+        - name: regs
+          desc: key width (in registers)
+                Equal to the number of key registers to contain info_key.bytes
+          width: 8
+
+  - name: info_value
+    desc: Info (value)
+    access: ro
+    fields:
+        - name: bits
+          desc: value width (in bits); width of value as seen by hw
+          width: 16
+        - name: bytes
+          desc: value width (in bytes); width of value as seen by sw.
+                Equal to the number of bytes required to contain info_value.bits.
+          width: 8
+        - name: regs
+          desc: value width (in registers)
+                Equal to the number of value registers to contain info_value.bytes
+          width: 8
+
+  - name: command
+    desc: Control register
+    access: wr_evt
+    fields:
+        - name: code
+          desc: Command code.
+          width: 8
+          enum_hex:
+              0 : NOP
+              1 : GET
+              2 : SET
+              3 : UNSET
+              4 : REPLACE
+              5 : CLEAR
+
+  - name: status
+    desc: Status register
+    access: rd_evt
+    fields:
+        - name: code
+          desc: Status code.
+          width: 8
+          enum_hex:
+              0 : RESET
+              1 : READY
+              2 : BUSY
+        - name: done
+          desc: Done flag. Indicates that last operation completed successfully. Sticky until read or until new transaction received.
+          width: 1
+        - name: error
+          desc: Error flag. Indicates that last operation terminated with error. Sticky until read or until new transaction received.
+          width: 1
+        - name: timeout
+          desc: Timeout flag. Indicates that last operation timed out. Sticky until read or until new transaction received.
+          width: 1
+
+  - name: status_fill
+    desc: Current fill level.
+    access: ro
+
+  - name: key
+    desc: Key (for SET/UNSET/GET operations)
+            Implemented as a byte array, where -
+              key[0].byte_0 contains MSb(s) of key (+ any padding required to pad to bytes),
+              key[info_key.regs-1].byte_(info_key.bytes mod 4) contains LSb(s) of key
+              key[i, i > info_key.regs] are unused
+    access: rw
+    fields:
+        - name: byte_0
+          desc: 0th byte of selected dword
+          width: 8
+        - name: byte_1
+          desc: 1st byte of selected dword
+          width: 8
+        - name: byte_2
+          desc: 2nd byte of selected dword
+          width: 8
+        - name: byte_3
+          desc: 3rd byte of selected dword
+          width: 8
+    count: 32
+
+  - name: set_value
+    desc: Value register (for SET operations)
+            Implemented as a byte array, where -
+              value[0].byte_0 contains MSb(s) of value (+ any padding required to pad to bytes),
+              value[info_value.regs-1].byte_(info_value.bytes mod 4) contains LSb(s) of value
+              value[i, i > info_value.regs] are unused
+    access: rw
+    fields:
+        - name: byte_0
+          desc: 0th byte of selected dword
+          width: 8
+        - name: byte_1
+          desc: 1st byte of selected dword
+          width: 8
+        - name: byte_2
+          desc: 2nd byte of selected dword
+          width: 8
+        - name: byte_3
+          desc: 3rd byte of selected dword
+          width: 8
+    count: 32
+
+  - name: get_valid
+    desc: Valid register (for GET operations)
+    access: ro
+    fields:
+        - name: value
+          desc: Last GET operation (including RMW operations like REPLACE, UNSET)
+                returned a valid entry.
+          width: 1
+
+  - name: get_value
+    desc: Value register (for GET operations)
+            Implemented as a byte array, where -
+              value[0].byte_0 contains MSb(s) of value (+ any padding required to pad to bytes),
+              value[info_value.regs-1].byte_(info_value.bytes mod 4) contains LSb(s) of value
+              value[i, i > info_value.regs] are unused
+    access: ro
+    fields:
+        - name: byte_0
+          desc: 0th byte of selected dword
+          width: 8
+        - name: byte_1
+          desc: 1st byte of selected dword
+          width: 8
+        - name: byte_2
+          desc: 2nd byte of selected dword
+          width: 8
+        - name: byte_3
+          desc: 3rd byte of selected dword
+          width: 8
+    count: 32

@@ -31,6 +31,8 @@ rtl_sim:
     - grep 'PASSED.*suites passing' src/axi4s/tests/regression/run_0/sim.log
     - make -C src/crc/tests/regression
     - grep 'PASSED.*suites passing' src/crc/tests/regression/run_0/sim.log
+    - make -C src/db/tests/regression
+    - grep 'PASSED.*suites passing' src/db/tests/regression/run_0/sim.log
     - make -C src/fifo/tests/regression
     - grep 'PASSED.*suites passing' src/fifo/tests/regression/run_0/sim.log
     - make -C src/packet/tests/regression
