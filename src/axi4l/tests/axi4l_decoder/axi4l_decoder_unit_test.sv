@@ -45,7 +45,6 @@ module axi4l_decoder_unit_test;
     // Local Signals
     //===================================
     logic aclk;
-    logic aresetn;
     logic clk;
     logic srst;
 
@@ -133,9 +132,9 @@ module axi4l_decoder_unit_test;
         reset_if.pulse(8);
     endtask
 
-    always @(posedge clk or negedge aresetn) begin
-        if (!aresetn) srst <= 1'b1;
-        else          srst <= 1'b0;
+    always @(posedge clk or negedge axil_if.aresetn) begin
+        if (!axil_if.aresetn) srst <= 1'b1;
+        else                  srst <= 1'b0;
     end
 
     //===================================
@@ -201,6 +200,9 @@ module axi4l_decoder_unit_test;
     //   `SVTEST_END
     //===================================
     `SVUNIT_TESTS_BEGIN
+
+        `SVTEST(reset)
+        `SVTEST_END
 
         `SVTEST(read)
             example_reg_pkg::reg_ro_example_t exp_reg_ro_example = '{field0: 8'hAB, field1: example_reg_pkg::RO_EXAMPLE_FIELD1_XYZ};
