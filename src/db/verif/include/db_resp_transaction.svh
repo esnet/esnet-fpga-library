@@ -66,7 +66,7 @@ class db_resp_transaction#(
 
     // Compare transactions
     // [[ implements std_verif_pkg::transaction.compare() ]]
-    function bit compare(input db_resp_transaction t2, output string msg);
+    function bit compare(input db_resp_transaction#(KEY_T, VALUE_T) t2, output string msg);
         if (this.key != t2.key) begin
             msg = $sformatf("KEY mismatch. A: 0x%x, B: 0x%x.", this.key, t2.key);
             return 0;
