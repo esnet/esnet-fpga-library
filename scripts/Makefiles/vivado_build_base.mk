@@ -13,11 +13,11 @@
 # -----------------------------------------------
 # Paths
 # -----------------------------------------------
-CFG_ROOT := $(PROJ_ROOT)/cfg
 VIVADO_SCRIPTS_ROOT := $(SCRIPTS_ROOT)/vivado
 
 # Export Make variables for use in Tcl scripts
 export PROJ_ROOT
+export LIB_ROOT
 export TOP
 export OUT_DIR
 
