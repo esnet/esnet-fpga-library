@@ -20,6 +20,8 @@ class reg_blk_agent #(
     parameter int REG_DATA_WID = 32
 ) extends std_verif_pkg::agent;
 
+    local static const string __CLASS_NAME = "reg_verif_pkg::reg_blk_agent";
+
     //===================================
     // Typedefs
     //===================================
@@ -44,33 +46,39 @@ class reg_blk_agent #(
         this.BASE_ADDR = BASE_ADDR;
     endfunction
 
+    // Configure trace output
+    // [[ overrides std_verif_pkg::base.trace_msg() ]]
+    function automatic void trace_msg(input string msg);
+        _trace_msg(msg, __CLASS_NAME);
+    endfunction
+
     // Reset agent
-    // [[ implements std_verif_pkg::agent.reset ]]
+    // [[ implements std_verif_pkg::agent.reset() ]]
     function automatic void reset();
         reg_agent.reset();
     endfunction
 
     // Reset client
-    // [[ implements std_verif_pkg::agent.reset_client ]]
+    // [[ implements std_verif_pkg::agent.reset_client() ]]
     task reset_client();
         reg_agent.reset_client();
     endtask
 
     // Put all (driven) interfaces into idle state
-    // [[ implements std_verif_pkg::agent.idle ]]
+    // [[ implements std_verif_pkg::agent.idle() ]]
     task idle();
         reg_agent.idle();
     endtask
 
     // Wait for specified number of 'cycles', where the definition of a cycle
     // is defined by the client
-    // [[ implements std_verif_pkg::agent._wait ]]
+    // [[ implements std_verif_pkg::agent._wait() ]]
     task _wait(input int cycles);
         reg_agent._wait(cycles);
     endtask
 
     // Wait for client to be ready
-    // [[ implements std_verif_pkg::agent.wait_ready ]]
+    // [[ implements std_verif_pkg::agent.wait_ready() ]]
     task wait_ready();
         reg_agent.wait_ready();
     endtask

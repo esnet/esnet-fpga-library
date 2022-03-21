@@ -26,6 +26,9 @@ class component_env #(
     parameter type MODEL_T=model#(TRANSACTION_IN_T,TRANSACTION_OUT_T),
     parameter type SCOREBOARD_T=scoreboard#(TRANSACTION_OUT_T)
 ) extends env;
+
+    local static const string __CLASS_NAME = "std_verif_pkg::component_env";
+
     //===================================
     // Properties
     //===================================
@@ -34,9 +37,14 @@ class component_env #(
     MODEL_T      model;
     SCOREBOARD_T scoreboard;
 
-    mailbox #(TRANSACTION_IN_T)  src_mailbox;
-    mailbox #(TRANSACTION_OUT_T) exp_mailbox;
-    mailbox #(TRANSACTION_OUT_T) got_mailbox;
+    mailbox #(TRANSACTION_IN_T)  inbox;
+
+    local mailbox #(TRANSACTION_IN_T) __drv_inbox;
+    local mailbox #(TRANSACTION_IN_T) __model_inbox;
+    local mailbox #(TRANSACTION_OUT_T) __mon_outbox;
+    local mailbox #(TRANSACTION_OUT_T) __model_outbox;
+
+    local event __stop;
 
     //===================================
     // Methods
@@ -44,15 +52,21 @@ class component_env #(
     // Constructor
     function new(input string name="component_env");
         super.new(name);
-        debug_msg("--- component_env.build() ---");
-        src_mailbox = new();
-        exp_mailbox = new();
-        got_mailbox = new();
-        debug_msg("--- component_env.build() Done. ---");
+        inbox = new();
+        __drv_inbox = new();
+        __mon_outbox = new();
+        __model_inbox = new();
+        __model_outbox = new();
+    endfunction
+
+    // Configure trace output
+    // [[ overrides std_verif_pkg::base.trace_msg() ]]
+    function automatic void trace_msg(input string msg);
+        _trace_msg(msg, __CLASS_NAME);
     endfunction
 
     // Set debug level (verbosity)
-    // [[ overrides std_verif_pkg::base.set_debug_level() superclass method ]]
+    // [[ overrides std_verif_pkg::base.set_debug_level() ]]
     function automatic void set_debug_level(input int DEBUG_LEVEL);
         super.set_debug_level(DEBUG_LEVEL);
         driver.set_debug_level(DEBUG_LEVEL);
@@ -62,49 +76,89 @@ class component_env #(
     endfunction
 
     // Connect environment objects
-    // [[ implements env.connect() superclass method ]]
+    // [[ implements std_verif_pkg::component.connect() ]]
     function automatic void connect();
-        debug_msg("--- component_env.connect() ---");
-        driver.inbox = src_mailbox;
-        model.inbox = src_mailbox;
-        model.outbox = exp_mailbox;
-        monitor.outbox = got_mailbox;
-        scoreboard.got_inbox = got_mailbox;
-        scoreboard.exp_inbox = exp_mailbox;
-        debug_msg("--- component_env.connect() Done. ---");
+        trace_msg("connect()");
+        driver.inbox = __drv_inbox;
+        model.inbox = __model_inbox;
+        model.outbox = __model_outbox;
+        monitor.outbox = __mon_outbox;
+        scoreboard.got_inbox = __mon_outbox;
+        scoreboard.exp_inbox = __model_outbox;
+        trace_msg("connect() Done.");
     endfunction
 
     // Reset environment
-    // [[ implements env.reset() superclass method ]]
+    // [[ implements std_verif_pkg::component.reset() ]]
     function automatic void reset();
-        debug_msg("--- component_env.reset() ---");
+        trace_msg("reset()");
         driver.reset();
         monitor.reset();
         model.reset();
         scoreboard.reset();
-        debug_msg("--- component_env.reset() Done. ---");
+        trace_msg("reset() Done.");
     endfunction
 
     // Put all (driven) interfaces into quiescent state
-    // [[ implements env.idle() virtual method ]]
+    // [[ implements env.idle() ]]
     task idle();
-        debug_msg("--- component_env.idle() ---");
+        trace_msg("idle()");
         fork
             driver.idle();
             monitor.idle();
         join
-        debug_msg("--- component_env.idle() Done. ---");
+        trace_msg("idle() Done.");
     endtask
 
-    // Wait for environment to be ready for transactions (after init/reset for example)
-    // [[ overrides superclass wait_ready() method ]]
-    task wait_ready();
-        debug_msg("--- component_env.wait_ready() ---");
+    // Start environment execution
+    // [[ implements std_verif_pkg::component._start() ]]
+    task _start();
+        trace_msg("start()");
+        info_msg("Starting environment...");
         fork
-            super.wait_ready();
-            driver.wait_ready();
-        join
-        debug_msg("--- component_env.wait_ready() Done. ---");
+            begin
+                driver.start();
+            end
+            begin
+                monitor.start();
+            end
+            begin
+                model.start();
+            end
+            begin
+                scoreboard.start();
+            end
+            begin
+                fork
+                    begin
+                        forever begin
+                            TRANSACTION_IN_T transaction;
+                            inbox.get(transaction);
+                            __drv_inbox.put(transaction);
+                            __model_inbox.put(transaction);
+                        end
+                    end
+                    begin
+                        wait(__stop.triggered);
+                    end
+                join_any
+                disable fork;
+            end
+        join_none
+        trace_msg("_start() Done.");
+    endtask
+
+    // Stop environment execution
+    // [[ overrides std_verif_pkg::component.stop() ]]
+    task stop();
+        trace_msg("stop()");
+        info_msg("Stopping environment...");
+        super.stop();
+        driver.stop();
+        monitor.stop();
+        model.stop();
+        scoreboard.stop();
+        trace_msg("stop() Done.");
     endtask
 
 endclass : component_env

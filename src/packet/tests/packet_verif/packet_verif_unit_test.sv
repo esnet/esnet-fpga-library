@@ -65,7 +65,7 @@ module packet_verif_unit_test;
             int exp_size = payload_data.size();
         
             // Create new raw packet from payload data
-            packet_raw the_raw_packet = new("raw packet", payload_data);
+            packet_raw the_raw_packet = packet_raw::create_from_bytes("raw packet", payload_data);
 
             // Print packet
             $display(the_raw_packet.to_string());
@@ -99,7 +99,7 @@ module packet_verif_unit_test;
             int exp_size = packet_eth_pkg::HDR_BYTES + payload_data.size();
  
             // Create new payload (raw packet)
-            the_payload = new("the payload", payload_data);
+            the_payload = packet_raw::create_from_bytes("the payload", payload_data);
             
             // Create new Ethernet packet
             the_eth_packet = new("the eth packet", eth_hdr, the_payload);

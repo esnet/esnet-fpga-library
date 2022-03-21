@@ -21,6 +21,8 @@ class axi4s_transaction #(
     parameter type TUSER_T = bit
 ) extends packet_verif_pkg::packet_transaction;
 
+    local static const string __CLASS_NAME = "axi4s_verif_pkg::axi4s_transaction";
+
     //===================================
     // Properties
     //===================================
@@ -45,8 +47,14 @@ class axi4s_transaction #(
         this.tuser = tuser;
     endfunction
 
+    // Configure trace output
+    // [[ overrides std_verif_pkg::base.trace_msg() ]]
+    function automatic void trace_msg(input string msg);
+        _trace_msg(msg, __CLASS_NAME);
+    endfunction
+
     // Get string representation of transaction
-    // [[ overrides packet_verif_pkg::transaction to_string() method ]]
+    // [[ implements std_verif_pkg::transaction.to_string() ]]
     function string to_string();
         string str = $sformatf("AXI4-S transaction: %s\n", get_name());
         str = {str, "------------------------------------------\n"};
@@ -57,6 +65,8 @@ class axi4s_transaction #(
         return str;
     endfunction
 
+    // Compare transaction to a reference transaction
+    // [[ implements std_verif_pkg::transaction.compare() ]]
     function bit compare(input axi4s_transaction t2, output string msg);
         if (!get_packet().compare(t2.get_packet(), msg)) begin
             return 0;

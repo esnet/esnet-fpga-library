@@ -113,6 +113,8 @@ module fifo_async_unit_test #(
         env = new("tb_env", reset_if, wr_if, rd_if);
         env.connect();
 
+        env.set_debug_level(3);
+
     endfunction
 
 
@@ -179,7 +181,7 @@ module fifo_async_unit_test #(
         //
         // Desc:
         //   - sends one item into FIFO 
-	//   - reads item out and compares to expected
+        //   - reads item out and compares to expected
         //
         //===================================
         `SVTEST(single_item)
@@ -304,7 +306,7 @@ module fifo_async_unit_test #(
             end
         `SVTEST_END
 
-	  
+  
         //===================================
         // Test:
         //   _slow_to_fast_fill_empty
@@ -377,7 +379,7 @@ module fifo_async_unit_test #(
             `FAIL_UNLESS(empty == 1);
         `SVTEST_END
 
-	  
+
         //===================================
         // Test:
         //   _full

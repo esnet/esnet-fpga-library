@@ -17,9 +17,11 @@
 
 // Base agent class for verification
 // - interface class (not to be implemented directly)
-// - describes interface for 'generic' agents, where methods are to be
-//   implemented by derived class
-class agent extends base;
+// - describes interface for 'generic' agents, where methods are to be implemented by derived class
+class agent extends component;
+
+    local static const string __CLASS_NAME = "std_verif_pkg::agent";
+
     //===================================
     // Methods
     //===================================
@@ -28,12 +30,16 @@ class agent extends base;
         super.new(name);
     endfunction
 
+    // Configure trace output
+    // [[ overrides std_verif_pkg::base.trace_msg() ]]
+    function automatic void trace_msg(input string msg);
+        _trace_msg(msg, __CLASS_NAME);
+    endfunction
+
     //===================================
     // Virtual Methods
     // (to be implemented by derived class)
     //===================================
-    // Reset agent state
-    virtual function automatic void reset(); endfunction
     // Reset client
     virtual task reset_client(); endtask
     // Put all (driven) interfaces into idle state

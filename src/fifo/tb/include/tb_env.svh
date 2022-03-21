@@ -53,8 +53,6 @@ class tb_env #(
         this.monitor.raw_vif = _rd_vif;
 
         this.scoreboard = new();
-
-        reset();
     endfunction
 
     automatic function void reset_driver_mode();
@@ -67,9 +65,11 @@ class tb_env #(
     endfunction
 
     automatic function void reset();
+        trace_msg("reset()");
         super.reset();
         reset_driver_mode();
         reset_monitor_mode();
+        trace_msg("reset() Done.");
     endfunction
 
 endclass

@@ -20,17 +20,22 @@ package std_verif_pkg;
     // Base classes
     `include "base.svh"
     `include "transaction.svh"
+    `include "component.svh"
     `include "agent.svh"
     `include "driver.svh"
     `include "monitor.svh"
     `include "model.svh"
+    `include "predictor.svh"
     `include "scoreboard.svh"
     `include "env.svh"
+
 
     // Basic implementation classes
     `include "raw_transaction.svh"
     `include "raw_driver.svh"
     `include "raw_monitor.svh"
+    `include "raw_model.svh"
+    `include "raw_predictor.svh"
     `include "raw_scoreboard.svh"
 
     `include "component_env.svh"
@@ -38,6 +43,9 @@ package std_verif_pkg;
 
     `include "wire_model.svh"
     `include "wire_env.svh"
+
+    `include "event_scoreboard.svh"
+    `include "table_scoreboard.svh"
 
     // Typedefs
     typedef enum {

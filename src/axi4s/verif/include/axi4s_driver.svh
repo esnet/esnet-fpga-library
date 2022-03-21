@@ -22,6 +22,8 @@ class axi4s_driver #(
     parameter type TUSER_T = bit
 ) extends std_verif_pkg::driver#(axi4s_transaction#(TID_T, TDEST_T, TUSER_T));
 
+    local static const string __CLASS_NAME = "axi4s_verif_pkg::axi4s_driver";
+
     //===================================
     // Properties
     //===================================
@@ -53,31 +55,37 @@ class axi4s_driver #(
         this._BIGENDIAN = BIGENDIAN;
     endfunction
 
+    // Configure trace output
+    // [[ overrides std_verif_pkg::base.trace_msg() ]]
+    function automatic void trace_msg(input string msg);
+        _trace_msg(msg, __CLASS_NAME);
+    endfunction
+
     // Set minimum inter-packet gap (in clock cycles)
     function automatic void set_min_gap(input int min_pkt_gap);
         this._min_pkt_gap = min_pkt_gap;
     endfunction
 
     // Reset driver state
-    // [[ implements _reset() virtual method of std_verif_pkg::driver parent class ]]
+    // [[ implements std_verif_pkg::driver._reset() ]]
     function automatic void _reset();
         // Nothing to do
     endfunction
 
     // Put (driven) AXI-S interface in idle state
-    // [[ implements idle() virtual method of std_verif_pkg::driver parent class ]]
+    // [[ implements std_verif_pkg::driver.idle() ]]
     task idle();
         axis_vif.idle_tx();
     endtask
 
     // Wait for specified number of 'cycles' on the driven interface
-    // [[ implements _wait() virtual method of std_verif_pkg::driver parent class ]]
+    // [[ implements std_verif_pkg::driver._wait() ]]
     task _wait(input int cycles);
         axis_vif._wait(cycles);
     endtask
 
     // Wait for interface to be ready to accept transactions (after reset/init, for example)
-    // [[ implements wait_ready() virtual method of std_verif_pkg::driver parent class ]]
+    // [[ implements std_verif_pkg::driver.wait_ready() ]]
     task wait_ready();
         bit timeout;
         axis_vif.wait_ready(timeout, 0);
@@ -110,7 +118,7 @@ class axi4s_driver #(
                     tkeep = {<<{tkeep}};
                 end
                 if (data.size() == 0) tlast = 1'b1;
-                debug_msg($sformatf("send_raw: Sending word %0d.", word_idx));
+                trace_msg($sformatf("send_raw: Sending word %0d.", word_idx));
                 axis_vif.send(tdata, tkeep, tlast, id, dest, user, twait);
                 tdata = 0;
                 tkeep = 0;
@@ -124,8 +132,8 @@ class axi4s_driver #(
     endtask
 
     // Send AXI-S transaction on AXI-S bus
-    // [[ implements send() virtual method of std_verif_pkg::driver parent class ]]
-    task send(
+    // [[ implements std_verif_pkg::driver._send() ]]
+    task _send(
             input axi4s_transaction#(TID_T, TDEST_T, TUSER_T) transaction
         );
 
@@ -178,7 +186,7 @@ class axi4s_driver #(
         for (int i = start_idx; i < num_pkts; i++) begin
 
             // Create new packet transaction from next PCAP record
-            packet_verif_pkg::packet_raw packet = new(
+            packet_verif_pkg::packet_raw packet = packet_verif_pkg::packet_raw::create_from_bytes(
                 $sformatf("Packet %0d", pkt_idx),
                 pkt_data[i]
             );
@@ -195,7 +203,7 @@ class axi4s_driver #(
             info_msg($sformatf("TID %d: Sending packet # %0d (of %0d)...", id, pkt_idx+1, num_pkts));
 
             // Send transaction
-            send(transaction);
+            _send(transaction);
 
             info_msg($sformatf("TID %d: Done. Packet # %0d (of %0d) sent.", id, pkt_idx+1, num_pkts));
 

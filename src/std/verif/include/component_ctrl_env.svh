@@ -28,6 +28,8 @@ class component_ctrl_env #(
     parameter type AGENT_T = agent
 ) extends component_env#(TRANSACTION_IN_T, TRANSACTION_OUT_T, DRIVER_T, MONITOR_T, MODEL_T, SCOREBOARD_T);
     
+    local static const string __CLASS_NAME = "std_verif_pkg::component_ctrl_env";
+
     //===================================
     // Properties
     //===================================
@@ -41,42 +43,48 @@ class component_ctrl_env #(
         super.new(name);
     endfunction
 
+    // Configure trace output
+    // [[ overrides std_verif_pkg::base.trace_msg() ]]
+    function automatic void trace_msg(input string msg);
+        _trace_msg(msg, __CLASS_NAME);
+    endfunction
+
     // Set debug level (verbosity)
-    // [[ overrides std_verif_pkg::base.set_debug_level() superclass method ]]
+    // [[ overrides std_verif_pkg::base.set_debug_level() ]]
     function automatic void set_debug_level(input int DEBUG_LEVEL);
         super.set_debug_level(DEBUG_LEVEL);
         agent.set_debug_level(DEBUG_LEVEL);
     endfunction
 
     // Reset environment
-    // [[ overrides env_component.reset() superclass method ]]
-    function automatic void reset();
-        debug_msg("--- component_ctrl_env.reset() ---");
+    // [[ overrides component_env.reset() ]]
+    virtual function automatic void reset();
+        trace_msg("reset()");
         super.reset();
         agent.reset();
-        debug_msg("--- component_ctrl_env.reset() Done. ---");
+        trace_msg("reset() Done.");
     endfunction
 
     // Put all (driven) interfaces into quiescent state
-    // [[ overrides env_component.idle() superclass method ]]
-    task idle();
-        debug_msg("--- component_ctrl_env.idle() ---");
+    // [[ overrides component_env.idle() ]]
+    virtual task idle();
+        trace_msg("idle()");
         fork
             super.idle();
             agent.idle();
         join
-        debug_msg("--- component_ctrl_env.idle() Done. ---");
+        trace_msg("idle() Done.");
     endtask
 
     // Wait for environment to be ready for transactions (after init/reset for example)
-    // [[ overrides superclass wait_ready() method ]]
-    task wait_ready();
-        debug_msg("--- component_ctrl_env.wait_ready() ---");
+    // [[ overrides component_env.wait_ready() method ]]
+    virtual task wait_ready();
+        trace_msg("wait_ready()");
         fork
             super.wait_ready();
             agent.wait_ready();
         join
-        debug_msg("--- component_ctrl_env.wait_ready() Done. ---");
+        trace_msg("wait_ready() Done.");
     endtask
 
 endclass
