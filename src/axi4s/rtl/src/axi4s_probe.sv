@@ -16,8 +16,10 @@
 // =============================================================================
 
 // axi4s_probe module used to monitor an axi4s interface via the regmap
-module axi4s_probe #(
-   parameter logic DROP_COUNTS = 0
+module axi4s_probe
+   import axi4s_pkg::*;
+#(
+   parameter axi4s_probe_mode_t MODE = GOOD
 )  (
    axi4s_intf.prb          axi4s_if, 
    axi4l_intf.peripheral   axi4l_if
@@ -60,8 +62,16 @@ module axi4s_probe #(
 
    logic        count_enable;
 
-   assign count_enable = DROP_COUNTS ? (!axi4s_if.tready && axi4s_if.tvalid) :
-                                       ( axi4s_if.tready && axi4s_if.tvalid) ;
+   always_comb begin
+      count_enable = 1'b0;
+      case (MODE)
+         GOOD:    count_enable = ( axi4s_if.tready && axi4s_if.tvalid);
+         OVFL:    count_enable = (!axi4s_if.tready && axi4s_if.tvalid);
+         ERRORS:  if (axi4s_if.TUSER_MODE == ERRORED) 
+                     count_enable = (axi4s_if.tready && axi4s_if.tvalid && axi4s_if.tuser);
+         default: count_enable = 1'b0;
+      endcase
+   end
 
    always @(posedge axi4s_if.aclk) 
       if (!axi4s_if.aresetn || reg_if.byte_count_lower_rd_evt) begin
