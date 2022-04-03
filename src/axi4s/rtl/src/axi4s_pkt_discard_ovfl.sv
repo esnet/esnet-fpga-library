@@ -16,15 +16,14 @@
 // =============================================================================
 
 // -----------------------------------------------------------------------------
-// axi4s_pkt_discard is used to discard the full ingress packet when an axi4s 
-// data transaction fails due fifo overflow.  
-// This component should be used on any axi4s interface that ignores the tready 
-// flow control signal.
-// axi4s_pkt_discard is a synchronous component which employs a memory sized to
+// axi4s_pkt_discard_ovfl is used to discard the full ingress packet when an axi4s 
+// data transaction fails due fifo overflow.   This component should be used on 
+// any axi4s interface that ignores the tready flow control signal. 
+// axi4s_pkt_discard_ovfl is a synchronous component which employs a memory sized to
 // buffer up to 3 max packets.
 // -----------------------------------------------------------------------------
 
-module axi4s_pkt_discard
+module axi4s_pkt_discard_ovfl
    import mem_pkg::*;
 #(
    parameter int MAX_PKT_LEN = 9100,  // max number of bytes per packet.
