@@ -37,7 +37,7 @@ module axi4s_pkt_fifo_async #(
    axi4s_intf.tx   axi4s_out_if,
 
    axi4l_intf.peripheral axil_to_probe,
-   axi4l_intf.peripheral axil_to_drops,
+   axi4l_intf.peripheral axil_to_ovfl,
    axi4l_intf.peripheral axil_if
 );
    import axi4s_pkg::*;
@@ -71,14 +71,14 @@ module axi4s_pkt_fifo_async #(
    logic                uflow;
 
    localparam DATA_WIDTH = $size(wr_data);
-   localparam PKT_DISCARD_DEPTH = $ceil(MAX_PKT_LEN/64.0) * 3;  // axi4s_pkt_discard block buffers 3 max pkts.
+   localparam PKT_DISCARD_DEPTH = $ceil(MAX_PKT_LEN/64.0) * 3; // axi4s_pkt_discard_ovfl buffers 3 max pkts.
    localparam FIFO_ASYNC_DEPTH = FIFO_DEPTH;
    localparam ALMOST_FULL_THRESH = 4;
 
 
-   // --- axi4s_pkt_discard instantiation (if interface MODE == IGNORES_TREADY) ---
+   // --- axi4s_pkt_discard_ovfl instantiation (if interface MODE == IGNORES_TREADY) ---
    generate
-      if (axi4s_in_if.MODE == IGNORES_TREADY) begin : g__pkt_discard
+      if (axi4s_in_if.MODE == IGNORES_TREADY) begin : g__pkt_discard_ovfl
          // connector drives axi4s_in_if.tready to 1'b1 when interface operates in IGNORE_TREADY mode.
          axi4s_intf_connector axi4s_in_connector (
             .axi4s_from_tx (axi4s_in_if),
@@ -90,24 +90,24 @@ module axi4s_pkt_fifo_async #(
             .axi4s_if  (__axi4s_in_if)
          );
 
-         axi4s_probe #( .DROP_COUNTS('1) ) axi4s_drops (
-            .axi4l_if  (axil_to_drops),
+         axi4s_probe #( .MODE(OVFL) ) axi4s_ovfl (
+            .axi4l_if  (axil_to_ovfl),
             .axi4s_if  (__axi4s_in_if)
          );
    
-         axi4s_pkt_discard #(
+         axi4s_pkt_discard_ovfl #(
              .MAX_PKT_LEN  (MAX_PKT_LEN),
              .DATA_WID     (DATA_WIDTH)
-         ) axi4s_pkt_discard_0 (
+         ) axi4s_pkt_discard_ovfl_0 (
              .axi4s_in_if  (__axi4s_in_if),
              .axi4s_out_if (axi4s_to_fifo)
          );
 
          assign axi4s_to_fifo.tready = !almost_full;
          assign wr = axi4s_to_fifo.tvalid;
-      end : g__pkt_discard
+      end : g__pkt_discard_ovfl
 
-      else begin : g__no_pkt_discard
+      else begin : g__no_pkt_discard_ovfl
          axi4s_intf_connector axi4s_in_connector (
              .axi4s_from_tx (axi4s_in_if),
              .axi4s_to_rx   (axi4s_to_fifo)
@@ -118,11 +118,11 @@ module axi4s_pkt_fifo_async #(
             .axi4s_if  (axi4s_to_fifo)
          );
 
-         axi4l_intf_peripheral_term axi4l_to_drops_peripheral_term (.axi4l_if(axil_to_drops));
+         axi4l_intf_peripheral_term axi4l_to_ovfl_peripheral_term (.axi4l_if(axil_to_ovfl));
 
          assign axi4s_to_fifo.tready = !full;
          assign wr = axi4s_to_fifo.tvalid && axi4s_to_fifo.tready;
-      end : g__no_pkt_discard
+      end : g__no_pkt_discard_ovfl
 
    endgenerate
 
