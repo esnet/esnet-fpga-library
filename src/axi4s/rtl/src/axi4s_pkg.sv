@@ -37,4 +37,15 @@ package axi4s_pkg;
         IGNORES_TREADY
     } axi4s_mode_t;
 
+    typedef enum logic {
+        USER,
+        ERRORED
+    } axi4s_tuser_mode_t;
+
+    typedef enum int {
+        GOOD,
+        OVFL,
+        ERRORS
+    } axi4s_probe_mode_t;
+
 endpackage : axi4s_pkg

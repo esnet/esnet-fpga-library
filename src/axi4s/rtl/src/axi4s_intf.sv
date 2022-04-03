@@ -19,6 +19,7 @@ interface axi4s_intf
     import axi4s_pkg::*;
 #(
     parameter axi4s_mode_t MODE = STANDARD,
+    parameter axi4s_tuser_mode_t TUSER_MODE = USER,
     parameter int  DATA_BYTE_WID = 8,
     parameter type TID_T = bit,
     parameter type TDEST_T = bit,
@@ -138,6 +139,7 @@ interface axi4s_intf
         cb_tx.tdata <= _tdata;
         cb_tx.tid <= _tid;
         cb_tx.tdest <= _tdest;
+        cb_tx.tuser <= _tuser;
         @(cb_tx);
         wait (cb_tx.tvalid && cb_tx.tready);
         cb_tx.tvalid <= 1'b0;
