@@ -63,22 +63,20 @@ module axi4s_pkt_discard_err
    axi4s_intf  #( 
       .MODE          (axi4s_in_if.MODE), 
       .TUSER_MODE    (axi4s_in_if.TUSER_MODE), 
-      .DATA_BYTE_WID (axi4s_in_if.DATA_BYTE_WID), 
-      .TID_T         (axi4s_in_if.TID_T), 
-      .TDEST_T       (axi4s_in_if.TDEST_T)
+      .DATA_BYTE_WID (axi4s_in_if.DATA_BYTE_WID)
    ) __axi4s_in_if ();
 
    // __axis4s_in_if assignments. ensure tuser is high for full packet if error is detected on sop.
    assign __axi4s_in_if.aclk    = axi4s_in_if.aclk;
    assign __axi4s_in_if.aresetn = axi4s_in_if.aresetn;
-   assign __axi4s_in_if.tvalid  = axi4s_in_if.tvalid;
-   assign __axi4s_in_if.tdata   = axi4s_in_if.tdata;
-   assign __axi4s_in_if.tkeep   = axi4s_in_if.tkeep;
-   assign __axi4s_in_if.tdest   = axi4s_in_if.tdest;
-   assign __axi4s_in_if.tid     = axi4s_in_if.tid;
-   assign __axi4s_in_if.tlast   = axi4s_in_if.tlast;
-   assign __axi4s_in_if.tuser   = err_sop || err_pkt;
    assign __axi4s_in_if.tready  = axi4s_in_if.tready;
+   assign __axi4s_in_if.tvalid  = axi4s_in_if.tvalid;
+   assign __axi4s_in_if.tlast   = axi4s_in_if.tlast;
+   assign __axi4s_in_if.tkeep   = axi4s_in_if.tkeep;
+   assign __axi4s_in_if.tuser   = err_sop || err_pkt;
+   assign __axi4s_in_if.tdata   = '0;
+   assign __axi4s_in_if.tid     = '0;
+   assign __axi4s_in_if.tdest   = '0;
 
    // instantiate error counters
    axi4s_probe #( .MODE(ERRORS) ) axi4s_errors (
