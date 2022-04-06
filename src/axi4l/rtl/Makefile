@@ -29,7 +29,8 @@ COMPONENTS = xilinx_ip \
              sync_rtl=$(LIB_ROOT)/src/sync/rtl \
              reg_rtl=$(LIB_ROOT)/src/reg/rtl \
              mem_rtl=$(LIB_ROOT)/src/mem/rtl \
-             util_rtl=$(LIB_ROOT)/src/util/rtl
+             util_rtl=$(LIB_ROOT)/src/util/rtl \
+             apb_rtl=$(LIB_ROOT)/src/apb/rtl
 
 EXT_LIBS =
 
