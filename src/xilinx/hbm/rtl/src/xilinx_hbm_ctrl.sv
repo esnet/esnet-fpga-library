@@ -29,6 +29,7 @@ module xilinx_hbm_ctrl
     axi3_intf.controller  axi_if [PSEUDO_CHANNELS],
     
     // APB (management) interface
+    input logic           apb_clk,
     apb_intf.controller   apb_if,
 
     // Status
@@ -51,6 +52,7 @@ module xilinx_hbm_ctrl
     axi4l_intf hbm_axil_if ();
     axi4l_intf hbm_axil_if__clk ();
     axi4l_intf hbm_channel_axil_if ();
+    axi4l_intf hbm_channel_axil_if__apb_clk ();
 
     apb_intf hbm_channel_apb_if ();
 
@@ -74,9 +76,9 @@ module xilinx_hbm_ctrl
     );
 
     // HBM main control
-    xilinx_hbm i_xilinx_hbm (
-        .axil_if ( hbm_axil_if__clk ),
-        .reg_if  ( reg_if )
+    xilinx_hbm_reg_blk i_xilinx_hbm_reg_blk (
+        .axil_if    ( hbm_axil_if__clk ),
+        .reg_blk_if ( reg_if )
     );
 
     // Block-level reset control
@@ -98,10 +100,17 @@ module xilinx_hbm_ctrl
     // -----------------------------
     // Drive HBM channel config/status registers
     // -----------------------------
+    // CDC
+    axi4l_intf_cdc i_axi4l_hbm_channel_cdc (
+        .axi4l_if_from_controller( hbm_channel_axil_if ),
+        .clk_to_peripheral       ( apb_clk ),
+        .axi4l_if_to_peripheral  ( hbm_channel_axil_if__apb_clk )
+    );
+
     // Bridge to APB
     axi4l_apb_bridge i_axi4l_apb_bridge (
-        .axil_if ( hbm_channel_axil_if ),
-        .apb_if  ( hbm_channel_apb_if )
+        .axi4l_if ( hbm_channel_axil_if__apb_clk ),
+        .apb_if   ( hbm_channel_apb_if )
     );
 
     // Encode channel select address bits per Xilinx PG276 (v1.0):
@@ -128,16 +137,16 @@ module xilinx_hbm_ctrl
     assign apb_if.pwrite  = hbm_channel_apb_if.pwrite;
     assign apb_if.pwdata  = hbm_channel_apb_if.pwdata;
     assign apb_if.pstrb   = hbm_channel_apb_if.pstrb;
-    assign hbm_channel_if.pready  = apb_if.pready;
-    assign hbm_channel_if.prdata  = apb_if.prdata;
-    assign hbm_channel_if.pslverr = apb_if.pslverr;
+    assign hbm_channel_apb_if.pready  = apb_if.pready;
+    assign hbm_channel_apb_if.prdata  = apb_if.prdata;
+    assign hbm_channel_apb_if.pslverr = apb_if.pslverr;
 
     // -----------------------------
     // Terminate unused AXI control interfaces
     // -----------------------------
     generate
-        for (genvar g_if = 1; g_if < PSEUDO_CHANNELS; g_if++) begin : g__axi3_if_tieoff
-            axi3_controller_term i_axi3_controller_term (
+        for (genvar g_if = 0; g_if < PSEUDO_CHANNELS; g_if++) begin : g__axi3_if_tieoff
+            axi3_intf_controller_term i_axi3_intf_controller_term (
                 .axi3_if ( axi_if [g_if] )
             );
         end : g__axi3_if_tieoff

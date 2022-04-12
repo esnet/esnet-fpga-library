@@ -21,7 +21,7 @@ module xilinx_hbm_4g_if
     // Proprietary HBM interface
     // -----------------------------------------
     // HBM reference clock
-    input                hbm_clk,
+    input                hbm_ref_clk,
 
     // AXI3 memory channel interfaces
     axi3_intf.peripheral axi_if [PSEUDO_CHANNELS],
@@ -606,7 +606,7 @@ module xilinx_hbm_4g_if
     // Map from wrapper interface to raw IP
     // ---------------------------------------
     // Clock
-    assign HBM_REF_CLK_0 = hbm_clk;
+    assign HBM_REF_CLK_0 = hbm_ref_clk;
 
     // DRAM status
     assign dram_status_cattrip = DRAM_0_STAT_CATTRIP;
