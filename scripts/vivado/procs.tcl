@@ -96,8 +96,15 @@ namespace eval vivadoProcs {
         # -----------------------------------------------
         eval ${phase}_design $topArg $modeArg $flattenArg
 
+        # Mark as OOC as appropriate
+        if ${ooc} {
+            set_property HD.PARTITION 1 [current_design]
+        }
+
+        # Write DCP
         write_checkpoint -force $out_dir/$top.$phase.dcp
 
+        # Write reports
         run_reports $top.$phase $out_dir
     }
 
