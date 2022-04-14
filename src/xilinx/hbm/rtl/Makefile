@@ -26,6 +26,7 @@ SRC_LIST_FILES =
 #   (see $SCRIPTS_ROOT/Makefiles/dependencies.mk)
 # ----------------------------------------------------
 COMPONENTS = reg \
+             sync_rtl=$(LIB_ROOT)/src/sync/rtl \
              apb_rtl=$(LIB_ROOT)/src/apb/rtl \
              axi3_rtl=$(LIB_ROOT)/src/axi3/rtl
 EXT_LIBS =
