@@ -3,15 +3,13 @@ include:
 
 stages:
   - rtl_sim
-  - trigger_downstream
+#  - trigger_downstream
 
 variables:
   GIT_STRATEGY: clone
 
 .common:
   image: $CI_REGISTRY/ht/xilinx-tools-docker:21975-g8bb7b6c3
-  tags:
-    - ht-docker
   before_script:
     - source /opt/Xilinx/Vivado/2021.2/settings64.sh
   variables:
@@ -24,6 +22,8 @@ variables:
 rtl_sim:
   stage: rtl_sim
   extends: .common
+  tags:
+    - ht-sim
   script:
     - make -C src/axi4l/tests/regression
     - grep 'PASSED.*suites passing' src/axi4l/tests/regression/run_0/sim.log
@@ -60,10 +60,10 @@ rtl_sim:
     when: always
   timeout: 1h
 
-trigger_downstream_job:
-  stage: trigger_downstream
-  trigger:
-    project: ht/esnet-smartnic-hw
-    branch: main
-  rules:
-    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+#trigger_downstream_job:
+#  stage: trigger_downstream
+#  trigger:
+#    project: ht/esnet-smartnic-hw
+#    branch: main
+#  rules:
+#    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
