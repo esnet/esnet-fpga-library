@@ -1,7 +1,7 @@
 # -----------------------------------------------
 # Path setup
 # -----------------------------------------------
-IP_ROOT := ..
+IP_ROOT := ../..
 
 # -----------------------------------------------
 # IP config
@@ -25,13 +25,8 @@ SRC_LIST_FILES =
 #   List IP component and external library dependencies
 #   (see $SCRIPTS_ROOT/Makefiles/dependencies.mk)
 # ----------------------------------------------------
-COMPONENTS = xilinx_ip \
-             sync_rtl=$(LIB_ROOT)/src/sync/rtl \
-             reg_rtl=$(LIB_ROOT)/src/reg/rtl \
-             mem_rtl=$(LIB_ROOT)/src/mem/rtl \
-             util_rtl=$(LIB_ROOT)/src/util/rtl \
-             apb_rtl=$(LIB_ROOT)/src/apb/rtl
-
+COMPONENTS = reg \
+             reg_verif=$(LIB_ROOT)/src/reg/verif
 EXT_LIBS =
 
 # ----------------------------------------------------
@@ -52,13 +47,18 @@ SIM_OPTS=
 # ----------------------------------------------------
 all: compile
 
-compile: _compile
+compile: reg
+	$(MAKE) _compile
+
+reg:
+	@$(MAKE) -C .. _reg
 
 clean: _clean_compile
 
-.PHONY: all compile clean
+.PHONY: all compile reg clean
 
 # ----------------------------------------------------
 # Import Vivado compile targets
 # ----------------------------------------------------
+COMPONENT_NAME = reg_verif
 include $(SCRIPTS_ROOT)/Makefiles/vivado_compile.mk

@@ -1,0 +1,17 @@
+name: xilinx_hbm
+
+blocks:
+  xilinx_hbm: &xilinx_hbm
+    !include src/xilinx/hbm/reg/xilinx_hbm.yaml
+  xilinx_hbm_channel: &xilinx_hbm_channel
+    !include src/xilinx/hbm/reg/xilinx_hbm_channel.yaml
+
+interfaces:
+  - block: *xilinx_hbm
+    address: 0x0000
+    width: 10
+    name: xilinx_hbm
+  - block: *xilinx_hbm_channel
+    address: 0x20000
+    width: 17
+    name: xilinx_hbm_channel
