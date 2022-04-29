@@ -1,0 +1,70 @@
+name: reg_proxy
+info: |
+  This block describes a register-indirect proxy interface, to
+  be used, e.g., for mapping large (or sparse) memory address spaces
+  into a memory window that can be accommodated in a small register
+  map.
+regs:
+  - default:
+      width: 32
+      access: ro
+      init: 0
+
+  - name: command
+    desc: Command register.
+    access: wr_evt
+    fields:
+        - name: wr_rd_n
+          desc: Write when asserted, read when deasserted.
+          width: 1
+          init: 0
+
+  - name: status
+    desc: Status register
+    access: rd_evt
+    fields:
+        - name: ready
+          desc: Ready for next transaction.
+          width: 1
+        - name: done
+          desc: Completion flag; indicates that the last transaction completed.
+          width: 1
+        - name: error
+          desc: Error flag; indicates that the last transaction resulted in an error. Clear on read.
+          width: 1
+
+  - name: address
+    desc: Address register.
+    access: rw
+    init: 0
+
+  - name: wr_data
+    desc: Write data register
+    access: rw
+    init: 0
+
+  - name: wr_byte_en
+    desc: Write byte enable register
+    access: rw
+    fields:
+        - name: byte_0
+          desc: Byte 0 enable
+          width : 1
+          init: 1
+        - name: byte_1
+          desc: Byte 1 enable
+          width : 1
+          init: 1
+        - name: byte_2
+          desc: Byte 2 enable
+          width : 1
+          init: 1
+        - name: byte_3
+          desc: Byte 3 enable
+          width : 1
+          init: 1
+
+  - name: rd_data
+    desc: Read data register
+    access: ro
+
