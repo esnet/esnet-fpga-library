@@ -159,17 +159,19 @@ interface axi4l_intf
             output bit                timeout,
             input  int RD_TIMEOUT = DEFAULT_RD_TIMEOUT
         );
-        timeout = 1'b0;
         resp = axi4l_pkg::RESP_SLVERR;
         fork
             begin
                 fork
                     begin
+                        timeout = 1'b0;
                         _read(addr, data, resp);
                     end
                     begin
-                        _wait(RD_TIMEOUT);
-                        timeout = 1'b1;
+                        if (RD_TIMEOUT > 0) begin
+                            _wait(RD_TIMEOUT);
+                            timeout = 1'b1;
+                        end else forever _wait(1);
                     end
                 join_any
                 disable fork;
@@ -245,17 +247,19 @@ interface axi4l_intf
             input  int WR_TIMEOUT = DEFAULT_WR_TIMEOUT,
             input  bit RANDOMIZE_AW_W_ALIGNMENT = 1'b0
         );
-        timeout = 1'b0;
         resp = axi4l_pkg::RESP_SLVERR;
         fork
             begin
                 fork
                     begin
+                        timeout = 1'b0;
                         _write(addr, data, strb, resp, RANDOMIZE_AW_W_ALIGNMENT);
                     end
                     begin
-                        _wait(WR_TIMEOUT);
-                        timeout = 1'b1;
+                        if (WR_TIMEOUT > 0) begin
+                            _wait(WR_TIMEOUT);
+                            timeout = 1'b1;
+                        end else forever _wait(1);
                     end
                 join_any
                 disable fork;
