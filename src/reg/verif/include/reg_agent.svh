@@ -77,33 +77,53 @@ class reg_agent #(
     task write_reg(input addr_t addr, input data_t data);
         bit error, timeout;
         string msg;
+
+        trace_msg("write_reg()");
+
         _write(addr, data, error, timeout, msg);
         if (error) handle_write_error(addr, msg);
         else if (timeout) handle_write_timeout(addr, msg);
+
+        trace_msg("write_reg() Done.");
     endtask
 
     task write_byte(input addr_t addr, input byte data);
         bit error, timeout;
         string msg;
+
+        trace_msg("write_byte()");
+
         _write_byte(addr, data, error, timeout, msg);
         if (error) handle_write_error(addr, msg);
         else if (timeout) handle_write_timeout(addr, msg);
+
+        trace_msg("write_byte() Done.");
     endtask
 
     task read_reg(input addr_t addr, output data_t data);
         bit error, timeout;
         string msg;
+
+        trace_msg("read_reg()");
+
         _read(addr, data, error, timeout, msg);
         if (error) handle_read_error(addr, msg);
         else if (timeout) handle_read_timeout(addr, msg);
+
+        trace_msg("read_reg() Done.");
     endtask
 
     task read_byte(input addr_t addr, output byte data);
         bit error, timeout;
         string msg;
+
+        trace_msg("read_byte()");
+
         _read_byte(addr, data, error, timeout, msg);
         if (error) handle_read_error(addr, msg);
         else if (timeout) handle_read_timeout(addr, msg);
+
+        trace_msg("read_byte() Done.");
     endtask
 
     task check_reg(
