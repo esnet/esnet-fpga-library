@@ -1,4 +1,4 @@
-name: xilinx_hbm
+name: xilinx_hbm_apb
 info: |
   This register map describes the register map for the Xilinx
   AXI HBM Memory Controller (v1.0).
