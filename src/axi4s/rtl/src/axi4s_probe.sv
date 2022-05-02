@@ -54,43 +54,54 @@ module axi4s_probe
    );
 
    // packet and byte counter logic    
-   logic [49:0] pkt_count;
-   logic        pkt_count_incr;
-
-   logic [55:0] byte_count;
-   logic [7:0]  byte_count_incr;
-
-   logic        count_enable;
-
+   logic incr_en;
    always_comb begin
-      count_enable = 1'b0;
+      incr_en = 1'b0;
       case (MODE)
-         GOOD:    count_enable = ( axi4s_if.tready && axi4s_if.tvalid);
-         OVFL:    count_enable = (!axi4s_if.tready && axi4s_if.tvalid);
-         ERRORS:  if (axi4s_if.TUSER_MODE == ERRORED) 
-                     count_enable = (axi4s_if.tready && axi4s_if.tvalid && axi4s_if.tuser);
-         default: count_enable = 1'b0;
+         GOOD:    incr_en = ( axi4s_if.tready && axi4s_if.tvalid);
+         OVFL:    incr_en = (!axi4s_if.tready && axi4s_if.tvalid);
+         ERRORS:  incr_en = ( axi4s_if.tready && axi4s_if.tvalid);  // see below for pkt_error handling.
+         default: incr_en = 1'b0;
       endcase
    end
+
+   logic  pkt_error;
+   assign pkt_error = (axi4s_if.TUSER_MODE == PKT_ERROR) && axi4s_if.tuser;
+   
+   logic        pkt_count_incr;
+   logic [49:0] pkt_count;
+   logic [7:0]  byte_count_incr;
+   logic [55:0] byte_count;
+
+   logic        byte_count_val;
+   logic [55:0] byte_count_prev;
+   logic        restore_count;
 
    always @(posedge axi4s_if.aclk) 
       if (!axi4s_if.aresetn || reg_if.byte_count_lower_rd_evt) begin
          pkt_count_incr  <= 0;
-         pkt_count       <= 0;
          byte_count_incr <= 0;
+         byte_count_val  <= 0;
+         byte_count_prev <= 0;
+         restore_count   <= 0;
+         pkt_count       <= 0;
          byte_count      <= 0;
 
       end else if (!reg_if.halt_counters[0]) begin
-         if (count_enable && axi4s_if.tlast) pkt_count_incr <= 1;
-         else                                pkt_count_incr <= 0;
+         byte_count_incr <= incr_en ? count_ones(axi4s_if.tkeep) : 0;
+         pkt_count_incr  <= incr_en && axi4s_if.tlast;
 
-         pkt_count <= pkt_count + {49'd0, pkt_count_incr};
+         byte_count_val  <= pkt_count_incr;  // byte_count is valid on cycle that increments pkt_count.
+         if (byte_count_val) byte_count_prev <= byte_count;  // store previous byte_count on tlast.
 
-         if (count_enable) byte_count_incr <= count_ones(axi4s_if.tkeep);
-         else              byte_count_incr <= 0;
-
-         byte_count <= byte_count + {48'd0, byte_count_incr};
-      end 
+         // if counting ERRORS, restore previous byte_count if NO pkt_error is detected on tlast.
+         // else (if counting GOOD pkts), restore previous byte_count if PKT_ERROR is detected on tlast.
+         if (MODE == ERRORS) restore_count <= incr_en && axi4s_if.tlast && !pkt_error;
+         else                restore_count <= incr_en && axi4s_if.tlast &&  pkt_error;
+         
+         pkt_count  <= restore_count ? pkt_count : (pkt_count  + {49'd0, pkt_count_incr});
+         byte_count <= restore_count ? byte_count_prev : (byte_count + {48'd0, byte_count_incr});
+       end 
 
    // register read interface connections
    assign reg_if.pkt_count_upper_nxt  =  {14'd0,  pkt_count[49:32] };
