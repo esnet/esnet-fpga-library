@@ -32,7 +32,7 @@ module axi4s_pkt_discard_err
 
    // assert err_sop if first axi4s transaction has error flag set.
    assign err_sop = axi4s_in_if.tvalid && axi4s_in_if.tready && axi4s_in_if.sop &&
-                   (axi4s_in_if.TUSER_MODE == ERRORED) && axi4s_in_if.tuser;
+                   (axi4s_in_if.TUSER_MODE == PKT_ERROR) && axi4s_in_if.tuser;
 
    always @(posedge axi4s_in_if.aclk)
       if (~axi4s_in_if.aresetn) err_pkt <= 0;
