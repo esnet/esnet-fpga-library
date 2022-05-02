@@ -37,9 +37,10 @@ package axi4s_pkg;
         IGNORES_TREADY
     } axi4s_mode_t;
 
-    typedef enum logic {
+    typedef enum int {
         USER,
-        ERRORED
+        BUFFER_CONTEXT,
+        PKT_ERROR
     } axi4s_tuser_mode_t;
 
     typedef enum int {
@@ -47,5 +48,10 @@ package axi4s_pkg;
         OVFL,
         ERRORS
     } axi4s_probe_mode_t;
+
+    typedef struct packed {
+        logic [15:0] wr_ptr;
+        logic        tlast;
+    } tuser_buffer_context_mode_t;
 
 endpackage : axi4s_pkg
