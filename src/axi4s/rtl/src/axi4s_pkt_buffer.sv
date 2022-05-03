@@ -53,11 +53,15 @@ module axi4s_pkt_buffer
 
    localparam int DEPTH = 2**ADDR_WID;
    localparam int DATA_WID = $size(wr_data);
+   localparam bit ASYNC = 0;
 
    // match pipeline stages to mem_ram_sdp_sync_0 pipelining.
-   localparam xilinx_ram_style_t RAM_STYLE = mem_ram_sdp_sync_0.i_mem_sdp_sync_core.__RAM_STYLE;
-   localparam int WR_PIPELINE_STAGES       = mem_ram_sdp_sync_0.i_mem_sdp_sync_core.WR_PIPELINE_STAGES;
-   localparam int RD_PIPELINE_STAGES       = mem_ram_sdp_sync_0.i_mem_sdp_sync_core.RD_PIPELINE_STAGES;
+   localparam xilinx_ram_style_t RAM_STYLE = get_default_ram_style(DEPTH, DATA_WID, ASYNC);
+   localparam int WR_PIPELINE_STAGES       = get_default_wr_pipeline_stages(RAM_STYLE);
+   localparam int RD_PIPELINE_STAGES       = get_default_rd_pipeline_stages(RAM_STYLE);
+   //localparam xilinx_ram_style_t RAM_STYLE = mem_ram_sdp_sync_0.i_mem_sdp_sync_core.__RAM_STYLE;
+   //localparam int WR_PIPELINE_STAGES       = mem_ram_sdp_sync_0.i_mem_sdp_sync_core.WR_PIPELINE_STAGES;
+   //localparam int RD_PIPELINE_STAGES       = mem_ram_sdp_sync_0.i_mem_sdp_sync_core.RD_PIPELINE_STAGES;
 
    logic rd_req_p [RD_PIPELINE_STAGES+1]; // pipelined rd_req.  one additional stage for memory latency.
 
