@@ -23,7 +23,8 @@ module axi4s_pkt_buffer
    import axi4s_pkg::*;
    import mem_pkg::*;
 #(
-   parameter int ADDR_WID = 10  // DEPTH = 2^^ADDR_WID = 2^^10 = 1024
+   parameter int ADDR_WID = 10,  // DEPTH = 2^^ADDR_WID = 2^^10 = 1024
+   parameter bit SIM__FAST_INIT = 1  // Fast memory init to optimize sim time
 )  (
    axi4s_intf.rx             axi4s_in,
    axi4s_intf.tx             axi4s_out,
@@ -113,7 +114,8 @@ module axi4s_pkt_buffer
    mem_ram_sdp_sync #(
       .ADDR_WID  ( ADDR_WID ),
       .DATA_WID  ( DATA_WID ),
-      .RESET_FSM ( 1 )
+      .RESET_FSM ( 1 ),
+      .SIM__FAST_INIT ( SIM__FAST_INIT )
    ) mem_ram_sdp_sync_0 (
       .clk       ( axi4s_in.aclk ),
       .srst      ( ~axi4s_in.aresetn ),
