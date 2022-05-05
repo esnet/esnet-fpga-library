@@ -15,12 +15,27 @@
 //  computer software.
 // =============================================================================
 
-package reg_verif_pkg;
+module axi4l_apb_proxy (
+    axi4l_intf.peripheral axi4l_if,
+    apb_intf.controller   apb_if
+);
+    // Standard register interface
+    reg_intf reg_if ();
 
-    // Testbench class definitions
-    // (declared here to enforce tb_pkg:: namespace for testbench definitions)
-    `include "reg_agent.svh"
-    `include "reg_blk_agent.svh"
-    `include "reg_proxy_agent.svh"
+    // Register-indirect proxy interface
+    // - terminates AXI-L with memory window supporting register-indirect
+    //   access into a (potentially much larger) memory space mapped on
+    //   the APB interface
+    reg_proxy i_reg_proxy (
+        .axil_if ( axi4l_if ),
+        .reg_if  ( reg_if )
+    );
 
-endpackage : reg_verif_pkg
+    // APB controller
+    // - map register control interface to downstream APB interface
+    apb_controller i_apb_controller (
+        .reg_if   ( reg_if ),
+        .apb_if   ( apb_if )
+    );
+
+endmodule : axi4l_apb_proxy

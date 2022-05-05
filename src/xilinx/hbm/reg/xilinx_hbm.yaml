@@ -37,13 +37,3 @@ regs:
         - name: cattrip
           desc: catastrophic temperature tripped flag
           width: 1
-
-  - name: cfg_apb_channel_sel
-    desc: Channel select for APB config/status access.
-    access: rw
-    fields:
-        - name: value
-          desc: Selects memory channel for APB config/status access (via xilinx_hbm_channel regmap).
-          width: 3
-          init: 0
-

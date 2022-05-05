@@ -53,8 +53,6 @@ module xilinx_hbm_ctrl
     // Signals
     // -----------------------------
     logic         local_srst;
-    logic [4:0]   apb_channel_sel__clk;
-    logic [4:0]   apb_channel_sel__apb_clk;
 
     dram_status_t dram_status__apb_clk;
     dram_status_t dram_status__clk;
@@ -64,8 +62,8 @@ module xilinx_hbm_ctrl
     // -----------------------------
     axi4l_intf hbm_axil_if ();
     axi4l_intf hbm_axil_if__clk ();
-    axi4l_intf hbm_channel_axil_if ();
-    axi4l_intf hbm_channel_axil_if__apb_clk ();
+    axi4l_intf hbm_apb_proxy_axil_if ();
+    axi4l_intf hbm_apb_proxy_axil_if__apb_clk ();
 
     apb_intf hbm_channel_apb_if ();
 
@@ -76,13 +74,13 @@ module xilinx_hbm_ctrl
     // -----------------------------
     // Top-level decoder
     xilinx_hbm_decoder i_xilinx_hbm_decoder (
-        .axil_if                    ( axil_if ),
-        .xilinx_hbm_axil_if         ( hbm_axil_if ),
-        .xilinx_hbm_channel_axil_if ( hbm_channel_axil_if )
+        .axil_if                      ( axil_if ),
+        .xilinx_hbm_axil_if           ( hbm_axil_if ),
+        .xilinx_hbm_apb_proxy_axil_if ( hbm_apb_proxy_axil_if )
     );
 
     // CDC
-    axi4l_intf_cdc i_axi4l_hbm_cdc (
+    axi4l_intf_cdc i_axi4l_intf_cdc__hbm (
         .axi4l_if_from_controller( hbm_axil_if ),
         .clk_to_peripheral       ( clk ),
         .axi4l_if_to_peripheral  ( hbm_axil_if__clk )
@@ -112,10 +110,10 @@ module xilinx_hbm_ctrl
         .DATA_T   ( dram_status_t )
     ) i_sync_bus_sampled__dram_status (
         .clk_in   ( apb_if.pclk ),
-        .rst_in   ( !apb_if.presetn ),
+        .rst_in   ( 1'b0 ),
         .data_in  ( dram_status__apb_clk ),
         .clk_out  ( clk ),
-        .rst_out  ( srst ),
+        .rst_out  ( 1'b0 ),
         .data_out ( dram_status__clk )
     );
 
@@ -132,57 +130,17 @@ module xilinx_hbm_ctrl
     // Drive HBM channel config/status registers
     // -----------------------------
     // CDC
-    axi4l_intf_cdc i_axi4l_hbm_channel_cdc (
-        .axi4l_if_from_controller( hbm_channel_axil_if ),
+    axi4l_intf_cdc i_axi4l_intf_cdc__hbm_apb (
+        .axi4l_if_from_controller( hbm_apb_proxy_axil_if ),
         .clk_to_peripheral       ( apb_clk ),
-        .axi4l_if_to_peripheral  ( hbm_channel_axil_if__apb_clk )
+        .axi4l_if_to_peripheral  ( hbm_apb_proxy_axil_if__apb_clk )
     );
 
     // Bridge to APB
-    axi4l_apb_bridge i_axi4l_apb_bridge (
-        .axi4l_if ( hbm_channel_axil_if__apb_clk ),
-        .apb_if   ( hbm_channel_apb_if )
+    axi4l_apb_proxy i_axi4l_apb_proxy (
+        .axi4l_if ( hbm_apb_proxy_axil_if__apb_clk ),
+        .apb_if   ( apb_if )
     );
-
-    // Encode channel select address bits per Xilinx PG276 (v1.0):
-    always_comb begin
-        case (reg_if.cfg_apb_channel_sel.value)
-            3'd0 : apb_channel_sel__clk = 5'b01000; // Memory Controller 0
-            3'd1 : apb_channel_sel__clk = 5'b01100; // Memory Controller 1
-            3'd2 : apb_channel_sel__clk = 5'b01001; // Memory Controller 2
-            3'd3 : apb_channel_sel__clk = 5'b01101; // Memory Controller 3
-            3'd4 : apb_channel_sel__clk = 5'b01010; // Memory Controller 4
-            3'd5 : apb_channel_sel__clk = 5'b01110; // Memory Controller 5
-            3'd6 : apb_channel_sel__clk = 5'b01011; // Memory Controller 6
-            3'd7 : apb_channel_sel__clk = 5'b01111; // Memory Controller 7
-        endcase
-    end
-
-    // Cross to APB clock domain
-    sync_bus_sampled #(
-        .DATA_T   ( dram_status_t )
-    ) i_sync_bus_sampled__apb_channel_sel (
-        .clk_in   ( clk ),
-        .rst_in   ( srst ),
-        .data_in  ( apb_channel_sel__clk ),
-        .clk_out  ( apb_if.pclk ),
-        .rst_out  ( !apb_if.presetn ),
-        .data_out ( apb_channel_sel__apb_clk )
-    );
-
-    // Connect outgoing APB interface; augment PADDR with memory channel select
-    assign apb_if.pclk    = hbm_channel_apb_if.pclk;
-    assign apb_if.presetn = hbm_channel_apb_if.presetn;
-    assign apb_if.paddr   = {apb_channel_sel__apb_clk, hbm_channel_apb_if.paddr[16:0]};
-    assign apb_if.pprot   = hbm_channel_apb_if.pprot;
-    assign apb_if.psel    = hbm_channel_apb_if.psel;
-    assign apb_if.penable = hbm_channel_apb_if.penable;
-    assign apb_if.pwrite  = hbm_channel_apb_if.pwrite;
-    assign apb_if.pwdata  = hbm_channel_apb_if.pwdata;
-    assign apb_if.pstrb   = hbm_channel_apb_if.pstrb;
-    assign hbm_channel_apb_if.pready  = apb_if.pready;
-    assign hbm_channel_apb_if.prdata  = apb_if.prdata;
-    assign hbm_channel_apb_if.pslverr = apb_if.pslverr;
 
     // -----------------------------
     // Terminate unused AXI control interfaces

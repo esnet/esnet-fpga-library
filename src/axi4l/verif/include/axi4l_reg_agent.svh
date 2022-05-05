@@ -19,7 +19,13 @@ class axi4l_reg_agent #(
     parameter int ADDR_WID = 32,
     parameter axi4l_pkg::axi4l_bus_width_t BUS_WIDTH = axi4l_pkg::AXI4L_BUS_WIDTH_32
 ) extends reg_verif_pkg::reg_agent#(ADDR_WID, axi4l_pkg::get_axi4l_bus_width_in_bytes(BUS_WIDTH)*8);
-    
+
+
+    //===================================
+    // Class Properties
+    //===================================
+    local static const string __CLASS_NAME = "axi4l_verif_pkg::axi4l_reg_agent";
+
     //===================================
     // Parameters
     //===================================
@@ -48,6 +54,12 @@ class axi4l_reg_agent #(
         super.new(name);
         set_wr_timeout(WR_TIMEOUT);
         set_rd_timeout(RD_TIMEOUT);
+    endfunction
+
+    // Configure trace output
+    // [[ overrides std_verif_pkg::base.trace_msg() ]]
+    function automatic void trace_msg(input string msg);
+        _trace_msg(msg, __CLASS_NAME);
     endfunction
 
     function automatic void set_random_aw_w_alignment(input bit enable_random_alignment);
@@ -91,38 +103,58 @@ class axi4l_reg_agent #(
 
     task _write(input addr_t addr, input data_t data, output bit error, output bit timeout, output string msg="");
         axi4l_pkg::resp_t resp;
+
+        trace_msg("_write()");
+
         axil_vif.write(addr, data, resp, timeout, get_wr_timeout(), get_random_aw_w_alignment());
         if (resp != axi4l_pkg::RESP_OKAY) error = 1'b1;
         else                              error = 1'b0;
         if (timeout) msg = $sformatf("AXI-L write to address 0x%0x resulted in timeout.", addr);
         else         msg = $sformatf("AXI-L write to address 0x%0x returned with response '%s'.", addr, resp.encoded.name());
+
+        trace_msg("_write() Done.");
     endtask
 
     task _write_byte(input addr_t addr, input byte data, output bit error, output bit timeout, output string msg="");
         axi4l_pkg::resp_t resp;
+
+        trace_msg("_write_byte()");
+
         axil_vif.write_byte(addr, data, resp, timeout, get_wr_timeout());
         if (resp != axi4l_pkg::RESP_OKAY) error = 1'b1;
         else                              error = 1'b0;
         if (timeout) msg = $sformatf("AXI-L byte write to address 0x%0x resulted in timeout.", addr);
         else         msg = $sformatf("AXI-L byte write to address 0x%0x returned with response '%s'.", addr, resp.encoded.name());
+
+        trace_msg("_write_byte()");
     endtask
 
     task _read(input addr_t addr, output data_t data, output bit error, output bit timeout, output string msg="");
         axi4l_pkg::resp_t resp;
+
+        trace_msg("_read()");
+
         axil_vif.read(addr, data, resp, timeout, get_rd_timeout());
         if (resp != axi4l_pkg::RESP_OKAY) error = 1'b1;
-        else                             error = 1'b0;
+        else                              error = 1'b0;
         if (timeout) msg = $sformatf("AXI-L read from address 0x%0x resulted in timeout.", addr);
         else         msg = $sformatf("AXI-L read from address 0x%0x returned with response '%s'.", addr, resp.encoded.name());
+
+        trace_msg("_read() Done.");
     endtask
 
     task _read_byte(input addr_t addr, output byte data, output bit error, output bit timeout, output string msg="");
         axi4l_pkg::resp_t resp;
+
+        trace_msg("_read_byte()");
+
         axil_vif.read_byte(addr, data, resp, timeout, get_rd_timeout());
         if (resp != axi4l_pkg::RESP_OKAY) error = 1'b1;
         else                             error = 1'b0;
         if (timeout) msg = $sformatf("AXI-L read from address 0x%0x resulted in timeout.", addr);
         else         msg = $sformatf("AXI-L read from address 0x%0x returned with response '%s'.", addr, resp.encoded.name());
+
+        trace_msg("_read_byte() Done.");
     endtask
 
 endclass

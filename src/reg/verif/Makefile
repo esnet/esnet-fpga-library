@@ -25,7 +25,7 @@ SRC_LIST_FILES =
 #   List IP component and external library dependencies
 #   (see $SCRIPTS_ROOT/Makefiles/dependencies.mk)
 # ----------------------------------------------------
-COMPONENTS = \
+COMPONENTS = reg \
              std_verif=$(LIB_ROOT)/src/std/verif
 EXT_LIBS =
 
