@@ -664,7 +664,7 @@ module xilinx_hbm_4g_if
         .wready   ( AXI_00_WREADY ),
         .bid      ( AXI_00_BID ),
         .bresp    ( AXI_00_BRESP ),
-        .buser    ( ),
+        .buser    ( '0 ),
         .bvalid   ( AXI_00_BVALID ),
         .bready   ( AXI_00_BREADY ),
         .arid     ( AXI_00_ARID ),
@@ -684,7 +684,7 @@ module xilinx_hbm_4g_if
         .rdata    ( AXI_00_RDATA ),
         .rresp    ( AXI_00_RRESP ),
         .rlast    ( AXI_00_RLAST ),
-        .ruser    ( ),
+        .ruser    ( '0 ),
         .rvalid   ( AXI_00_RVALID ),
         .rready   ( AXI_00_RREADY )
     );
@@ -722,7 +722,7 @@ module xilinx_hbm_4g_if
         .wready   ( AXI_01_WREADY ),
         .bid      ( AXI_01_BID ),
         .bresp    ( AXI_01_BRESP ),
-        .buser    ( ),
+        .buser    ( '0 ),
         .bvalid   ( AXI_01_BVALID ),
         .bready   ( AXI_01_BREADY ),
         .arid     ( AXI_01_ARID ),
@@ -742,7 +742,7 @@ module xilinx_hbm_4g_if
         .rdata    ( AXI_01_RDATA ),
         .rresp    ( AXI_01_RRESP ),
         .rlast    ( AXI_01_RLAST ),
-        .ruser    ( ),
+        .ruser    ( '0 ),
         .rvalid   ( AXI_01_RVALID ),
         .rready   ( AXI_01_RREADY )
     );
@@ -780,7 +780,7 @@ module xilinx_hbm_4g_if
         .wready   ( AXI_02_WREADY ),
         .bid      ( AXI_02_BID ),
         .bresp    ( AXI_02_BRESP ),
-        .buser    ( ),
+        .buser    ( '0 ),
         .bvalid   ( AXI_02_BVALID ),
         .bready   ( AXI_02_BREADY ),
         .arid     ( AXI_02_ARID ),
@@ -800,7 +800,7 @@ module xilinx_hbm_4g_if
         .rdata    ( AXI_02_RDATA ),
         .rresp    ( AXI_02_RRESP ),
         .rlast    ( AXI_02_RLAST ),
-        .ruser    ( ),
+        .ruser    ( '0 ),
         .rvalid   ( AXI_02_RVALID ),
         .rready   ( AXI_02_RREADY )
     );
@@ -838,7 +838,7 @@ module xilinx_hbm_4g_if
         .wready   ( AXI_03_WREADY ),
         .bid      ( AXI_03_BID ),
         .bresp    ( AXI_03_BRESP ),
-        .buser    ( ),
+        .buser    ( '0 ),
         .bvalid   ( AXI_03_BVALID ),
         .bready   ( AXI_03_BREADY ),
         .arid     ( AXI_03_ARID ),
@@ -858,7 +858,7 @@ module xilinx_hbm_4g_if
         .rdata    ( AXI_03_RDATA ),
         .rresp    ( AXI_03_RRESP ),
         .rlast    ( AXI_03_RLAST ),
-        .ruser    ( ),
+        .ruser    ( '0 ),
         .rvalid   ( AXI_03_RVALID ),
         .rready   ( AXI_03_RREADY )
     );
@@ -896,7 +896,7 @@ module xilinx_hbm_4g_if
         .wready   ( AXI_04_WREADY ),
         .bid      ( AXI_04_BID ),
         .bresp    ( AXI_04_BRESP ),
-        .buser    ( ),
+        .buser    ( '0 ),
         .bvalid   ( AXI_04_BVALID ),
         .bready   ( AXI_04_BREADY ),
         .arid     ( AXI_04_ARID ),
@@ -916,7 +916,7 @@ module xilinx_hbm_4g_if
         .rdata    ( AXI_04_RDATA ),
         .rresp    ( AXI_04_RRESP ),
         .rlast    ( AXI_04_RLAST ),
-        .ruser    ( ),
+        .ruser    ( '0 ),
         .rvalid   ( AXI_04_RVALID ),
         .rready   ( AXI_04_RREADY )
     );
@@ -954,7 +954,7 @@ module xilinx_hbm_4g_if
         .wready   ( AXI_05_WREADY ),
         .bid      ( AXI_05_BID ),
         .bresp    ( AXI_05_BRESP ),
-        .buser    ( ),
+        .buser    ( '0 ),
         .bvalid   ( AXI_05_BVALID ),
         .bready   ( AXI_05_BREADY ),
         .arid     ( AXI_05_ARID ),
@@ -974,7 +974,7 @@ module xilinx_hbm_4g_if
         .rdata    ( AXI_05_RDATA ),
         .rresp    ( AXI_05_RRESP ),
         .rlast    ( AXI_05_RLAST ),
-        .ruser    ( ),
+        .ruser    ( '0 ),
         .rvalid   ( AXI_05_RVALID ),
         .rready   ( AXI_05_RREADY )
     );
@@ -1012,7 +1012,7 @@ module xilinx_hbm_4g_if
         .wready   ( AXI_06_WREADY ),
         .bid      ( AXI_06_BID ),
         .bresp    ( AXI_06_BRESP ),
-        .buser    ( ),
+        .buser    ( '0 ),
         .bvalid   ( AXI_06_BVALID ),
         .bready   ( AXI_06_BREADY ),
         .arid     ( AXI_06_ARID ),
@@ -1032,7 +1032,7 @@ module xilinx_hbm_4g_if
         .rdata    ( AXI_06_RDATA ),
         .rresp    ( AXI_06_RRESP ),
         .rlast    ( AXI_06_RLAST ),
-        .ruser    ( ),
+        .ruser    ( '0 ),
         .rvalid   ( AXI_06_RVALID ),
         .rready   ( AXI_06_RREADY )
     );
@@ -1070,7 +1070,7 @@ module xilinx_hbm_4g_if
         .wready   ( AXI_07_WREADY ),
         .bid      ( AXI_07_BID ),
         .bresp    ( AXI_07_BRESP ),
-        .buser    ( ),
+        .buser    ( '0 ),
         .bvalid   ( AXI_07_BVALID ),
         .bready   ( AXI_07_BREADY ),
         .arid     ( AXI_07_ARID ),
@@ -1090,7 +1090,7 @@ module xilinx_hbm_4g_if
         .rdata    ( AXI_07_RDATA ),
         .rresp    ( AXI_07_RRESP ),
         .rlast    ( AXI_07_RLAST ),
-        .ruser    ( ),
+        .ruser    ( '0 ),
         .rvalid   ( AXI_07_RVALID ),
         .rready   ( AXI_07_RREADY )
     );
@@ -1128,7 +1128,7 @@ module xilinx_hbm_4g_if
         .wready   ( AXI_08_WREADY ),
         .bid      ( AXI_08_BID ),
         .bresp    ( AXI_08_BRESP ),
-        .buser    ( ),
+        .buser    ( '0 ),
         .bvalid   ( AXI_08_BVALID ),
         .bready   ( AXI_08_BREADY ),
         .arid     ( AXI_08_ARID ),
@@ -1148,7 +1148,7 @@ module xilinx_hbm_4g_if
         .rdata    ( AXI_08_RDATA ),
         .rresp    ( AXI_08_RRESP ),
         .rlast    ( AXI_08_RLAST ),
-        .ruser    ( ),
+        .ruser    ( '0 ),
         .rvalid   ( AXI_08_RVALID ),
         .rready   ( AXI_08_RREADY )
     );
@@ -1186,7 +1186,7 @@ module xilinx_hbm_4g_if
         .wready   ( AXI_09_WREADY ),
         .bid      ( AXI_09_BID ),
         .bresp    ( AXI_09_BRESP ),
-        .buser    ( ),
+        .buser    ( '0 ),
         .bvalid   ( AXI_09_BVALID ),
         .bready   ( AXI_09_BREADY ),
         .arid     ( AXI_09_ARID ),
@@ -1206,7 +1206,7 @@ module xilinx_hbm_4g_if
         .rdata    ( AXI_09_RDATA ),
         .rresp    ( AXI_09_RRESP ),
         .rlast    ( AXI_09_RLAST ),
-        .ruser    ( ),
+        .ruser    ( '0 ),
         .rvalid   ( AXI_09_RVALID ),
         .rready   ( AXI_09_RREADY )
     );
@@ -1244,7 +1244,7 @@ module xilinx_hbm_4g_if
         .wready   ( AXI_10_WREADY ),
         .bid      ( AXI_10_BID ),
         .bresp    ( AXI_10_BRESP ),
-        .buser    ( ),
+        .buser    ( '0 ),
         .bvalid   ( AXI_10_BVALID ),
         .bready   ( AXI_10_BREADY ),
         .arid     ( AXI_10_ARID ),
@@ -1264,7 +1264,7 @@ module xilinx_hbm_4g_if
         .rdata    ( AXI_10_RDATA ),
         .rresp    ( AXI_10_RRESP ),
         .rlast    ( AXI_10_RLAST ),
-        .ruser    ( ),
+        .ruser    ( '0 ),
         .rvalid   ( AXI_10_RVALID ),
         .rready   ( AXI_10_RREADY )
     );
@@ -1302,7 +1302,7 @@ module xilinx_hbm_4g_if
         .wready   ( AXI_11_WREADY ),
         .bid      ( AXI_11_BID ),
         .bresp    ( AXI_11_BRESP ),
-        .buser    ( ),
+        .buser    ( '0 ),
         .bvalid   ( AXI_11_BVALID ),
         .bready   ( AXI_11_BREADY ),
         .arid     ( AXI_11_ARID ),
@@ -1322,7 +1322,7 @@ module xilinx_hbm_4g_if
         .rdata    ( AXI_11_RDATA ),
         .rresp    ( AXI_11_RRESP ),
         .rlast    ( AXI_11_RLAST ),
-        .ruser    ( ),
+        .ruser    ( '0 ),
         .rvalid   ( AXI_11_RVALID ),
         .rready   ( AXI_11_RREADY )
     );
@@ -1360,7 +1360,7 @@ module xilinx_hbm_4g_if
         .wready   ( AXI_12_WREADY ),
         .bid      ( AXI_12_BID ),
         .bresp    ( AXI_12_BRESP ),
-        .buser    ( ),
+        .buser    ( '0 ),
         .bvalid   ( AXI_12_BVALID ),
         .bready   ( AXI_12_BREADY ),
         .arid     ( AXI_12_ARID ),
@@ -1380,7 +1380,7 @@ module xilinx_hbm_4g_if
         .rdata    ( AXI_12_RDATA ),
         .rresp    ( AXI_12_RRESP ),
         .rlast    ( AXI_12_RLAST ),
-        .ruser    ( ),
+        .ruser    ( '0 ),
         .rvalid   ( AXI_12_RVALID ),
         .rready   ( AXI_12_RREADY )
     );
@@ -1418,7 +1418,7 @@ module xilinx_hbm_4g_if
         .wready   ( AXI_13_WREADY ),
         .bid      ( AXI_13_BID ),
         .bresp    ( AXI_13_BRESP ),
-        .buser    ( ),
+        .buser    ( '0 ),
         .bvalid   ( AXI_13_BVALID ),
         .bready   ( AXI_13_BREADY ),
         .arid     ( AXI_13_ARID ),
@@ -1438,7 +1438,7 @@ module xilinx_hbm_4g_if
         .rdata    ( AXI_13_RDATA ),
         .rresp    ( AXI_13_RRESP ),
         .rlast    ( AXI_13_RLAST ),
-        .ruser    ( ),
+        .ruser    ( '0 ),
         .rvalid   ( AXI_13_RVALID ),
         .rready   ( AXI_13_RREADY )
     );
@@ -1476,7 +1476,7 @@ module xilinx_hbm_4g_if
         .wready   ( AXI_14_WREADY ),
         .bid      ( AXI_14_BID ),
         .bresp    ( AXI_14_BRESP ),
-        .buser    ( ),
+        .buser    ( '0 ),
         .bvalid   ( AXI_14_BVALID ),
         .bready   ( AXI_14_BREADY ),
         .arid     ( AXI_14_ARID ),
@@ -1496,7 +1496,7 @@ module xilinx_hbm_4g_if
         .rdata    ( AXI_14_RDATA ),
         .rresp    ( AXI_14_RRESP ),
         .rlast    ( AXI_14_RLAST ),
-        .ruser    ( ),
+        .ruser    ( '0 ),
         .rvalid   ( AXI_14_RVALID ),
         .rready   ( AXI_14_RREADY )
     );
@@ -1534,7 +1534,7 @@ module xilinx_hbm_4g_if
         .wready   ( AXI_15_WREADY ),
         .bid      ( AXI_15_BID ),
         .bresp    ( AXI_15_BRESP ),
-        .buser    ( ),
+        .buser    ( '0 ),
         .bvalid   ( AXI_15_BVALID ),
         .bready   ( AXI_15_BREADY ),
         .arid     ( AXI_15_ARID ),
@@ -1554,7 +1554,7 @@ module xilinx_hbm_4g_if
         .rdata    ( AXI_15_RDATA ),
         .rresp    ( AXI_15_RRESP ),
         .rlast    ( AXI_15_RLAST ),
-        .ruser    ( ),
+        .ruser    ( '0 ),
         .rvalid   ( AXI_15_RVALID ),
         .rready   ( AXI_15_RREADY )
     );
