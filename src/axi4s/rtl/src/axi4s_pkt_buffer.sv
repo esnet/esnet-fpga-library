@@ -16,7 +16,11 @@
 // =============================================================================
 
 // -----------------------------------------------------------------------------
-// axi4s_pkt_buffer is 
+// axi4s_pkt_buffer is a pipelined memory instantiation (mem_ram_sdp_sync) for
+// buffering packets.  It uses axi4s interfaces to carry the ingress and egress
+// packet data.  It takes a wr_ptr and rd_ptr as input, which are used as the 
+// memory address for wr and rd transactions respectively, and it initiates a rd
+// transaction using a rd_req input signal.
 // -----------------------------------------------------------------------------
 
 module axi4s_pkt_buffer
@@ -33,7 +37,7 @@ module axi4s_pkt_buffer
    input logic [ADDR_WID:0]  rd_ptr,   // ptr is 1 bit larger than addr for ovfl detection.
    input logic [ADDR_WID:0]  wr_ptr,
 
-   output logic [ADDR_WID:0] wr_ptr_p  // pipelined wr_ptr.
+   output logic [ADDR_WID:0] wr_ptr_p  // pipelined wr_ptr, can be used for empty detection.
 );
 
    localparam int  DATA_BYTE_WID = axi4s_in.DATA_BYTE_WID;
