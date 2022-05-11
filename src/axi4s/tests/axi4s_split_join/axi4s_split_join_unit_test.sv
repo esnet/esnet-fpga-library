@@ -23,6 +23,7 @@ module axi4s_split_join_unit_test;
     always #10ns clk <= ~clk;    
 
     localparam DATA_BYTE_WID = 64;
+    localparam HDR_PIPE_STAGES = 16;
 
     // axi4s driver and monitor instantiations
     axi4s_driver  #(.DATA_BYTE_WID(DATA_BYTE_WID)) axis_driver;
@@ -33,6 +34,7 @@ module axi4s_split_join_unit_test;
     axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID)) axi4s_out();
 
     axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TUSER_MODE(BUFFER_CONTEXT), .TUSER_T(tuser_buffer_context_mode_t)) axi4s_hdr_in();
+    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TUSER_MODE(BUFFER_CONTEXT), .TUSER_T(tuser_buffer_context_mode_t)) axi4s_hdr_pipe [HDR_PIPE_STAGES] ();
     axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TUSER_MODE(BUFFER_CONTEXT), .TUSER_T(tuser_buffer_context_mode_t)) axi4s_hdr_out();
 
     assign axi4s_in.aclk = clk;
@@ -41,9 +43,8 @@ module axi4s_split_join_unit_test;
     assign axi4s_hdr_in.aresetn = rstn;
     
 
-
+    // axi4s_split_join instantiation
     int hdr_length;
-
     axi4s_split_join DUT (
       .axi4s_in      (axi4s_in),
       .axi4s_out     (axi4s_out),
@@ -52,43 +53,18 @@ module axi4s_split_join_unit_test;
       .hdr_length    (hdr_length)
     );
 
-   // buffer context signals
-   logic [15:0] wr_ptr;
-   logic [15:0] rd_ptr, rd_ptr_nxt;
-   logic        rd_req;
-   
-   // wr_ptr logic
-   always @(posedge axi4s_hdr_out.aclk)
-      if (!axi4s_hdr_out.aresetn)                  wr_ptr <= '0;
-      else if (axi4s_in.tvalid && axi4s_in.tready) wr_ptr <= wr_ptr + 1;
-
-   // rd_ptr logic
-   assign rd_req = (wr_ptr >= 20);
-   assign rd_ptr_nxt = (axi4s_hdr_in.tvalid && axi4s_hdr_in.tready) ? rd_ptr + 1 : rd_ptr;
-
-   always @(posedge axi4s_hdr_in.aclk) begin
-      if (!axi4s_hdr_in.aresetn) rd_ptr <= '0;
-      else                       rd_ptr <= rd_ptr_nxt;
-   end
-
-
-   // packet buffer instantiation
-   axi4s_pkt_buffer #(
-//      .ADDR_WID (15)
-      .ADDR_WID (8)
-   ) axi4s_pkt_buffer_0 (
-      .axi4s_in      (axi4s_hdr_out),
-      .axi4s_out     (axi4s_hdr_in),
-      .rd_req        (rd_req),
-      .rd_ptr        (rd_ptr_nxt),
-      .wr_ptr        (wr_ptr)
-   );
+    // axi4s hdr pipeline
+    generate for (genvar i = 0; i <= HDR_PIPE_STAGES; i += 1)
+       if (i == 0)                    axi4s_intf_pipe axi4s_pipe (.axi4s_if_from_tx(axi4s_hdr_out),       .axi4s_if_to_rx(axi4s_hdr_pipe[0]));
+       else if (i == HDR_PIPE_STAGES) axi4s_intf_pipe axi4s_pipe (.axi4s_if_from_tx(axi4s_hdr_pipe[i-1]), .axi4s_if_to_rx(axi4s_hdr_in));
+       else                           axi4s_intf_pipe axi4s_pipe (.axi4s_if_from_tx(axi4s_hdr_pipe[i-1]), .axi4s_if_to_rx(axi4s_hdr_pipe[i]));
+    endgenerate
 
 
     //===================================
     // Import common testcase tasks
     //=================================== 
-    `include "./tasks.svh"
+    `include "../../tests/axi4s_split_join/tasks.svh"
 
     //===================================
     // Build
@@ -154,23 +130,23 @@ module axi4s_split_join_unit_test;
     //===================================
     `SVUNIT_TESTS_BEGIN
 
-      `SVTEST(split_test_hdr_len_1)
-          hdr_length = 1;
+      `SVTEST(split_test_hdr_len_64)
+          hdr_length = 64;
           run_pkt_test();
       `SVTEST_END
 
-      `SVTEST(split_test_hdr_len_2)
-          hdr_length = 2;
+      `SVTEST(split_test_hdr_len_128)
+          hdr_length = 128;
           run_pkt_test();
       `SVTEST_END
 
-      `SVTEST(split_test_hdr_len_3)
-          hdr_length = 3;
+      `SVTEST(split_test_hdr_len_192)
+          hdr_length = 192;
           run_pkt_test();
       `SVTEST_END
 
-      `SVTEST(split_test_hdr_len_4)
-          hdr_length = 4;
+      `SVTEST(split_test_hdr_len_256)
+          hdr_length = 256;
           run_pkt_test();
       `SVTEST_END
 

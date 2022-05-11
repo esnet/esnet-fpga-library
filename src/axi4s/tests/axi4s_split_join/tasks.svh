@@ -57,33 +57,32 @@ task run_pkt_test (input bit dest_port=0, input VERBOSE=1 );
    bit           user;
 
    debug_msg("Reading expected pcap file...", VERBOSE);
-   filename = {"../64B_multiples_10pkts.pcap"};
+   filename = "../../../tests/axi4s_split_join/64B_multiples_10pkts.pcap";
    pcap_pkg::read_pcap(filename, exp_pcap_hdr, exp_pcap_record_hdr, exp_data);
 
    debug_msg("Starting simulation...", VERBOSE);
-    filename = {"../64B_multiples_10pkts.pcap"};
-    rx_pkt_cnt = 0;
-    fork
-        begin
-            // Send packets
-            send_pcap(filename, num_pkts, start_idx);
-        end
-        begin
-       // Monitor output packets
-            while (rx_pkt_cnt < exp_pcap_record_hdr.size()) begin
-                axis_monitor.receive_raw(.data(rx_data), .id(id), .dest(dest), .user(user), .tpause(0));
-                rx_pkt_cnt++;
-                debug_msg( $sformatf( "      Receiving packet # %0d (of %0d)...", 
-                                      rx_pkt_cnt, exp_pcap_record_hdr.size()), VERBOSE );
+   rx_pkt_cnt = 0;
+   fork
+      begin
+          // Send packets
+          send_pcap(filename, num_pkts, start_idx);
+      end
+      begin
+      // Monitor output packets
+          while (rx_pkt_cnt < exp_pcap_record_hdr.size()) begin
+              axis_monitor.receive_raw(.data(rx_data), .id(id), .dest(dest), .user(user), .tpause(0));
+              rx_pkt_cnt++;
+              debug_msg( $sformatf( "      Receiving packet # %0d (of %0d)...", 
+                                    rx_pkt_cnt, exp_pcap_record_hdr.size()), VERBOSE );
 
-                debug_msg("      Comparing rx_pkt to exp_pkt...", VERBOSE);
-                compare_pkts(rx_data, exp_data[start_idx+rx_pkt_cnt-1]);
-               `FAIL_IF_LOG( dest != dest_port, 
-                             $sformatf("FAIL!!! Output tdest mismatch. tdest=%0h (exp:%0h)", dest, dest_port) )
-            end
-            rx_done = 1;
-        end
-    join
+              debug_msg("      Comparing rx_pkt to exp_pkt...", VERBOSE);
+              compare_pkts(rx_data, exp_data[start_idx+rx_pkt_cnt-1]);
+             `FAIL_IF_LOG( dest != dest_port, 
+                           $sformatf("FAIL!!! Output tdest mismatch. tdest=%0h (exp:%0h)", dest, dest_port) )
+          end
+          rx_done = 1;
+      end
+   join
 endtask
 
 task debug_msg(input string msg, input bit VERBOSE=0);
