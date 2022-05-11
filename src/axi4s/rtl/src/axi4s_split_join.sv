@@ -30,7 +30,7 @@ module axi4s_split_join
    axi4s_intf.tx     axi4s_hdr_out,
    axi4s_intf.rx     axi4s_hdr_in,
 
-   input logic [7:0] hdr_length  // specified in words (valid range is >= 1).
+   input logic [15:0] hdr_length  // specified in bytes (valid range is >= 1).
 );
 
    localparam int  DATA_BYTE_WID = axi4s_hdr_out.DATA_BYTE_WID;
