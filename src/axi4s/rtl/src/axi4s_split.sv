@@ -34,7 +34,7 @@ module axi4s_split
    axi4s_intf.tx     axi4s_out,
    axi4s_intf.tx     axi4s_hdr_out,
 
-   input logic [7:0] hdr_length  // specified in words (valid range is >= 1).
+   input logic [15:0] hdr_length  // specified in bytes (valid range is >= 1).
 );
 
    localparam int  DATA_BYTE_WID = axi4s_hdr_out.DATA_BYTE_WID;
@@ -44,48 +44,44 @@ module axi4s_split
    // signals
    logic [PTR_LEN-1:0] wr_ptr; // wr pointer for pkt buffer addressing, or pkt_id.   
 
+   // internal axi4s interfaces.
+   axi4s_intf #(.TUSER_MODE(BUFFER_CONTEXT), .DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T), 
+                .TDEST_T(TDEST_T), .TUSER_T(tuser_buffer_context_mode_t)) axi4s_to_copy ();
+
+   axi4s_intf #(.TUSER_MODE(BUFFER_CONTEXT), .DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T), 
+                .TDEST_T(TDEST_T), .TUSER_T(tuser_buffer_context_mode_t)) axi4s_to_trunc ();
+
+   // axis4s_to_copy interface signalling. assigns buffer context to the tuser signal.
+   assign axi4s_to_copy.aclk         = axi4s_in.aclk;
+   assign axi4s_to_copy.aresetn      = axi4s_in.aresetn;
+   assign axi4s_to_copy.tvalid       = axi4s_in.tvalid;
+   assign axi4s_to_copy.tdata        = axi4s_in.tdata;
+   assign axi4s_to_copy.tkeep        = axi4s_in.tkeep;
+   assign axi4s_to_copy.tdest        = axi4s_in.tdest;
+   assign axi4s_to_copy.tid          = axi4s_in.tid;
+   assign axi4s_to_copy.tlast        = axi4s_in.tlast;
+   assign axi4s_to_copy.tuser.wr_ptr = wr_ptr;
+   assign axi4s_to_copy.tuser.tlast  = axi4s_in.tlast;
+
+   assign axi4s_in.tready            = axi4s_to_copy.tready;
+
    // wr_ptr logic
    always @(posedge axi4s_in.aclk)
       if (!axi4s_in.aresetn) wr_ptr <= '0;
       else if (axi4s_in.tvalid && axi4s_in.tready) wr_ptr <= wr_ptr + 1;
 
-
-   // axi4s_trunc interface and instance.
-   axi4s_intf #(.TUSER_MODE(BUFFER_CONTEXT), .DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T), 
-                .TDEST_T(TDEST_T), .TUSER_T(tuser_buffer_context_mode_t)) axi4s_from_trunc ();
-
-   axi4s_trunc axi4s_trunc_0 (
-      .axi4s_in   (axi4s_in),
-      .axi4s_out  (axi4s_from_trunc),
-      .length     (hdr_length)
+   // axi4s_copy instance.
+   axi4s_copy axi4s_copy_0 (
+      .axi4s_in   (axi4s_to_copy),
+      .axi4s_out0 (axi4s_out),
+      .axi4s_out1 (axi4s_to_trunc)
    );
 
-
-   // axis4s input interface signalling.
-   assign axi4s_in.tready = axi4s_hdr_out.tready && axi4s_out.tready;
-   
-   // axis4s header interface signalling.
-   assign axi4s_hdr_out.aclk         = axi4s_from_trunc.aclk;
-   assign axi4s_hdr_out.aresetn      = axi4s_from_trunc.aresetn;
-   assign axi4s_hdr_out.tvalid       = axi4s_from_trunc.tvalid;
-   assign axi4s_hdr_out.tdata        = axi4s_from_trunc.tdata;
-   assign axi4s_hdr_out.tkeep        = axi4s_from_trunc.tkeep;
-   assign axi4s_hdr_out.tdest        = axi4s_from_trunc.tdest;
-   assign axi4s_hdr_out.tid          = axi4s_from_trunc.tid;
-   assign axi4s_hdr_out.tlast        = axi4s_from_trunc.tlast;
-   assign axi4s_hdr_out.tuser.wr_ptr = wr_ptr;
-   assign axi4s_hdr_out.tuser.tlast  = axi4s_in.tlast;
-
-   // axis4s output interface signalling.
-   assign axi4s_out.aclk         = axi4s_in.aclk;
-   assign axi4s_out.aresetn      = axi4s_in.aresetn;
-   assign axi4s_out.tvalid       = axi4s_in.tvalid;
-   assign axi4s_out.tdata        = axi4s_in.tdata;
-   assign axi4s_out.tkeep        = axi4s_in.tkeep;
-   assign axi4s_out.tdest        = axi4s_in.tdest;
-   assign axi4s_out.tid          = axi4s_in.tid;
-   assign axi4s_out.tlast        = axi4s_in.tlast;
-   assign axi4s_out.tuser.wr_ptr = wr_ptr;
-   assign axi4s_out.tuser.tlast  = axi4s_in.tlast;
+   // axi4s_trunc instance.
+   axi4s_trunc axi4s_trunc_0 (
+      .axi4s_in   (axi4s_to_trunc),
+      .axi4s_out  (axi4s_hdr_out),
+      .length     (hdr_length)
+   );
 
 endmodule // axi4s_split
