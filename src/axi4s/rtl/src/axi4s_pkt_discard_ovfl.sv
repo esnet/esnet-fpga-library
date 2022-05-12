@@ -26,15 +26,20 @@
 module axi4s_pkt_discard_ovfl
    import axi4s_pkg::*;
 #(
-   parameter int MAX_PKT_LEN = 9100,  // max number of bytes per packet.
-   parameter int DATA_WID    = 582    // tdata(512b)+tkeep(64b)+tdest(2b)+tid(2b)+tlast(1b)+tuser(1b).
+   parameter int MAX_PKT_LEN = 9100  // max number of bytes per packet.
 )  (
    axi4s_intf.rx   axi4s_in,
    axi4s_intf.tx   axi4s_out
 );
 
+   // axi4s_in interface params
+   localparam int  DATA_BYTE_WID = axi4s_in.DATA_BYTE_WID;
+   localparam type TID_T         = axi4s_in.TID_T;
+   localparam type TDEST_T       = axi4s_in.TDEST_T;
+   localparam type TUSER_T       = axi4s_in.TUSER_T;
 
-   localparam int MAX_PKT_WRDS = $ceil(MAX_PKT_LEN/64.0);
+   // fifo params
+   localparam int MAX_PKT_WRDS = $ceil($itor(MAX_PKT_LEN) / $itor(DATA_BYTE_WID));
    localparam int FIFO_DEPTH   = MAX_PKT_WRDS * 3;  // depth supports 3 max pkts.
    localparam int ADDR_WID     = $clog2(FIFO_DEPTH);
 
@@ -60,11 +65,6 @@ module axi4s_pkt_discard_ovfl
 
 
    // _axis4s_in signal assignments.
-   localparam int  DATA_BYTE_WID = axi4s_in.DATA_BYTE_WID;
-   localparam type TID_T         = axi4s_in.TID_T;
-   localparam type TDEST_T       = axi4s_in.TDEST_T;
-   localparam type TUSER_T       = axi4s_in.TUSER_T;
-
    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) 
               _axi4s_in ();
 

@@ -80,7 +80,7 @@ module axi4s_pkt_fifo_async
    logic                uflow;
 
    localparam DATA_WIDTH = $size(wr_data);
-   localparam PKT_DISCARD_DEPTH = $ceil(MAX_PKT_LEN/64.0) * 3; // axi4s_pkt_discard_ovfl buffers 3 max pkts.
+   localparam PKT_DISCARD_DEPTH = $ceil($itor(MAX_PKT_LEN) / $itor(DATA_BYTE_WID)) * 3; // axi4s_pkt_discard_ovfl buffers 3 max pkts.
    localparam FIFO_ASYNC_DEPTH = FIFO_DEPTH;
    localparam ALMOST_FULL_THRESH = 4;
 
@@ -105,8 +105,7 @@ module axi4s_pkt_fifo_async
          );
 
          axi4s_pkt_discard_ovfl #(
-             .MAX_PKT_LEN  (MAX_PKT_LEN),
-             .DATA_WID     (DATA_WIDTH)
+             .MAX_PKT_LEN  (MAX_PKT_LEN)
          ) axi4s_pkt_discard_ovfl_0 (
              .axi4s_in  (__axi4s_in),
              .axi4s_out (axi4s_to_fifo)
