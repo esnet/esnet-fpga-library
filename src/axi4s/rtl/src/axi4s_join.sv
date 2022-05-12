@@ -85,10 +85,7 @@ module axi4s_join
    TDEST_T  hdr_in_tdest;
 
    always @(posedge axi4s_in.aclk)
-      if (!axi4s_in.aresetn) begin
-         hdr_in_tid   <= '0;
-         hdr_in_tdest <= '0;
-      end else if (axi4s_hdr_in.tready && axi4s_hdr_in.tvalid && axi4s_hdr_in.sop) begin
+      if (axi4s_hdr_in.tready && axi4s_hdr_in.tvalid && axi4s_hdr_in.sop) begin
          hdr_in_tid   <= axi4s_hdr_in.tid;
          hdr_in_tdest <= axi4s_hdr_in.tdest;
       end
