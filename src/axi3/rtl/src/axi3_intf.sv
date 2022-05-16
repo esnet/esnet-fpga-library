@@ -220,6 +220,7 @@ module axi3_intf_connector (
     assign axi3_if_to_peripheral.wdata = axi3_if_from_controller.wdata;
     assign axi3_if_to_peripheral.wstrb = axi3_if_from_controller.wstrb;
     assign axi3_if_to_peripheral.wlast = axi3_if_from_controller.wlast;
+    assign axi3_if_to_peripheral.wuser = axi3_if_from_controller.wuser;
     assign axi3_if_to_peripheral.wvalid = axi3_if_from_controller.wvalid;
     assign axi3_if_from_controller.wready = axi3_if_to_peripheral.wready;
     // Write response
@@ -246,6 +247,7 @@ module axi3_intf_connector (
     assign axi3_if_from_controller.rid = axi3_if_to_peripheral.rid;
     assign axi3_if_from_controller.rdata = axi3_if_to_peripheral.rdata;
     assign axi3_if_from_controller.rresp = axi3_if_to_peripheral.rresp;
+    assign axi3_if_from_controller.ruser = axi3_if_to_peripheral.ruser;
     assign axi3_if_from_controller.rlast = axi3_if_to_peripheral.rlast;
     assign axi3_if_from_controller.rvalid = axi3_if_to_peripheral.rvalid;
     assign axi3_if_to_peripheral.rready = axi3_if_from_controller.rready;
@@ -270,6 +272,7 @@ module axi3_intf_peripheral_term
     assign axi3_if.rid = '0;
     assign axi3_if.rdata = '0;
     assign axi3_if.rresp = RESP_SLVERR;
+    assign axi3_if.ruser = '0;
     assign axi3_if.rlast = 1'b0;
     assign axi3_if.rvalid = 1'b0;
 endmodule : axi3_intf_peripheral_term
@@ -303,6 +306,7 @@ module axi3_intf_controller_term (
     assign axi3_if.wdata = '0;
     assign axi3_if.wstrb = '1;
     assign axi3_if.wlast = 1'b0;
+    assign axi3_if.wuser = 1'b0;
     assign axi3_if.wvalid = 1'b0;
     // Write response
     assign axi3_if.bready = 1'b0;
@@ -413,6 +417,7 @@ module axi3_intf_from_signals
     assign axi3_if.wdata = wdata;
     assign axi3_if.wstrb = wstrb;
     assign axi3_if.wlast = wlast;
+    assign axi3_if.wuser = wuser;
     assign axi3_if.wvalid = wvalid;
     assign wready = axi3_if.wready;
     // Write response
@@ -439,6 +444,7 @@ module axi3_intf_from_signals
     assign rid = axi3_if.rid;
     assign rdata = axi3_if.rdata;
     assign rresp = axi3_if.rresp;
+    assign ruser = axi3_if.ruser;
     assign rlast = axi3_if.rlast;
     assign rvalid = axi3_if.rvalid;
     assign axi3_if.rready = rready;
@@ -536,6 +542,7 @@ module axi3_intf_to_signals
     assign wdata = axi3_if.wdata;
     assign wstrb = axi3_if.wstrb;
     assign wlast = axi3_if.wlast;
+    assign wuser = axi3_if.wuser;
     assign wvalid = axi3_if.wvalid;
     assign axi3_if.wready = wready;
     // Write response
@@ -562,6 +569,7 @@ module axi3_intf_to_signals
     assign axi3_if.rid = rid;
     assign axi3_if.rdata = rdata;
     assign axi3_if.rresp = rresp;
+    assign axi3_if.ruser = ruser;
     assign axi3_if.rlast = rlast;
     assign axi3_if.rvalid = rvalid;
     assign rready = axi3_if.rready;
