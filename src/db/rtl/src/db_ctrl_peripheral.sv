@@ -16,8 +16,6 @@
 // =============================================================================
 
 module db_ctrl_peripheral #(
-    parameter type KEY_T = logic[15:0],
-    parameter type VALUE_T = logic[31:0],
     parameter int  TIMEOUT_CYCLES = 0
 ) (
     // Clock/reset
@@ -31,21 +29,11 @@ module db_ctrl_peripheral #(
     output logic       init,
     input  logic       init_done,
     
-    output KEY_T       key,
+    // Database write interface
+    db_intf.requester  wr_if,
 
-    output logic       wr,
-    input  logic       wr_rdy,
-    output logic       wr_valid,
-    output VALUE_T     wr_value,
-    input  logic       wr_ack,
-    input  logic       wr_error,
-
-    output logic       rd,
-    input  logic       rd_rdy,
-    input  logic       rd_valid,
-    input  VALUE_T     rd_value,
-    input  logic       rd_ack,
-    input  logic       rd_error
+    // Database read interface
+    db_intf.requester  rd_if
 );
  
     // -----------------------------
@@ -107,8 +95,8 @@ module db_ctrl_peripheral #(
         ctrl_if.ack = 1'b0;
         ctrl_if.status = STATUS_ERROR;
         init = 1'b0;
-        wr = 1'b0;
-        rd = 1'b0;
+        wr_if.req = 1'b0;
+        rd_if.req = 1'b0;
         
         case (state)
             RESET : begin
@@ -150,19 +138,19 @@ module db_ctrl_peripheral #(
             end
             RD : begin
                 inc_timer = 1'b1;
-                rd = 1'b1;
-                if (rd_rdy) nxt_state = RD_PENDING;
+                rd_if.req = 1'b1;
+                if (rd_if.rdy) nxt_state = RD_PENDING;
             end
             RMW : begin
                 inc_timer = 1'b1;
-                wr = 1'b1;
-                rd = 1'b1;
-                if (rd_rdy) nxt_state = WR_PENDING;
+                wr_if.req = 1'b1;
+                rd_if.req = 1'b1;
+                if (rd_if.rdy) nxt_state = WR_PENDING;
             end
             WR : begin
                 inc_timer = 1'b1;
-                wr = 1'b1;
-                if (wr_rdy) nxt_state = WR_PENDING;
+                wr_if.req = 1'b1;
+                if (wr_if.rdy) nxt_state = WR_PENDING;
             end
             CLEAR_PENDING : begin
                 inc_timer = 1'b1;
@@ -170,15 +158,15 @@ module db_ctrl_peripheral #(
             end
             RD_PENDING : begin
                 inc_timer = 1'b1;
-                if (rd_ack) begin
-                    if (rd_error)     nxt_state = ERROR;
+                if (rd_if.ack) begin
+                    if (rd_if.error)  nxt_state = ERROR;
                     else              nxt_state = DONE;
                 end
             end
             WR_PENDING : begin
                 inc_timer = 1'b1;
-                if (wr_ack) begin
-                    if (wr_error)     nxt_state = ERROR;
+                if (wr_if.ack) begin
+                    if (wr_if.error)  nxt_state = ERROR;
                     else              nxt_state = DONE;
                 end
             end
@@ -207,18 +195,19 @@ module db_ctrl_peripheral #(
     // Latch request data
     always_ff @(posedge clk) begin
         if (ctrl_if.req && ctrl_if.rdy) begin
-            key <= ctrl_if.key;
-            wr_value <= ctrl_if.set_value;
-            if (ctrl_if.command == COMMAND_UNSET) wr_valid <= 1'b0;
-            else                                  wr_valid <= 1'b1;
+            wr_if.key <= ctrl_if.key;
+            rd_if.key <= ctrl_if.key;
+            wr_if.value <= ctrl_if.set_value;
+            if (ctrl_if.command == COMMAND_UNSET) wr_if.valid <= 1'b0;
+            else                                  wr_if.valid <= 1'b1;
         end
     end
 
     // Latch response data
     always_ff @(posedge clk) begin
-        if (rd_ack) begin
-            ctrl_if.valid = rd_valid;
-            ctrl_if.get_value = rd_value;
+        if (rd_if.ack) begin
+            ctrl_if.valid = rd_if.valid;
+            ctrl_if.get_value = rd_if.value;
         end
     end
   
