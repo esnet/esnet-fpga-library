@@ -25,82 +25,297 @@
 module axi4s_join
    import axi4s_pkg::*;
 #(
-   parameter PTR_LEN = 16  // wordlength of wr_ptr (used for buffer context).
+   parameter logic BIGENDIAN = 0  // Little endian by default.
 )  (
-   axi4s_intf.rx            axi4s_hdr_in,
-   axi4s_intf.rx            axi4s_in,
-   axi4s_intf.tx            axi4s_out,
-
-   output logic             rd_req,
-   output logic [PTR_LEN:0] rd_ptr
+   axi4s_intf.rx   axi4s_hdr_in,
+   axi4s_intf.rx   axi4s_in,
+   axi4s_intf.tx   axi4s_out
 );
 
-   // state machine signals and logic.
-   typedef enum logic {
+   localparam int  DATA_BYTE_WID = axi4s_hdr_in.DATA_BYTE_WID;
+   localparam type TID_T         = axi4s_hdr_in.TID_T;
+   localparam type TDEST_T       = axi4s_hdr_in.TDEST_T;
+   localparam type TUSER_T       = axi4s_hdr_in.TUSER_T;
+   localparam int  COUNT_WID     = $clog2(DATA_BYTE_WID);
+
+   // signals
+   typedef enum logic[1:0] {
       HEADER,
-      PAYLOAD
+      PAYLOAD,
+      LAST_PAYLOAD
    } state_t;
 
    state_t state, state_nxt; 
 
-   always @(posedge axi4s_in.aclk)
-      if (!axi4s_in.aresetn) state <= HEADER;
-      else                   state <= state_nxt;
+   logic [COUNT_WID:0] pyld_shift;
+   logic [COUNT_WID:0] pyld_shift_pipe[2];
+
+   TID_T    hdr_tid;
+   TDEST_T  hdr_tdest;
+
+   // TODO: consider adding an interface check for buffer context mode.
+   // internal axi4s interfaces.
+   axi4s_intf #(.TUSER_MODE(BUFFER_CONTEXT), .DATA_BYTE_WID(DATA_BYTE_WID),
+                .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) sync_hdr[2] ();
+
+   axi4s_intf #(.TUSER_MODE(BUFFER_CONTEXT), .DATA_BYTE_WID(DATA_BYTE_WID),
+                .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) sync_pyld[2] ();
+
+   axi4s_intf #(.TUSER_MODE(BUFFER_CONTEXT), .DATA_BYTE_WID(DATA_BYTE_WID), 
+                .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) pipe_hdr[3] ();
+
+   axi4s_intf #(.TUSER_MODE(BUFFER_CONTEXT), .DATA_BYTE_WID(DATA_BYTE_WID),
+                .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) pipe_pyld[3] ();
+
+   axi4s_intf #(.TUSER_MODE(BUFFER_CONTEXT), .DATA_BYTE_WID(DATA_BYTE_WID),
+                .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) shifted_pyld ();
+
+   axi4s_intf #(.TUSER_MODE(BUFFER_CONTEXT), .DATA_BYTE_WID(DATA_BYTE_WID), 
+                .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) joined ();
+
+   logic clk, resetn;
+
+   assign clk    = axi4s_in.aclk;
+   assign resetn = axi4s_in.aresetn;
+
+
+   // axi4s SOP synchronizer instantiation.
+   axi4s_sync #(.MODE(SOP)) axi4s_sync_0 (
+      .axi4s_in0   (axi4s_hdr_in),
+      .axi4s_in1   (axi4s_in),
+      .axi4s_out0  (sync_hdr[0]),
+      .axi4s_out1  (sync_pyld[0])
+   );
+
+   // axi4s HDR_TLAST synchronizer instantiation.
+   axi4s_sync #(.MODE(HDR_TLAST)) axi4s_sync_1 (
+      .axi4s_in0   (sync_hdr[0]),
+      .axi4s_in1   (sync_pyld[0]),
+      .axi4s_out0  (sync_hdr[1]),
+      .axi4s_out1  (sync_pyld[1])
+   );
+
+   
+
+   // axi4s hdr pipeline.
+   axi4s_intf_pipe #(.MODE(PUSH)) hdr_pipe_0 (
+      .axi4s_if_from_tx (sync_hdr[1]),
+      .axi4s_if_to_rx   (pipe_hdr[0])
+   );
+
+   axi4s_intf_pipe #(.MODE(PUSH)) hdr_pipe_1 (
+      .axi4s_if_from_tx (pipe_hdr[0]),
+      .axi4s_if_to_rx   (pipe_hdr[1])
+   );
+
+   axi4s_intf_pipe #(.MODE(PUSH)) hdr_pipe_2 (
+      .axi4s_if_from_tx (pipe_hdr[1]),
+      .axi4s_if_to_rx   (pipe_hdr[2])
+   );
+
+   assign pipe_hdr[2].tready = pipe_pyld[2].tready;  // drive pipe_hdr and pipe_pyld with common tready.
+
+
+   
+   // axi4s pyld pipeline.
+   axi4s_intf_pipe #(.MODE(PUSH)) pyld_pipe_0 (
+      .axi4s_if_from_tx (sync_pyld[1]),
+      .axi4s_if_to_rx   (pipe_pyld[0])
+   );
+
+   // axi4s barrel shifter instantiation.
+   axi4s_shift #(
+      .BIGENDIAN (BIGENDIAN),
+      .SHIFT_WID (COUNT_WID)
+   ) axi4s_shift_0 (
+      .axi4s_in   (pipe_pyld[0]),
+      .axi4s_out  (shifted_pyld),
+      .shift      (pyld_shift[COUNT_WID-1:0])
+   );
+
+   axi4s_intf_pipe #(.MODE(PUSH)) pyld_pipe_1 (
+      .axi4s_if_from_tx (shifted_pyld),
+      .axi4s_if_to_rx   (pipe_pyld[1])
+   );
+
+   axi4s_intf_pipe #(.MODE(PUSH)) pyld_pipe_2 (
+      .axi4s_if_from_tx (pipe_pyld[1]),
+      .axi4s_if_to_rx   (pipe_pyld[2])
+   );
+
+   assign pipe_pyld[2].tready = joined.tready;
+
+
+
+   // capture required payload shift.
+   assign pyld_shift = (pipe_hdr[0].tvalid && pipe_hdr[0].tready) ?
+                       tkeep_to_shift (pipe_hdr[0].tkeep) : pyld_shift_pipe[0];
+
+   always @(posedge clk)
+      if (!resetn) begin
+         pyld_shift_pipe[0] <= '0;
+         pyld_shift_pipe[1] <= '0;
+      end else begin 
+         if ( pipe_hdr[0].tvalid &&  pipe_hdr[0].tready)  pyld_shift_pipe[0] <= pyld_shift;
+         if (pipe_pyld[1].tvalid && pipe_pyld[1].tready)  pyld_shift_pipe[1] <= pyld_shift_pipe[0];
+      end
+
+
+
+   // state machine logic.
+   always @(posedge clk)
+      if (!resetn)  state <= HEADER;
+      else          state <= state_nxt;
 
    always_comb begin
       state_nxt = state;
       case (state)
-        HEADER  : begin
-           // transition from HEADER to PAYLOAD if last hdr word, but NOT last pkt word.
-           if (axi4s_hdr_in.tready && axi4s_hdr_in.tvalid && 
-               axi4s_hdr_in.tlast && !axi4s_hdr_in.tuser.tlast) state_nxt = PAYLOAD;
+
+        HEADER : begin
+           // transition from HEADER to PAYLOAD or LAST_PAYLOAD if last hdr word, but NOT last pkt word.
+           if (pipe_hdr[2].tready && pipe_hdr[2].tvalid && pipe_hdr[2].tlast && !pipe_pyld[2].tlast) begin
+              if (pipe_pyld[1].tlast) state_nxt = LAST_PAYLOAD;
+              else                    state_nxt = PAYLOAD;
+           end
         end
         PAYLOAD : begin
-           // transition from PAYLOAD to HEADER if last pkt word.
-           if (axi4s_in.tready && axi4s_in.tvalid && axi4s_in.tlast) state_nxt = HEADER;
+           // transition from PAYLOAD to LAST_PAYLOAD if last pkt word.
+           if (pipe_pyld[1].tready && pipe_pyld[1].tvalid && pipe_pyld[1].tlast) state_nxt = LAST_PAYLOAD;
+        end
+        LAST_PAYLOAD : begin
+           // transition from LAST_PAYLOAD back to HEADER at end of pkt.
+           if (pipe_pyld[2].tready && pipe_pyld[2].tvalid && pipe_pyld[2].tlast) state_nxt = HEADER;
         end
         default : state_nxt = state;
       endcase
    end
 
+   // hdr and pyld joining assignments.
+   always_comb begin
+      case (state)
+        HEADER : begin
+           if (pipe_hdr[2].tready && pipe_hdr[2].tvalid && pipe_hdr[2].tlast && pipe_pyld[2].tlast) begin
+              joined.tdata   = join_tdata (.shift(pyld_shift_pipe[1]), .tdata_lsb( pipe_hdr[2].tdata), .tdata_msb('0));
+              joined.tkeep   = join_tkeep (.shift(pyld_shift_pipe[1]), .tkeep_lsb( pipe_hdr[2].tkeep), .tkeep_msb('0));
+           end else begin
+              joined.tdata   = join_tdata (.shift(pyld_shift_pipe[1]), .tdata_lsb( pipe_hdr[2].tdata), .tdata_msb(pipe_pyld[1].tdata));
+              joined.tkeep   = join_tkeep (.shift(pyld_shift_pipe[1]), .tkeep_lsb( pipe_hdr[2].tkeep), .tkeep_msb(pipe_pyld[1].tkeep));
+           end
+        end
+        PAYLOAD : begin
+           joined.tdata   = join_tdata (.shift(pyld_shift_pipe[1]), .tdata_lsb(pipe_pyld[2].tdata), .tdata_msb(pipe_pyld[1].tdata));
+           joined.tkeep   = join_tkeep (.shift(pyld_shift_pipe[1]), .tkeep_lsb(pipe_pyld[2].tkeep), .tkeep_msb(pipe_pyld[1].tkeep));
+        end
+        LAST_PAYLOAD : begin
+           joined.tdata   = join_tdata (.shift(pyld_shift_pipe[1]), .tdata_lsb(pipe_pyld[2].tdata), .tdata_msb('0));
+           joined.tkeep   = join_tkeep (.shift(pyld_shift_pipe[1]), .tkeep_lsb(pipe_pyld[2].tkeep), .tkeep_msb('0));
+        end
 
-   // axis4s input interface signalling.
-   assign axi4s_in.tready = axi4s_out.tready && (state == PAYLOAD);
-   
-   // read from axi4s_in when in PAYLOAD state.
-   assign rd_req = (state_nxt == PAYLOAD);
-   
-   // rd_ptr is based on wr_ptr in last header word, or previous payload word (depending on state).
-   assign rd_ptr = (state == PAYLOAD) ? axi4s_in.tuser.wr_ptr + 1 : axi4s_hdr_in.tuser.wr_ptr + 1;
+        default : begin
+           joined.tdata   = join_tdata (.shift(pyld_shift_pipe[1]), .tdata_lsb( pipe_hdr[2].tdata), .tdata_msb(pipe_pyld[1].tdata));
+           joined.tkeep   = join_tkeep (.shift(pyld_shift_pipe[1]), .tkeep_lsb( pipe_hdr[2].tkeep), .tkeep_msb(pipe_pyld[1].tkeep));
+        end
+      endcase
+   end
+
+   assign joined.aclk    = pipe_pyld[2].aclk;
+   assign joined.aresetn = pipe_pyld[2].aresetn;
+   assign joined.tvalid  = pipe_pyld[2].tvalid;
+   assign joined.tlast   = pipe_pyld[2].tlast;
+   assign joined.tid     = hdr_tid;   // TODO: validate tid and tdest output functionality
+   assign joined.tdest   = hdr_tdest;
+   assign joined.tuser   = '0;
 
 
-   // axis4s hdr interface signalling.
-   assign axi4s_hdr_in.tready = axi4s_out.tready && (state == HEADER);
-
-   // latch axi4s_hdr_in meta data signals
-   localparam type TID_T   = axi4s_hdr_in.TID_T;
-   localparam type TDEST_T = axi4s_hdr_in.TDEST_T;
-
-   TID_T    hdr_in_tid;
-   TDEST_T  hdr_in_tdest;
-
-   always @(posedge axi4s_in.aclk)
-      if (axi4s_hdr_in.tready && axi4s_hdr_in.tvalid && axi4s_hdr_in.sop) begin
-         hdr_in_tid   <= axi4s_hdr_in.tid;
-         hdr_in_tdest <= axi4s_hdr_in.tdest;
+   // latch tid and tdest signals.
+   always @(posedge clk)
+      if (pipe_hdr[1].tready && pipe_hdr[1].tvalid && pipe_hdr[1].sop) begin
+         hdr_tid   <= pipe_hdr[1].tid;
+         hdr_tdest <= pipe_hdr[1].tdest;
       end
 
+   // output interface pipe stage.
+   axi4s_intf_pipe #(.MODE(PUSH)) join_pipe (
+      .axi4s_if_from_tx (joined),
+      .axi4s_if_to_rx   (axi4s_out)
+   );
 
-   // axis4s output interface signalling.
-   assign axi4s_out.aclk    = axi4s_in.aclk;
-   assign axi4s_out.aresetn = axi4s_in.aresetn;
-   assign axi4s_out.tvalid  = (state == HEADER) ? axi4s_hdr_in.tvalid      : axi4s_in.tvalid;
-   assign axi4s_out.tdata   = (state == HEADER) ? axi4s_hdr_in.tdata       : axi4s_in.tdata;
-   assign axi4s_out.tkeep   = (state == HEADER) ? axi4s_hdr_in.tkeep       : axi4s_in.tkeep;
-   assign axi4s_out.tlast   = (state == HEADER) ? axi4s_hdr_in.tuser.tlast : axi4s_in.tlast;
-   assign axi4s_out.tuser   = '0;
 
-   assign axi4s_out.tid     = (state == HEADER) && axi4s_hdr_in.sop ? axi4s_hdr_in.tid   : hdr_in_tid;
-   assign axi4s_out.tdest   = (state == HEADER) && axi4s_hdr_in.sop ? axi4s_hdr_in.tdest : hdr_in_tdest;
+
+   
+
+   // tkeep_to_shift function 
+   function automatic logic[COUNT_WID:0] tkeep_to_shift (input [DATA_BYTE_WID-1:0] tkeep);
+      automatic logic[COUNT_WID:0] shift = 0;
+      automatic logic[DATA_BYTE_WID-1:0] __tkeep;
+
+      __tkeep = BIGENDIAN ? {<<{tkeep}} : tkeep;  // convert to little endian prior to for loop.
+
+      for (int i=0; i<DATA_BYTE_WID; i++) if (__tkeep[DATA_BYTE_WID-1-i]==1'b1) begin
+         shift = DATA_BYTE_WID-i;
+         return shift;
+      end
+      return shift;
+   endfunction
+
+
+
+/*
+   // join_tdata function
+   function automatic logic [DATA_BYTE_WID-1:0][7:0] join_tdata 
+      (input [DATA_BYTE_WID-1:0] tkeep, input [DATA_BYTE_WID-1:0][7:0] tdata_lsb, tdata_msb);
+
+      automatic logic [DATA_BYTE_WID-1:0][7:0] tdata_out;
+      automatic logic select_tdata_lsb = 0;
+      for (int i=0; i<DATA_BYTE_WID; i++) 
+         if (tkeep[DATA_BYTE_WID-1-i]==1'b1) select_tdata_lsb = 1'b1;
+         tdata_out[i] = select_tdata_lsb ? tdata_lsb[i] : tdata_msb[i];
+      return tdata_out;
+   endfunction
+*/
+
+
+
+   // join_tdata function
+   function automatic logic[DATA_BYTE_WID-1:0][7:0] join_tdata 
+      (input [COUNT_WID:0] shift, input [DATA_BYTE_WID-1:0][7:0] tdata_lsb, tdata_msb);
+
+      automatic logic[DATA_BYTE_WID-1:0][7:0] tdata_out;
+      automatic logic[DATA_BYTE_WID-1:0][7:0] __tdata_lsb, __tdata_msb, __tdata_out;
+
+      // convert to little endian prior to for loop.
+      __tdata_lsb = BIGENDIAN ? {<<byte{tdata_lsb}} : tdata_lsb; 
+      __tdata_msb = BIGENDIAN ? {<<byte{tdata_msb}} : tdata_msb;
+
+      for (int i=0; i<DATA_BYTE_WID; i++) __tdata_out[i] = (i < shift) ? __tdata_lsb[i] : __tdata_msb[i];
+
+      // convert back to big endian if required.
+      tdata_out = BIGENDIAN ? {<<byte{__tdata_out}} : __tdata_out; 
+
+      return tdata_out;
+   endfunction
+
+
+
+   // join_tkeep function
+   function automatic logic[DATA_BYTE_WID-1:0] join_tkeep
+      (input [COUNT_WID:0] shift, input [DATA_BYTE_WID-1:0] tkeep_lsb, tkeep_msb);
+
+      automatic logic[DATA_BYTE_WID-1:0] tkeep_out;
+      automatic logic[DATA_BYTE_WID-1:0] __tkeep_lsb, __tkeep_msb, __tkeep_out;
+
+      // convert to little endian prior to for loop.
+      __tkeep_lsb = BIGENDIAN ? {<<{tkeep_lsb}} : tkeep_lsb;
+      __tkeep_msb = BIGENDIAN ? {<<{tkeep_msb}} : tkeep_msb;
+
+      for (int i=0; i<DATA_BYTE_WID; i++) 
+         __tkeep_out[i] = (i < shift) ? __tkeep_lsb[i] : __tkeep_msb[i];
+
+      // convert back to big endian if required.
+      tkeep_out = BIGENDIAN ? {<<{__tkeep_out}} : __tkeep_out;
+
+      return tkeep_out;
+   endfunction
+
 
 endmodule // axi4s_join
