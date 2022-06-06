@@ -28,13 +28,14 @@
 module axi4s_split
    import axi4s_pkg::*;
 #(
-   parameter PTR_LEN = 16  // wordlength of wr_ptr (used for buffer context).
+   parameter logic BIGENDIAN = 0,  // Little endian by default.
+   parameter int   PTR_LEN = 16    // wordlength of wr_ptr (for buffer context, or pkt_id).
 )  (
    axi4s_intf.rx     axi4s_in,
    axi4s_intf.tx     axi4s_out,
    axi4s_intf.tx     axi4s_hdr_out,
 
-   input logic [15:0] hdr_length  // specified in bytes (valid range is >= 1).
+   input logic [15:0] hdr_length  // specified in bytes.
 );
 
    localparam int  DATA_BYTE_WID = axi4s_hdr_out.DATA_BYTE_WID;
@@ -51,24 +52,27 @@ module axi4s_split
    axi4s_intf #(.TUSER_MODE(BUFFER_CONTEXT), .DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T), 
                 .TDEST_T(TDEST_T), .TUSER_T(tuser_buffer_context_mode_t)) axi4s_to_trunc ();
 
-   // axis4s_to_copy interface signalling. assigns buffer context to the tuser signal.
-   assign axi4s_to_copy.aclk         = axi4s_in.aclk;
-   assign axi4s_to_copy.aresetn      = axi4s_in.aresetn;
-   assign axi4s_to_copy.tvalid       = axi4s_in.tvalid;
-   assign axi4s_to_copy.tdata        = axi4s_in.tdata;
-   assign axi4s_to_copy.tkeep        = axi4s_in.tkeep;
-   assign axi4s_to_copy.tdest        = axi4s_in.tdest;
-   assign axi4s_to_copy.tid          = axi4s_in.tid;
-   assign axi4s_to_copy.tlast        = axi4s_in.tlast;
-   assign axi4s_to_copy.tuser.wr_ptr = wr_ptr;
-   assign axi4s_to_copy.tuser.tlast  = axi4s_in.tlast;
-
-   assign axi4s_in.tready            = axi4s_to_copy.tready;
 
    // wr_ptr logic
    always @(posedge axi4s_in.aclk)
-      if (!axi4s_in.aresetn) wr_ptr <= '0;
+      if (!axi4s_in.aresetn)                       wr_ptr <= '0;
       else if (axi4s_in.tvalid && axi4s_in.tready) wr_ptr <= wr_ptr + 1;
+
+
+   // axis4s_to_copy interface signalling. assigns buffer context to the tuser signal.
+   assign axi4s_to_copy.aclk             = axi4s_in.aclk;
+   assign axi4s_to_copy.aresetn          = axi4s_in.aresetn;
+   assign axi4s_to_copy.tvalid           = axi4s_in.tvalid;
+   assign axi4s_to_copy.tdata            = axi4s_in.tdata;
+   assign axi4s_to_copy.tkeep            = axi4s_in.tkeep;
+   assign axi4s_to_copy.tdest            = axi4s_in.tdest;
+   assign axi4s_to_copy.tid              = axi4s_in.tid;
+   assign axi4s_to_copy.tlast            = axi4s_in.tlast;
+   assign axi4s_to_copy.tuser.wr_ptr     = wr_ptr;
+   assign axi4s_to_copy.tuser.hdr_tlast  = axi4s_hdr_out.tvalid && axi4s_hdr_out.tlast;
+
+   assign axi4s_in.tready                = axi4s_to_copy.tready;
+
 
    // axi4s_copy instance.
    axi4s_copy axi4s_copy_0 (
@@ -78,7 +82,9 @@ module axi4s_split
    );
 
    // axi4s_trunc instance.
-   axi4s_trunc axi4s_trunc_0 (
+   axi4s_trunc #(
+      .BIGENDIAN (BIGENDIAN)
+   ) axi4s_trunc_0 (
       .axi4s_in   (axi4s_to_trunc),
       .axi4s_out  (axi4s_hdr_out),
       .length     (hdr_length)

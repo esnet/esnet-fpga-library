@@ -24,13 +24,15 @@
 
 module axi4s_split_join
    import axi4s_pkg::*;
-(
+#(
+   parameter logic BIGENDIAN = 0  // Little endian by default.
+) (
    axi4s_intf.rx     axi4s_in,
    axi4s_intf.tx     axi4s_out,
    axi4s_intf.tx     axi4s_hdr_out,
    axi4s_intf.rx     axi4s_hdr_in,
 
-   input logic [15:0] hdr_length  // specified in bytes (valid range is >= 1).
+   input logic [15:0] hdr_length  // specified in bytes.
 );
 
    localparam int  DATA_BYTE_WID = axi4s_hdr_out.DATA_BYTE_WID;
@@ -43,40 +45,46 @@ module axi4s_split_join
    axi4s_intf #( .TUSER_MODE(BUFFER_CONTEXT), .DATA_BYTE_WID(DATA_BYTE_WID), 
                  .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(tuser_buffer_context_mode_t) ) axi4s_from_buffer ();
 
-   // buffer context signals
-   logic        rd_req;
-   logic [15:0] rd_ptr;
-   logic [15:0] wr_ptr;
 
    // header splitter instantiation
-   axi4s_split axi4s_split_0 (
+   axi4s_split #(
+      .BIGENDIAN (BIGENDIAN)
+   ) axi4s_split_0 (
       .axi4s_in      (axi4s_in),
       .axi4s_out     (axi4s_to_buffer),
       .axi4s_hdr_out (axi4s_hdr_out),
       .hdr_length    (hdr_length)
    );
 
-   assign wr_ptr = axi4s_to_buffer.tuser.wr_ptr;
 
-   // packet buffer instantiation
-   axi4s_pkt_buffer #(
-//      .ADDR_WID (15)
-      .ADDR_WID (8)
-   ) axi4s_pkt_buffer_0 (
-      .axi4s_in      (axi4s_to_buffer),
-      .axi4s_out     (axi4s_from_buffer),
-      .rd_req        (rd_req),
-      .rd_ptr        (rd_ptr),
-      .wr_ptr        (wr_ptr)
-   );
+   // instantiate and terminate unused AXI-L interfaces.
+   axi4l_intf axil_to_probe ();
+   axi4l_intf axil_to_ovfl  ();
+   axi4l_intf axil_to_fifo  ();
 
+   axi4l_intf_controller_term axi4l_to_probe_term (.axi4l_if (axil_to_probe));
+   axi4l_intf_controller_term axi4l_to_ovfl_term  (.axi4l_if (axil_to_ovfl));
+   axi4l_intf_controller_term axi4l_to_fifo_term  (.axi4l_if (axil_to_fifo));
+
+   // packet fifo instantiation
+   axi4s_pkt_fifo_sync #(
+       .FIFO_DEPTH(256)
+    ) fifo_0 (
+       .axi4s_in       (axi4s_to_buffer),
+       .axi4s_out      (axi4s_from_buffer),
+       .axil_to_probe  (axil_to_probe),
+       .axil_to_ovfl   (axil_to_ovfl),
+       .axil_if        (axil_to_fifo)
+    );
+
+   
    // payload joiner instantiation
-   axi4s_join axi4s_join_0 (
+   axi4s_join #(
+      .BIGENDIAN (BIGENDIAN)
+   ) axi4s_join_0 (
       .axi4s_hdr_in  (axi4s_hdr_in),
       .axi4s_in      (axi4s_from_buffer),
-      .axi4s_out     (axi4s_out),
-      .rd_req        (rd_req),
-      .rd_ptr        (rd_ptr)
+      .axi4s_out     (axi4s_out)
    );
 
 endmodule // axi4s_split_join
