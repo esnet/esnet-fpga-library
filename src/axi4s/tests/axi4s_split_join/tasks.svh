@@ -57,7 +57,8 @@ task run_pkt_test (input bit dest_port=0, input VERBOSE=1 );
    bit           user;
 
    debug_msg("Reading expected pcap file...", VERBOSE);
-   filename = "../../../tests/axi4s_split_join/64B_multiples_10pkts.pcap";
+   filename = "../../../tests/axi4s_split_join/16B_multiples_10pkts.pcap";
+//   filename = "../../../tests/axi4s_split_join/64B_multiples_10pkts.pcap";
    pcap_pkg::read_pcap(filename, exp_pcap_hdr, exp_pcap_record_hdr, exp_data);
 
    debug_msg("Starting simulation...", VERBOSE);
