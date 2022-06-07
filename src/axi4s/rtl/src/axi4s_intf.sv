@@ -216,8 +216,8 @@ interface axi4s_intf
     always @(posedge aclk or negedge aresetn) begin
         if (!aresetn) sop <= 1'b1;
         else begin
-            if (tvalid && tready && tlast) sop <= 1'b1;
-            else if (tvalid && tready)     sop <= 1'b0;
+            if (tvalid && tready && tlast)  sop <= 1'b1;
+            else if (tvalid && tready)      sop <= 1'b0;
         end
     end
 
@@ -275,7 +275,35 @@ module axi4s_intf_connector (
     assign axi4s_from_tx.tready = (axi4s_from_tx.MODE == IGNORES_TREADY) ? 1'b1 : axi4s_to_rx.tready;
 endmodule : axi4s_intf_connector
 
-module axi4s_intf_pipe (
+
+// AXI4-Stream monitor helper module
+module axi4s_intf_monitor (
+    axi4s_intf.rx  axi4s_from_tx,
+    axi4s_intf.prb axi4s_to_prb
+);
+    import axi4s_pkg::*;
+
+    // Connect signals (rx -> tx)
+    assign axi4s_to_prb.aclk    = axi4s_from_tx.aclk;
+    assign axi4s_to_prb.aresetn = axi4s_from_tx.aresetn;
+    assign axi4s_to_prb.tvalid  = axi4s_from_tx.tvalid;
+    assign axi4s_to_prb.tdata   = axi4s_from_tx.tdata;
+    assign axi4s_to_prb.tkeep   = axi4s_from_tx.tkeep;
+    assign axi4s_to_prb.tlast   = axi4s_from_tx.tlast;
+    assign axi4s_to_prb.tid     = axi4s_from_tx.tid;
+    assign axi4s_to_prb.tdest   = axi4s_from_tx.tdest;
+    assign axi4s_to_prb.tuser   = axi4s_from_tx.tuser;
+    assign axi4s_to_prb.tready  = axi4s_from_tx.tready;
+
+endmodule : axi4s_intf_monitor
+
+
+// AXI4-Stream pipeline helper module
+module axi4s_intf_pipe 
+    import axi4s_pkg::*;
+#(
+    parameter axi4s_pipe_mode_t MODE = PULL
+) (
     axi4s_intf.rx axi4s_if_from_tx,
     axi4s_intf.tx axi4s_if_to_rx
 );
@@ -291,19 +319,19 @@ module axi4s_intf_pipe (
     // TVALID buffer
     initial axi4s_if_to_rx.tvalid = 1'b0;
     always @(posedge axi4s_if_from_tx.aclk) begin
-        if (!axi4s_if_from_tx.aresetn)    axi4s_if_to_rx.tvalid <= 1'b0;
-        else if (axi4s_if_from_tx.tvalid) axi4s_if_to_rx.tvalid <= 1'b1;
-        else if (axi4s_if_to_rx.tready)   axi4s_if_to_rx.tvalid <= 1'b0;
+        if (!axi4s_if_from_tx.aresetn)                               axi4s_if_to_rx.tvalid <= 1'b0;
+        else if (axi4s_if_from_tx.tvalid && axi4s_if_from_tx.tready) axi4s_if_to_rx.tvalid <= 1'b1;
+        else if (axi4s_if_to_rx.tready)                              axi4s_if_to_rx.tvalid <= 1'b0;
     end
 
     // TREADY
-    initial ready = 1'b0;
+    initial ready = 1'b1;
     always @(posedge axi4s_if_from_tx.aclk) begin
-        if (!axi4s_if_from_tx.aresetn)    ready <= 1'b0;
+        if (!axi4s_if_from_tx.aresetn)    ready <= 1'b1;
         else if (axi4s_if_from_tx.tvalid) ready <= 1'b0;
         else if (axi4s_if_to_rx.tready)   ready <= 1'b1;
     end
-    assign axi4s_if_from_tx.tready = ready || axi4s_if_to_rx.tready;
+    assign axi4s_if_from_tx.tready = (MODE == PUSH) ? axi4s_if_to_rx.tready : (ready || axi4s_if_to_rx.tready);
 
     // Data
     always_ff @(posedge axi4s_if_from_tx.aclk) begin

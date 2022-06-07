@@ -29,7 +29,7 @@ module axi4s_trunc
    axi4s_intf.rx axi4s_in,
    axi4s_intf.tx axi4s_out,
 
-   input logic [15:0] length  // specified in bytes (valid range is >= 1).
+   input logic [15:0] length  // specified in bytes.
 );
 
    localparam int DATA_BYTE_WID = axi4s_in.DATA_BYTE_WID;
