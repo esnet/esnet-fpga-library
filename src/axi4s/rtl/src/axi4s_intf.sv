@@ -216,8 +216,8 @@ interface axi4s_intf
     always @(posedge aclk or negedge aresetn) begin
         if (!aresetn) sop <= 1'b1;
         else begin
-            if (tvalid && tready && tlast)       sop <= 1'b1;
-            else if (tvalid && tready && !tlast) sop <= 1'b0;
+            if (tvalid && tready && tlast)  sop <= 1'b1;
+            else if (tvalid && tready)      sop <= 1'b0;
         end
     end
 
