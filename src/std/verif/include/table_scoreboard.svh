@@ -20,8 +20,8 @@
 //   results are accumulated in an application-specific method and compared on that basis
 class table_scoreboard #(
     parameter type TRANSACTION_T = transaction,
-    parameter type KEY_T,
-    parameter type RECORD_T
+    parameter type KEY_T = bit,
+    parameter type RECORD_T = bit
 ) extends scoreboard#(TRANSACTION_T);
 
     //===================================
