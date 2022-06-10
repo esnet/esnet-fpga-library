@@ -3,9 +3,9 @@
 // (Failsafe) timeout
 `define SVUNIT_TIMEOUT 500us
 
-module fifo_async_unit_test #(
+module fifo_async_axil_unit_test #(
     parameter int DEPTH = 3,
-    parameter bit FWFT
+    parameter bit FWFT = 1'b0
 );
     import svunit_pkg::svunit_testcase;
     import tb_pkg::*;
@@ -14,7 +14,7 @@ module fifo_async_unit_test #(
     localparam string type_string = FWFT ? "fwft" : "std";
 
     // Synthesize testcase name from parameters
-    string name = $sformatf("fifo_async_%s_depth%0d__ut", type_string, DEPTH);
+    string name = $sformatf("fifo_async_axil_%s_depth%0d__ut", type_string, DEPTH);
 
     svunit_testcase svunit_ut;
 
@@ -209,6 +209,7 @@ module fifo_async_unit_test #(
 
     bit match;
     string msg;
+    bit unused_flag;
 
     `SVUNIT_TESTS_BEGIN
         //===================================
@@ -313,7 +314,7 @@ module fifo_async_unit_test #(
             // Send transaction
             exp_transaction = new("exp_transaction", exp_item);
             env.driver.send(exp_transaction);
-            ctrl_model_write();
+            unused_flag = ctrl_model_write();
 
             // Wait
             env.driver._wait(FIFO_ASYNC_LATENCY);
@@ -323,7 +324,7 @@ module fifo_async_unit_test #(
 
             // Receive transaction
             wait(!empty); env.monitor.receive(got_transaction);
-            ctrl_model_read();
+            unused_flag = ctrl_model_read();
 
             // Wait
             env.driver._wait(FIFO_ASYNC_LATENCY);
@@ -355,12 +356,12 @@ module fifo_async_unit_test #(
             // Send transaction
             exp_transaction = new("exp_transaction", exp_item);
             env.driver.send(exp_transaction);
-            ctrl_model_write();
+            unused_flag = ctrl_model_write();
 
             // Send second transaction
             exp_transaction = new("exp_transaction", exp_item);
             env.driver.send(exp_transaction);
-            ctrl_model_write();
+            unused_flag = ctrl_model_write();
 
             // Wait
             env.driver._wait(FIFO_ASYNC_LATENCY);
@@ -370,7 +371,7 @@ module fifo_async_unit_test #(
 
             // Receive transaction
             wait(!empty); env.monitor.receive(got_transaction);
-            ctrl_model_read();
+            unused_flag = ctrl_model_read();
 
             // Wait
             env.driver._wait(FIFO_ASYNC_LATENCY);
@@ -389,7 +390,7 @@ module fifo_async_unit_test #(
             env.driver.send(exp_transaction);
 
             // Update model
-            ctrl_model_write();
+            unused_flag = ctrl_model_write();
 
             // Wait
             env.driver._wait(FIFO_ASYNC_LATENCY);
@@ -587,7 +588,7 @@ module fifo_async_unit_test #(
             // Send DEPTH transactions
             for (int i = 0; i < __DEPTH; i++) begin
                 env.driver.send(exp_transaction);
-                ctrl_model_write();
+                unused_flag = ctrl_model_write();
                 // Full should remain deasserted
                 `FAIL_UNLESS(full == 0);
             end
@@ -601,7 +602,7 @@ module fifo_async_unit_test #(
 
             // Receive single transaction
             wait(!empty); env.monitor.receive(got_transaction);
-            ctrl_model_read();
+            unused_flag = ctrl_model_read();
 
             // Allow read transaction to be registered by FIFO
             env.driver._wait(FIFO_ASYNC_LATENCY);
@@ -808,17 +809,17 @@ module fifo_async_unit_test #(
         return (ctrl_model_count() == 0);
     endfunction
 
-endmodule : fifo_async_unit_test
+endmodule : fifo_async_axil_unit_test
 
 
 
 // 'Boilerplate' unit test wrapper code
 //  Builds unit test for a specific FIFO configuration in a way
 //  that maintains SVUnit compatibility
-`define FIFO_ASYNC_UNIT_TEST(DEPTH, FWFT)\
+`define FIFO_ASYNC_AXIL_UNIT_TEST(DEPTH, FWFT)\
   import svunit_pkg::svunit_testcase;\
   svunit_testcase svunit_ut;\
-  fifo_async_unit_test #(DEPTH, FWFT) test();\
+  fifo_async_axil_unit_test #(DEPTH, FWFT) test();\
   function void build();\
     test.build();\
     svunit_ut = test.svunit_ut;\
@@ -830,31 +831,31 @@ endmodule : fifo_async_unit_test
 
 
 // Standard 3-entry FIFO
-module fifo_async_std_depth3_unit_test;
-`FIFO_ASYNC_UNIT_TEST(3, 0)
+module fifo_async_axil_std_depth3_unit_test;
+`FIFO_ASYNC_AXIL_UNIT_TEST(3, 0)
 endmodule
 
 // Standard 8-entry FIFO
-module fifo_async_std_depth8_unit_test;
-`FIFO_ASYNC_UNIT_TEST(8, 0)
+module fifo_async_axil_std_depth8_unit_test;
+`FIFO_ASYNC_AXIL_UNIT_TEST(8, 0)
 endmodule
 
 // Standard 32-entry FIFO
-module fifo_async_std_depth32_unit_test;
-`FIFO_ASYNC_UNIT_TEST(32, 0)
+module fifo_async_axil_std_depth32_unit_test;
+`FIFO_ASYNC_AXIL_UNIT_TEST(32, 0)
 endmodule
 
 // FWFT 16-entry FIFO
-module fifo_async_fwft_depth16_unit_test;
-`FIFO_ASYNC_UNIT_TEST(16, 1)
+module fifo_async_axil_fwft_depth16_unit_test;
+`FIFO_ASYNC_AXIL_UNIT_TEST(16, 1)
 endmodule
 
 // FWFT 23-entry FIFO
-module fifo_async_fwft_depth23_unit_test;
-`FIFO_ASYNC_UNIT_TEST(23, 1)
+module fifo_async_axil_fwft_depth23_unit_test;
+`FIFO_ASYNC_AXIL_UNIT_TEST(23, 1)
 endmodule
 
 // FWFT 64-entry FIFO
-module fifo_async_fwft_depth64_unit_test;
-`FIFO_ASYNC_UNIT_TEST(64, 1)
+module fifo_async_axil_fwft_depth64_unit_test;
+`FIFO_ASYNC_AXIL_UNIT_TEST(64, 1)
 endmodule

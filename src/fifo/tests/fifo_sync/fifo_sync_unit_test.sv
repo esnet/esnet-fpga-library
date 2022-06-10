@@ -5,7 +5,7 @@
 
 module fifo_sync_unit_test #(
     parameter int DEPTH = 3,
-    parameter bit FWFT
+    parameter bit FWFT = 1'b0
 );
     import svunit_pkg::svunit_testcase;
     import tb_pkg::*;
