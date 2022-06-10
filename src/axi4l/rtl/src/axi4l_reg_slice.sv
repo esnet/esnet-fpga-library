@@ -57,7 +57,7 @@ module axi4l_reg_slice
     localparam int REG_CONFIG = getRegConfig(CONFIG);
 
     // Xilinx AXI-L register slice IP
-    axi_register_slice_v2_1_25_axi_register_slice #(
+    axi_register_slice_v2_1_26_axi_register_slice #(
         .C_FAMILY              ( "virtexuplusHBM" ),
         .C_AXI_PROTOCOL        ( 2 ), // AXI-Lite
         .C_AXI_ID_WIDTH        ( 1 ),
