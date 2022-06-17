@@ -14,6 +14,10 @@
 # -----------------------------------------------
 include $(SCRIPTS_ROOT)/Makefiles/vivado_build_base.mk
 
+# Export Make variables for use in Tcl scripts
+export TOP
+export OUT_DIR ?= out
+
 # -----------------------------------------------
 # Command
 # -----------------------------------------------
@@ -33,6 +37,9 @@ _route:    $(OUT_DIR)/$(TOP).route.dcp
 $(OUT_DIR):
 	@mkdir $(OUT_DIR)
 
+_clean_build: _clean_logs
+	@rm -rf $(OUT_DIR)
+
 # pre_synth hook to be described in 'parent' Makefile
 # (can be used to trigger regmap or IP generation before launching synthesis)
 $(OUT_DIR)/$(TOP).synth.dcp: pre_synth
@@ -49,3 +56,5 @@ $(OUT_DIR)/$(TOP).phys_opt.dcp: $(OUT_DIR)/$(TOP).place.dcp
 
 $(OUT_DIR)/$(TOP).route.dcp: $(OUT_DIR)/$(TOP).phys_opt.dcp
 	$(VIVADO_CMD) -tclargs route 1
+
+
