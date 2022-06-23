@@ -13,14 +13,13 @@ variables:
   before_script:
     - git clone https://gitlab.es.net/ht/open-nic-shell.git
     - source /opt/Xilinx/Vivado/2021.2/settings64.sh
+    - make config BOARD_REPO=$CI_PROJECT_DIR/open-nic-shell/board_files/Xilinx
   variables:
     XILINXD_LICENSE_FILE: "2100@dmv.es.net"
     # Required to keep click python module happy
     LC_ALL: C.UTF-8
     LANG: C.UTF-8
     GIT_SUBMODULE_STRATEGY: recursive
-    # Override default ONS_ROOT setting in paths.mk (to resolve board files in CI)
-    ONS_ROOT: $CI_PROJECT_DIR/open-nic-shell
 
 rtl_sim:
   stage: rtl_sim
