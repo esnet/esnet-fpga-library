@@ -19,7 +19,7 @@ if {$argc > 1} {
 set top $env(TOP)
 
 # Set output directory (if none is set, set to 'out')
-if {[info exists $env(OUT_DIR)]} {
+if {[info exists env(OUT_DIR)]} {
     set out_dir $env(OUT_DIR)
 } else {
     set out_dir out
@@ -38,10 +38,12 @@ if {[info exists $env(OUT_DIR)]} {
 # -------------------------------
 if {!$incremental} {
     puts "Initializing design..."
-    set_part $PART
-    if {[info exists $BOARD_PART]} {
+    if {[info exists PART]} {
+        set_part $PART
+    }
+    if {[info exists BOARD_PART]} {
         set_property board_part $BOARD_PART [current_project]
-        puts "-- Board part set to $board_part"
+        puts "-- Board part set to $BOARD_PART"
     }
     if {[file exists add_sources.tcl]} {
         source add_sources.tcl
