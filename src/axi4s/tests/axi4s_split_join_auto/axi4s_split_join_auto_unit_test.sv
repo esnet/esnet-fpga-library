@@ -192,6 +192,8 @@ module axi4s_split_join_auto_unit_test;
     // payload data
     byte pyld_data     [] = {>>byte{'hf0f1f2f3f4f5f6f7_f8f9fafbfcfdfeff_e0e1e2e3e4e5e6e7_e8e9eaebecedeeef}};
 
+    int tpause;
+
 
 
     task packet_loop;
@@ -227,7 +229,8 @@ module axi4s_split_join_auto_unit_test;
               axis_transaction = new($sformatf("trans_in_%0d_%0d", i, j), packet);
               env.driver.inbox.put(axis_transaction);
 
-              #500ns; // wait for packet transit time.
+              // wait for packet transit time.
+              wait(axi4s_out.tready && axi4s_out.tvalid && axi4s_out.tlast); axi4s_out._wait(3);
           end
 
           // if drop_hdr is set, send packet that will be dropped (before looping to increment payload size).
@@ -238,7 +241,7 @@ module axi4s_split_join_auto_unit_test;
             axis_transaction = new($sformatf("trans_in_drop_%0d", j), packet);
             env.driver.inbox.put(axis_transaction);
 
-            #500ns; // wait for packet transit time.
+            axi4s_out._wait(100); // wait for packet transit time.
           end
 
         end
@@ -257,7 +260,6 @@ module axi4s_split_join_auto_unit_test;
 
         `SVTEST_END
 
-
         `SVTEST(grow_header)
             // set header prefix (used by header processor) to grow header by 16B.
             prefix = {>>byte{'h0011223344556677_8899aabbccddeeff}};
@@ -267,10 +269,7 @@ module axi4s_split_join_auto_unit_test;
 
         `SVTEST_END
 
-
         `SVTEST(shrink_header_with_drops)
-            // leave prefix undefined i.e. no header growth.
-
             // set drop header.
             drop_hdr = {>>byte{'h9696969696969696_9696969696969696}};
 
@@ -278,6 +277,26 @@ module axi4s_split_join_auto_unit_test;
             packet_loop;
 
         `SVTEST_END
+
+        `SVTEST(shrink_header_with_stalls)
+            fork
+               // send sequence of packets that iteratively shorten original header.
+               packet_loop;
+
+               // tpause logic - overrides axi4s_out.tready signal (to model intermittent backpressure)
+               forever begin
+                  @(posedge axi4s_out.aclk);
+                  if (axi4s_out.tready && axi4s_out.tvalid) begin
+                     tpause = $urandom_range(3);
+                     if (tpause > 0) force axi4s_out.tready = '0;
+                  end else if (tpause == 0) begin
+                     force axi4s_out.tready = '1;
+                  end else tpause <= tpause - 1;
+               end
+            join_any
+
+        `SVTEST_END
+
 
     `SVUNIT_TESTS_END
 
