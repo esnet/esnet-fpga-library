@@ -2,26 +2,22 @@
 
 `define SVUNIT_TIMEOUT 500us
 
-module axi4s_split_join_unit_test;
-/*
+module axi4s_split_join_unit_test
 #(
     parameter int  DATA_BYTE_WID = 16
  );
-*/
     import svunit_pkg::svunit_testcase;
     import packet_verif_pkg::*;
     import axi4s_pkg::*;
     import axi4s_verif_pkg::*;
     import pcap_pkg::*;
 
-//    string name = $sformatf("axi4s_split_join_datawidth_%0d_ut", DATA_BYTE_WID);
-    string name = "axi4s_split_join_ut";
+    string name = $sformatf("axi4s_split_join_datawidth_%0d_ut", DATA_BYTE_WID);
     svunit_testcase svunit_ut;
 
     //===================================
     // Parameters
     //===================================
-    localparam int DATA_BYTE_WID = 8;
  
     localparam type TID_T = bit;
     localparam type TDEST_T = bit;
@@ -478,7 +474,7 @@ endmodule // axi4s_prefix
 
 
 
-/*
+
 // 'Boilerplate' unit test wrapper code
 //  Builds unit test for a specific axi4s_split_join configuration in a way
 //  that maintains SVUnit compatibility
@@ -511,4 +507,3 @@ endmodule
 module axi4s_split_join_datawidth_16_unit_test;
 `AXI4S_SPLIT_JOIN_UNIT_TEST(16)
 endmodule
-*/
