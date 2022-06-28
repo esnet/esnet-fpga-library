@@ -2,7 +2,7 @@
 
 `define SVUNIT_TIMEOUT 500us
 
-module axi4s_split_join_auto_unit_test;
+module axi4s_split_join_unit_test;
 /*
 #(
     parameter int  DATA_BYTE_WID = 16
@@ -15,7 +15,7 @@ module axi4s_split_join_auto_unit_test;
     import pcap_pkg::*;
 
 //    string name = $sformatf("axi4s_split_join_datawidth_%0d_ut", DATA_BYTE_WID);
-    string name = "axi4s_split_join_auto_ut";
+    string name = "axi4s_split_join_ut";
     svunit_testcase svunit_ut;
 
     //===================================
@@ -486,7 +486,7 @@ endmodule // axi4s_prefix
 `define AXI4S_SPLIT_JOIN_UNIT_TEST(DATA_BYTE_WID)\
   import svunit_pkg::svunit_testcase;\
   svunit_testcase svunit_ut;\
-  axi4s_split_join_auto_unit_test #(DATA_BYTE_WID) test();\
+  axi4s_split_join_unit_test #(DATA_BYTE_WID) test();\
   function void build();\
     test.build();\
     svunit_ut = test.svunit_ut;\
