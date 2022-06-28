@@ -46,7 +46,6 @@ module axi4s_drop
    assign axi4s_out.aclk    = axi4s_in.aclk;
    assign axi4s_out.aresetn = axi4s_in.aresetn;
    assign axi4s_out.tvalid  = axi4s_in.tvalid && !drop;
-   assign axi4s_out.tvalid  = axi4s_in.tvalid;
    assign axi4s_out.tdata   = axi4s_in.tdata;
    assign axi4s_out.tkeep   = axi4s_in.tkeep;
    assign axi4s_out.tlast   = axi4s_in.tlast;
