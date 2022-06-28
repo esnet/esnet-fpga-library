@@ -37,7 +37,8 @@ module axi4s_sync
    axi4s_intf.tx    axi4s_out0, axi4s_out1
 );
 
-   logic  sync, sync0, sync1;;
+   logic  sync, sync0, sync1;
+   logic  sync_stretch0, sync_stretch1;
 
    always_comb begin
       case (MODE)
@@ -45,17 +46,17 @@ module axi4s_sync
           // synchronize sop words and validate wr pointers (pkt id).
           sync  = axi4s_in0.sop && axi4s_in0.tvalid &&  
                   axi4s_in1.sop && axi4s_in1.tvalid &&
-                  (axi4s_in0.tuser.wr_ptr == axi4s_in1.tuser.wr_ptr);
-          sync0 = sync || !axi4s_in0.sop;
-          sync1 = sync || !axi4s_in1.sop;
+                  axi4s_in0.tuser.wr_ptr == axi4s_in1.tuser.wr_ptr;
+          sync0 = sync || sync_stretch0 || !axi4s_in0.sop;
+          sync1 = sync || sync_stretch1 || !axi4s_in1.sop;
         end
 
         HDR_TLAST : begin
           // synchronize hdr tlast words (using payload buffer context).
           sync  = axi4s_in0.tvalid && axi4s_in0.tlast && 
                   axi4s_in1.tvalid && axi4s_in1.tuser.hdr_tlast;
-          sync0 = sync || !axi4s_in0.tlast;
-          sync1 = sync || !axi4s_in1.tuser.hdr_tlast;
+          sync0 = sync || sync_stretch0 || !axi4s_in0.tlast;
+          sync1 = sync || sync_stretch1 || !axi4s_in1.tuser.hdr_tlast;
         end
 
         default : begin
@@ -65,6 +66,18 @@ module axi4s_sync
         end
       endcase
    end
+
+
+   always @(posedge axi4s_in0.aclk)  // fix clock
+      if (!axi4s_in0.aresetn)           sync_stretch0 <= '0;
+      else if (axi4s_out0.tready)       sync_stretch0 <= '0;
+      else if (sync && !sync_stretch0)  sync_stretch0 <= '1;
+
+   always @(posedge axi4s_in1.aclk)  // fix clock
+      if (!axi4s_in1.aresetn)           sync_stretch1 <= '0;
+      else if (axi4s_out1.tready)       sync_stretch1 <= '0;
+      else if (sync && !sync_stretch1)  sync_stretch1 <= '1;
+
 
    // axis4s in0 interface signalling.
    assign axi4s_in0.tready = axi4s_out0.tready && sync0;
