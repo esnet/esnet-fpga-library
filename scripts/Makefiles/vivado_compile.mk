@@ -105,13 +105,12 @@ $(SIM_LIB): $(SRCS) $(HDRS) $(COMPONENT_OBJS) | $(LIB_DIR)
 	@echo $(LIBS) | tr ' ' '\n' > $(LIB_DIR)/sub.libs
 	@echo
 	@echo Done.
-	@echo -----------------------------------------------------
 
 # Compile component dependencies
 _compile_components: $(COMPONENT_PATHS)
 
 $(COMPONENT_PATHS):
-	@$(MAKE) -C $@ compile
+	@$(MAKE) -s -C $@ compile
 
 .PHONY: _compile_components $(COMPONENT_PATHS)
 
