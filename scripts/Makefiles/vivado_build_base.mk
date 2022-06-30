@@ -4,19 +4,12 @@
 # Usage: this Makefile is used by including it at the end of a 'parent' Makefile,
 #        where the parent can call the targets defined here after defining
 #        the following input 'arguments':
-#        - PROJ_ROOT: path to project root directory
 #        - SCRIPTS_ROOT: path to project scripts directory
 #        - CFG_ROOT: path to the part configuration file(s)
-#        - TOP: name of top-level module to build
-#        - OUT_DIR: path to build output files
 # -----------------------------------------------
 # Paths
 # -----------------------------------------------
 VIVADO_SCRIPTS_ROOT := $(SCRIPTS_ROOT)/vivado
-
-# Export path variables for use in Tcl scripts
-export PROJ_ROOT
-export LIB_ROOT
 
 # -----------------------------------------------
 # Import part configuration
