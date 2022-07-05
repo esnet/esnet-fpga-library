@@ -18,6 +18,7 @@
 module mem_ram_sdp_core
     import mem_pkg::*;
 #(
+    parameter mem_rd_mode_t MEM_RD_MODE = STD,
     parameter int ADDR_WID = 8,
     parameter int DATA_WID = 32,
     parameter bit ASYNC = 0,
@@ -242,10 +243,14 @@ module mem_ram_sdp_core
 
             // Data pipeline
             always @(posedge rd_clk) begin
-                for (int i = 1; i < RD_PIPELINE_STAGES; i++) begin
-                    if (rd_en_p[i]) rd_data_p[i] <= rd_data_p[i-1];
+                if (MEM_RD_MODE == FWFT) begin
+                   for (int i = 1; i < RD_PIPELINE_STAGES; i++) rd_data_p[i] <= rd ? rd_data_p[i-1] : rd_data_p[i];
+                   rd_data_p[0] <= rd ? rd_data : rd_data_p[0];
+                end 
+                else if (MEM_RD_MODE == STD) begin
+                   for (int i = 1; i < RD_PIPELINE_STAGES; i++) rd_data_p[i] <= rd_en_p[i] ? rd_data_p[i-1] : rd_data_p[i];
+                   rd_data_p[0] <= rd_en_p[0] ? rd_data : rd_data_p[0];
                 end
-                if (rd_en_p[0]) rd_data_p[0] <= rd_data;
             end
             assign mem_rd_if.data = rd_data_p[RD_PIPELINE_STAGES-1];
 
