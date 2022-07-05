@@ -61,7 +61,7 @@ class tb_env #(
 
     automatic function void reset_monitor_mode();
         if (FWFT) this.monitor.set_rx_mode(std_verif_pkg::RX_MODE_ACK);
-        else      this.monitor.set_rx_mode(std_verif_pkg::RX_MODE_ACK_FETCH);
+        else      this.monitor.set_rx_mode(std_verif_pkg::RX_MODE_FETCH_VAL);
     endfunction
 
     automatic function void reset();
