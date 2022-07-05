@@ -36,6 +36,7 @@ module fifo_async_axil #(
     input  logic               rd_clk,
     input  logic               rd_srst,
     input  logic               rd,
+    output logic               rd_ack,
     output DATA_T              rd_data,
 
     // Status
@@ -80,6 +81,7 @@ module fifo_async_axil #(
         .rd_clk   ( rd_clk ),
         .rd_srst  ( rd_srst ),
         .rd       ( rd ),
+        .rd_ack   ( rd_ack ),
         .rd_data  ( rd_data ),
         .rd_count ( __rd_count ),
         .rd_empty ( empty ),
