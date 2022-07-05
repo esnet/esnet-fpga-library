@@ -142,6 +142,19 @@ interface std_raw_intf #(
         _data = cb.data;
     endtask
 
+    // Fetch + Valid
+    // - 'fetch' data from interface using 'ready' signal
+    // - data is considered valid when 'valid' signal is asserted
+    task fetch_val(output DATA_T _data);
+        cb.ready <= 1'b1;
+        @(cb);
+        wait (cb.ready);
+        cb.ready <= 1'b0;
+        wait (cb.valid);
+        _data = cb.data;
+        @(cb);
+    endtask
+
     // Ack + Fetch
     // - 'fetch' data from interface using 'ready' signal, but only
     //   after data readiness is signaled via 'valid' signal

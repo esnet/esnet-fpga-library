@@ -80,6 +80,7 @@ class raw_monitor #(
             RX_MODE_PULL      : raw_vif.pull(data);
             RX_MODE_ACK       : raw_vif.ack(data);
             RX_MODE_FETCH     : raw_vif.fetch(data);
+            RX_MODE_FETCH_VAL : raw_vif.fetch_val(data);
             RX_MODE_ACK_FETCH : raw_vif.ack_fetch(data);
         endcase
         trace_msg("receive_raw() Done.");
