@@ -21,7 +21,7 @@ module fifo_async_unit_test #(
     //===================================
     // Parameters
     //===================================
-    localparam type DATA_T = bit[15:0];
+    localparam type DATA_T = bit[31:0];
     localparam bit ASYNC = 1'b1;
 
     //===================================
@@ -49,6 +49,7 @@ module fifo_async_unit_test #(
     logic   rd_clk;
     logic   rd_srst;
     logic   rd;
+    logic   rd_ack;
     DATA_T  rd_data;
 
     logic   full;
@@ -103,9 +104,25 @@ module fifo_async_unit_test #(
     assign wr_if.ready = !full;
 
     assign rd = rd_if.ready;
-    assign rd_if.data = rd_data;
-    assign rd_if.valid = !empty;
-
+/*
+    always begin
+       @(posedge rd_if.ready); 
+       if (!empty) begin
+          rd = 1'b1;
+          @(posedge rd_clk); 
+          rd = 1'b0;
+       end else begin
+          wait(!empty); 
+          rd = 1'b1;
+          @(posedge rd_clk); 
+          rd = 1'b0;
+       end
+    end
+*/
+     assign rd_if.data = rd_data;
+//    assign rd_if.valid = !empty;
+    assign rd_if.valid = rd_ack;
+   
     // Generate clocks
     real clk_ratio     = 1;
     real wr_clk_period = 5;
@@ -289,7 +306,7 @@ module fifo_async_unit_test #(
         //===================================
         `SVTEST(single_item)
             // Declarations
-            DATA_T exp_item = 'hABAB;
+            DATA_T exp_item = 'hABAB_ABAB;
             std_verif_pkg::raw_transaction#(DATA_T) got_transaction;
             std_verif_pkg::raw_transaction#(DATA_T) exp_transaction;
 
@@ -305,7 +322,7 @@ module fifo_async_unit_test #(
             check_status();
 
             // Receive transaction
-            env.monitor.receive(got_transaction);
+            wait(!empty); env.monitor.receive(got_transaction);
             ctrl_model_read();
 
             // Wait
@@ -331,7 +348,7 @@ module fifo_async_unit_test #(
         //===================================
         `SVTEST(_soft_reset)
             // Declarations
-            DATA_T exp_item = 'hABAB;
+            DATA_T exp_item = 'hABAB_ABAB;
             std_verif_pkg::raw_transaction#(DATA_T) got_transaction;
             std_verif_pkg::raw_transaction#(DATA_T) exp_transaction;
 
@@ -352,7 +369,7 @@ module fifo_async_unit_test #(
             check_status();
 
             // Receive transaction
-            env.monitor.receive(got_transaction);
+            wait(!empty); env.monitor.receive(got_transaction);
             ctrl_model_read();
 
             // Wait
@@ -406,7 +423,7 @@ module fifo_async_unit_test #(
                 exp_transaction = new("exp_transaction", i);
                 env.driver.send(exp_transaction);
 
-                env.monitor.receive(got_transaction); env.monitor._wait(1);
+                wait(!empty); env.monitor.receive(got_transaction); env.monitor._wait(1);
                 match = exp_transaction.compare(got_transaction, msg);
                 `FAIL_UNLESS_LOG( match == 1, msg );
             end
@@ -440,7 +457,7 @@ module fifo_async_unit_test #(
             // Read back all FIFO entries and compare.
             for (int i = 0; i < (__DEPTH); i++) begin
                 exp_transaction = new("exp_transaction", i);
-                env.monitor.receive(got_transaction);
+                wait(!empty); env.monitor.receive(got_transaction);
 
                 match = exp_transaction.compare(got_transaction, msg);
                 `FAIL_UNLESS_LOG( match == 1, msg );
@@ -471,7 +488,7 @@ module fifo_async_unit_test #(
                 exp_transaction = new("exp_transaction", i);
                 env.driver.send(exp_transaction);
 
-                env.monitor.receive(got_transaction);
+                wait(!empty); env.monitor.receive(got_transaction);
                 match = exp_transaction.compare(got_transaction, msg);
                 `FAIL_UNLESS_LOG( match == 1, msg );
             end
@@ -504,7 +521,7 @@ module fifo_async_unit_test #(
             // Read back all FIFO entries and compare.
             for (int i = 0; i < (__DEPTH); i++) begin
                 exp_transaction = new("exp_transaction", i);
-                env.monitor.receive(got_transaction);
+                wait(!empty); env.monitor.receive(got_transaction);
 
                 match = exp_transaction.compare(got_transaction, msg);
                 `FAIL_UNLESS_LOG( match == 1, msg );
@@ -524,7 +541,7 @@ module fifo_async_unit_test #(
         //===================================
         `SVTEST(_empty)
             // Declarations
-            DATA_T exp_item = 'hABAB;
+            DATA_T exp_item = 'hABAB_ABAB;
             std_verif_pkg::raw_transaction#(DATA_T) got_transaction;
             std_verif_pkg::raw_transaction#(DATA_T) exp_transaction;
 
@@ -540,7 +557,7 @@ module fifo_async_unit_test #(
             `FAIL_UNLESS(empty == 0);
 
             // Receive transaction
-            env.monitor.receive(got_transaction);
+            wait(!empty); env.monitor.receive(got_transaction);
 
             // Check that empty is reasserted on next cycle
             `FAIL_UNLESS(empty == 1);
@@ -558,7 +575,7 @@ module fifo_async_unit_test #(
         //===================================
         `SVTEST(_full)
             // Declarations
-            DATA_T exp_item = 'hABAB;
+            DATA_T exp_item = 'hABAB_ABAB;
             std_verif_pkg::raw_transaction#(DATA_T) got_transaction;
             std_verif_pkg::raw_transaction#(DATA_T) exp_transaction;
 
@@ -583,7 +600,7 @@ module fifo_async_unit_test #(
             check_status();
 
             // Receive single transaction
-            env.monitor.receive(got_transaction);
+            wait(!empty); env.monitor.receive(got_transaction);
             ctrl_model_read();
 
             // Allow read transaction to be registered by FIFO
@@ -652,7 +669,7 @@ module fifo_async_unit_test #(
             // Empty FIFO
             for (int i = 0; i < __DEPTH; i++) begin
                 exp_transaction = new($sformatf("exp_transaction_%d", i), i);
-                env.monitor.receive(got_transaction);
+                wait(!empty); env.monitor.receive(got_transaction);
                 match = exp_transaction.compare(got_transaction, msg);
                 `FAIL_UNLESS_LOG(
                     match == 1, msg
@@ -664,7 +681,7 @@ module fifo_async_unit_test #(
             env.driver.send(exp_transaction);
             `FAIL_UNLESS(oflow == 0);
 
-            env.monitor.receive(got_transaction);
+            wait(!empty); env.monitor.receive(got_transaction);
             match = exp_transaction.compare(got_transaction, msg);
             `FAIL_UNLESS_LOG(
                 match == 1, msg
