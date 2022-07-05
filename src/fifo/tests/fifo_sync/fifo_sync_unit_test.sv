@@ -20,13 +20,16 @@ module fifo_sync_unit_test #(
     //===================================
     // Parameters
     //===================================
-    localparam type DATA_T = bit[15:0];
+    localparam type DATA_T = bit[31:0];
 
     //===================================
     // Derived parameters
     //===================================
+    localparam int MEM_WR_LATENCY = DUT.i_fifo_core.MEM_WR_LATENCY;
+    localparam int MEM_RD_LATENCY = DUT.i_fifo_core.MEM_RD_LATENCY;
+
     // Adjust 'effective' FIFO depth to account for optional FWFT buffer
-    localparam int __DEPTH = FWFT ? DEPTH + 1 : DEPTH;
+    localparam int __DEPTH = FWFT ? DEPTH + MEM_RD_LATENCY : DEPTH;
 
     localparam int CNT_WID = $clog2(__DEPTH+1);
 
@@ -46,6 +49,7 @@ module fifo_sync_unit_test #(
     DATA_T  wr_data;
 
     logic   rd;
+    logic   rd_ack;
     DATA_T  rd_data;
 
     logic   full;
@@ -82,9 +86,9 @@ module fifo_sync_unit_test #(
     assign wr_data = wr_if.data;
     assign wr_if.ready = !full;
 
-    assign rd = rd_if.ready;
+    assign rd = rd_if.ready && !empty;
     assign rd_if.data = rd_data;
-    assign rd_if.valid = !empty;
+    assign rd_if.valid = rd_ack;
 
     // Assign clock (100MHz)
     `SVUNIT_CLK_GEN(clk, 5ns);
@@ -162,7 +166,7 @@ module fifo_sync_unit_test #(
         //===================================
         `SVTEST(single_item)
             // Declarations
-            DATA_T exp_item = 'hABAB;
+            DATA_T exp_item = 'hABAB_ABAB;
             std_verif_pkg::raw_transaction#(DATA_T) got_transaction;
             std_verif_pkg::raw_transaction#(DATA_T) exp_transaction;
             bit match;
@@ -171,6 +175,9 @@ module fifo_sync_unit_test #(
             // Send transaction
             exp_transaction = new("exp_transaction", exp_item);
             env.driver.send(exp_transaction);
+
+            // Allow write transaction to be registered by FIFO
+            env.driver._wait(MEM_WR_LATENCY);
 
             // Receive transaction
             env.monitor.receive(got_transaction);
@@ -195,7 +202,7 @@ module fifo_sync_unit_test #(
         //===================================
         `SVTEST(_empty)
             // Declarations
-            DATA_T exp_item = 'hABAB;
+            DATA_T exp_item = 'hABAB_ABAB;
             std_verif_pkg::raw_transaction#(DATA_T) got_transaction;
             std_verif_pkg::raw_transaction#(DATA_T) exp_transaction;
 
@@ -207,7 +214,8 @@ module fifo_sync_unit_test #(
             env.driver.send(exp_transaction);
 
             // Allow write transaction to be registered by FIFO
-            env.driver._wait(2);
+            env.driver._wait(MEM_WR_LATENCY+1);
+            if (FWFT) env.monitor._wait(MEM_RD_LATENCY);
 
             // Check that empty is deasserted
             `FAIL_UNLESS(empty == 0);
@@ -231,10 +239,8 @@ module fifo_sync_unit_test #(
         //   - check that full is deasserted after single read from FIFO
         //===================================
         `SVTEST(_full)
-            // Adjust 'effective' FIFO depth to account for optional FWFT buffer
-            localparam int __DEPTH = FWFT ? DEPTH + 1 : DEPTH;
             // Declarations
-            DATA_T exp_item = 'hABAB;
+            DATA_T exp_item = 'hABAB_ABAB;
             std_verif_pkg::raw_transaction#(DATA_T) got_transaction;
             std_verif_pkg::raw_transaction#(DATA_T) exp_transaction;
 
@@ -254,11 +260,13 @@ module fifo_sync_unit_test #(
             env.driver._wait(1);
             `FAIL_UNLESS(full == 1);
 
-            // Receive single transaction
-            env.monitor.receive(got_transaction);
-
+            // Receive MEM_WR_LATENCY+1 transactions (to drop below FULL_LEVEL).
+            for (int i = 0; i <= MEM_WR_LATENCY; i++) begin
+               env.monitor.receive(got_transaction);
+            end
+   
             // Allow read transaction to be registered by FIFO
-            env.driver._wait(2);
+            env.monitor._wait(1);
 
             // Check that full is once again deasserted
             `FAIL_UNLESS(full == 0);
@@ -278,8 +286,6 @@ module fifo_sync_unit_test #(
         //   - write/read from fifo, check data integrity
         //===================================
         `SVTEST(_oflow)
-            // Adjust 'effective' FIFO depth to account for optional FWFT buffer
-            localparam int __DEPTH = FWFT ? DEPTH + 1 : DEPTH;
             // Declarations
             std_verif_pkg::raw_transaction#(DATA_T) got_transaction;
             std_verif_pkg::raw_transaction#(DATA_T) exp_transaction;
@@ -334,6 +340,7 @@ module fifo_sync_unit_test #(
             exp_transaction = new($sformatf("exp_transaction_%d", __DEPTH), __DEPTH);
             env.driver.send(exp_transaction);
             `FAIL_UNLESS(oflow == 0);
+            env.driver._wait(1);
 
             env.monitor.receive(got_transaction);
             match = exp_transaction.compare(got_transaction, msg);
@@ -346,6 +353,8 @@ module fifo_sync_unit_test #(
     `SVUNIT_TESTS_END
 
 endmodule : fifo_sync_unit_test
+
+
 
 // 'Boilerplate' unit test wrapper code
 //  Builds unit test for a specific FIFO configuration in a way
@@ -362,40 +371,66 @@ endmodule : fifo_sync_unit_test
     test.run();\
   endtask
 
-// Standard 3-entry FIFO
+
+// Standard 3-entry FIFO (small)
 module fifo_sync_std_depth3_unit_test;
 `FIFO_SYNC_UNIT_TEST(3, 0)
 endmodule
 
-// Standard 8-entry FIFO
+// Standard 8-entry FIFO (small)
 module fifo_sync_std_depth8_unit_test;
 `FIFO_SYNC_UNIT_TEST(8, 0)
 endmodule
 
-// Standard 32-entry FIFO
+// Standard 32-entry FIFO (small)
 module fifo_sync_std_depth32_unit_test;
 `FIFO_SYNC_UNIT_TEST(32, 0)
 endmodule
 
-// FWFT 3-entry FIFO
+// Standard 385-entry FIFO (medium)
+module fifo_sync_std_depth385_unit_test;
+`FIFO_SYNC_UNIT_TEST(385, 0)
+endmodule
+
+// Standard 512-entry FIFO (medium)
+module fifo_sync_std_depth512_unit_test;
+`FIFO_SYNC_UNIT_TEST(512, 0)
+endmodule
+
+// Standard 4097-entry FIFO (large)
+module fifo_sync_std_depth4097_unit_test;
+`FIFO_SYNC_UNIT_TEST(4097, 0)
+endmodule
+
+
+
+// FWFT 3-entry FIFO (small)
 module fifo_sync_fwft_depth3_unit_test;
 `FIFO_SYNC_UNIT_TEST(3, 1)
 endmodule
 
-// FWFT 8-entry FIFO
+// FWFT 8-entry FIFO (small)
 module fifo_sync_fwft_depth8_unit_test;
 `FIFO_SYNC_UNIT_TEST(8, 1)
 endmodule
 
-// FWFT 32-entry FIFO
+// FWFT 32-entry FIFO (small)
 module fifo_sync_fwft_depth32_unit_test;
 `FIFO_SYNC_UNIT_TEST(32, 1)
 endmodule
 
-// FWFT 512-entry FIFO
-//module fifo_sync_fwft_depth512_unit_test;
-//`FIFO_SYNC_UNIT_TEST(512, 1)
-//endmodule
+// FWFT 385-entry FIFO (medium)
+module fifo_sync_fwft_depth385_unit_test;
+`FIFO_SYNC_UNIT_TEST(385, 1)
+endmodule
 
+// FWFT 512-entry FIFO (medium)
+module fifo_sync_fwft_depth512_unit_test;
+`FIFO_SYNC_UNIT_TEST(512, 1)
+endmodule
 
+// FWFT 4097-entry FIFO (large)
+module fifo_sync_fwft_depth4097_unit_test;
+`FIFO_SYNC_UNIT_TEST(4097, 1)
+endmodule
 
