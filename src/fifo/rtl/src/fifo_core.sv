@@ -22,31 +22,28 @@ module fifo_core #(
     parameter bit FWFT = 1,
     parameter bit OFLOW_PROT = 1,
     parameter bit UFLOW_PROT = 1,
-    // Derived parameters (don't override)
-    parameter int MEM_RD_LATENCY = i_ram_data.RD_PIPELINE_STAGES + 1,
-    parameter int CNT_WID = FWFT ? $clog2(DEPTH + MEM_RD_LATENCY + 1) : $clog2(DEPTH + 1),
     // Debug parameters
     parameter bit AXIL_IF = 1'b0,
     parameter bit DEBUG_ILA = 1'b0
 ) (
     // Write interface
-    input  logic               wr_clk,
-    input  logic               wr_srst,
-    input  logic               wr,
-    input  DATA_T              wr_data,
-    output logic [CNT_WID-1:0] wr_count,
-    output logic               wr_full,
-    output logic               wr_oflow,
+    input  logic        wr_clk,
+    input  logic        wr_srst,
+    input  logic        wr,
+    input  DATA_T       wr_data,
+    output logic [31:0] wr_count,
+    output logic        wr_full,
+    output logic        wr_oflow,
 
     // Read interface
-    input  logic               rd_clk,
-    input  logic               rd_srst,
-    input  logic               rd,
-    output logic               rd_ack,
-    output DATA_T              rd_data,
-    output logic [CNT_WID-1:0] rd_count,
-    output logic               rd_empty,
-    output logic               rd_uflow,
+    input  logic        rd_clk,
+    input  logic        rd_srst,
+    input  logic        rd,
+    output logic        rd_ack,
+    output DATA_T       rd_data,
+    output logic [31:0] rd_count,
+    output logic        rd_empty,
+    output logic        rd_uflow,
 
     // AXI-L control/monitoring interface
     axi4l_intf.peripheral      axil_if
@@ -69,7 +66,9 @@ module fifo_core #(
 
     localparam bit __UFLOW_PROT = FWFT ? 1 : UFLOW_PROT;
 
-    localparam int MEM_WR_LATENCY = i_ram_data.WR_PIPELINE_STAGES;
+    localparam int MEM_WR_LATENCY = mem_pkg::get_default_wr_latency(MEM_DEPTH, DATA_WID, ASYNC);
+    localparam int MEM_RD_LATENCY = mem_pkg::get_default_rd_latency(MEM_DEPTH, DATA_WID, ASYNC);
+    localparam int MEM_RD_LATENCY_CNT_WID = $clog2(MEM_RD_LATENCY+1);
 
     localparam mem_rd_mode_t MEM_RD_MODE = FWFT ? mem_pkg::FWFT : STD;
 
@@ -303,8 +302,8 @@ module fifo_core #(
     endgenerate
 
    // count_ones function
-   function automatic logic[CNT_WID-1:0] count_ones (input logic[MEM_RD_LATENCY-1:0] data);
-      automatic logic[CNT_WID-1:0] count = 0;
+   function automatic logic[MEM_RD_LATENCY_CNT_WID-1:0] count_ones (input logic[MEM_RD_LATENCY-1:0] data);
+      automatic logic[MEM_RD_LATENCY_CNT_WID-1:0] count = 0;
       for (int i=0; i < MEM_RD_LATENCY; i++) count = count + data[i];
       return count;
    endfunction
