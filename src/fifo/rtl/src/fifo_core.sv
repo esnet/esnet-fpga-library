@@ -23,7 +23,8 @@ module fifo_core #(
     parameter bit OFLOW_PROT = 1,
     parameter bit UFLOW_PROT = 1,
     // Derived parameters (don't override)
-    parameter int CNT_WID = FWFT ? $clog2(DEPTH+1+1) : $clog2(DEPTH+1),
+    parameter int MEM_RD_LATENCY = i_ram_data.RD_PIPELINE_STAGES + 1,
+    parameter int CNT_WID = FWFT ? $clog2(DEPTH + MEM_RD_LATENCY + 1) : $clog2(DEPTH + 1),
     // Debug parameters
     parameter bit AXIL_IF = 1'b0,
     parameter bit DEBUG_ILA = 1'b0
@@ -41,6 +42,7 @@ module fifo_core #(
     input  logic               rd_clk,
     input  logic               rd_srst,
     input  logic               rd,
+    output logic               rd_ack,
     output DATA_T              rd_data,
     output logic [CNT_WID-1:0] rd_count,
     output logic               rd_empty,
@@ -53,6 +55,7 @@ module fifo_core #(
     // -----------------------------
     // Imports
     // -----------------------------
+    import mem_pkg::*;
     import fifo_pkg::*;
 
     // -----------------------------
@@ -66,7 +69,9 @@ module fifo_core #(
 
     localparam bit __UFLOW_PROT = FWFT ? 1 : UFLOW_PROT;
 
-    localparam int MEM_RD_LATENCY = mem_pkg::get_default_rd_latency(MEM_DEPTH, DATA_WID);
+    localparam int MEM_WR_LATENCY = i_ram_data.WR_PIPELINE_STAGES;
+
+    localparam mem_rd_mode_t MEM_RD_MODE = FWFT ? mem_pkg::FWFT : STD;
 
     // -----------------------------
     // Signals
@@ -85,6 +90,8 @@ module fifo_core #(
     logic [__CNT_WID-1:0] __rd_count;
     logic                 __rd_uflow;
     DATA_T                __rd_data;
+
+    logic [MEM_RD_LATENCY-1:0] rd_empty_p; // rd_empty pipeline.
 
     // -----------------------------
     // Interfaces
@@ -123,6 +130,8 @@ module fifo_core #(
     // -----------------------------
     fifo_ctrl_fsm  #(
         .DEPTH      ( DEPTH ),
+        .FULL_LEVEL ( MEM_WR_LATENCY ),  // assert 'wr_full' when MEM_WR_LATENCY spaces left in FIFO.
+        .MEM_WR_LATENCY ( MEM_WR_LATENCY ),
         .ASYNC      ( ASYNC ),
         .OFLOW_PROT ( OFLOW_PROT ),
         .UFLOW_PROT ( __UFLOW_PROT ),
@@ -152,6 +161,7 @@ module fifo_core #(
     // Data memory
     // -----------------------------
     mem_ram_sdp_core #(
+        .MEM_RD_MODE ( MEM_RD_MODE ),
         .ADDR_WID  ( PTR_WID ),
         .DATA_WID  ( DATA_WID ),
         .ASYNC     ( ASYNC ),
@@ -174,42 +184,33 @@ module fifo_core #(
 
     assign mem_rd_if.rst = 1'b0;
     assign mem_rd_if.en = 1'b1;
-    assign mem_rd_if.req = rd_safe;
+    assign mem_rd_if.req = __rd;  // use __rd signal rather than rd_safe (to advance rd pipeline when memory is empty).
     assign mem_rd_if.addr = rd_ptr;
     assign __rd_data = mem_rd_if.data;
 
+
     generate
-        // Large FIFOs (more than two output stages)
-        if (MEM_RD_LATENCY > 2) begin : g__fifo_large
-            // First word flow-through FIFO mode
-            if (FWFT) begin : g__fwft
+        // First word flow-through FIFO mode
+        if (FWFT) begin : g__fwft
+            // large FIFOs (more than one output stage)
+            if (MEM_RD_LATENCY > 1) begin : g__fwft_large
+                // track empty indication of each pipe stage through FWFT prefetch pipeline.
+                initial rd_empty_p = '0;
+                always @(posedge rd_clk) begin
+                    if (local_rd_srst) rd_empty_p <= '1;
+                    else if (__rd)     rd_empty_p <= {rd_empty_p[MEM_RD_LATENCY-2:0], __rd_empty};
+                end
 
-            end : g__fwft
-            // Standard FIFO mode
-            else begin : g__std
+                // empty indication reflects presence/absence of data in LAST stage.
+                assign rd_empty = rd_empty_p[MEM_RD_LATENCY-1];
 
-            end : g__std
+                // Adjust count for entries in FWFT prefetch pipeline.
+                assign rd_count = {'0, __rd_count} + count_ones(~rd_empty_p[MEM_RD_LATENCY-1:0]);
+            end : g__fwft_large
 
-        end : g__fifo_large
-
-        // Medium FIFOs (two-stage output)
-        else if (MEM_RD_LATENCY == 2) begin : g__fifo_medium
-            // First word flow-through FIFO mode
-            if (FWFT) begin : g__fwft
-
-            end : g__fwft
-            // Standard FIFO mode
-            else begin : g__std
-
-            end : g__std
-        end : g__fifo_medium
-
-        // Small FIFOs (single-stage output)
-        else if (MEM_RD_LATENCY == 1) begin : g__fifo_small
-            // First word flow-through FIFO mode
-            if (FWFT) begin : g__fwft
-                // Empty indication reflects presence/absence
-                // of data in FWFT prefetch buffer
+            // small FIFOs (single-stage output)
+            else if (MEM_RD_LATENCY == 1) begin : g__fwft_small
+                // empty indication reflects presence/absence of data in LAST stage.
                 initial rd_empty = 1'b1;
                 always @(posedge rd_clk) begin
                     if (local_rd_srst)    rd_empty <= 1'b1;
@@ -217,32 +218,39 @@ module fifo_core #(
                     else if (rd)          rd_empty <= 1'b1;
                 end
 
-                // Data prefetch
-                assign __rd = rd_empty || rd;
-
-                assign rd_data = __rd_data;
-
                 // Adjust count for entry in FWFT buffer
-                assign rd_count = rd_empty ? __rd_count : __rd_count + 1;
+                assign rd_count = rd_empty ? {'0, __rd_count} : {'0, __rd_count} + 1;
+            end : g__fwft_small
 
-                // Underflow
-                assign rd_uflow = rd && rd_empty;
 
-            end : g__fwft
-            // Standard FIFO mode
-            else begin : g__std
-                assign __rd = rd;
-                assign rd_data  = __rd_data;
-                assign rd_count = __rd_count;
-                assign rd_empty = __rd_empty;
-                assign rd_uflow = __rd_uflow;
-            end : g__std
-        end : g__fifo_small
+            // Data prefetch
+            assign __rd = rd_empty || rd;
+
+            assign rd_ack  = !rd_empty;
+            assign rd_data = __rd_data;
+
+            // Underflow
+            assign rd_uflow = rd && rd_empty;
+
+        end : g__fwft
+
+        // Standard FIFO mode
+        else begin : g__std
+            assign __rd = rd;
+            assign rd_ack   = mem_rd_if.ack;
+            assign rd_data  = __rd_data;
+            assign rd_count = {'0, __rd_count};
+            assign rd_empty = __rd_empty;
+            assign rd_uflow = __rd_uflow;
+
+        end : g__std
     endgenerate
+
 
     // Write count
     assign wr_count = {'0, __wr_count};
 
+   
     // AXI-L control/monitoring
     generate
         if (AXIL_IF) begin : g__axil
@@ -293,5 +301,12 @@ module fifo_core #(
             assign soft_reset__aclk = 1'b0;
         end
     endgenerate
+
+   // count_ones function
+   function automatic logic[CNT_WID-1:0] count_ones (input logic[MEM_RD_LATENCY-1:0] data);
+      automatic logic[CNT_WID-1:0] count = 0;
+      for (int i=0; i < MEM_RD_LATENCY; i++) count = count + data[i];
+      return count;
+   endfunction
 
 endmodule : fifo_core

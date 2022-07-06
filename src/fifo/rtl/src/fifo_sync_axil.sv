@@ -36,6 +36,7 @@ module fifo_sync_axil #(
 
     // Read interface
     input  logic               rd,
+    output logic               rd_ack,
     output DATA_T              rd_data,
 
     // Status
@@ -73,6 +74,7 @@ module fifo_sync_axil #(
         .rd_clk   ( clk ),
         .rd_srst  ( srst ),
         .rd       ( rd ),
+        .rd_ack   ( rd_ack ),
         .rd_data  ( rd_data ),
         .rd_count ( count ),
         .rd_empty ( empty ),

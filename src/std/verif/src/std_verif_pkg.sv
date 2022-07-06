@@ -59,6 +59,7 @@ package std_verif_pkg;
         RX_MODE_PULL,
         RX_MODE_ACK,
         RX_MODE_FETCH,
+        RX_MODE_FETCH_VAL,
         RX_MODE_ACK_FETCH
     } rx_mode_t;
 

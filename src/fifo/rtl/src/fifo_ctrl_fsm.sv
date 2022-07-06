@@ -17,6 +17,8 @@
 
 module fifo_ctrl_fsm #(
     parameter int DEPTH = 256,
+    parameter int MEM_WR_LATENCY = 0,
+    parameter int FULL_LEVEL = 0,
     parameter bit ASYNC = 1,
     parameter bit OFLOW_PROT = 1,
     parameter bit UFLOW_PROT = 1,
@@ -55,6 +57,7 @@ module fifo_ctrl_fsm #(
     // Signals
     // -----------------------------
     logic [CNT_WID-1:0] _wr_ptr;
+    logic [CNT_WID-1:0] _wr_ptr_p;
     logic [CNT_WID-1:0] _rd_ptr;
 
     logic [CNT_WID-1:0] _rd_ptr__wr_clk;
@@ -72,8 +75,28 @@ module fifo_ctrl_fsm #(
     end
 
     assign wr_ptr = _wr_ptr[PTR_WID-1:0];
-    assign wr_full = (wr_count >= DEPTH);
+    assign wr_full = (wr_count >= DEPTH - FULL_LEVEL);  // assert wr_full when FULL_LEVEL spaces left in FIFO.
     assign wr_oflow = wr && wr_full;
+
+    // generate wr_ptr pipeline if MEM_WR_LATENCY > 0.
+    generate
+       if (MEM_WR_LATENCY > 0) begin : g__wr_pipe
+          logic [CNT_WID-1:0] wr_ptr_p [MEM_WR_LATENCY];
+
+          initial wr_ptr_p = '{MEM_WR_LATENCY{'0}};
+          always @(posedge wr_clk) begin
+             for (int i = 1; i < MEM_WR_LATENCY; i++) wr_ptr_p[i] <= wr_ptr_p[i-1];
+             wr_ptr_p[0] <= _wr_ptr;
+          end
+
+          assign _wr_ptr_p = wr_ptr_p[MEM_WR_LATENCY-1];
+
+       end : g__wr_pipe
+       else if (MEM_WR_LATENCY == 0) begin : g__no_wr_pipe
+          assign _wr_ptr_p = _wr_ptr;
+
+       end : g__no_wr_pipe
+    endgenerate
 
     // -----------------------------
     // Read-side logic
@@ -116,12 +139,12 @@ module fifo_ctrl_fsm #(
                .cnt_out      ( _rd_ptr__wr_clk )
             );
 
-            assign wr_count = _wr_ptr - _rd_ptr__wr_clk;
+            assign wr_count = _wr_ptr_p - _rd_ptr__wr_clk;
             assign rd_count = _wr_ptr__rd_clk - _rd_ptr;
         end : g__async
 
         else begin : g__sync
-            assign wr_count = _wr_ptr - _rd_ptr;
+            assign wr_count = _wr_ptr_p - _rd_ptr;
             assign rd_count = wr_count;
         end : g__sync
     endgenerate

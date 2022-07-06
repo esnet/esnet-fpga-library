@@ -30,6 +30,11 @@ package mem_pkg;
         RAM_STYLE_ULTRA
     } xilinx_ram_style_t;
 
+    typedef enum {
+        STD,
+        FWFT
+    } mem_rd_mode_t;
+
     // -----------------------------
     // Functions
     // -----------------------------
