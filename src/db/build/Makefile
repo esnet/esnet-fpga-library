@@ -9,6 +9,11 @@ IP_ROOT := ..
 include $(IP_ROOT)/config.mk
 
 # -----------------------------------------------
+# Export parameters used in add_sources.tcl
+# -----------------------------------------------
+export LIB_ROOT
+
+# -----------------------------------------------
 # Specify top-level module
 # -----------------------------------------------
 TOP = db_ctrl_peripheral

@@ -10,13 +10,13 @@ namespace eval vivadoProcs {
     }
 
     proc __open_proj {proj_name proj_dir} {
-        open_project [file join $proj_dir $proj_name.xpr]
+        open_project -quiet [file join $proj_dir $proj_name.xpr]
     }
 
     proc create_ip_proj {part {proj_name "ip_proj"} {proj_dir "[file join [pwd] ip_proj]"}} {
         if {[catch {__create_proj $part $proj_name $proj_dir 1} msg options]} {
             puts stderr "unexpected script error: $msg"
-            if {[info exist env(DEBUG)]} {
+            if {[info exists env(DEBUG)]} {
                 puts stderr "---- BEGIN TRACE ----"
                 puts stderr [dict get $options -errorinfo]
                 puts stderr "---- END TRACE ----"
@@ -35,7 +35,7 @@ namespace eval vivadoProcs {
             } msg options]
         } {
             puts stderr "unexpected script error: $msg"
-            if {[info exist env(DEBUG)]} {
+            if {[info exists env(DEBUG)]} {
                 puts stderr "---- BEGIN TRACE ----"
                 puts stderr [dict get $options -errorinfo]
                 puts stderr "---- END TRACE ----"
@@ -49,7 +49,7 @@ namespace eval vivadoProcs {
     proc open_proj {{proj_name "proj"} {proj_dir "[file join [pwd] proj]"}} {
         if {[catch {__open_proj $proj_name $proj_dir} msg options]} {
             puts stderr "unexpected script error: $msg"
-            if {[info exist env(DEBUG)]} {
+            if {[info exists env(DEBUG)]} {
                 puts stderr "---- BEGIN TRACE ----"
                 puts stderr [dict get $options -errorinfo]
                 puts stderr "---- END TRACE ----"
@@ -58,6 +58,10 @@ namespace eval vivadoProcs {
             # Reserve code 1 for "expected" error exits...
             exit 2
         }
+    }
+
+    proc close_proj {} {
+        close_project
     }
 
     proc set_board_part {board_part} {
@@ -147,7 +151,7 @@ namespace eval vivadoProcs {
             } msg options]
         } {
             puts stderr "unexpected script error: $msg"
-            if {[info exist env(DEBUG)]} {
+            if {[info exists env(DEBUG)]} {
                 puts stderr "---- BEGIN TRACE ----"
                 puts stderr [dict get $options -errorinfo]
                 puts stderr "---- END TRACE ----"
@@ -157,4 +161,5 @@ namespace eval vivadoProcs {
             exit 2
         }
     }
+
 }
