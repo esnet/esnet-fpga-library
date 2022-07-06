@@ -64,6 +64,16 @@ package mem_pkg;
         endcase
     endfunction
 
+    // Calculate overall memory write latency given number of pipeline stages
+    function automatic int __get_wr_latency(input int WR_PIPELINE_STAGES);
+        return WR_PIPELINE_STAGES;
+    endfunction
+
+    // Calculate overall memory write latency given specified memory configuration
+    function automatic int get_default_wr_latency(input int DEPTH, input int WIDTH, input bit ASYNC=0);
+        return __get_wr_latency(get_default_wr_pipeline_stages(get_default_ram_style(DEPTH, WIDTH, ASYNC)));
+    endfunction
+
     // Calculate additional (read) pipelining added to accommodate array of specified depth
     function automatic int get_default_rd_pipeline_stages(input xilinx_ram_style_t ram_style);
         case (ram_style)
@@ -78,7 +88,7 @@ package mem_pkg;
         return RD_PIPELINE_STAGES + 1;
     endfunction
 
-    // Calculate overall memory read latency given specified read pipeline
+    // Calculate overall memory read latency given specified memory configuration
     function automatic int get_default_rd_latency(input int DEPTH, input int WIDTH, input bit ASYNC=0);
         return __get_rd_latency(get_default_rd_pipeline_stages(get_default_ram_style(DEPTH, WIDTH, ASYNC)));
     endfunction
