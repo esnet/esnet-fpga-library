@@ -29,6 +29,8 @@ class axi4s_monitor #(
     //===================================
     protected bit _BIGENDIAN;
 
+    local int _tpause;
+
     //===================================
     // Interfaces
     //===================================
@@ -74,6 +76,11 @@ class axi4s_monitor #(
     task _wait(input int cycles);
         axis_vif._wait(cycles);
     endtask
+
+    // Set tpause value used by monitor (for stalling receive transactions)
+    function automatic void set_tpause(input int tpause);
+        this._tpause = tpause;
+    endfunction
 
     // Receive transaction (represented as raw byte array with associated metadata)
     task receive_raw(
@@ -136,7 +143,7 @@ class axi4s_monitor #(
         debug_msg("Waiting for transaction...");
 
         // Receive transaction
-        receive_raw(data, tid, tdest, tuser);
+        receive_raw(data, tid, tdest, tuser, _tpause);
 
         // Build Rx packet transaction
         packet = packet_verif_pkg::packet_raw::create_from_bytes("rx_packet", data);
