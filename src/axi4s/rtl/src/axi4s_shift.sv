@@ -53,10 +53,9 @@ module axi4s_shift
    always_comb begin  
       tdata = _tdata;
       tkeep = _tkeep;
-      for (int i = 0; i < shift; i++) begin
-         tdata = {tdata[DATA_BYTE_WID-2:0], tdata[DATA_BYTE_WID-1]};
-         tkeep = {tkeep[DATA_BYTE_WID-2:0], tkeep[DATA_BYTE_WID-1]};
-      end
+
+      tkeep = ({_tkeep, _tkeep} << shift)   >> DATA_BYTE_WID;
+      tdata = ({_tdata, _tdata} << shift*8) >> DATA_BYTE_WID*8;
    end
 
 
