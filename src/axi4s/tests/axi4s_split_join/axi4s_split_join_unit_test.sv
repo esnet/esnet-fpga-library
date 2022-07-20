@@ -69,7 +69,7 @@ module axi4s_split_join_unit_test
    );
 
 /*
-    // Monitor output interface - display packet data.                                                                                                                      
+    // Monitor output interface - display packet data.
     always @(posedge axi4s_out.aclk) begin
        if (axi4s_out.tready && axi4s_out.tvalid) begin
           $display("tdata: %h  tlast: %h", axi4s_out.tdata, axi4s_out.tlast);
@@ -226,7 +226,7 @@ module axi4s_split_join_unit_test
               env.driver.inbox.put(axis_transaction);
 
               // wait for packet transit time.
-              wait(axi4s_out.tready && axi4s_out.tvalid && axi4s_out.tlast); axi4s_out._wait(3);
+              wait(axi4s_out.tready && axi4s_out.tvalid && axi4s_out.tlast); axi4s_out._wait(10);
           end
 
           // if drop_hdr is set, send packet that will be dropped (before looping to increment payload size).
@@ -274,25 +274,35 @@ module axi4s_split_join_unit_test
 
         `SVTEST_END
 
-        `SVTEST(shrink_header_with_stalls)
-            fork
-               // send sequence of packets that iteratively shorten original header.
-               packet_loop;
+        `SVTEST(shrink_header_tpause_2)
+            env.monitor.set_tpause(2);
 
-               // tpause logic - overrides axi4s_out.tready signal (to model intermittent backpressure)
-               forever begin
-                  @(posedge axi4s_out.aclk);
-                  if (axi4s_out.tready && axi4s_out.tvalid) begin
-                     tpause = $urandom_range(3);
-                     if (tpause > 0) force axi4s_out.tready = '0;
-                  end else if (tpause == 0) begin
-                     force axi4s_out.tready = '1;
-                  end else tpause <= tpause - 1;
-               end
-            join_any
+            // send sequence of packets that iteratively shorten original header.
+            packet_loop;
 
         `SVTEST_END
 
+        `SVTEST(grow_header_tpause_2)
+            env.monitor.set_tpause(2);
+
+            // set header prefix (used by header processor) to grow header by 16B.
+            prefix = {>>byte{'h0011223344556677_8899aabbccddeeff}};
+
+            // send sequence of packets that iteratively shorten original header.
+            packet_loop;
+
+        `SVTEST_END
+
+        `SVTEST(shrink_header_with_drops_tpause_2)
+            env.monitor.set_tpause(2);
+
+            // set drop header.
+            drop_hdr = {>>byte{'h9696969696969696_9696969696969696}};
+
+            // send sequence of packets that shorten original header.
+            packet_loop;
+
+        `SVTEST_END
 
     `SVUNIT_TESTS_END
 
@@ -507,3 +517,4 @@ endmodule
 module axi4s_split_join_datawidth_16_unit_test;
 `AXI4S_SPLIT_JOIN_UNIT_TEST(16)
 endmodule
+
