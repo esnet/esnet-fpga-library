@@ -126,7 +126,8 @@ module axi4s_split_join
 
    // packet fifo instantiation
    axi4s_pkt_fifo_sync #(
-       .FIFO_DEPTH(256)
+       .FIFO_DEPTH(512),
+       .STR_FWD_MODE(1)
     ) fifo_0 (
        .axi4s_in       (axi4s_to_buffer),
        .axi4s_out      (axi4s_from_buffer),
