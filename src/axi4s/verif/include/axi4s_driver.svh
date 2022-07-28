@@ -29,6 +29,7 @@ class axi4s_driver #(
     //===================================
     protected bit _BIGENDIAN;
     protected int _min_pkt_gap;
+    protected int _twait;
 
     //===================================
     // Interfaces
@@ -64,6 +65,11 @@ class axi4s_driver #(
     // Set minimum inter-packet gap (in clock cycles)
     function automatic void set_min_gap(input int min_pkt_gap);
         this._min_pkt_gap = min_pkt_gap;
+    endfunction
+
+    // Set twait value used by driver (for stalling transmit transactions)
+    function automatic void set_twait(input int twait);
+        this._twait = twait;
     endfunction
 
     // Reset driver state
@@ -140,7 +146,7 @@ class axi4s_driver #(
         debug_msg($sformatf("Sending:\n%s", transaction.to_string()));
 
         // Send transaction
-        send_raw(transaction.get_packet().to_bytes(), transaction.tid, transaction.tdest, transaction.tuser);
+        send_raw(transaction.get_packet().to_bytes(), transaction.tid, transaction.tdest, transaction.tuser, _twait);
 
         debug_msg("Done.");
     endtask
