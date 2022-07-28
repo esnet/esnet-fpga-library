@@ -31,6 +31,9 @@ package std_verif_pkg;
 
 
     // Basic implementation classes
+    `include "event_scoreboard.svh"
+    `include "table_scoreboard.svh"
+
     `include "raw_transaction.svh"
     `include "raw_driver.svh"
     `include "raw_monitor.svh"
@@ -43,9 +46,6 @@ package std_verif_pkg;
 
     `include "wire_model.svh"
     `include "wire_env.svh"
-
-    `include "event_scoreboard.svh"
-    `include "table_scoreboard.svh"
 
     // Typedefs
     typedef enum {

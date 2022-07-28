@@ -9,10 +9,10 @@ variables:
   GIT_STRATEGY: clone
 
 .common:
-  image: $CI_REGISTRY/ht/xilinx-tools-docker:21975-g8bb7b6c3
+  image: $CI_REGISTRY/ht/xilinx-tools-docker:26009-g26ccc4b6
   before_script:
     - git clone https://gitlab.es.net/ht/open-nic-shell.git
-    - source /opt/Xilinx/Vivado/2021.2/settings64.sh
+    - source /opt/Xilinx/Vivado/2022.1/settings64.sh
     - make config BOARD_REPO=$CI_PROJECT_DIR/open-nic-shell/board_files/Xilinx
   variables:
     XILINXD_LICENSE_FILE: "2100@dmv.es.net"
