@@ -9,7 +9,7 @@ variables:
   GIT_STRATEGY: clone
 
 .common:
-  image: $CI_REGISTRY/ht/xilinx-tools-docker:25249-gb49b01ee-dev
+  image: $CI_REGISTRY/ht/xilinx-tools-docker:26009-g26ccc4b6
   before_script:
     - git clone https://gitlab.es.net/ht/open-nic-shell.git
     - source /opt/Xilinx/Vivado/2022.1/settings64.sh
