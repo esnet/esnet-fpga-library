@@ -1,11 +1,18 @@
 `include "svunit_defines.svh"
 
-module axi4s_intf_unit_test;
+module axi4s_intf_unit_test #(
+    parameter logic[2:0] DUT_SELECT = 0
+);
     import svunit_pkg::svunit_testcase;
     import packet_verif_pkg::*;
     import axi4s_verif_pkg::*;
 
-    string name = "axi4s_intf_ut";
+    localparam string dut_string = DUT_SELECT == 0 ? "axi4s_intf_connector" :
+                                   DUT_SELECT == 1 ? "axi4s_int_pipe" :
+                                   DUT_SELECT == 2 ? "axi4s_tready_pipe" :
+                                   DUT_SELECT == 3 ? "axi4s_full_pipe" : "undefined";
+
+    string name = $sformatf("axi4s_intf_dut_%s_ut", dut_string);
     svunit_testcase svunit_ut;
 
     //===================================
@@ -21,7 +28,22 @@ module axi4s_intf_unit_test;
     //===================================
     // DUT
     //===================================
-    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID)) axis_if ();
+    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID)) axis_in_if ();
+    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID)) axis_out_if ();
+
+    generate
+      case (DUT_SELECT)
+         0: axi4s_intf_connector DUT (.axi4s_from_tx(axis_in_if), .axi4s_to_rx(axis_out_if));
+
+         1: axi4s_intf_pipe DUT (.axi4s_if_from_tx(axis_in_if), .axi4s_if_to_rx(axis_out_if));
+
+         2: axi4s_tready_pipe DUT (.axi4s_if_from_tx(axis_in_if), .axi4s_if_to_rx(axis_out_if));
+
+         3: axi4s_full_pipe #(.DATA_BYTE_WID(DATA_BYTE_WID)) DUT
+                             (.axi4s_if_from_tx(axis_in_if), .axi4s_if_to_rx(axis_out_if));
+      endcase
+   endgenerate
+
 
     //===================================
     // Testbench
@@ -38,12 +60,12 @@ module axi4s_intf_unit_test;
     std_verif_pkg::event_scoreboard#(AXI4S_TRANSACTION_T) scoreboard;
 
     // Reset
-    std_reset_intf reset_if (.clk(axis_if.aclk));
-    assign axis_if.aresetn = !reset_if.reset;
+    std_reset_intf reset_if (.clk(axis_in_if.aclk));
+    assign axis_in_if.aresetn = !reset_if.reset;
     assign reset_if.ready = !reset_if.reset;
 
     // Assign clock (333MHz)
-    `SVUNIT_CLK_GEN(axis_if.aclk, 1.5ns);
+    `SVUNIT_CLK_GEN(axis_in_if.aclk, 1.5ns);
 
     //===================================
     // Build
@@ -57,8 +79,8 @@ module axi4s_intf_unit_test;
 
         env = new("env", model, scoreboard);
         env.reset_vif = reset_if;
-        env.axis_in_vif = axis_if;
-        env.axis_out_vif = axis_if;
+        env.axis_in_vif = axis_in_if;
+        env.axis_out_vif = axis_out_if;
         env.connect();
 
         env.set_debug_level(0);
@@ -79,6 +101,10 @@ module axi4s_intf_unit_test;
 
         // Issue reset
         env.reset_dut();
+
+        // Default settings for tpause and twait
+        env.monitor.set_tpause(0);
+        env.driver.set_twait(0);
 
         // Start environment
         env.start();
@@ -110,7 +136,24 @@ module axi4s_intf_unit_test;
     //     <test code>
     //   `SVTEST_END
     //===================================
+
+    AXI4S_TRANSACTION_T axis_transaction;
+    packet_raw packet;
+
     string msg;
+
+    task one_packet();
+       packet = new();
+       packet.randomize();
+       axis_transaction = new("trans_0", packet);
+       env.inbox.put(axis_transaction);
+    endtask
+
+    task packet_stream();
+       for (int i = 0; i < 100; i++) begin
+           one_packet();
+       end
+    endtask
 
     `SVUNIT_TESTS_BEGIN
 
@@ -118,43 +161,57 @@ module axi4s_intf_unit_test;
         `SVTEST_END
 
         `SVTEST(one_packet_good)
-            AXI4S_TRANSACTION_T axis_transaction;
-            packet_raw packet;
-            
-            packet = new();
-            packet.randomize();
-            axis_transaction = new("trans_0", packet);
-            env.inbox.put(axis_transaction);
-            #10us
-            `FAIL_IF_LOG(
-                scoreboard.report(msg),
-                msg
-            );
+            one_packet();
+            #10us `FAIL_IF_LOG( scoreboard.report(msg), msg );
         `SVTEST_END
 
-        `SVTEST(packet_stream)
-            AXI4S_TRANSACTION_T axis_transaction;
-            packet_raw packet;
-            
-            for (int i = 0; i < 1000; i++) begin
-                packet = new();
-                packet.randomize();
-                axis_transaction = new($sformatf("trans_%0d", i), packet);
-                env.inbox.put(axis_transaction);
-            end
-            #100us
-            `FAIL_IF_LOG(
-                scoreboard.report(msg),
-                msg
-            );
+        `SVTEST(one_packet_tpause_2)
+            env.monitor.set_tpause(2);
+            one_packet();
+            #10us `FAIL_IF_LOG( scoreboard.report(msg), msg );
+        `SVTEST_END
+
+        `SVTEST(one_packet_twait_2)
+            env.driver.set_twait(2);
+            one_packet();
+            #10us `FAIL_IF_LOG( scoreboard.report(msg), msg );
+        `SVTEST_END
+
+        `SVTEST(one_packet_tpause_2_twait_2)
+            env.monitor.set_tpause(2);
+            env.driver.set_twait(2);
+            one_packet();
+            #10us `FAIL_IF_LOG( scoreboard.report(msg), msg );
+        `SVTEST_END
+
+        `SVTEST(packet_stream_good)
+            packet_stream();
+            #100us `FAIL_IF_LOG( scoreboard.report(msg), msg );
+        `SVTEST_END
+
+        `SVTEST(packet_stream_tpause_2)
+            env.monitor.set_tpause(2);
+            packet_stream();
+            #100us `FAIL_IF_LOG( scoreboard.report(msg), msg );
+        `SVTEST_END
+
+        `SVTEST(packet_stream_twait_2)
+            env.driver.set_twait(2);
+            packet_stream();
+            #100us `FAIL_IF_LOG( scoreboard.report(msg), msg );
+        `SVTEST_END
+
+        `SVTEST(packet_stream_tpause_2_twait_2)
+            env.monitor.set_tpause(2);
+            env.driver.set_twait(2);
+            packet_stream();
+            #100us `FAIL_IF_LOG( scoreboard.report(msg), msg );
         `SVTEST_END
 
         `SVTEST(one_packet_bad)
             int bad_byte_idx;
             byte bad_byte_data;
-            packet_raw packet;
             packet_raw bad_packet;
-            AXI4S_TRANSACTION_T axis_transaction;
             AXI4S_TRANSACTION_T bad_axis_transaction;
             // Create 'expected' transaction
             packet = new();
@@ -169,7 +226,7 @@ module axi4s_intf_unit_test;
             bad_packet.set_byte(bad_byte_idx, bad_byte_data);
             bad_axis_transaction = new("trans_0_bad", bad_packet);
             env.driver.inbox.put(bad_axis_transaction);
-            axis_if._wait(1000);
+            axis_in_if._wait(1000);
             `FAIL_UNLESS_LOG(
                 scoreboard.report(msg),
                 "Passed unexpectedly."
@@ -179,3 +236,37 @@ module axi4s_intf_unit_test;
     `SVUNIT_TESTS_END
 
 endmodule
+
+
+// 'Boilerplate' unit test wrapper code
+//  Builds unit test for a specific AXI4S DUT in a way
+//  that maintains SVUnit compatibility
+`define AXI4S_UNIT_TEST(DUT_SELECT)\
+  import svunit_pkg::svunit_testcase;\
+  svunit_testcase svunit_ut;\
+  axi4s_intf_unit_test #(DUT_SELECT) test();\
+  function void build();\
+    test.build();\
+    svunit_ut = test.svunit_ut;\
+  endfunction\
+  task run();\
+    test.run();\
+  endtask
+
+
+module axi4s_intf_connector_unit_test;
+`AXI4S_UNIT_TEST(0)
+endmodule
+
+module axi4s_intf_pipe_unit_test;
+`AXI4S_UNIT_TEST(1)
+endmodule
+
+module axi4s_tready_pipe_unit_test;
+`AXI4S_UNIT_TEST(2)
+endmodule
+
+module axi4s_full_pipe_unit_test;
+`AXI4S_UNIT_TEST(3)
+endmodule
+

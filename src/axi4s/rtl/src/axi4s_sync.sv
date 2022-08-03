@@ -40,13 +40,18 @@ module axi4s_sync
    logic  sync, sync0, sync1;
    logic  sync_stretch0, sync_stretch1;
 
+   tuser_buffer_context_mode_t   tuser_in0, tuser_in1;
+
+   assign tuser_in0 = axi4s_in0.tuser;
+   assign tuser_in1 = axi4s_in1.tuser;
+
    always_comb begin
       case (MODE)
         SOP : begin
           // synchronize sop words and validate wr pointers (pkt id).
           sync  = axi4s_in0.sop && axi4s_in0.tvalid &&  
                   axi4s_in1.sop && axi4s_in1.tvalid &&
-                  axi4s_in0.tuser.wr_ptr == axi4s_in1.tuser.wr_ptr;
+                  tuser_in0.wr_ptr == tuser_in1.wr_ptr;
           sync0 = sync || sync_stretch0 || !axi4s_in0.sop;
           sync1 = sync || sync_stretch1 || !axi4s_in1.sop;
         end
@@ -54,9 +59,9 @@ module axi4s_sync
         HDR_TLAST : begin
           // synchronize hdr tlast words (using payload buffer context).
           sync  = axi4s_in0.tvalid && axi4s_in0.tlast && 
-                  axi4s_in1.tvalid && axi4s_in1.tuser.hdr_tlast;
+                  axi4s_in1.tvalid && tuser_in1.hdr_tlast;
           sync0 = sync || sync_stretch0 || !axi4s_in0.tlast;
-          sync1 = sync || sync_stretch1 || !axi4s_in1.tuser.hdr_tlast;
+          sync1 = sync || sync_stretch1 || !tuser_in1.hdr_tlast;
         end
 
         default : begin

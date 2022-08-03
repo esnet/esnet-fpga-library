@@ -76,9 +76,9 @@ module axi4s_split
 
    // axi4s_copy instance.
    axi4s_copy axi4s_copy_0 (
-      .axi4s_in   (axi4s_to_copy),
-      .axi4s_out0 (axi4s_out),
-      .axi4s_out1 (axi4s_to_trunc)
+      .axi4s_in     (axi4s_to_copy),
+      .axi4s_out    (axi4s_to_trunc),
+      .axi4s_cp_out (axi4s_out)
    );
 
    // axi4s_trunc instance.

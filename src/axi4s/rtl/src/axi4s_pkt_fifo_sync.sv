@@ -17,9 +17,11 @@
 
 // -----------------------------------------------------------------------------
 // axi4s_pkt_fifo_sync is a packet-aware synchronous fifo.  
-// It requires a full packet to be buffered ahead of forwarding it out through 
-// its egress interface, and it will discard the full packet if a transaction is 
-// lost due to fifo overflow.
+// It buffers a full ingress packet prior to forwarding it to the egress fifo, and
+// will discard the full packet if an ingress transaction is lost due to fifo
+// overflow.
+// It also supports a store-and-forward egress mode, for instantiations that do not
+// incorporate ingress discard logic.
 // -----------------------------------------------------------------------------
 
 module axi4s_pkt_fifo_sync
@@ -27,6 +29,7 @@ module axi4s_pkt_fifo_sync
 #(
    parameter int   FIFO_DEPTH = 256,
    parameter int   MAX_PKT_LEN = 9100,
+   parameter logic STR_FWD_MODE = 0, // when 1, full packet is required to deassert empty.
    // Debug parameters
    parameter bit   DEBUG_ILA = 1'b0
 ) (
@@ -71,7 +74,7 @@ module axi4s_pkt_fifo_sync
 
    logic                rd;
    fifo_data_t          rd_data;
-   logic                empty;
+   logic                empty, __empty;
    logic                uflow;
 
    localparam DATA_WIDTH = $size(wr_data);
@@ -159,11 +162,40 @@ module axi4s_pkt_fifo_sync
       .rd_data   ( rd_data ),
       .count     ( count ),
       .full      ( full ),
-      .empty     ( empty ),
+      .empty     ( __empty ),
       .oflow     ( oflow ),
       .uflow     ( uflow ),
       .axil_if   ( axil_if )
    );
+
+   // --- store-and-forward mode logic ---
+   // tracks count of tlasts in FIFO and defers deassertion of empty unless >= 1 tlast (full pkt) in fifo.
+   generate
+      if (STR_FWD_MODE == 1) begin : g__str_fwd
+         logic [CNT_WIDTH:0] wr_tlast_count, rd_tlast_count, tlast_count;
+
+         always @(posedge axi4s_to_fifo.aclk) begin
+            if (!axi4s_to_fifo.aresetn)   wr_tlast_count <= '0;
+            else if (wr && wr_data.tlast) wr_tlast_count <= wr_tlast_count + 1;
+         end
+
+         always @(posedge axi4s_out.aclk) begin
+            if (!axi4s_out.aresetn) rd_tlast_count <= '0;
+            else if (axi4s_out.tvalid && axi4s_out.tready && axi4s_out.tlast) rd_tlast_count <= rd_tlast_count + 1;
+         end
+
+         assign tlast_count = wr_tlast_count - rd_tlast_count;
+
+         assign empty = __empty || (tlast_count == '0);
+
+      end : g__str_fwd
+
+      else begin : g__
+         assign empty = __empty;
+
+      end : g__
+
+   endgenerate
 
 
    // --- axi4s output clock/reset ---

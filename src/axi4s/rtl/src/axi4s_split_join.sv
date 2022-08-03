@@ -25,8 +25,12 @@
 module axi4s_split_join
    import axi4s_pkg::*;
 #(
-   parameter logic BIGENDIAN = 0  // Little endian by default.
-) (
+   parameter logic BIGENDIAN    = 0,  // Little endian by default.
+   parameter logic IN_PIPE      = 1,
+   parameter logic OUT_PIPE     = 1,
+   parameter logic HDR_IN_PIPE  = 1,
+   parameter logic HDR_OUT_PIPE = 1
+ ) (
    axi4s_intf.rx     axi4s_in,
    axi4s_intf.tx     axi4s_out,
    axi4s_intf.tx     axi4s_hdr_out,
@@ -39,22 +43,76 @@ module axi4s_split_join
    localparam type TID_T         = axi4s_hdr_out.TID_T;
    localparam type TDEST_T       = axi4s_hdr_out.TDEST_T;
 
-   axi4s_intf #( .TUSER_MODE(BUFFER_CONTEXT), .DATA_BYTE_WID(DATA_BYTE_WID), 
-                 .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(tuser_buffer_context_mode_t) ) axi4s_to_buffer   ();
+   axi4s_intf #( .DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T), .TDEST_T(TDEST_T) ) axi4s_in_p ();
 
-   axi4s_intf #( .TUSER_MODE(BUFFER_CONTEXT), .DATA_BYTE_WID(DATA_BYTE_WID), 
+   axi4s_intf #( .DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T), .TDEST_T(TDEST_T) ) axi4s_out_p ();
+
+   axi4s_intf #( .TUSER_MODE(BUFFER_CONTEXT), .DATA_BYTE_WID(DATA_BYTE_WID),
+                 .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(tuser_buffer_context_mode_t) ) axi4s_hdr_in_p ();
+
+   axi4s_intf #( .TUSER_MODE(BUFFER_CONTEXT), .DATA_BYTE_WID(DATA_BYTE_WID),
+                 .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(tuser_buffer_context_mode_t) ) axi4s_hdr_out_p ();
+
+   axi4s_intf #( .TUSER_MODE(BUFFER_CONTEXT), .DATA_BYTE_WID(DATA_BYTE_WID),
+                 .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(tuser_buffer_context_mode_t) ) axi4s_to_buffer ();
+
+   axi4s_intf #( .TUSER_MODE(BUFFER_CONTEXT), .DATA_BYTE_WID(DATA_BYTE_WID),
+                 .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(tuser_buffer_context_mode_t) ) axi4s_to_buffer_p ();
+
+   axi4s_intf #( .TUSER_MODE(BUFFER_CONTEXT), .DATA_BYTE_WID(DATA_BYTE_WID),
                  .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(tuser_buffer_context_mode_t) ) axi4s_from_buffer ();
+
+   axi4s_intf #( .TUSER_MODE(BUFFER_CONTEXT), .DATA_BYTE_WID(DATA_BYTE_WID),
+                 .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(tuser_buffer_context_mode_t) ) axi4s_from_buffer_p ();
+
+
+   generate
+      if (IN_PIPE)
+         axi4s_full_pipe
+            #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(tuser_buffer_context_mode_t))
+            in_pipe_0 (.axi4s_if_from_tx(axi4s_in), .axi4s_if_to_rx(axi4s_in_p));
+      else
+         axi4s_intf_connector in_intf_connector_0  (.axi4s_from_tx(axi4s_in), .axi4s_to_rx(axi4s_in_p));
+
+      if (OUT_PIPE)
+         axi4s_full_pipe
+            #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(tuser_buffer_context_mode_t))
+            out_pipe_0 (.axi4s_if_from_tx(axi4s_out_p), .axi4s_if_to_rx(axi4s_out));
+      else
+         axi4s_intf_connector out_intf_connector_0 (.axi4s_from_tx(axi4s_out_p), .axi4s_to_rx(axi4s_out));
+
+      if (HDR_IN_PIPE)
+         axi4s_full_pipe
+            #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(tuser_buffer_context_mode_t))
+            hdr_in_pipe_0 (.axi4s_if_from_tx(axi4s_hdr_in), .axi4s_if_to_rx(axi4s_hdr_in_p));
+      else
+         axi4s_intf_connector hdr_in_intf_connector_0  (.axi4s_from_tx(axi4s_hdr_in), .axi4s_to_rx(axi4s_hdr_in_p));
+
+      if (HDR_OUT_PIPE)
+         axi4s_full_pipe
+            #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(tuser_buffer_context_mode_t))
+            hdr_out_pipe_0 (.axi4s_if_from_tx(axi4s_hdr_out_p), .axi4s_if_to_rx(axi4s_hdr_out));
+      else
+         axi4s_intf_connector hdr_out_intf_connector_0 (.axi4s_from_tx(axi4s_hdr_out_p), .axi4s_to_rx(axi4s_hdr_out));
+
+   endgenerate
+
 
 
    // header splitter instantiation
    axi4s_split #(
       .BIGENDIAN (BIGENDIAN)
    ) axi4s_split_0 (
-      .axi4s_in      (axi4s_in),
-      .axi4s_out     (axi4s_to_buffer),
-      .axi4s_hdr_out (axi4s_hdr_out),
+      .axi4s_in      (axi4s_in_p),
+      .axi4s_out     (axi4s_to_buffer_p),
+      .axi4s_hdr_out (axi4s_hdr_out_p),
       .hdr_length    (hdr_length)
    );
+
+   axi4s_full_pipe
+      #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(tuser_buffer_context_mode_t))
+      to_buffer_pipe_0 (.axi4s_if_from_tx(axi4s_to_buffer_p), .axi4s_if_to_rx(axi4s_to_buffer));
+
 
 
    // instantiate and terminate unused AXI-L interfaces.
@@ -68,7 +126,8 @@ module axi4s_split_join
 
    // packet fifo instantiation
    axi4s_pkt_fifo_sync #(
-       .FIFO_DEPTH(512)
+       .FIFO_DEPTH(512),
+       .STR_FWD_MODE(1)
     ) fifo_0 (
        .axi4s_in       (axi4s_to_buffer),
        .axi4s_out      (axi4s_from_buffer),
@@ -78,13 +137,18 @@ module axi4s_split_join
     );
 
    
+
+   axi4s_full_pipe
+      #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(tuser_buffer_context_mode_t))
+      from_buffer_pipe_0 (.axi4s_if_from_tx(axi4s_from_buffer), .axi4s_if_to_rx(axi4s_from_buffer_p));
+
    // payload joiner instantiation
    axi4s_join #(
       .BIGENDIAN (BIGENDIAN)
    ) axi4s_join_0 (
-      .axi4s_hdr_in  (axi4s_hdr_in),
-      .axi4s_in      (axi4s_from_buffer),
-      .axi4s_out     (axi4s_out)
+      .axi4s_hdr_in  (axi4s_hdr_in_p),
+      .axi4s_in      (axi4s_from_buffer_p),
+      .axi4s_out     (axi4s_out_p)
    );
 
 endmodule // axi4s_split_join

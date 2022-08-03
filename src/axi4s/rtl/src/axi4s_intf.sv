@@ -348,6 +348,123 @@ module axi4s_intf_pipe
 endmodule : axi4s_intf_pipe
 
 
+// axi4-stream tready pipeline helper module
+module axi4s_tready_pipe (
+    axi4s_intf.rx axi4s_if_from_tx,
+    axi4s_intf.tx axi4s_if_to_rx
+);
+    import axi4s_pkg::*;
+
+    localparam int  DATA_BYTE_WID = axi4s_if_from_tx.DATA_BYTE_WID;
+    localparam type TID_T         = axi4s_if_from_tx.TID_T;
+    localparam type TDEST_T       = axi4s_if_from_tx.TDEST_T;
+    localparam type TUSER_T       = axi4s_if_from_tx.TUSER_T;
+
+    logic  tready_falling;
+    logic  fwft;
+    logic  sample_enable;
+
+    axi4s_intf  #( .DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T) )
+                axi4s_if_from_tx_p ();
+
+    // aclk.
+    assign axi4s_if_to_rx.aclk = axi4s_if_from_tx.aclk;
+
+    // aresetn.
+    initial axi4s_if_to_rx.aresetn = 1'b0;
+    always @(posedge axi4s_if_from_tx.aclk) axi4s_if_to_rx.aresetn <= axi4s_if_from_tx.aresetn;
+
+    logic axi4s_if_to_rx_tready_p = 0;
+    always @(posedge axi4s_if_from_tx.aclk) begin
+        if (!axi4s_if_from_tx.aresetn)  axi4s_if_to_rx_tready_p <= 1'b0;
+        else                            axi4s_if_to_rx_tready_p <= axi4s_if_to_rx.tready;
+    end
+
+    assign fwft = axi4s_if_from_tx.tvalid && !axi4s_if_from_tx_p.tvalid && !axi4s_if_to_rx_tready_p;
+
+    assign tready_falling = axi4s_if_to_rx_tready_p && !axi4s_if_to_rx.tready;  
+
+    // sample data flops if rx is deasserting tready, or if sample flops can receive next valid word (first-word-fall-through).
+    assign sample_enable  = tready_falling || (fwft && !axi4s_if_to_rx.tready);
+
+
+    // assert tready if rx is ready, or if sample flops can receive next valid word (first-word-fall-through).
+    assign axi4s_if_from_tx.tready = axi4s_if_to_rx_tready_p || fwft;
+
+    assign axi4s_if_from_tx_p.aclk    = axi4s_if_from_tx.aclk;
+    assign axi4s_if_from_tx_p.aresetn = axi4s_if_from_tx.aresetn;
+
+    // sample data flops, and deassert tvalid when flopped data is transferred.
+    always_ff @(posedge axi4s_if_from_tx.aclk) begin
+        if (!axi4s_if_from_tx.aresetn)                               axi4s_if_from_tx_p.tvalid <= '0;
+        else if (axi4s_if_to_rx.tready && axi4s_if_from_tx_p.tvalid) axi4s_if_from_tx_p.tvalid <= '0;
+        else if (sample_enable)                                      axi4s_if_from_tx_p.tvalid <= axi4s_if_from_tx.tvalid;
+
+        if (sample_enable) begin
+            axi4s_if_from_tx_p.tdata  <= axi4s_if_from_tx.tdata;
+            axi4s_if_from_tx_p.tkeep  <= axi4s_if_from_tx.tkeep;
+            axi4s_if_from_tx_p.tlast  <= axi4s_if_from_tx.tlast;
+            axi4s_if_from_tx_p.tid    <= axi4s_if_from_tx.tid;
+            axi4s_if_from_tx_p.tdest  <= axi4s_if_from_tx.tdest;
+            axi4s_if_from_tx_p.tuser  <= axi4s_if_from_tx.tuser;
+        end
+    end
+
+    // output mux logic.
+    always_comb begin
+       // select sample flops when a valid sample is captured.
+       if (axi4s_if_from_tx_p.tvalid) begin
+            axi4s_if_to_rx.tvalid = axi4s_if_from_tx_p.tvalid;
+            axi4s_if_to_rx.tdata  = axi4s_if_from_tx_p.tdata;
+            axi4s_if_to_rx.tkeep  = axi4s_if_from_tx_p.tkeep;
+            axi4s_if_to_rx.tlast  = axi4s_if_from_tx_p.tlast;
+            axi4s_if_to_rx.tid    = axi4s_if_from_tx_p.tid;
+            axi4s_if_to_rx.tdest  = axi4s_if_from_tx_p.tdest;
+            axi4s_if_to_rx.tuser  = axi4s_if_from_tx_p.tuser;
+       // otherwise select input data.
+       end else begin
+            axi4s_if_to_rx.tvalid = axi4s_if_from_tx.tvalid;
+            axi4s_if_to_rx.tdata  = axi4s_if_from_tx.tdata;
+            axi4s_if_to_rx.tkeep  = axi4s_if_from_tx.tkeep;
+            axi4s_if_to_rx.tlast  = axi4s_if_from_tx.tlast;
+            axi4s_if_to_rx.tid    = axi4s_if_from_tx.tid;
+            axi4s_if_to_rx.tdest  = axi4s_if_from_tx.tdest;
+            axi4s_if_to_rx.tuser  = axi4s_if_from_tx.tuser;
+       end
+    end
+
+endmodule : axi4s_tready_pipe
+
+
+// axi4-stream full (bidirectional) pipeline helper module
+module axi4s_full_pipe #(
+    parameter int  DATA_BYTE_WID = 8,
+    parameter type TID_T = bit,
+    parameter type TDEST_T = bit,
+    parameter type TUSER_T = bit
+) (
+    axi4s_intf.rx axi4s_if_from_tx,
+    axi4s_intf.tx axi4s_if_to_rx
+);
+    import axi4s_pkg::*;
+
+// replaced localparam assignments due to vivado synthesis segmentation fault.
+/*
+    localparam int  DATA_BYTE_WID = axi4s_if_from_tx.DATA_BYTE_WID;
+    localparam type TID_T         = axi4s_if_from_tx.TID_T;
+    localparam type TDEST_T       = axi4s_if_from_tx.TDEST_T;
+    localparam type TUSER_T       = axi4s_if_from_tx.TUSER_T;
+*/
+    axi4s_intf  #( .DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T) )
+                axi4s_if_to_rx_p ();
+
+    axi4s_tready_pipe in_tready_pipe_0 (.axi4s_if_from_tx(axi4s_if_from_tx), .axi4s_if_to_rx(axi4s_if_to_rx_p));
+
+    axi4s_intf_pipe   out_intf_pipe_0  (.axi4s_if_from_tx(axi4s_if_to_rx_p), .axi4s_if_to_rx(axi4s_if_to_rx));
+
+endmodule : axi4s_full_pipe
+
+
 // AXI-Stream interface 2:1 mux
 module axi4s_intf_2_to_1_mux (
     axi4s_intf.rx axi4s_in_if_0,
@@ -391,9 +508,11 @@ module axi4s_intf_bypass_mux #(
 );
 
     // interface instantiations
-    axi4s_intf  #( .DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T) ) __axi4s_in ();
+    axi4s_intf  #( .DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T) )
+                __axi4s_in ();
 
-    axi4s_intf  #( .DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T) ) axi4s_from_pipe ();
+    axi4s_intf  #( .DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T) )
+                axi4s_from_pipe ();
 
     // __axi4s_in assignments
     assign __axi4s_in.aclk    = axi4s_in.aclk;

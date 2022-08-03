@@ -23,12 +23,21 @@
 
 module axi4s_drop
    import axi4s_pkg::*;
-( 
+#(
+   parameter logic OUT_PIPE = 1
+ ) (
    axi4s_intf.rx    axi4s_in,
    axi4s_intf.tx    axi4s_out,
 
    input logic drop_pkt
 );
+
+   localparam int  DATA_BYTE_WID = axi4s_in.DATA_BYTE_WID;
+   localparam type TID_T         = axi4s_in.TID_T;
+   localparam type TDEST_T       = axi4s_in.TDEST_T;
+   localparam type TUSER_T       = axi4s_in.TUSER_T;
+
+   axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) axi4s_out_p ();
 
    logic drop_pkt_latch, drop;
 
@@ -40,17 +49,25 @@ module axi4s_drop
    assign drop = drop_pkt || drop_pkt_latch;
 
    // axis4s in interface signalling.
-   assign axi4s_in.tready = axi4s_out.tready || drop;
+   assign axi4s_in.tready = axi4s_out_p.tready || drop;
 
    // axis4s out interface signalling.
-   assign axi4s_out.aclk    = axi4s_in.aclk;
-   assign axi4s_out.aresetn = axi4s_in.aresetn;
-   assign axi4s_out.tvalid  = axi4s_in.tvalid && !drop;
-   assign axi4s_out.tdata   = axi4s_in.tdata;
-   assign axi4s_out.tkeep   = axi4s_in.tkeep;
-   assign axi4s_out.tlast   = axi4s_in.tlast;
-   assign axi4s_out.tid     = axi4s_in.tid;
-   assign axi4s_out.tdest   = axi4s_in.tdest;
-   assign axi4s_out.tuser   = axi4s_in.tuser;
+   assign axi4s_out_p.aclk    = axi4s_in.aclk;
+   assign axi4s_out_p.aresetn = axi4s_in.aresetn;
+   assign axi4s_out_p.tvalid  = axi4s_in.tvalid && !drop;
+   assign axi4s_out_p.tdata   = axi4s_in.tdata;
+   assign axi4s_out_p.tkeep   = axi4s_in.tkeep;
+   assign axi4s_out_p.tlast   = axi4s_in.tlast;
+   assign axi4s_out_p.tid     = axi4s_in.tid;
+   assign axi4s_out_p.tdest   = axi4s_in.tdest;
+   assign axi4s_out_p.tuser   = axi4s_in.tuser;
+
+   generate
+      if (OUT_PIPE)
+         axi4s_full_pipe #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T))
+                         out_pipe_0 (.axi4s_if_from_tx(axi4s_out_p), .axi4s_if_to_rx(axi4s_out));
+      else
+         axi4s_intf_connector out_intf_connector_0 (.axi4s_from_tx(axi4s_out_p), .axi4s_to_rx(axi4s_out));
+   endgenerate
 
 endmodule // axi4s_drop

@@ -60,7 +60,7 @@ module axi4s_reg_slice
         .C_AXIS_TID_WIDTH    ($bits(TID_T)),
         .C_AXIS_TDEST_WIDTH  ($bits(TDEST_T)),
         .C_AXIS_TUSER_WIDTH  ($bits(TUSER_T)),
-        .C_AXIS_SIGNAL_SET   (32'b00000000000000000000000001111011),
+        .C_AXIS_SIGNAL_SET   (32'b00000000000000000000000011111011),
         .C_REG_CONFIG        (getRegConfig(CONFIG)),
         .C_NUM_SLR_CROSSINGS (0),
         .C_PIPELINES_MASTER  (0),

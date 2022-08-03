@@ -25,8 +25,11 @@ module fifo_async_unit_test #(
     //===================================
     // Derived parameters
     //===================================
+    localparam int MEM_WR_LATENCY = DUT.i_fifo_core.MEM_WR_LATENCY;
+    localparam int MEM_RD_LATENCY = DUT.i_fifo_core.MEM_RD_LATENCY;
+
     // Adjust 'effective' FIFO depth to account for optional FWFT buffer
-    localparam int __DEPTH = FWFT ? DEPTH + 1 : DEPTH;
+    localparam int __DEPTH = FWFT ? DEPTH + MEM_RD_LATENCY : DEPTH;
 
     localparam int CNT_WID = $clog2(__DEPTH+1);
 
@@ -298,7 +301,7 @@ module fifo_async_unit_test #(
             end
         `SVTEST_END
 
-  
+
         //===================================
         // Test:
         //   _slow_to_fast_fill_empty
@@ -315,7 +318,7 @@ module fifo_async_unit_test #(
             std_verif_pkg::raw_transaction#(DATA_T) exp_transaction;
 
             // Set clk frequencies
-            clk_ratio = 2.5;  wr_clk_period = clk_ratio * rd_clk_period;
+            clk_ratio = FWFT ? 1.1 : 2.5; wr_clk_period = clk_ratio * rd_clk_period;
  
             // Fill all FIFO entries, plus one overflow event i.e. DEPTH+1
             for (int i = 0; i < (__DEPTH+1); i++) begin
@@ -359,6 +362,7 @@ module fifo_async_unit_test #(
 
             // Check that empty is deasserted immediately (once write transaction is registered by FIFO)
             env.monitor._wait(FIFO_ASYNC_LATENCY);
+            if (FWFT) env.monitor._wait(MEM_RD_LATENCY);
             `FAIL_UNLESS(empty == 0);
 
             // Receive transaction
@@ -410,6 +414,7 @@ module fifo_async_unit_test #(
             // Check that full is once again deasserted
             `FAIL_UNLESS(full == 0);
         `SVTEST_END
+
 
         //===================================
         // Test:
@@ -525,6 +530,18 @@ module fifo_async_std_depth32_unit_test;
 `FIFO_ASYNC_UNIT_TEST(32, 0)
 endmodule
 
+// Standard 385-entry FIFO (medium)
+module fifo_async_std_depth385_unit_test;
+`FIFO_ASYNC_UNIT_TEST(385, 0)
+endmodule
+
+// Standard 512-entry FIFO (medium)
+module fifo_async_std_depth512_unit_test;
+`FIFO_ASYNC_UNIT_TEST(512, 0)
+endmodule
+
+
+
 // FWFT 16-entry FIFO
 module fifo_async_fwft_depth16_unit_test;
 `FIFO_ASYNC_UNIT_TEST(16, 1)
@@ -538,4 +555,14 @@ endmodule
 // FWFT 64-entry FIFO
 module fifo_async_fwft_depth64_unit_test;
 `FIFO_ASYNC_UNIT_TEST(64, 1)
+endmodule
+
+// FWFT 385-entry FIFO (medium)
+module fifo_async_fwft_depth385_unit_test;
+`FIFO_ASYNC_UNIT_TEST(385, 1)
+endmodule
+
+// FWFT 512-entry FIFO (medium)
+module fifo_async_fwft_depth512_unit_test;
+`FIFO_ASYNC_UNIT_TEST(512, 1)
 endmodule

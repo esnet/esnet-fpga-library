@@ -92,8 +92,8 @@ module axi4s_join
       .axi4s_out1  (sync_pyld[0])
    );
 
-   assign drop_pkt = sync_hdr[0].tready && sync_hdr[0].tvalid && sync_hdr[0].sop &&
-                     sync_hdr[0].tlast  && sync_hdr[0].tkeep == '0;
+   assign drop_pkt = sync_hdr[0].tvalid && sync_hdr[0].sop && sync_hdr[0].tlast && 
+                     sync_hdr[0].tkeep == '0;
 
    // axi4s header drop instantiation.
    axi4s_drop axi4s_drop_0 (

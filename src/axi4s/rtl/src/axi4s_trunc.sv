@@ -47,17 +47,14 @@ module axi4s_trunc
    // trunc_tkeep function 
    function automatic logic[DATA_BYTE_WID-1:0] trunc_tkeep (input [DATA_BYTE_WID-1:0] tkeep_in, length);
       automatic logic [DATA_BYTE_WID-1:0] tkeep_out = 0;
-      automatic logic [COUNT_WID:0]       count = 0;
 
       automatic logic [DATA_BYTE_WID-1:0] __tkeep_in, __tkeep_out;
 
       __tkeep_in = BIGENDIAN ? {<<{tkeep_in}} : tkeep_in;  // convert to little endian prior to for loop.
 
       for (int i=0; i<DATA_BYTE_WID; i++) begin
-         if (count < length) __tkeep_out[i] = __tkeep_in[i];
-         else                __tkeep_out[i] = 1'b0;
-
-         count = count + __tkeep_in[i];
+         if (i < length) __tkeep_out[i] = __tkeep_in[i];
+         else            __tkeep_out[i] = 1'b0;
       end
 
       tkeep_out = BIGENDIAN ? {<<{__tkeep_out}} : __tkeep_out;  // convert back to big endian if required.
@@ -72,9 +69,10 @@ module axi4s_trunc
    logic        trunc_tlast;
    logic [15:0] tkeep_length;
 
+
    // byte counter logic
    always @(posedge axi4s_in.aclk)
-      if (!axi4s_in.aresetn) byte_count <= '0;
+      if (!axi4s_in.aresetn)    byte_count <= '0;
       else if (axi4s_in.tvalid && axi4s_in.tready) begin
          if (axi4s_in.tlast)    byte_count <= '0;
          else if (trunc_select) byte_count <= byte_count + count_ones(axi4s_in.tkeep);
