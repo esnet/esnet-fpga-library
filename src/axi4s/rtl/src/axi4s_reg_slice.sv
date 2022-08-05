@@ -19,9 +19,9 @@ module axi4s_reg_slice
     import axi4s_pkg::*;
 #(
     parameter int  DATA_BYTE_WID = 8,
-    parameter type TID_T = bit,
-    parameter type TDEST_T = bit,
-    parameter type TUSER_T = bit,
+    parameter type TID_T = logic,
+    parameter type TDEST_T = logic,
+    parameter type TUSER_T = logic,
     parameter xilinx_reg_slice_config_t CONFIG = REG_SLICE_DEFAULT
 ) (
     axi4s_intf.rx axi4s_from_tx,
