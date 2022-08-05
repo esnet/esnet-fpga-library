@@ -25,7 +25,8 @@ SRC_LIST_FILES =
 #   List IP component and external library dependencies
 #   (see $SCRIPTS_ROOT/Makefiles/dependencies.mk)
 # ----------------------------------------------------
-COMPONENTS = reg.verif
+COMPONENTS = reg.verif \
+             axi3_rtl=$(LIB_ROOT)/src/axi3/rtl
 EXT_LIBS =
 
 # ----------------------------------------------------

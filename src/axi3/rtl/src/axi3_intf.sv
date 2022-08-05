@@ -43,8 +43,8 @@ interface axi3_intf
     logic                          awready;
     // -- Write data
     ID_T                           wid;
-    logic [0:DATA_BYTE_WID-1][7:0] wdata;
-    logic [0:DATA_BYTE_WID-1]      wstrb;
+    logic [DATA_BYTE_WID-1:0][7:0] wdata;
+    logic [DATA_BYTE_WID-1:0]      wstrb;
     logic                          wlast;
     USER_T                         wuser;
     logic                          wvalid;
