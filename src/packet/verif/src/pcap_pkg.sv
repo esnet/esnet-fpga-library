@@ -123,7 +123,6 @@ package pcap_pkg;
         );
         int pkt_bytes;
         bit swap_endian;
-        int pkt_idx = 0;
 
         // Parse global header
         hdr = pop_hdr(data);
@@ -134,12 +133,18 @@ package pcap_pkg;
 
         // Parse packet records
         while (data.size() > 0) begin
-            record_hdr.push_back(pop_record_hdr(data, swap_endian));
-            pkt_bytes = record_hdr[pkt_idx].incl_len;
+            pcaprec_hdr_t __record_hdr;
+            automatic byte __pkt_data[$] = {};
+            // Process packet header
+            __record_hdr = pop_record_hdr(data, swap_endian);
+            // Process packet data
+            pkt_bytes = __record_hdr.incl_len;
             for (int i = 0; i < pkt_bytes; i++) begin
-                pkt_data[pkt_idx].push_back(data.pop_front());
+                __pkt_data.push_back(data.pop_front());
             end
-            pkt_idx++;
+            // Assemble output data
+            record_hdr.push_back(__record_hdr);
+            pkt_data.push_back(__pkt_data);
         end
 
     endfunction
