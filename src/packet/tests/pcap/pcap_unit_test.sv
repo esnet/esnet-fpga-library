@@ -59,6 +59,14 @@ module pcap_unit_test;
       print_pcap(hdr, record_hdr, pkt_data);
     `SVTEST_END
 
+    `SVTEST(read_test_pcap_zero_length)
+      pcap_hdr_t hdr;
+      pcaprec_hdr_t record_hdr [$];
+      byte pkt_data [$][$];
+      read_pcap("../../pcap/test_zero_length.pcap", hdr, record_hdr, pkt_data);
+      print_pcap(hdr, record_hdr, pkt_data);
+    `SVTEST_END
+
   `SVUNIT_TESTS_END
 
 endmodule
