@@ -19,13 +19,15 @@ include $(IP_ROOT)/config.mk
 IP_LIST = \
     axis_register_slice \
     axis_data_fifo \
-    ila_axi4s
+    ila_axi4s \
+    ila_axi4s_lite
 
 SRC_FILES =
 INC_DIRS =
 SRC_LIST_FILES = \
     axis_data_fifo/sources.f \
-    ila_axi4s/sources.f
+    ila_axi4s/sources.f \
+    ila_axi4s_lite/sources.f
 
 # ----------------------------------------------------
 # Dependencies
