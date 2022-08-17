@@ -64,4 +64,9 @@ package axi4s_pkg;
         logic        hdr_tlast;
     } tuser_buffer_context_mode_t;
 
+    typedef enum int {
+        FULL,
+        LITE
+    } axi4s_ila_mode_t;
+
 endpackage : axi4s_pkg
