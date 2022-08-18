@@ -25,7 +25,7 @@ class db_driver #(
     //===================================
     // Properties
     //===================================
-    virtual db_query_intf #(KEY_T, VALUE_T) query_vif;
+    virtual db_intf #(KEY_T, VALUE_T) db_vif;
 
     //===================================
     // Methods
@@ -52,13 +52,13 @@ class db_driver #(
     // Put (driven) database update interface in idle state
     // [[ implements std_verif_pkg::driver.idle() ]]
     task idle();
-        query_vif.idle();
+        db_vif.idle();
     endtask
 
     // Wait for specified number of 'cycles' on the driven interface
     // [[ implements std_verif_pkg::driver._wait() ]]
     task _wait(input int cycles);
-        query_vif._wait(cycles);
+        db_vif._wait(cycles);
     endtask
 
     // Wait for interface to be ready to accept transactions (after reset/init, for example)
@@ -66,7 +66,7 @@ class db_driver #(
     task wait_ready();
         automatic bit no_timeout;
         trace_msg("wait_ready()");
-        query_vif.wait_ready(no_timeout, 0);
+        db_vif.wait_ready(no_timeout, 0);
         trace_msg("wait_ready() Done.");
     endtask
 
@@ -75,7 +75,7 @@ class db_driver #(
         );
         trace_msg("send_raw()");
         // Send transaction to interface
-        query_vif.send(key);
+        db_vif.send(key);
         trace_msg("send_raw() Done.");
     endtask
 
