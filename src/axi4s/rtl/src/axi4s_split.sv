@@ -35,7 +35,8 @@ module axi4s_split
    axi4s_intf.tx     axi4s_out,
    axi4s_intf.tx     axi4s_hdr_out,
 
-   input logic [15:0] hdr_length  // specified in bytes.
+   input logic [15:0] hdr_length,  // specified in bytes.
+   input logic        enable
 );
 
    localparam int  DATA_BYTE_WID = axi4s_hdr_out.DATA_BYTE_WID;
@@ -55,7 +56,7 @@ module axi4s_split
 
    // wr_ptr logic
    always @(posedge axi4s_in.aclk)
-      if (!axi4s_in.aresetn)                       wr_ptr <= '0;
+      if (!axi4s_in.aresetn || !enable)            wr_ptr <= '0;
       else if (axi4s_in.tvalid && axi4s_in.tready) wr_ptr <= wr_ptr + 1;
 
 
