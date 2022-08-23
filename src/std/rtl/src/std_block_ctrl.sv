@@ -37,21 +37,24 @@ module std_block_ctrl (
     output logic ctrl_ready_out
 );
     // Signals
+    logic reset_in;
     logic ctrl_en__blk_clk;
 
     // Synchronize reset
     // (async assert, synchronous deassert)
+    assign reset_in = blk_reset_in || ctrl_reset_in;
+
     sync_reset #(
         .INPUT_ACTIVE_HIGH ( 1'b1 )
     ) i_sync_reset__srst (
-        .rst_in   ( blk_clk_in || ctrl_clk_in ),
+        .rst_in   ( reset_in ),
         .clk_out  ( blk_clk_in ),
         .srst_out ( blk_reset_out )
     );
 
     // Synchronize enable
     sync_level i_sync_level__ctrl_en_in (
-        .lvl_in ( ctrl_en_in ),
+        .lvl_in  ( ctrl_en_in ),
         .clk_out ( blk_clk_in ),
         .rst_out ( 1'b0 ),
         .lvl_out ( ctrl_en__blk_clk )
