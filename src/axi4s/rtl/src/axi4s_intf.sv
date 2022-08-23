@@ -571,6 +571,50 @@ module axi4s_intf_bypass_mux #(
 endmodule
 
 
+// axi4s advance tlast module (used to eliminate all-zeros tlast transactions that result from packet joining).
+module axi4s_adv_tlast (
+    axi4s_intf.rx axi4s_if_from_tx,
+    axi4s_intf.tx axi4s_if_to_rx
+);
+    import axi4s_pkg::*;
+
+    localparam int  DATA_BYTE_WID = axi4s_if_from_tx.DATA_BYTE_WID;
+    localparam type TID_T         = axi4s_if_from_tx.TID_T;
+    localparam type TDEST_T       = axi4s_if_from_tx.TDEST_T;
+    localparam type TUSER_T       = axi4s_if_from_tx.TUSER_T;
+
+    axi4s_intf  #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T))
+                axi4s_pipe ();
+
+    axi4s_intf_pipe axi4s_intf_pipe_0 (.axi4s_if_from_tx(axi4s_if_from_tx), .axi4s_if_to_rx(axi4s_pipe));
+
+    logic  adv_tlast;
+    assign adv_tlast = axi4s_if_from_tx.tready && axi4s_if_from_tx.tvalid && axi4s_if_from_tx.tlast &&
+                       axi4s_if_from_tx.tkeep == '0;
+
+    logic skip;
+    always @(posedge axi4s_if_from_tx.aclk) begin
+        if (!axi4s_if_from_tx.aresetn) skip <= 0;
+        else if (skip == 0) skip <= adv_tlast;
+        else if (axi4s_pipe.tready && axi4s_pipe.tvalid) skip <= 0;  // skip == 1
+    end
+
+    // Connect output signals (pipe -> if_to_rx)
+    assign axi4s_if_to_rx.aclk    = axi4s_pipe.aclk;
+    assign axi4s_if_to_rx.aresetn = axi4s_pipe.aresetn;
+    assign axi4s_if_to_rx.tvalid  = axi4s_pipe.tvalid && !skip;
+    assign axi4s_if_to_rx.tdata   = axi4s_pipe.tdata;
+    assign axi4s_if_to_rx.tkeep   = axi4s_pipe.tkeep;
+    assign axi4s_if_to_rx.tlast   = axi4s_pipe.tlast || adv_tlast;
+    assign axi4s_if_to_rx.tid     = axi4s_pipe.tid;
+    assign axi4s_if_to_rx.tdest   = axi4s_pipe.tdest;
+    assign axi4s_if_to_rx.tuser   = axi4s_pipe.tuser;
+
+    assign axi4s_pipe.tready  = axi4s_if_to_rx.tready;
+
+endmodule : axi4s_adv_tlast
+
+
 // group flattened AXI-S signals (from tx) into interface (to rx)
 module axi4s_intf_from_signals #(
     parameter int  DATA_BYTE_WID = 8,
