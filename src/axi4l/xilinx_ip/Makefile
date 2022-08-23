@@ -17,8 +17,7 @@ include $(IP_ROOT)/config.mk
 #   with include directory ./include
 # ----------------------------------------------------
 IP_LIST = \
-    axi_clock_converter_0 \
-    axi_lite_register_slice
+    axi_clock_converter_0
 
 SRC_FILES =
 INC_DIRS =

@@ -42,6 +42,7 @@ SRC_LIST_FILES = $(SVUNIT_SRC_LIST_FILE)
 #   (see $SCRIPTS_ROOT/Makefiles/dependencies.mk for details)
 # ----------------------------------------------------
 COMPONENTS = rtl verif tb \
+			 xilinx_axi_rtl=$(LIB_ROOT)/src/xilinx/axi/rtl \
              reg.example.rtl=$(LIB_ROOT)/src/reg/example/rtl \
              reg.example.reg=$(LIB_ROOT)/src/reg/example/reg \
              reg.example.reg.verif=$(LIB_ROOT)/src/reg/example/reg/verif
