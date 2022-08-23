@@ -45,7 +45,7 @@ module axi4s_trunc
 
 
    // trunc_tkeep function 
-   function automatic logic[DATA_BYTE_WID-1:0] trunc_tkeep (input [DATA_BYTE_WID-1:0] tkeep_in, length);
+   function automatic logic[DATA_BYTE_WID-1:0] trunc_tkeep (input [DATA_BYTE_WID-1:0] tkeep_in, input [15:0] length);
       automatic logic [DATA_BYTE_WID-1:0] tkeep_out = 0;
 
       automatic logic [DATA_BYTE_WID-1:0] __tkeep_in, __tkeep_out;
@@ -80,8 +80,8 @@ module axi4s_trunc
 
    // truncation selection logic 
    assign trunc_select = byte_count < length;
-   assign trunc_tlast  = length - byte_count <= DATA_BYTE_WID;
    assign tkeep_length = length - byte_count;
+   assign trunc_tlast  = tkeep_length <= DATA_BYTE_WID;
 
 
    // axis4s input signalling.
