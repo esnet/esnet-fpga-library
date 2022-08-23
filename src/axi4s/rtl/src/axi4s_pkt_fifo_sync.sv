@@ -33,6 +33,8 @@ module axi4s_pkt_fifo_sync
    // Debug parameters
    parameter bit   DEBUG_ILA = 1'b0
 ) (
+   input logic srst,
+
    axi4s_intf.rx   axi4s_in,
    axi4s_intf.tx   axi4s_out,
 
@@ -155,7 +157,7 @@ module axi4s_pkt_fifo_sync
       .DEBUG_ILA (DEBUG_ILA)
    ) fifo_sync_0 (
       .clk       ( axi4s_to_fifo.aclk ),
-      .srst      (~axi4s_to_fifo.aresetn ),
+      .srst      (~axi4s_to_fifo.aresetn || srst),
       .wr        ( wr ),
       .wr_data   ( wr_data ),
       .rd        ( rd ),
