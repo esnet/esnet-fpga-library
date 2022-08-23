@@ -25,12 +25,12 @@ module axi4s_split_join_unit_test
 
     localparam BIGENDIAN = 1;
 
-    int  hdr_slice_length;
+    logic [15:0] hdr_slice_length = 16;
 
     // drop header (used on packets that will be dropped by header processing logic).
     byte drop_hdr [];
     byte prefix [];
-    int  hdr_trunc_length;
+    logic [15:0] hdr_trunc_length;
 
     typedef axi4s_transaction#(TID_T,TDEST_T,TUSER_T) AXI4S_TRANSACTION_T;
 
@@ -43,6 +43,8 @@ module axi4s_split_join_unit_test
     axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TUSER_MODE(BUFFER_CONTEXT), .TUSER_T(tuser_buffer_context_mode_t)) axi4s_hdr_in();
     axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TUSER_MODE(BUFFER_CONTEXT), .TUSER_T(tuser_buffer_context_mode_t)) axi4s_hdr_out();
 
+    axi4l_intf axil_if ();
+
     // axi4s_split_join instantiation.
     axi4s_split_join #(
       .BIGENDIAN (BIGENDIAN)
@@ -51,6 +53,7 @@ module axi4s_split_join_unit_test
       .axi4s_out     (axi4s_out),
       .axi4s_hdr_in  (axi4s_hdr_in),
       .axi4s_hdr_out (axi4s_hdr_out),
+      .axil_if       (axil_if),
       .hdr_length    (hdr_slice_length)
     );
 
@@ -76,7 +79,6 @@ module axi4s_split_join_unit_test
        end
     end
 */
-
 
     //===================================
     // Testbench
@@ -304,6 +306,44 @@ module axi4s_split_join_unit_test
 
         `SVTEST_END
 
+        `SVTEST(disable_test) // passthrough
+
+            // set header slice size (used by DUT).
+            hdr_slice_length = 0;  // length of zero disables split-join.
+            repeat(100) @(posedge axi4s_in.aclk);  // init fifos
+
+            // iterate payload from 1B to 32B (1B increment).
+            for (int j = 1; j <= 32; j=j+1) begin
+               // build packet headers and payload (input and expected).
+               hdr_in = new[hdr_data.size()];
+               hdr_in = hdr_data;
+
+               pyld_in = new[j];
+               for (int k = 0; k < j; k++) pyld_in[k] = pyld_data[k];
+
+               // set header processing truncation length.
+               hdr_trunc_length = 64;
+
+               // build input packet (hdr_exp + pyld_in).
+               packet = new();
+               packet = packet.create_from_bytes($sformatf("pkt_exp_%0d", j), {hdr_in, pyld_in});
+
+               // submit expected packet to scoreboard.
+               axis_transaction = new($sformatf("trans_exp_%0d", j), packet);
+               env.model.inbox.put(axis_transaction);
+
+               // launch input packet.
+               axis_transaction = new($sformatf("trans_in_%0d", j), packet);
+               env.driver.inbox.put(axis_transaction);
+
+               // wait for packet transit time.
+               wait(axi4s_out.tready && axi4s_out.tvalid && axi4s_out.tlast); axi4s_out._wait(10);
+            end
+
+           `FAIL_IF_LOG (scoreboard.report(msg) != 0, msg); `INFO(msg);
+
+        `SVTEST_END
+
     `SVUNIT_TESTS_END
 
 endmodule
@@ -402,6 +442,7 @@ module axi4s_hdr_proc
    axi4s_pkt_fifo_sync #(
       .FIFO_DEPTH(128)
    ) fifo_0 (
+      .srst           (),
       .axi4s_in       (axi4s_to_fifo),
       .axi4s_out      (axi4s_out),
       .axil_to_probe  (axil_to_probe),

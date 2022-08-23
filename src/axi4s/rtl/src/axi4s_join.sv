@@ -29,7 +29,9 @@ module axi4s_join
 )  (
    axi4s_intf.rx   axi4s_hdr_in,
    axi4s_intf.rx   axi4s_in,
-   axi4s_intf.tx   axi4s_out
+   axi4s_intf.tx   axi4s_out,
+
+   input logic     enable
 );
 
    localparam int  DATA_BYTE_WID = axi4s_hdr_in.DATA_BYTE_WID;
@@ -77,10 +79,14 @@ module axi4s_join
    axi4s_intf #(.TUSER_MODE(BUFFER_CONTEXT), .DATA_BYTE_WID(DATA_BYTE_WID), 
                 .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) joined ();
 
+   axi4s_intf #(.TUSER_MODE(BUFFER_CONTEXT), .DATA_BYTE_WID(DATA_BYTE_WID),
+                .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) joined_pipe ();
+
+
    logic clk, resetn;
 
    assign clk    = axi4s_in.aclk;
-   assign resetn = axi4s_in.aresetn;
+   assign resetn = axi4s_in.aresetn && enable;
 
 
 
@@ -261,15 +267,19 @@ module axi4s_join
          hdr_tdest <= pipe_hdr[1].tdest;
       end
 
-   // output interface pipe stage.
+
+   // joined output pipe stage.
    axi4s_intf_pipe #(.MODE(PUSH)) join_pipe (
       .axi4s_if_from_tx (joined),
-      .axi4s_if_to_rx   (axi4s_out)
+      .axi4s_if_to_rx   (joined_pipe)
    );
 
+   // advance tlast logic instantiation,
+   axi4s_adv_tlast axi4s_adv_tlast_0 (.axi4s_if_from_tx(joined_pipe), .axi4s_if_to_rx(axi4s_out));
 
 
-   
+
+
 
    // tkeep_to_shift function 
    function automatic logic[COUNT_WID:0] tkeep_to_shift (input [DATA_BYTE_WID-1:0] tkeep);
