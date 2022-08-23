@@ -22,6 +22,8 @@ module db_axil_ctrl #(
     input  logic               clk,
     input  logic               srst,
 
+    input  logic               init_done,
+
     // AXI4-Lite control interface
     axi4l_intf.peripheral      axil_if,
 
@@ -29,10 +31,10 @@ module db_axil_ctrl #(
     output logic               ctrl_reset,
     output logic               ctrl_en,
 
-    // Status
-    input  logic               reset_state,
-    input  logic               init_done,
-    input  logic               enabled,
+    // Monitoring
+    input  logic               reset_mon,
+    input  logic               en_mon,
+    input  logic               ready_mon,
 
     // Database control interface
     db_ctrl_intf.controller    ctrl_if,

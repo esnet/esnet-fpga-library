@@ -27,29 +27,14 @@ module db_ctrl_peripheral_unit_test;
     logic srst;
 
     db_ctrl_intf #(.KEY_T(key_t), .VALUE_T(value_t)) ctrl_if (.clk(clk));
+
+    db_intf #(.KEY_T(key_t), .VALUE_T(value_t)) wr_if (.clk(clk));
+    db_intf #(.KEY_T(key_t), .VALUE_T(value_t)) rd_if (.clk(clk));
     
     logic init;
     logic init_done;
 
-    key_t      key;
-
-    logic      wr;
-    logic      wr_rdy;
-    logic      wr_valid;
-    value_t    wr_value;
-    logic      wr_ack;
-    logic      wr_error;
-
-    logic      rd;
-    logic      rd_rdy;
-    logic      rd_valid;
-    value_t    rd_value;
-    logic      rd_ack;
-    logic      rd_error;
-
     db_ctrl_peripheral #(
-        .KEY_T          ( key_t ),
-        .VALUE_T        ( value_t ),
         .TIMEOUT_CYCLES ( TIMEOUT_CYCLES )
     ) DUT (.*);
 
