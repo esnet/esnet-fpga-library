@@ -41,7 +41,8 @@ module axi4s_split_join
    input logic [15:0] hdr_length  // specified in bytes.
 );
 
-   logic  enable;
+   logic        enable;
+   logic [15:0] hdr_length_p;
 
    localparam int  DATA_BYTE_WID = axi4s_hdr_out.DATA_BYTE_WID;
    localparam type TID_T         = axi4s_hdr_out.TID_T;
@@ -111,9 +112,13 @@ module axi4s_split_join
 
    endgenerate
 
-   assign enable = hdr_length != 0;  // disable joiner if hdr_length is zero.
 
 
+
+   always @(posedge axi4s_in.aclk) begin
+      enable       <= hdr_length != 0;  // disable joiner if hdr_length is zero.
+      hdr_length_p <= hdr_length;
+   end
 
    // header splitter instantiation
    axi4s_split #(
@@ -122,7 +127,7 @@ module axi4s_split_join
       .axi4s_in      (__axi4s_in_p),
       .axi4s_out     (axi4s_to_buffer_p),
       .axi4s_hdr_out (axi4s_to_split_mux),
-      .hdr_length    (hdr_length),
+      .hdr_length    (hdr_length_p),
       .enable        (enable)
    );
 
