@@ -249,6 +249,7 @@ module db_axil_ctrl #(
         ctrl_if.req = 1'b0;
         done = 1'b0;
         error = 1'b0;
+        timeout = 1'b0;
         case (state)
             RESET : begin
                 if (init_done) nxt_state = IDLE;
