@@ -45,18 +45,4 @@ package axi4l_pkg;
         endcase
     endfunction
 
-    // Xilinx-specific
-    typedef enum int {
-        REG_SLICE_BYPASS,             // Connect input to output
-        REG_SLICE_FULL,               // One latency cycle, no bubble cycles
-        REG_SLICE_FORWARD,
-        REG_SLICE_REVERSE,
-        REG_SLICE_INPUTS,
-        REG_SLICE_LIGHT,              // Inserts one 'bubble' cycle after each transfer
-        REG_SLICE_SLR_CROSSING,       // Three latency cycles, no bubble cycles
-//      REG_SLICE_SLR_TDM_CROSSING,   // Not supported (requires 2x clock)
-//      REG_SLICE_MULTI_SLR_CROSSING, // Supports spanning zero or more SLR boundaries using a single slice instance
-        REG_SLICE_SI_MI_REG           // SI Reg for AW/W/AR channels, MI Reg for B/R channels
-    } xilinx_reg_slice_config_t;
-
 endpackage : axi4l_pkg

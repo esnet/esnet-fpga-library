@@ -17,49 +17,34 @@
 
 module axi4l_reg_slice
     import axi4l_pkg::*;
+    import xilinx_axi_pkg::*;
 #(
-    parameter int               ADDR_WID  = 32,
+    parameter int ADDR_WID  = 32,
     parameter axi4l_bus_width_t BUS_WIDTH = AXI4L_BUS_WIDTH_32,
-    parameter xilinx_reg_slice_config_t CONFIG = REG_SLICE_LIGHT
+    parameter xilinx_axi_reg_slice_config_t CONFIG = XILINX_AXI_REG_SLICE_LIGHT,
+    parameter string DEVICE_FAMILY = "virtexuplusHBM"
 ) (
     axi4l_intf.peripheral axi4l_if_from_controller,
     axi4l_intf.controller axi4l_if_to_peripheral
 );
 
-    // Conversion from config enum to Xilinx config value
-    // (see Xilinx PG373)
-    function automatic int getRegConfig(input xilinx_reg_slice_config_t _config);
+    function automatic int getResetPipeStages(input xilinx_axi_reg_slice_config_t _config);
         case (_config)
-            REG_SLICE_BYPASS             : return 0;
-            REG_SLICE_FULL               : return 1;  // One latency cycle, no bubble cycles
-            REG_SLICE_FORWARD            : return 2;
-            REG_SLICE_REVERSE            : return 3;
-            REG_SLICE_INPUTS             : return 6;
-            REG_SLICE_LIGHT              : return 7;  // One latency cycle, one bubble cycle
-            REG_SLICE_SI_MI_REG          : return 9;  // SI Reg for AW/W/AR channels, MI Reg for B/R channels
-            REG_SLICE_SLR_CROSSING       : return 12; // Three latency cycles, no bubble cycles
-//          REG_SLICE_SLR_TDM_CROSSING   : return 13; // Unsupported
-//          REG_SLICE_MULTI_SLR_CROSSING : return 15; // Unsupported
-            default                      : return 1;
-        endcase
-    endfunction
-
-    function automatic int getResetPipeStages(input xilinx_reg_slice_config_t _config);
-        case (_config)
-            REG_SLICE_BYPASS, REG_SLICE_REVERSE : return 0;
-            REG_SLICE_SLR_CROSSING              : return 3;
-            default                             : return 1;
+            XILINX_AXI_REG_SLICE_BYPASS,
+            XILINX_AXI_REG_SLICE_REVERSE            : return 0;
+            XILINX_AXI_REG_SLICE_SLR_CROSSING       : return 3;
+            XILINX_AXI_REG_SLICE_MULTI_SLR_CROSSING : return 4;
+            default                                 : return 1;
         endcase
     endfunction
 
     // Parameters
-    localparam int DATA_WID   = 8*get_axi4l_bus_width_in_bytes(BUS_WIDTH);
-    localparam int REG_CONFIG = getRegConfig(CONFIG);
+    localparam int DATA_WID = 8*get_axi4l_bus_width_in_bytes(BUS_WIDTH);
 
     // Xilinx AXI-L register slice IP
     axi_register_slice_v2_1_26_axi_register_slice #(
-        .C_FAMILY              ( "virtexuplusHBM" ),
-        .C_AXI_PROTOCOL        ( 2 ), // AXI-Lite
+        .C_FAMILY              ( DEVICE_FAMILY ),
+        .C_AXI_PROTOCOL        ( XILINX_AXI_PROTOCOL_AXI4L ),
         .C_AXI_ID_WIDTH        ( 1 ),
         .C_AXI_ADDR_WIDTH      ( ADDR_WID ),
         .C_AXI_DATA_WIDTH      ( DATA_WID ),
@@ -69,11 +54,11 @@ module axi4l_reg_slice
         .C_AXI_WUSER_WIDTH     ( 1 ),
         .C_AXI_RUSER_WIDTH     ( 1 ),
         .C_AXI_BUSER_WIDTH     ( 1 ),
-        .C_REG_CONFIG_AW       ( REG_CONFIG ),
-        .C_REG_CONFIG_W        ( REG_CONFIG ),
-        .C_REG_CONFIG_B        ( REG_CONFIG ),
-        .C_REG_CONFIG_AR       ( REG_CONFIG ),
-        .C_REG_CONFIG_R        ( REG_CONFIG ),
+        .C_REG_CONFIG_AW       ( CONFIG ),
+        .C_REG_CONFIG_W        ( CONFIG ),
+        .C_REG_CONFIG_B        ( CONFIG ),
+        .C_REG_CONFIG_AR       ( CONFIG ),
+        .C_REG_CONFIG_R        ( CONFIG ),
         .C_RESERVE_MODE        ( 0 ),
         .C_NUM_SLR_CROSSINGS   ( 0 ),
         .C_PIPELINES_MASTER_AW ( 0 ),

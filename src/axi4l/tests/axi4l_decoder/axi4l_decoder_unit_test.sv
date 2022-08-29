@@ -73,7 +73,7 @@ module axi4l_decoder_unit_test;
             axi4l_intf axil_client_if [CLIENTS]   ();
 
             axi4l_reg_slice #(
-                .CONFIG ( axi4l_pkg::REG_SLICE_SLR_CROSSING )
+                .CONFIG ( xilinx_axi_pkg::XILINX_AXI_REG_SLICE_SLR_CROSSING )
             ) i_axi4l_reg_slice (
                 .axi4l_if_from_controller ( axil_subdecoder_if[g_sd] ),
                 .axi4l_if_to_peripheral   ( axil_subdecoder_if__demarc )

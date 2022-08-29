@@ -16,56 +16,41 @@
 // =============================================================================
 
 module axi4s_reg_slice
-    import axi4s_pkg::*;
+    import xilinx_axis_pkg::*;
 #(
     parameter int  DATA_BYTE_WID = 8,
     parameter type TID_T = logic,
     parameter type TDEST_T = logic,
     parameter type TUSER_T = logic,
-    parameter xilinx_reg_slice_config_t CONFIG = REG_SLICE_DEFAULT
+    parameter xilinx_axis_reg_slice_config_t CONFIG = XILINX_AXIS_REG_SLICE_DEFAULT,
+    parameter string DEVICE_FAMILY = "virtexuplusHBM"
 ) (
     axi4s_intf.rx axi4s_from_tx,
     axi4s_intf.tx axi4s_to_rx
 );
 
-    // Conversion from config enum to Xilinx config value
-    function automatic int getRegConfig(input xilinx_reg_slice_config_t _config);
+    function automatic int getResetPipeStages(input xilinx_axis_reg_slice_config_t _config);
         case (_config)
-            REG_SLICE_BYPASS             : return 0;
-            REG_SLICE_DEFAULT            : return 1;
-            REG_SLICE_LIGHTWEIGHT        : return 7;
-            REG_SLICE_FULLY_REGISTERED   : return 8;
-            REG_SLICE_SLR_CROSSING       : return 12;
-//          REG_SLICE_SLR_TDM_CROSSING   : return 13; // Unsupported
-//          REG_SLICE_MULTI_SLR_CROSSING : return 15; // Unsupported
-            REG_SLICE_AUTO_PIPELINED     : return 16;
-            REG_SLICE_PRESERVE_SI        : return 17;
-            REG_SLICE_PRESERVE_MI        : return 18;
-            default                      : return 1;
-        endcase
-    endfunction
-
-    function automatic int getResetPipeStages(input xilinx_reg_slice_config_t _config);
-        case (_config)
-            REG_SLICE_BYPASS       : return 0;
-            REG_SLICE_SLR_CROSSING : return 3;
-            default                : return 1;
+            XILINX_AXIS_REG_SLICE_BYPASS         : return 0;
+            XILINX_AXIS_REG_SLICE_SLR_CROSSING   : return 3;
+            XILINX_AXIS_REG_SLICE_AUTO_PIPELINED : return 4;
+            default                              : return 1;
         endcase
     endfunction
 
     // Xilinx AXI-S register slice
     axis_register_slice_v1_1_26_axis_register_slice #(
-        .C_FAMILY            ("virtexuplusHBM"),
-        .C_AXIS_TDATA_WIDTH  (DATA_BYTE_WID*8),
-        .C_AXIS_TID_WIDTH    ($bits(TID_T)),
-        .C_AXIS_TDEST_WIDTH  ($bits(TDEST_T)),
-        .C_AXIS_TUSER_WIDTH  ($bits(TUSER_T)),
-        .C_AXIS_SIGNAL_SET   (32'b00000000000000000000000011111011),
-        .C_REG_CONFIG        (getRegConfig(CONFIG)),
-        .C_NUM_SLR_CROSSINGS (0),
-        .C_PIPELINES_MASTER  (0),
-        .C_PIPELINES_SLAVE   (0),
-        .C_PIPELINES_MIDDLE  (0)
+        .C_FAMILY            ( DEVICE_FAMILY ),
+        .C_AXIS_TDATA_WIDTH  ( DATA_BYTE_WID*8 ),
+        .C_AXIS_TID_WIDTH    ( $bits(TID_T) ),
+        .C_AXIS_TDEST_WIDTH  ( $bits(TDEST_T) ),
+        .C_AXIS_TUSER_WIDTH  ( $bits(TUSER_T) ),
+        .C_AXIS_SIGNAL_SET   ( 32'b00000000000000000000000011111011 ), // No TSTRB
+        .C_REG_CONFIG        ( CONFIG ),
+        .C_NUM_SLR_CROSSINGS ( 0 ),
+        .C_PIPELINES_MASTER  ( 0 ),
+        .C_PIPELINES_SLAVE   ( 0 ),
+        .C_PIPELINES_MIDDLE  ( 0 )
     ) inst (
         .aclk          ( axi4s_from_tx.aclk ),
         .aclk2x        ( 1'b0 ),

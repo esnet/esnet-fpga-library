@@ -16,7 +16,11 @@ include $(IP_ROOT)/config.mk
 #   source files from ./src are added automatically,
 #   with include directory ./include
 # ----------------------------------------------------
-SRC_FILES =
+IP_LIST = \
+    xilinx_axi_reg_slice
+
+SRC_FILES = \
+    xilinx_axi_reg_slice/sim/xilinx_axi_reg_slice.v
 INC_DIRS =
 SRC_LIST_FILES =
 
@@ -25,13 +29,8 @@ SRC_LIST_FILES =
 #   List IP component and external library dependencies
 #   (see $SCRIPTS_ROOT/Makefiles/dependencies.mk)
 # ----------------------------------------------------
-COMPONENTS = reg xilinx_ip \
-             xilinx_axis_rtl=$(LIB_ROOT)/src/xilinx/axis/rtl \
-             reg_rtl=$(LIB_ROOT)/src/reg/rtl \
-             fifo_rtl=$(LIB_ROOT)/src/fifo/rtl \
-             mem_rtl=$(LIB_ROOT)/src/mem/rtl
-
-EXT_LIBS =
+COMPONENTS =
+EXT_LIBS = axi_register_slice_v2_1_26
 
 # ----------------------------------------------------
 # Defines
@@ -47,17 +46,24 @@ ELAB_OPTS=--debug typical
 SIM_OPTS=
 
 # ----------------------------------------------------
-# Targets
+# Compile Targets
 # ----------------------------------------------------
 all: compile
 
-compile: _compile
+compile: _ip _compile
 
-clean: _clean_compile
+synth: _ip_synth
 
-.PHONY: all compile clean
+clean: _clean_compile _ip_proj_clean
+
+.PHONY: all compile synth clean
 
 # ----------------------------------------------------
 # Import Vivado compile targets
 # ----------------------------------------------------
 include $(SCRIPTS_ROOT)/Makefiles/vivado_compile.mk
+
+# ----------------------------------------------------
+# Import Vivado IP management targets
+# ----------------------------------------------------
+include $(SCRIPTS_ROOT)/Makefiles/vivado_manage_ip.mk

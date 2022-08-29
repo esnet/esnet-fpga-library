@@ -11,7 +11,11 @@ module hbm_bfm #(
     // Typedefs
     typedef logic [32:0]      addr_t;
     typedef logic [31:0][7:0] data_t;
+    typedef logic [31:0]      strb_t;
     typedef logic [5:0]       id_t;
+    typedef struct packed {id_t id; addr_t addr;} addr_ctxt_t;
+    typedef struct packed {id_t id; data_t data; strb_t strb; logic last;} wdata_ctxt_t;
+    typedef struct packed {id_t id; data_t data; logic last;} rdata_ctxt_t;
 
     data_t __ram [addr_t];
 
@@ -19,41 +23,113 @@ module hbm_bfm #(
         for (genvar g_if = 0; g_if < PSEUDO_CHANNELS; g_if++) begin : g__if
 
             // (Local) signals
-            addr_t awaddr;
-            addr_t awaddr_reg;
-            id_t   awid;
-            id_t   awid_reg;
+            addr_ctxt_t  aw_ctxt_q[$];
+            addr_t       awaddr;
+            id_t         awid;
 
-            addr_t araddr;
-            addr_t araddr_reg;
-            id_t   arid;
-            id_t   arid_reg;
+            wdata_ctxt_t wdata_q[$];
+            data_t       wdata;
+            strb_t       wstrb;
+            id_t         wid;
+            logic        wlast;
+            logic        wvalid;
+            logic        wip;
+
+            addr_ctxt_t  ar_ctxt_q[$];
+            addr_t       araddr;
+            id_t         arid;
+            logic        arvalid;
+
+            rdata_ctxt_t rdata_q[$];
+            data_t       rdata;
+            id_t         rid;
+            logic        rlast;
+            logic        rvalid;
 
             // Always ready for write address
             assign axi3_if[g_if].awready = 1'b1;
 
             // Latch write address/id
             always @(posedge axi3_if[g_if].aclk) begin
-                if (axi3_if[g_if].awvalid) begin
-                    awaddr_reg <= axi3_if[g_if].awaddr;
-                    awid_reg <= axi3_if[g_if].awid;
+                if (!axi3_if[g_if].aresetn) begin
+                    aw_ctxt_q.delete();
+                end else begin
+                    if (axi3_if[g_if].awvalid && axi3_if[g_if].awready) begin
+                        if (DEBUG) $display("[PC%0d] Push 0x%0x (ID 0x%0x) onto write address queue.", g_if, axi3_if[g_if].awaddr, axi3_if[g_if].awid);
+                        aw_ctxt_q.push_back({axi3_if[g_if].awid, axi3_if[g_if].awaddr});
+                    end
                 end
             end
-            assign awaddr = axi3_if[g_if].awvalid ? axi3_if[g_if].awaddr : awaddr_reg;
-            assign awid   = axi3_if[g_if].awvalid ? axi3_if[g_if].awid   : awid_reg;
 
             // Always ready for write data
             assign axi3_if[g_if].wready = 1'b1;
 
-            // Perform write
+            // Latch write data
             always @(posedge axi3_if[g_if].aclk) begin
-                if (axi3_if[g_if].wvalid) begin
-                    if (axi3_if[g_if].wlast) begin
-                        __ram[awaddr + 32] = axi3_if[g_if].wdata;
-                        if (DEBUG) $display("WRITE on PC %d, ID %d: ADDR: %0x, DATA: %x", g_if, awid, awaddr + 32, axi3_if[g_if].wdata);
+                if (!axi3_if[g_if].aresetn) begin
+                    wdata_q.delete();
+                end else begin
+                    if (axi3_if[g_if].wvalid && axi3_if[g_if].wready) begin
+                        if (DEBUG) $display("[PC%0d] Push 0x%0x (ID 0x%0x, LAST 0x%0x, STRB 0x%0x) onto write data queue.", g_if, axi3_if[g_if].wdata, axi3_if[g_if].wid, axi3_if[g_if].wlast, axi3_if[g_if].wstrb);
+                        wdata_q.push_back({axi3_if[g_if].wid, axi3_if[g_if].wdata, axi3_if[g_if].wstrb, axi3_if[g_if].wlast});
+                    end
+                end
+            end
+
+            // Track write progress
+            initial wip = 1'b0;
+            always @(posedge axi3_if[g_if].aclk) begin
+                if (!axi3_if[g_if].aresetn) begin
+                    wip <= 1'b0;
+                end else if (wvalid && wlast) begin
+                    wip <= 1'b0;
+                end else if (wvalid) begin
+                    wip <= 1'b1;
+                end
+            end
+
+            // Perform write
+            initial begin
+                wvalid = 1'b0;
+                wip = 1'b0;
+            end
+            always @(posedge axi3_if[g_if].aclk) begin
+                if (!axi3_if[g_if].aresetn) begin
+                    wvalid <= 1'b0;
+                end else  if (wip) begin
+                    if (wlast) begin
+                        if (aw_ctxt_q.size() > 0 && wdata_q.size() > 0) begin
+                            wvalid <= 1'b1;
+                            {awid, awaddr} <= aw_ctxt_q.pop_front();
+                            {wid, wdata, wstrb, wlast} <= wdata_q.pop_front();
+                        end else begin
+                            wvalid <= 1'b0;
+                            wip <= 1'b0;
+                        end
+                    end else if (wdata_q.size() > 0) begin
+                        wvalid <= 1'b1;
+                        {wid, wdata, wstrb, wlast} <= wdata_q.pop_front();
                     end else begin
-                        __ram[awaddr] = axi3_if[g_if].wdata;
-                        if (DEBUG) $display("WRITE on PC %d, ID %d: ADDR: %0x, DATA: %x", g_if, awid, awaddr, axi3_if[g_if].wdata);
+                        wvalid <= 1'b0;
+                    end
+                end else if (aw_ctxt_q.size() > 0 && wdata_q.size() > 0) begin
+                    wvalid <= 1'b1;
+                    wip <= 1'b1;
+                    {awid, awaddr} <= aw_ctxt_q.pop_front();
+                    {wid, wdata, wstrb, wlast} <= wdata_q.pop_front();
+                end else begin
+                    wvalid <= 1'b0;
+                end
+            end
+
+            always_comb begin
+                if (wvalid) begin
+                    if (wlast) begin
+                        __ram[awaddr + 32] = wdata;
+                        if (DEBUG) $display("WRITE on PC %0d, ID %d: ADDR: 0x%x, DATA: 0x%x, STRB: 0x%x, LAST: %b ", g_if, awid, awaddr + 32, wdata, wstrb, wlast);
+                    end else begin
+                        __ram[awaddr] = wdata;
+                        if (DEBUG) $display("WRITE on PC %0d, ID %d: ADDR: 0x%x, DATA: 0x%x, STRB: 0x%x, LAST: %b ", g_if, awid, awaddr, wdata, wstrb, wlast);
                     end
                 end
             end
@@ -62,7 +138,7 @@ module hbm_bfm #(
 
             // Perform write response
             always @(posedge axi3_if[g_if].aclk) begin
-                if (axi3_if[g_if].wvalid) begin
+                if (wvalid && wlast) begin
                     axi3_if[g_if].bvalid <= 1'b1;
                     axi3_if[g_if].bid <= awid;
                     axi3_if[g_if].bresp <= axi3_pkg::RESP_OKAY;
@@ -73,50 +149,74 @@ module hbm_bfm #(
 
             // Always ready for read address
             assign axi3_if[g_if].arready = 1'b1;
-
+ 
             // Latch read address/id
             always @(posedge axi3_if[g_if].aclk) begin
-                if (axi3_if[g_if].arvalid) begin
-                    araddr_reg <= axi3_if[g_if].araddr;
-                    arid_reg <= axi3_if[g_if].arid;
-                end
-            end
-            assign araddr = axi3_if[g_if].arvalid ? axi3_if[g_if].araddr : araddr_reg;
-            assign arid   = axi3_if[g_if].arvalid ? axi3_if[g_if].arid   : arid_reg;
-
-            initial axi3_if[g_if].rvalid = 1'b0;
-            initial axi3_if[g_if].rresp = axi3_pkg::RESP_SLVERR;
-
-            // Perform read
-            always @(posedge axi3_if[g_if].aclk) begin
-                if (axi3_if[g_if].arvalid) begin
-                    if (__ram.exists(araddr)) begin
-                        axi3_if[g_if].rdata <= __ram[araddr];
-                        if (DEBUG) $display("READ on PC %d, ID %d: ADDR: %0x, DATA: %x", g_if, arid, araddr, __ram[araddr]);
-                    end else begin
-                        axi3_if[g_if].rdata <= '0;
-                        if (DEBUG) $display("READ on PC %d, ID %d: ADDR: %0x, DATA: %x", g_if, arid, araddr, '0);
-                    end
-                    axi3_if[g_if].rvalid <= 1'b1;
-                    axi3_if[g_if].rid <= arid;
-                    axi3_if[g_if].rlast <= 1'b0;
-                    axi3_if[g_if].rresp <= axi3_pkg::RESP_OKAY;
-                end else if (axi3_if[g_if].rvalid && !axi3_if[g_if].rlast) begin
-                    if (__ram.exists(araddr + 32)) begin
-                        axi3_if[g_if].rdata <= __ram[araddr + 32];
-                        if (DEBUG) $display("READ on PC %d, ID %d: ADDR: %0x, DATA: %x", g_if, arid, araddr + 32, __ram[araddr + 32]);
-                    end else begin
-                        axi3_if[g_if].rdata <= '0;
-                        if (DEBUG) $display("READ on PC %d, ID %d: ADDR: %0x, DATA: %x", g_if, arid, araddr, '0);
-                    end
-                    axi3_if[g_if].rvalid <= 1'b1;
-                    axi3_if[g_if].rlast <= 1'b1;
-                    axi3_if[g_if].rid <= arid;
-                    axi3_if[g_if].rresp <= axi3_pkg::RESP_OKAY;
+                if (!axi3_if[g_if].aresetn) begin
+                    ar_ctxt_q.delete();
                 end else begin
-                    axi3_if[g_if].rvalid <= 1'b0;
+                    if (axi3_if[g_if].arvalid && axi3_if[g_if].arready) begin
+                        if (DEBUG) $display("Push 0x%x (ID 0x%0x) onto read address queue.", axi3_if[g_if].araddr, axi3_if[g_if].arid);
+                        ar_ctxt_q.push_back({axi3_if[g_if].arid, axi3_if[g_if].araddr});
+                    end
                 end
             end
+          
+            // Perform read
+            initial arvalid = 1'b0;
+            always @(posedge axi3_if[g_if].aclk) begin
+                if (!axi3_if[g_if].aresetn) begin
+                    arvalid <= 1'b0;
+                end else if (ar_ctxt_q.size() > 0) begin
+                    arvalid <= 1'b1;
+                    {arid, araddr} <= ar_ctxt_q.pop_front();
+                end else begin
+                    arvalid <= 1'b0;
+                end
+            end
+
+            always @(posedge axi3_if[g_if].aclk) begin
+                if (!axi3_if[g_if].aresetn) begin
+                    rdata_q.delete();
+                end else begin
+                    if (arvalid) begin
+                        if (__ram.exists(araddr)) begin
+                            rdata_q.push_back({arid, __ram[araddr], 1'b0});
+                            if (DEBUG) $display("READ on PC %0d, ID %0d: ADDR: 0x%x, DATA: 0x%x, LAST: 0", g_if, arid, araddr, __ram[araddr]);
+                        end else begin
+                            rdata_q.push_back({arid, 256'b0, 1'b0});
+                            if (DEBUG) $display("READ unitialized address on PC %0d, ID %0d: ADDR: 0x%x, LAST: 0", g_if, arid, araddr);
+                        end
+                        if (__ram.exists(araddr + 32)) begin
+                            rdata_q.push_back({arid, __ram[araddr + 32], 1'b1});
+                            if (DEBUG) $display("READ on PC %0d, ID %0d: ADDR: 0x%x, DATA: 0x%x, LAST: 1", g_if, arid, araddr + 32, __ram[araddr + 32]);
+                        end else begin
+                            rdata_q.push_back({arid, 256'b0, 1'b1});
+                            if (DEBUG) $display("READ unitialized address on PC %0d, ID %0d: ADDR: 0x%x, LAST: 1", g_if, arid, araddr + 32);
+                        end
+                    end
+                end
+            end
+
+            // Process read results
+            initial rvalid = 1'b0;
+            always @(posedge axi3_if[g_if].aclk) begin
+                if (!axi3_if[g_if].aresetn) begin
+                    rvalid <= 1'b0;
+                end else if (rdata_q.size() > 0 && axi3_if[g_if].rready) begin
+                    rvalid <= 1'b1;
+                    {rid, rdata, rlast} <= rdata_q.pop_front();
+                end else begin
+                    rvalid <= 1'b0;
+                end
+            end
+
+            // Drive read interface
+            assign axi3_if[g_if].rvalid = rvalid;
+            assign axi3_if[g_if].rdata = rdata;
+            assign axi3_if[g_if].rlast = rlast;
+            assign axi3_if[g_if].rresp = axi3_pkg::RESP_OKAY;
+            assign axi3_if[g_if].rid = rid;
 
         end : g__if
     endgenerate

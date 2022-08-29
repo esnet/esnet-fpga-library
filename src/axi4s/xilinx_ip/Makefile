@@ -17,7 +17,6 @@ include $(IP_ROOT)/config.mk
 #   with include directory ./include
 # ----------------------------------------------------
 IP_LIST = \
-    axis_register_slice \
     axis_data_fifo \
     ila_axi4s \
     ila_axi4s_lite
@@ -37,7 +36,6 @@ SRC_LIST_FILES = \
 COMPONENTS =
 EXT_LIBS = axis_infrastructure_v1_1_0 \
            axis_data_fifo_v2_0_8 \
-           axis_register_slice_v1_1_26 \
            fifo_generator_v13_2_7 \
            xpm
 

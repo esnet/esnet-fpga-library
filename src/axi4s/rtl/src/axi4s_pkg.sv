@@ -16,21 +16,6 @@
 // =============================================================================
 
 package axi4s_pkg;
-
-    // Typedefs
-    typedef enum int {
-        REG_SLICE_BYPASS,             // Connect input to output
-        REG_SLICE_DEFAULT,            // Two-deep registered mode (supports back-to-back transfers), balances performance/fanout
-        REG_SLICE_LIGHTWEIGHT,        // Inserts one 'bubble' cycle after each transfer
-        REG_SLICE_FULLY_REGISTERED,   // Similar to DEFAULT, except all payload/handshake outputs are driven directly from registers
-        REG_SLICE_SLR_CROSSING,       // Adds extra pipeline stages to optimally cross one SLR boundary (all SLR crossings are flop-to-flop with fanout=1)
-//      REG_SLICE_SLR_TDM_CROSSING,   // Not supported (requires 2x clock) [Similar to SLR crossing, except consumes half number of payload wires across boundary; requires 2x clock)
-//      REG_SLICE_MULTI_SLR_CROSSING, // Supports spanning zero or more SLR boundaries using a single slice instance; also inserts additional pipeline stages within each SLR to help meet timing goals.
-        REG_SLICE_AUTO_PIPELINED,     // ??
-        REG_SLICE_PRESERVE_SI,        // ??
-        REG_SLICE_PRESERVE_MI         // ??
-    } xilinx_reg_slice_config_t;
-
    
     typedef enum logic {
         STANDARD,
