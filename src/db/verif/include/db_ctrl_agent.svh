@@ -40,8 +40,8 @@ class db_ctrl_agent #(
             input int _size=1024
         );
         super.new(name, _size);
-        this.set_reset_timeout(4*_size);
-        this.set_op_timeout(16);
+        this.set_reset_timeout(32+2*_size);
+        this.set_op_timeout(32);
     endfunction
 
     // Configure trace output
