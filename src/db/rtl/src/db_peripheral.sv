@@ -15,7 +15,7 @@
 //  computer software.
 // =============================================================================
 
-module db_ctrl_peripheral #(
+module db_peripheral #(
     parameter int  TIMEOUT_CYCLES = 0
 ) (
     // Clock/reset
@@ -145,7 +145,7 @@ module db_ctrl_peripheral #(
                 inc_timer = 1'b1;
                 wr_if.req = 1'b1;
                 rd_if.req = 1'b1;
-                if (rd_if.rdy) nxt_state = WR_PENDING;
+                if (wr_if.rdy && rd_if.rdy) nxt_state = RD_PENDING;
             end
             WR : begin
                 inc_timer = 1'b1;
@@ -197,9 +197,13 @@ module db_ctrl_peripheral #(
         if (ctrl_if.req && ctrl_if.rdy) begin
             wr_if.key <= ctrl_if.key;
             rd_if.key <= ctrl_if.key;
-            wr_if.value <= ctrl_if.set_value;
-            if (ctrl_if.command == COMMAND_UNSET) wr_if.valid <= 1'b0;
-            else                                  wr_if.valid <= 1'b1;
+            if (ctrl_if.command == COMMAND_UNSET) begin
+                wr_if.valid <= 1'b0;
+                wr_if.value <= '0;
+            end else begin
+                wr_if.valid <= 1'b1;
+                wr_if.value <= ctrl_if.set_value;
+            end
         end
     end
 
@@ -249,4 +253,4 @@ module db_ctrl_peripheral #(
         end : g__no_timeout
     endgenerate
 
-endmodule : db_ctrl_peripheral
+endmodule : db_peripheral

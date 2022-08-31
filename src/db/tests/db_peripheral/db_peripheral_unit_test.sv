@@ -1,11 +1,11 @@
 `include "svunit_defines.svh"
 
-module db_ctrl_peripheral_unit_test;
+module db_peripheral_unit_test;
     import svunit_pkg::svunit_testcase;
     import db_pkg::*;
     import db_verif_pkg::*;
 
-    string name = "db_ctrl_peripheral_ut";
+    string name = "db_peripheral_ut";
     svunit_testcase svunit_ut;
 
     //===================================
@@ -34,7 +34,7 @@ module db_ctrl_peripheral_unit_test;
     logic init;
     logic init_done;
 
-    db_ctrl_peripheral #(
+    db_peripheral #(
         .TIMEOUT_CYCLES ( TIMEOUT_CYCLES )
     ) DUT (.*);
 
