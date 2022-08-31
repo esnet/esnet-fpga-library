@@ -17,28 +17,17 @@
 
 interface db_intf #(
     parameter type KEY_T = logic[7:0],
-    parameter type VALUE_T = logic[31:0],
-    parameter int XIDS = 1 // Set to maximum number of transactions in-flight
-                            // (due to latency + pipelining, etc.)
+    parameter type VALUE_T = logic[31:0]
 ) (
     input logic clk
 );
-    // Parameters
-    localparam int XID_WID = $clog2(XIDS);
-
-    // Typedefs
-    typedef logic [XID_WID-1:0] XID_T;
-
     // Signals
     logic     req;
     KEY_T     key;
-    XID_T     req_id;
-
 
     logic     rdy;
     logic     ack;
     logic     error;
-    XID_T     ack_id;
 
     logic     valid;
     VALUE_T   value;
@@ -46,10 +35,8 @@ interface db_intf #(
     modport requester(
         input  rdy,
         output req,
-        output req_id,
         input  ack,
         input  error,
-        input  ack_id,
         output key,
         inout  valid, // Input for query interface, output for update interface
         inout  value  // Input for query interface, output for update interface
@@ -58,9 +45,7 @@ interface db_intf #(
     modport responder(
         output rdy,
         input  req,
-        input  req_id,
         output ack,
-        output ack_id,
         output error,
         input  key,
         inout  valid, // Output for query interface, input for update interface
@@ -69,8 +54,8 @@ interface db_intf #(
 
     clocking cb @(posedge clk);
         default input #1step output #1step;
-        output key, req_id;
-        input rdy, ack, error, ack_id;
+        output key;
+        input rdy, ack, error;
         inout req, valid, value;
     endclocking
 
@@ -83,73 +68,45 @@ interface db_intf #(
     endtask
 
     task send(
-            input KEY_T _key,
-            input XID_T _xid = 0
+            input KEY_T _key
         );
         cb.req <= 1'b1;
         cb.key <= _key;
-        cb.req_id <= _xid;
         @(cb);
         wait (cb.req && cb.rdy);
         cb.req <= 1'b0;
     endtask
 
     task wait_ack(
-            output bit _error,
-            output XID_T _xid
+            output bit _error
         );
         @(cb);
         wait(cb.ack);
         _error = cb.error;
-        _xid = cb.ack_id;
-    endtask
-
-    task wait_ack_xid(
-            input XID_T _xid,
-            output bit _error
-        );
-        XID_T _ack_id;
-        do
-            wait_ack(_error, _ack_id);
-        while (_ack_id !== _xid);
     endtask
 
     task receive(
             output bit _valid,
             output VALUE_T _value,
-            output bit _error,
-            output XID_T _xid
+            output bit _error
         );
-        wait_ack(_error, _xid);
-        _valid = cb.valid;
-        _value = cb.value;
-    endtask
-
-    task receive_xid(
-            output bit _valid,
-            output VALUE_T _value,
-            output bit _error,
-            input XID_T _xid
-        );
-        wait_ack_xid(_xid, _error);
+        wait_ack(_error);
         _valid = cb.valid;
         _value = cb.value;
     endtask
 
     task _query(
             input KEY_T _key,
-            input XID_T _xid,
             output bit _valid,
             output VALUE_T _value,
             output bit _error
         );
-        send(_key, _xid);
-        receive_xid(_valid, _value, _error, _xid);
+        send(_key);
+        receive(_valid, _value, _error);
     endtask
 
     task query(
             input KEY_T _key,
-            input XID_T _xid,
             output bit _valid,
             output VALUE_T _value,
             output bit _error,
@@ -160,7 +117,7 @@ interface db_intf #(
             begin
                 fork
                     begin
-                        _query(_key, _xid, _valid, _value, _error);
+                        _query(_key, _valid, _value, _error);
                     end
                     begin
                         _timeout = 1'b0;
@@ -178,30 +135,27 @@ interface db_intf #(
     task post_update(
             input KEY_T _key,
             input bit _valid,
-            input VALUE_T _value,
-            input XID_T _xid = 0
+            input VALUE_T _value
         );
-        cb.valid = _valid;
-        cb.value = _value;
-        send(_key, _xid);
+        cb.valid <= _valid;
+        cb.value <= _value;
+        send(_key);
     endtask
 
     task _update(
             input KEY_T _key,
             input bit _valid,
             input VALUE_T _value,
-            input XID_T _xid,
             output bit _error
         );
-        post_update(_key, _valid, _value, _xid);
-        wait_ack_xid(_error, _xid);
+        post_update(_key, _valid, _value);
+        wait_ack(_error);
     endtask
 
     task update(
             input KEY_T _key,
             input bit _valid,
             input VALUE_T _value,
-            input XID_T _xid,
             output bit _error,
             output bit _timeout,
             input int TIMEOUT=64
@@ -210,7 +164,7 @@ interface db_intf #(
             begin
                 fork
                     begin
-                        _update(_key, _valid, _value, _xid, _error);
+                        _update(_key, _valid, _value, _error);
                     end
                     begin
                         _timeout = 1'b0;
@@ -258,7 +212,6 @@ module db_intf_requester_term (
     // Tie off requester outputs
     assign db_if.req = 1'b0;
     assign db_if.key = '0;
-    assign db_if.req_id = '0;
 
 endmodule : db_intf_requester_term
 
@@ -271,39 +224,76 @@ module db_intf_responder_term (
     assign db_if.rdy = 1'b0;
     assign db_if.ack = 1'b0;
     assign db_if.error = 1'b0;
-    assign db_if.ack_id = '0;
 
 endmodule : db_intf_responder_term
 
 // DB interface connector helper module
-module db_intf_connector (
+// - can connect either read interfaces or write interfaces
+module db_intf_connector #(
+    parameter bit WR_RD_N = 1'b0
+) (
     db_intf.responder db_if_from_requester,
     db_intf.requester db_if_to_responder
 );
 
     assign db_if_to_responder.req = db_if_from_requester.req;
     assign db_if_to_responder.key = db_if_from_requester.key;
-    assign db_if_to_responder.req_id = db_if_from_requester.req_id;
 
-    assign db_if_to_requester.rdy = db_if_from_responder.rdy;
-    assign db_if_to_requester.ack = db_if_from_responder.ack;
-    assign db_if_to_requester.error = db_if_from_responder.error;
-    assign db_if_to_requester.ack_id = db_if_from_responder.ack_id;
+    assign db_if_from_requester.rdy = db_if_to_responder.rdy;
+    assign db_if_from_requester.ack = db_if_to_responder.ack;
+    assign db_if_from_requester.error = db_if_to_responder.error;
 
-    // Connect valid/value inout ports as both input and output
-    // (expect application to drive appropriately depending on whether
-    //  interface is used as write interface or read interface)
-    assign db_if_from_requester.valid = db_if_to_responder.valid;
-    assign db_if_from_requester.value = db_if_to_responder.value;
-    assign db_if_to_responder.valid = db_if_from_requester.valid;
-    assign db_if_to_responder.value = db_if_from_requester.value;
+    // Connect valid/value inout ports according to specified direction
+    generate
+        if (WR_RD_N) begin : g__wr
+            assign db_if_to_responder.valid = db_if_from_requester.valid;
+            assign db_if_to_responder.value = db_if_from_requester.value;
+        end : g__wr
+        else begin : g__rd
+            assign db_if_from_requester.valid = db_if_to_responder.valid;
+            assign db_if_from_requester.value = db_if_to_responder.value;
+        end : g__rd
+    endgenerate
+endmodule
+
+
+// DB interface connector for write interfaces
+module db_intf_wr_connector #(
+) (
+    db_intf.responder db_if_from_requester,
+    db_intf.requester db_if_to_responder
+);
+    db_intf_connector #(
+        .WR_RD_N ( 1 )
+    ) i_db_intf_connector (
+        .*
+    );
 
 endmodule
+
+
+// DB interface connector for read interfaces
+module db_intf_rd_connector #(
+) (
+    db_intf.responder db_if_from_requester,
+    db_intf.requester db_if_to_responder
+);
+    db_intf_connector #(
+        .WR_RD_N ( 0 )
+    ) i_db_intf_connector (
+        .*
+    );
+
+endmodule
+
 
 // Database interface static mux component
 // - provides mux between two database interfaces
 // - can mux either read interfaces or write interfaces
-module db_intf_mux (
+module db_intf_mux #(
+    parameter int NUM_TRANSACTIONS = 32,
+    parameter bit WR_RD_N = 1'b0
+) (
     input logic        clk,
     input logic        srst,
     input logic        mux_sel,
@@ -312,7 +302,7 @@ module db_intf_mux (
     db_intf.requester  db_if_to_responder
 );
     // Parameters
-    localparam int CTXT_FIFO_DEPTH = db_if_to_responder.XIDS;
+    localparam int CTXT_FIFO_DEPTH = NUM_TRANSACTIONS;
     localparam int CTXT_PTR_WID = $clog2(CTXT_FIFO_DEPTH);
 
     // Signals
@@ -324,7 +314,6 @@ module db_intf_mux (
     // Mux requests
     assign db_if_to_responder.req    = mux_sel ? db_if_from_requester_1.req    : db_if_from_requester_0.req;
     assign db_if_to_responder.key    = mux_sel ? db_if_from_requester_1.key    : db_if_from_requester_0.key;
-    assign db_if_to_responder.req_id = mux_sel ? db_if_from_requester_1.req_id : db_if_from_requester_0.req_id;
 
     assign db_if_from_requester_0.rdy = mux_sel ? 1'b0 : db_if_to_responder.rdy;
     assign db_if_from_requester_1.rdy = mux_sel ? db_if_to_responder.rdy : 1'b0;
@@ -360,26 +349,31 @@ module db_intf_mux (
     assign db_if_from_requester_1.ack   = demux_sel ? db_if_to_responder.ack   : 1'b0;
     assign db_if_from_requester_1.error = demux_sel ? db_if_to_responder.error : 1'b0;
 
-    assign db_if_from_requester_0.ack_id = db_if_to_responder.ack_id;
-    assign db_if_from_requester_1.ack_id = db_if_to_responder.ack_id;
-
-    // Connect valid/value inout ports as both input and output
-    // (expect application to drive appropriately depending on whether
-    //  interface is used as write interface or read interface)
-    assign db_if_from_requester_0.valid = db_if_to_responder.valid;
-    assign db_if_from_requester_0.value = db_if_to_responder.value;
-    assign db_if_from_requester_1.valid = db_if_to_responder.valid;
-    assign db_if_from_requester_1.value = db_if_to_responder.value;
-    assign db_if_to_responder.valid = mux_sel ? db_if_from_requester_1.valid : db_if_from_requester_0.valid;
-    assign db_if_to_responder.value = mux_sel ? db_if_from_requester_1.value : db_if_from_requester_0.value;
+    // Connect valid/value inout ports according to specified direction
+    generate
+        if (WR_RD_N) begin : g__wr
+            assign db_if_to_responder.valid = mux_sel ? db_if_from_requester_1.valid : db_if_from_requester_0.valid;
+            assign db_if_to_responder.value = mux_sel ? db_if_from_requester_1.value : db_if_from_requester_0.value;
+        end : g__wr
+        else begin : g__rd
+            assign db_if_from_requester_0.valid = db_if_to_responder.valid;
+            assign db_if_from_requester_0.value = db_if_to_responder.value;
+            assign db_if_from_requester_1.valid = db_if_to_responder.valid;
+            assign db_if_from_requester_1.value = db_if_to_responder.value;
+        end : g__rd
+    endgenerate
 
 endmodule : db_intf_mux
 
 
 // Database interface priority mux component
-// - muxes between two database (read) interfaces, with strict
+// - muxes between two database interfaces, with strict
 //   priority granted to the hi_prio interface
-module db_intf_prio_mux (
+// - can mux either read interfaces or write interfaces
+module db_intf_prio_mux #(
+    parameter int NUM_TRANSACTIONS = 4,
+    parameter bit WR_RD_N = 1'b0
+) (
     input logic clk,
     input logic srst,
     db_intf.responder db_if_from_requester_hi_prio,
@@ -392,7 +386,10 @@ module db_intf_prio_mux (
     assign mux_sel = db_if_from_requester_hi_prio.req ? 0 : 1;
 
     // Mux
-    db_intf_mux i_db_intf_mux (
+    db_intf_mux #(
+        .NUM_TRANSACTIONS ( NUM_TRANSACTIONS ),
+        .WR_RD_N          ( WR_RD_N )
+    ) i_db_intf_mux (
         .clk ( clk ),
         .srst ( srst ),
         .mux_sel ( mux_sel ),
@@ -402,3 +399,44 @@ module db_intf_prio_mux (
     );
 
 endmodule : db_intf_prio_mux
+
+// Priority mux for write interfaces
+module db_intf_prio_wr_mux #(
+    parameter int NUM_TRANSACTIONS = 4
+) (
+    input logic clk,
+    input logic srst,
+    db_intf.responder db_if_from_requester_hi_prio,
+    db_intf.responder db_if_from_requester_lo_prio,
+    db_intf.requester db_if_to_responder
+);
+    db_intf_prio_mux #(
+        .NUM_TRANSACTIONS ( NUM_TRANSACTIONS ),
+        .WR_RD_N          ( 1 )
+    ) i_db_intf_mux (
+        .*
+    );
+
+endmodule : db_intf_prio_wr_mux
+
+// Priority mux for read interfaces
+module db_intf_prio_rd_mux #(
+    parameter int NUM_TRANSACTIONS = 4
+) (
+    input logic clk,
+    input logic srst,
+    db_intf.responder db_if_from_requester_hi_prio,
+    db_intf.responder db_if_from_requester_lo_prio,
+    db_intf.requester db_if_to_responder
+);
+    db_intf_prio_mux #(
+        .NUM_TRANSACTIONS ( NUM_TRANSACTIONS ),
+        .WR_RD_N          ( 0 )
+    ) i_db_intf_mux (
+        .*
+    );
+
+endmodule : db_intf_prio_rd_mux
+
+
+
