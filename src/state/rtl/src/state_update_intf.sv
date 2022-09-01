@@ -17,8 +17,8 @@
 
 interface state_update_intf #(
     parameter type ID_T = logic[7:0],
-    parameter type UPDATE_T = logic[31:0], // Update data type (e.g. byte count for stats update)
-    parameter type DATA_T = logic[31:0]    // State data type (e.g. array of counters)
+    parameter type UPDATE_T = logic, // Update data type (e.g. byte count for count update)
+    parameter type STATE_T = logic   // State data type (e.g. array of counters)
 ) (
     input logic clk
 );
@@ -30,8 +30,7 @@ interface state_update_intf #(
     logic    init;
     UPDATE_T update;   
     logic    ack;
-    ID_T     ack_id;
-    DATA_T   data;
+    STATE_T  state;
 
     modport source(
         input  rdy,
@@ -40,8 +39,7 @@ interface state_update_intf #(
         output init,
         output update,
         input  ack,
-        input  ack_id,
-        input  data
+        input  state
     );
 
     modport target(
@@ -51,22 +49,21 @@ interface state_update_intf #(
         input  init,
         input  update,
         output ack,
-        output ack_id,
-        output data
+        output state
     );
 
     clocking cb @(posedge clk);
         default input #1step output #1step;
         output id, init, update;
-        input  rdy, ack, ack_id, data;
+        input  rdy, ack, state;
         inout  req;
     endclocking
 
     task idle();
         cb.req    <= 1'b0;
-        cb.id     <=   '0;
-        cb.init   <= 1'b0;
-        cb.update <=   '0;
+        cb.id     <=   'x;
+        cb.init   <= 1'bx;
+        cb.update <=   'x;
         @(cb);
     endtask
 
@@ -94,10 +91,9 @@ interface state_update_intf #(
 
     // Receive result
     task receive(
-            output ID_T   _id,
-            output DATA_T _data,
-            output bit    _timeout,
-            input  int    TIMEOUT=0
+            output STATE_T _state,
+            output bit     _timeout,
+            input  int     TIMEOUT=0
         );
         fork
             begin
@@ -105,8 +101,7 @@ interface state_update_intf #(
                     begin
                         @(cb);
                         wait(cb.ack);
-                        _id = cb.ack_id;
-                        _data = cb.data;
+                        _state = cb.state;
                     end
                     begin
                         _timeout = 1'b0;
