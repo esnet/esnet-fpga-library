@@ -22,10 +22,10 @@
 //===================================
 `define SVUNIT_TIMEOUT 2ms
 
-module state_flags_core_unit_test;
+module state_flags_unit_test;
     import svunit_pkg::svunit_testcase;
 
-    string name = "state_flags_core_ut";
+    string name = "state_flags_ut";
     svunit_testcase svunit_ut;
 
     //===================================
@@ -51,39 +51,20 @@ module state_flags_core_unit_test;
     logic   srst;
     logic   init_done;
 
-    logic   db_init;
-    logic   db_init_done;
-
     // Interfaces
     db_ctrl_intf      #(.KEY_T(ID_T), .VALUE_T(FLAGS_T)) ctrl_if (.clk(clk));
     db_info_intf      #() info_if ();
     state_update_intf #(.ID_T(ID_T), .UPDATE_T(FLAGS_T), .STATE_T(FLAGS_T)) update_if (.clk(clk));
-    db_intf           #(.KEY_T(ID_T), .VALUE_T(FLAGS_T)) db_wr_if (.clk(clk));
-    db_intf           #(.KEY_T(ID_T), .VALUE_T(FLAGS_T)) db_rd_if (.clk(clk));
 
     // Instantiation
-    state_flags_core #(
+    state_flags #(
         .ID_T ( ID_T ),
-        .FLAGS_T ( FLAGS_T ),
-        .NUM_WR_TRANSACTIONS ( 2 ),
-        .NUM_RD_TRANSACTIONS ( 8 )
+        .FLAGS_T ( FLAGS_T )
     ) DUT (.*);
 
     //===================================
     // Testbench
     //===================================
-    // Database store
-    db_store_array #(
-        .KEY_T   ( ID_T ),
-        .VALUE_T ( FLAGS_T ),
-        .TRACK_VALID ( 0 ),
-        .SIM__FAST_INIT ( 0 )
-    ) i_db_store_array (
-        .init ( db_init ),
-        .init_done ( db_init_done ),
-        .*
-    );
-    
     // Environment
     std_verif_pkg::env env;
 
