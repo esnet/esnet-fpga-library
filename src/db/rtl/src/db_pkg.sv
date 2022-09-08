@@ -21,10 +21,9 @@ package db_pkg;
     // Typedefs
     // -----------------------------
     typedef enum logic[7:0] {
-        TYPE_UNSPECIFIED = 0,
-        TYPE_CACHE       = 1,
-        TYPE_STATE       = 2,
-        TYPE_STATS       = 3
+        DB_TYPE_UNSPECIFIED = 0,
+        DB_TYPE_CACHE       = 1,
+        DB_TYPE_STATE       = 2
     } type_t;
 
     typedef logic[7:0] subtype_t;

@@ -56,7 +56,7 @@ module db_status_intf_peripheral_term (
     db_status_intf.peripheral status_if
 );
     // Tie off peripheral outputs
-    assign status_if._type = db_pkg::TYPE_UNSPECIFIED;
+    assign status_if._type = db_pkg::DB_TYPE_UNSPECIFIED;
     assign status_if.sub_type = 0;
     assign status_if.size = 0;
     assign status_if.fill = 0;

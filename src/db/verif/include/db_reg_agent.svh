@@ -197,10 +197,9 @@ class db_reg_agent #(
         reg_blk_agent.read_info(reg_info);
 
         case(reg_info.db_type)
-            db_reg_pkg::INFO_DB_TYPE_CACHE : _type = db_pkg::TYPE_CACHE;
-            db_reg_pkg::INFO_DB_TYPE_STATE : _type = db_pkg::TYPE_STATE;
-            db_reg_pkg::INFO_DB_TYPE_STATS : _type = db_pkg::TYPE_STATS;
-            default                        : _type = db_pkg::TYPE_UNSPECIFIED;
+            db_reg_pkg::INFO_DB_TYPE_CACHE : _type = db_pkg::DB_TYPE_CACHE;
+            db_reg_pkg::INFO_DB_TYPE_STATE : _type = db_pkg::DB_TYPE_STATE;
+            default                        : _type = db_pkg::DB_TYPE_UNSPECIFIED;
         endcase
     endtask
 
