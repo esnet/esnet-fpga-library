@@ -15,77 +15,84 @@
 //  computer software.
 // =============================================================================
 module state_timer_core #(
-    parameter type ID_T = logic[15:0],
+    parameter type ID_T = logic[7:0],
     parameter type TIMER_T = logic[15:0],
-    parameter bit  RESET_FSM = 1, // When set,   reset FSM is included to clear (zero) timer memory on reset
-                                  // When unset, reset FSM is not included (memory contents unchanged on reset)
-    // Simulation-only
-    parameter bit  SIM__FAST_INIT = 1 // Optimize sim time by performing fast memory init
+    parameter int  NUM_WR_TRANSACTIONS = 4, // Maximum number of database write transactions that can
+                                            // be in flight (from the perspective of this module)
+                                            // at any given time.
+                                            // When NUM_TRANSACTIONS > 1, write caching is implemented
+                                            // with the number of cache entries equal to NUM_WR_TRANSACTIONS
+    parameter int  NUM_RD_TRANSACTIONS = 8  // Maximum number of database read transactions that can
+                                            // be in flight (from the perspective of this module)
+                                            // at any given time.
 )(
     // Clock/reset
-    input  logic            clk,
-    input  logic            srst,
+    input  logic              clk,
+    input  logic              srst,
 
-    output logic            init_done,
+    output logic              init_done,
 
-    // Timestamp
-    input  logic            tick,
+    // Timer tick
+    input  logic              tick,
+
+    // Info interface
+    db_info_intf.peripheral   info_if,
 
     // Control interface
-    db_intf.responder       read_if,
+    db_ctrl_intf.peripheral   ctrl_if,
 
     // Update interface
-    db_intf.responder       update_if
+    state_update_intf.target  update_if,
+
+    // Read/write interfaces (to database/storage)
+    output logic              db_init,
+    input  logic              db_init_done,
+    db_intf.requester         db_wr_if,
+    db_intf.requester         db_rd_if
 );
     // ----------------------------------
-    // Parameters
+    // Imports
     // ----------------------------------
-    localparam int ID_WID = $bits(ID_T);
-    localparam int TIMER_WID = $bits(TIMER_T);
-    localparam int DEPTH = 2**ID_WID;
-    localparam int MEM_RD_LATENCY = mem_pkg::get_default_rd_latency(DEPTH, TIMER_WID);
+    import state_pkg::*;
 
-    // -----------------------------
-    // Typedefs
-    // -----------------------------
-    typedef struct packed {
-        logic update_req;
-        logic read_req;
-    } rd_ctxt_t;
-
-    // -----------------------------
+    // ----------------------------------
     // Signals
-    // -----------------------------
-    rd_ctxt_t  rd_ctxt_in;
-    rd_ctxt_t  rd_ctxt_out;
-
-    logic      update_ack;
-    logic      read_ack;
-    
-    TIMER_T    timer;
-    TIMER_T    rd_timer;
-    TIMER_T    ts_delta;
+    // ----------------------------------
+    TIMER_T timer;
+    TIMER_T new_timer;
 
     // ----------------------------------
     // Interfaces
     // ----------------------------------
-    mem_intf #(.ADDR_WID(ID_WID), .DATA_WID(TIMER_WID)) mem_wr_if (.clk(clk));
-    mem_intf #(.ADDR_WID(ID_WID), .DATA_WID(TIMER_WID)) mem_rd_if (.clk(clk));
+    db_ctrl_intf #(.KEY_T(ID_T), .VALUE_T(TIMER_T)) __ctrl_if (.clk(clk));
 
     // ----------------------------------
-    // Timer memory
+    // Base state component
     // ----------------------------------
-    mem_ram_sdp_sync #(
-        .ADDR_WID  ( ID_WID ),
-        .DATA_WID  ( TIMER_WID ),
-        .RESET_FSM ( RESET_FSM ),
-        .SIM__FAST_INIT ( SIM__FAST_INIT )
-    ) i_mem_ram_sdp_sync_timer (
-        .clk       ( clk ),
-        .srst      ( srst ),
-        .mem_wr_if ( mem_wr_if ),
-        .mem_rd_if ( mem_rd_if ),
-        .init_done ( init_done )
+    state_core              #(
+        .TYPE                ( STATE_TYPE_TIMER ),
+        .ID_T                ( ID_T ),
+        .STATE_T             ( TIMER_T ),
+        .UPDATE_T            ( logic ), // unused
+        .RETURN_MODE         ( RETURN_MODE_DELTA ),
+        .NUM_WR_TRANSACTIONS ( NUM_WR_TRANSACTIONS ),
+        .NUM_RD_TRANSACTIONS ( NUM_RD_TRANSACTIONS ),
+        .CACHE_EN            ( 1 )
+    ) i_state_core           (
+        .clk                 ( clk ),
+        .srst                ( srst ),
+        .init_done           ( init_done ),
+        .info_if             ( info_if ),
+        .ctrl_if             ( __ctrl_if ),
+        .update_if           ( update_if ),
+        .prev_state          ( ),
+        .update_init         ( ),
+        .update_data         ( ),
+        .new_state           ( timer ),
+        .db_init             ( db_init ),
+        .db_init_done        ( db_init_done ),
+        .db_wr_if            ( db_wr_if ),
+        .db_rd_if            ( db_rd_if )
     );
 
     // ----------------------------------
@@ -98,75 +105,43 @@ module state_timer_core #(
     end
 
     // ----------------------------------
-    // Drive memory write interface
+    // State update logic
     // ----------------------------------
-    assign mem_wr_if.rst  = 1'b0;
-    assign mem_wr_if.en   = 1'b1;
-    assign mem_wr_if.req  = update_if.req;
-    assign mem_wr_if.addr = update_if.key;
-    assign mem_wr_if.data = timer;
-
-    // ----------------------------------
-    // Drive memory read interface
-    // ----------------------------------
-    assign mem_rd_if.rst  = 1'b0;
-    assign mem_rd_if.en   = 1'b1;
-    assign mem_rd_if.req  = update_if.req || read_if.req;
-    assign mem_rd_if.addr = update_if.req ? update_if.key : read_if.key;
-    assign rd_timer = mem_rd_if.data;
-    
-    // ----------------------------------
-    // Calculate time since last update
-    // ----------------------------------
-    always_ff @(posedge clk) if (mem_rd_if.ack) ts_delta <= (timer - rd_timer);
-
-    // -----------------------------
-    // Read context pipeline
-    // -----------------------------
-    assign rd_ctxt_in.read_req   = read_if.req && !update_if.req;
-    assign rd_ctxt_in.update_req = update_if.req;
-
-    util_delay   #(
-        .DATA_T   ( rd_ctxt_t),
-        .DELAY    ( MEM_RD_LATENCY )
-    ) i_rd_ctxt_util_delay (
-        .clk      ( clk ),
-        .srst     ( srst ),
-        .data_in  ( rd_ctxt_in ),
-        .data_out ( rd_ctxt_out )
-    );
-
-    // Demux between update/read interfaces and delay to account for delta calculation
-    initial begin
-        update_ack = 1'b0;
-        read_ack = 1'b0;
+    always_comb begin
+        new_timer = timer;
     end
+ 
+    // ----------------------------------
+    // Control interface state remapping
+    // ----------------------------------
+    // Replace state data from control
+    // plane with current value of timer.
+    // (set_value from control plane is
+    // ignored).
+    assign __ctrl_if.set_value = timer;
+
+    // Connect remaining signals from control plane
+    assign __ctrl_if.req = ctrl_if.req;
+    assign __ctrl_if.command = ctrl_if.command;
+    assign __ctrl_if.key = ctrl_if.key;
+
+    // Replace state data toward control
+    // plane with difference between current
+    // timer value and stored timer value;
+    // pipeline to account for subtraction
+
+    always_ff @(posedge clk) ctrl_if.get_value <= timer - __ctrl_if.get_value;
+
+    // Connect remaining signals toward control plane
+    // (pipeline to maintain synchronization with data)
+    initial ctrl_if.ack = 1'b0;
     always @(posedge clk) begin
-        if (srst) begin
-            update_ack <= 1'b0;
-            read_ack <= 1'b0;
-        end else begin
-            update_ack <= rd_ctxt_out.update_req;
-            read_ack   <= rd_ctxt_out.read_req;
-        end
+        ctrl_if.ack <= __ctrl_if.ack;
+        ctrl_if.status <= __ctrl_if.status;
+        ctrl_if.get_valid <= __ctrl_if.get_valid;
     end
-    
-    // -----------------------------
-    // Assign update interface outputs
-    // -----------------------------
-    assign update_if.rdy = init_done;
-    assign update_if.ack = update_ack;
-    assign update_if.ack_id = '0;
-    assign update_if.valid = 1'b1;
-    assign update_if.value = ts_delta;
 
-    // -----------------------------
-    // Assign read interface outputs
-    // -----------------------------
-    assign read_if.rdy = init_done && !update_if.req;
-    assign read_if.ack = read_ack;
-    assign read_if.ack_id = '0;
-    assign read_if.valid = 1'b1;
-    assign read_if.value = ts_delta;
+    // Assign ready directly (no need to pipeline)
+    assign ctrl_if.rdy = __ctrl_if.rdy;
 
 endmodule : state_timer_core

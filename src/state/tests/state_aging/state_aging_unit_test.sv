@@ -22,17 +22,17 @@
 //===================================
 `define SVUNIT_TIMEOUT 20ms
 
-module state_aging_core_unit_test;
+module state_aging_unit_test;
     import svunit_pkg::svunit_testcase;
     import state_verif_pkg::*;
 
-    string name = "state_aging_core_ut";
+    string name = "state_aging_ut";
     svunit_testcase svunit_ut;
 
     //===================================
     // Parameters
     //===================================
-    localparam int ID_WID = 16;
+    localparam int ID_WID = 14;
     localparam int TIMER_WID = 12;
     localparam int TS_PER_TICK = 3;
     localparam bit TS_CLK_DDR = 0;
@@ -46,6 +46,9 @@ module state_aging_core_unit_test;
     localparam type TIMER_T = bit[TIMER_WID-1:0];
     localparam type DUMMY_T = bit;
 
+    localparam type STATE_T = TIMER_T;
+    localparam type UPDATE_T = bit; // Unused
+
     //===================================
     // DUT
     //===================================
@@ -54,56 +57,83 @@ module state_aging_core_unit_test;
     logic   clk;
     logic   srst;
 
+    logic   en;
     logic   init_done;
 
-    logic   ts_clk;
+    logic   tick;
 
     TIMER_T cfg_timeout;
 
+    logic   db_init;
+    logic   db_init_done;
+
+    logic [3:0] dbg_state;
+    logic       dbg_scan_done;
+    logic       dbg_check;
+    logic       dbg_notify;
+    logic       dbg_error;
+    logic       dbg_tick;
+
     // Interfaces
-    axi4l_intf                                       axil_if   ();
-    db_intf #(.KEY_T(ID_T), .VALUE_T(TIMER_T))       update_if (.clk(clk));
-    db_ctrl_intf #(.KEY_T(ID_T), .VALUE_T(DUMMY_T))  ctrl_if   (.clk(clk));
-    std_event_intf #(.MSG_T(ID_T))                   notify_if (.clk(clk));
+    db_info_intf #() info_if ();
+    db_ctrl_intf #(.KEY_T(ID_T), .VALUE_T(STATE_T)) ctrl_if (.clk(clk));
+    db_status_intf #() status_if (.clk(clk), .srst(srst));
+    state_update_intf #(.ID_T(ID_T), .STATE_T(STATE_T), .UPDATE_T(UPDATE_T)) update_if (.clk(clk));
+    std_event_intf #(.MSG_T(ID_T)) notify_if (.clk(clk));
+    db_intf #(.KEY_T(ID_T), .VALUE_T(STATE_T)) db_wr_if (.clk(clk));
+    db_intf #(.KEY_T(ID_T), .VALUE_T(STATE_T)) db_rd_if (.clk(clk));
 
     // Instantiation
-    state_aging_core #(
+    state_aging     #(
         .ID_T        ( ID_T ),
         .TIMER_T     ( TIMER_T ),
-        .TS_PER_TICK ( TS_PER_TICK ),
-        .TS_CLK_DDR  ( TS_CLK_DDR )
-    ) DUT (.*);
+        .NUM_WR_TRANSACTIONS ( 2 ),
+        .NUM_RD_TRANSACTIONS ( 8 )
+    ) DUT (
+        .*
+    );
 
     //===================================
     // Testbench
     //===================================
+    db_store_array #(
+        .KEY_T ( ID_T ),
+        .VALUE_T ( STATE_T ),
+        .TRACK_VALID ( 1 ),
+        .SIM__FAST_INIT ( 0 )
+    ) i_db_store_array (
+        .init      ( db_init ),
+        .init_done ( db_init_done ),
+        .*
+    );
+
     // Environment
     std_verif_pkg::env env;
+
+    // Control agent
+    db_verif_pkg::db_ctrl_agent#(ID_T, STATE_T) ctrl_agent;
 
     // Assign clock (200MHz)
     `SVUNIT_CLK_GEN(clk, 2.5ns);
 
     // Assign AXI-L clock (125MHz);
-    `SVUNIT_CLK_GEN(axil_if.aclk, 4ns);
+    //`SVUNIT_CLK_GEN(axil_if.aclk, 4ns);
 
     // Interfaces
     std_reset_intf reset_if (.clk(clk));
 
     // AXI-L agent
-    axi4l_verif_pkg::axi4l_reg_agent axil_reg_agent;
+    //axi4l_verif_pkg::axi4l_reg_agent axil_reg_agent;
 
     // Register agent
-    state_aging_core_reg_agent reg_agent;
-
-    // Control agent
-    db_verif_pkg::db_ctrl_agent#(ID_T, DUMMY_T) ctrl_agent;
+    //state_aging_core_reg_agent reg_agent;
 
     // Drive srst from reset interface
     assign srst = reset_if.reset;
     assign reset_if.ready = init_done;
 
-    initial axil_if.aresetn = 1'b0;
-    always @(posedge axil_if.aclk or posedge srst) axil_if.aresetn <= !srst;
+    //initial axil_if.aresetn = 1'b0;
+    //always @(posedge axil_if.aclk or posedge srst) axil_if.aresetn <= !srst;
 
     //===================================
     // Build
@@ -116,14 +146,16 @@ module state_aging_core_unit_test;
         env.reset_vif = reset_if;
 
         // Instantiate register agents
-        axil_reg_agent = new();
-        axil_reg_agent.axil_vif = axil_if;
+        //axil_reg_agent = new();
+        //axil_reg_agent.axil_vif = axil_if;
 
-        reg_agent = new("state_aging_core_reg_agent", axil_reg_agent, 0);
+        //reg_agent = new("state_aging_core_reg_agent", axil_reg_agent, 0);
 
         // Instantiate agent
         ctrl_agent = new("db_ctrl_agent", NUM_IDS);
         ctrl_agent.ctrl_vif = ctrl_if;
+        ctrl_agent.info_vif = info_if;
+        ctrl_agent.status_vif = status_if;
 
     endfunction
 
@@ -136,9 +168,9 @@ module state_aging_core_unit_test;
         // Put driven interfaces into quiescent state
         ctrl_agent.idle();
         update_if.idle();
-        reg_agent.idle();
+        //reg_agent.idle();
 
-        ts_clk = 0;
+        tick = 0;
         cfg_timeout = 0;
 
         // HW reset
@@ -171,17 +203,38 @@ module state_aging_core_unit_test;
 
     //===================================
     // Test:
-    //   reset
+    //   Reset
     //
-    // Desc: Assert reset and check that
-    //       inititialization completes
-    //       successfully.
-    //       (Note) reset assertion/check
-    //       is included in setup() task
+    // Description:
+    //   Issue (block-level) reset signal,
+    //   wait for initialization to complete
     //===================================
     `SVTEST(reset)
     `SVTEST_END
 
+    //===================================
+    // Test:
+    //   Info
+    //
+    // Description:
+    //   Check reported parameterization
+    //   and compare against expected
+    //===================================
+    `SVTEST(info)
+        db_pkg::type_t got_type;
+        db_pkg::subtype_t got_subtype;
+        int got_size;
+        // Check (database) type
+        ctrl_agent.get_type(got_type);
+        `FAIL_UNLESS_EQUAL(got_type, db_pkg::DB_TYPE_STATE);
+        // Check (state) type
+        ctrl_agent.get_subtype(got_subtype);
+        `FAIL_UNLESS_EQUAL(got_subtype, state_pkg::STATE_TYPE_AGING);
+        // Check size
+        ctrl_agent.get_size(got_size);
+        `FAIL_UNLESS_EQUAL(got_size, NUM_IDS);
+    `SVTEST_END
+/*
     //===================================
     // Test:
     //   soft reset
@@ -277,7 +330,8 @@ module state_aging_core_unit_test;
         );
 
     `SVTEST_END
-
+*/
+    /*
     //===================================
     // Test:
     //   set/unset
@@ -300,6 +354,8 @@ module state_aging_core_unit_test;
         logic found;
         int active_cnt;
 
+        // Randomize
+
         for (int i = 0; i < __TEST_IDS; i++) begin
             ID_T __id;
             do begin
@@ -312,8 +368,8 @@ module state_aging_core_unit_test;
         foreach (id_set[i]) enable(id_set[i]);
 
         // Check active record count
-        reg_agent.get_active_cnt(active_cnt);
-        `FAIL_UNLESS(active_cnt === __TEST_IDS);
+        //reg_agent.get_active_cnt(active_cnt);
+        //`FAIL_UNLESS(active_cnt === __TEST_IDS);
 
         // Read back/check
         foreach (id_set[i]) begin
@@ -334,8 +390,8 @@ module state_aging_core_unit_test;
         end
 
         // Check active record count
-        reg_agent.get_active_cnt(active_cnt);
-        `FAIL_UNLESS(active_cnt === __TEST_IDS/2);
+        //reg_agent.get_active_cnt(active_cnt);
+        //`FAIL_UNLESS(active_cnt === __TEST_IDS/2);
 
         // Read back/check
         foreach (id_set[i]) begin
@@ -348,14 +404,15 @@ module state_aging_core_unit_test;
         end
 
         // Reset count
-        reg_agent.clear_debug_counts();
+        //reg_agent.clear_debug_counts();
 
         // Check active record count
-        reg_agent.get_active_cnt(active_cnt);
-        `FAIL_UNLESS(active_cnt === 0);
+        //reg_agent.get_active_cnt(active_cnt);
+        //`FAIL_UNLESS(active_cnt === 0);
 
     `SVTEST_END
-
+    */
+/*
     //===================================
     // Test:
     //   timeout
@@ -593,60 +650,16 @@ module state_aging_core_unit_test;
         wait(notify_if.evt);
 
     `SVTEST_END
-    
-
-    //===================================
-    // Test:
-    //   active time counters
-    //
-    // Desc: Enable a random set of timers,
-    //       check for consistency in
-    //       active timer count.
-    //===================================
-    `SVTEST(active_cnt)
-        int exp_active_cnt;
-        ID_T id_set [$];
-        int got_active_cnt;
-        int got_active_last_scan_cnt;
-
-        // Set timeout
-        set_timeout(1);
-
-        // Check for zero counts
-        reg_agent.get_active_cnt(got_active_cnt);
-        `FAIL_UNLESS_EQUAL(got_active_cnt, 0);
-        reg_agent.get_active_last_scan_cnt(got_active_last_scan_cnt);
-        `FAIL_UNLESS_EQUAL(got_active_last_scan_cnt, 0);
-
-        // Enable random set of IDs
-        exp_active_cnt = $urandom % NUM_IDS;
-        while (id_set.size() < exp_active_cnt) begin
-            ID_T id;
-            void'(std::randomize(id));
-            if (!(id inside {id_set})) begin
-                enable(id);
-                id_set.push_back(id);
-            end
-        end
-
-        // Check active record count immediately
-        reg_agent.get_active_cnt(got_active_cnt);
-        `FAIL_UNLESS_EQUAL(got_active_cnt, exp_active_cnt);
-
-        // Wait for at least one full scan
-        update_if._wait(2*16*NUM_IDS);
-
-        // Check last scan active count
-        reg_agent.get_active_last_scan_cnt(got_active_last_scan_cnt);
-        `FAIL_UNLESS_EQUAL(got_active_last_scan_cnt, exp_active_cnt);
-
-    `SVTEST_END
-
+*/
     `SVUNIT_TESTS_END
 
     //===================================
     // Tasks
     //===================================
+    // Import common tasks
+    `include "../common/tasks.svh"
+
+/*
     task toggle_ts_clk();
         ts_clk <= ~ts_clk;
         @(posedge clk);
@@ -660,13 +673,14 @@ module state_aging_core_unit_test;
         repeat(cycles) toggle_ts_clk();
     endtask
 
-    task tick();
-        if (TS_PER_TICK == 0) @(posedge clk);
-        else advance_ts_clk(TS_PER_TICK);
+    task _tick();
+        tick = 1'b1;
+        @(posedge clk);
+        tick = 1'b0;
     endtask
 
     task ticks(input int num_ticks, input int m=1);
-        repeat (num_ticks) tick();
+        repeat (num_ticks) _tick();
     endtask
 
     task set_timeout(input TIMER_T timeout);
@@ -735,5 +749,5 @@ module state_aging_core_unit_test;
             )
         );
     endtask
-
+*/
 endmodule

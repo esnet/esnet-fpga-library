@@ -65,7 +65,12 @@ regs:
   
   - name: dbg_cnt_active
     access: ro
-    desc: Count of currently active timers.
+    desc: Count of currently active timers. Based on delta counts of timers enabled/disabled.
+    width: 32
+
+  - name: dbg_cnt_active_last_scan
+    access: ro
+    desc: Approximate count of active timers. Based on number of timers that were active in most recent polling cycle.
     width: 32
 
   - name: dbg_cnt_notify

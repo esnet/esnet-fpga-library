@@ -108,7 +108,9 @@ module state_aging_core #(
     // -----------------------------
     // Interfaces
     // -----------------------------
-    db_intf #(.KEY_T(ID_T), .VALUE_T(TIMER_T))       timer_read_if (.clk(clk));
+    db_info_intf timer_info_if__unused ();
+    state_update_intf #(.ID_T(ID_T), .STATE_T(TIMER_T), .UPDATE_T(dummy_t)) timer_update_if (.clk(clk));
+    db_ctrl_intf #(.KEY_T(ID_T), .VALUE_T(TIMER_T))  timer_ctrl_if (.clk(clk));
     db_ctrl_intf #(.KEY_T(ID_T), .VALUE_T(dummy_t))  local_ctrl_if (.clk(clk));
 
     state_aging_core_reg_intf reg_if ();
@@ -164,10 +166,17 @@ module state_aging_core #(
         // Track valid/invalid (enabled/disabled) status for each entry
         // (expiry is only reported for valid entries)
         if (VALID_TRACKING) begin : g__valid_tracking
+            // (Local) interfaces
+            db_info_intf   valid_info_if__unused ();
+            db_status_intf valid_status_if (.clk(clk), .srst(local_srst));
             db_ctrl_intf #(.KEY_T(ID_T), .VALUE_T(dummy_t)) valid_ctrl_if (.clk(clk));
+            state_update_intf #(.ID_T(ID_T), .STATE_T(dummy_t)) valid_update_if__unused (.clk(clk));
 
             // Mux between local and external control interfaces
-            db_ctrl_intf_prio_mux  i_db_ctrl_intf_prio_mux (
+            db_ctrl_intf_prio_mux #(
+                .KEY_T ( ID_T ),
+                .VALUE_T ( dummy_t )
+            ) i_db_ctrl_intf_prio_mux (
                 .clk ( clk ),
                 .srst ( local_srst ),
                 .ctrl_if_from_controller_hi_prio ( ctrl_if ),
@@ -178,14 +187,20 @@ module state_aging_core #(
             // -----------------------------
             // Active/inactive entry management
             // -----------------------------
-            state_valid_core #(
+            state_valid   #(
                 .ID_T      ( ID_T )
             ) i_state_valid_core (
                 .clk       ( clk ),
-                .srst      ( local_srst__unbuffered ),
+                .srst      ( local_srst ),
                 .init_done ( valid_core_init_done ),
+                .info_if   ( valid_info_if__unused ),
+                .status_if ( valid_status_if ),
+                .update_if ( valid_update_if__unused ),
                 .ctrl_if   ( valid_ctrl_if )
             );
+
+            // Terminate unused update interface
+            assign valid_update_if__unused.req = 1'b0;
 
             // ----------------------------------
             // Drive valid read interface
@@ -248,17 +263,30 @@ module state_aging_core #(
     // -----------------------------
     // Timers
     // -----------------------------
-    state_timer_core #(
-        .ID_T      ( ID_T ),
-        .TIMER_T   ( TIMER_T )
+    state_timer #(
+        .ID_T    ( ID_T ),
+        .TIMER_T ( TIMER_T )
     ) i_state_timer_core (
-        .clk       ( clk ),
-        .srst      ( local_srst__unbuffered ),
-        .init_done ( timer_core_init_done ),
-        .tick      ( tick ),
-        .read_if   ( timer_read_if ),
-        .update_if ( update_if )
+        .clk          ( clk ),
+        .srst         ( local_srst ),
+        .init_done    ( timer_core_init_done ),
+        .tick         ( tick ),
+        .info_if      ( timer_info_if__unused ),
+        .ctrl_if      ( timer_ctrl_if ),
+        .update_if    ( timer_update_if )
     );
+
+    assign update_if.rdy = timer_update_if.rdy;
+    assign timer_update_if.req = update_if.req;
+    assign timer_update_if.id = update_if.key;
+    assign timer_update_if.init = 1'b0;
+    assign timer_update_if.update = '0;
+    assign update_if.ack = timer_update_if.ack;
+    assign update_if.valid = 1'b1;
+    assign update_if.value = timer_update_if.state;
+    assign update_if.ack = timer_update_if.ack;
+    assign update_if.valid = 1'b1;
+    assign update_if.value = timer_update_if.state;
 
     // -----------------------------
     // Disable when cfg_timeout == 0
@@ -304,16 +332,16 @@ module state_aging_core #(
             end
             VALID_RD_WAIT : begin
                 if (local_ctrl_if.ack) begin
-                    if (local_ctrl_if.valid) nxt_state = TIMER_RD_REQ;
-                    else                     nxt_state = DONE;
+                    if (local_ctrl_if.get_valid) nxt_state = TIMER_RD_REQ;
+                    else                         nxt_state = DONE;
                 end
             end
             TIMER_RD_REQ : begin
                 rd_timer = 1'b1;
-                if (timer_read_if.rdy) nxt_state = TIMER_RD_WAIT;
+                if (timer_ctrl_if.rdy) nxt_state = TIMER_RD_WAIT;
             end
             TIMER_RD_WAIT : begin
-                if (timer_read_if.ack) nxt_state = CHECK;
+                if (timer_ctrl_if.ack) nxt_state = CHECK;
             end
             CHECK : begin
                 if (expiry) nxt_state = NOTIFY;
@@ -342,8 +370,10 @@ module state_aging_core #(
     // ----------------------------------
     // Drive timer read interface
     // ----------------------------------
-    assign timer_read_if.req = rd_timer;
-    assign timer_read_if.key = id;
+    assign timer_ctrl_if.req = rd_timer;
+    assign timer_ctrl_if.command = db_pkg::COMMAND_GET;
+    assign timer_ctrl_if.key = id;
+    assign timer_ctrl_if.set_value = '0;
 
     // ---------------------------------------------------
     // Process read result
@@ -357,7 +387,7 @@ module state_aging_core #(
     initial expiry = 1'b0;
     always @(posedge clk) begin
         if (local_srst)             expiry <= 1'b0;
-        else if (timer_read_if.ack) expiry <= (timer_read_if.value >= __cfg_timeout);
+        else if (timer_ctrl_if.ack) expiry <= (timer_ctrl_if.get_value >= __cfg_timeout);
     end
 
     initial notify_if.evt = 1'b0;
@@ -375,6 +405,15 @@ module state_aging_core #(
     assign reg_if.dbg_status_nxt_v = 1'b1;
     assign reg_if.dbg_status_nxt.state = state;
 
+    // Audit valid entries
+    logic [$bits(ID_T):0] cnt_active_last_scan;
+    logic                 scan_done;
+    always_ff @(posedge clk) begin
+        if ((id == 0) && (state == IDLE)) cnt_active_last_scan <= 0;
+        else if (timer_ctrl_if.ack)       cnt_active_last_scan <= cnt_active_last_scan + 1;
+    end
+    assign scan_done = (id == '1) && (state == DONE);
+
     // Counters
     // -- function-level reset
     logic dbg_cnt_reset;
@@ -389,30 +428,37 @@ module state_aging_core #(
         reg_if.dbg_cnt_timer_nxt_v  = 1'b0;
         reg_if.dbg_cnt_active_nxt_v = 1'b0;
         reg_if.dbg_cnt_notify_nxt_v = 1'b0;
+        reg_if.dbg_cnt_active_last_scan_nxt_v = 1'b0;
         // Next counter values (default to previous counter values)
         reg_if.dbg_cnt_timer_nxt  = reg_if.dbg_cnt_timer;
         reg_if.dbg_cnt_active_nxt = reg_if.dbg_cnt_active;
         reg_if.dbg_cnt_notify_nxt = reg_if.dbg_cnt_notify;
+        reg_if.dbg_cnt_active_last_scan_nxt_v = reg_if.dbg_cnt_active_last_scan;
         if (dbg_cnt_reset) begin
             // Update on reset/clear
             reg_if.dbg_cnt_timer_nxt_v  = 1'b1;
             reg_if.dbg_cnt_active_nxt_v = 1'b1;
             reg_if.dbg_cnt_notify_nxt_v = 1'b1;
+            reg_if.dbg_cnt_active_last_scan_nxt_v = 1'b1;
             // Clear counts
             reg_if.dbg_cnt_timer_nxt  = 0;
             reg_if.dbg_cnt_active_nxt = 0;
             reg_if.dbg_cnt_notify_nxt = 0;
+            reg_if.dbg_cnt_active_last_scan_nxt = 0;
         end else begin
             // Selectively update
             if (tick)                  reg_if.dbg_cnt_timer_nxt_v  = 1'b1;
             if (notify)                reg_if.dbg_cnt_notify_nxt_v = 1'b1;
             if (activate ^ deactivate) reg_if.dbg_cnt_active_nxt_v = 1'b1;
+            if (scan_done)             reg_if.dbg_cnt_active_last_scan_nxt_v = 1'b1;
             // Increment-by-one counters
             reg_if.dbg_cnt_timer_nxt                       = reg_if.dbg_cnt_timer  + 1;
             reg_if.dbg_cnt_notify_nxt                      = reg_if.dbg_cnt_notify + 1;
             // Increment/decrement counters
             if (activate)        reg_if.dbg_cnt_active_nxt = reg_if.dbg_cnt_active + 1;
             else if (deactivate) reg_if.dbg_cnt_active_nxt = reg_if.dbg_cnt_active - 1; 
+            // Sync counters
+            reg_if.dbg_cnt_active_last_scan_nxt = cnt_active_last_scan;
         end
     end
  

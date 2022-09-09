@@ -91,6 +91,12 @@ class state_aging_core_reg_agent extends state_aging_core_reg_blk_agent;
         cnt = reg_dbg_cnt_active;
     endtask
 
+    task get_active_last_scan_cnt(output int cnt);
+        state_aging_core_reg_pkg::reg_dbg_cnt_active_last_scan_t reg_dbg_cnt_active_last_scan;
+        this.read_dbg_cnt_active(reg_dbg_cnt_active_last_scan);
+        cnt = reg_dbg_cnt_active_last_scan;
+    endtask
+
     task get_notify_cnt(output int cnt);
         state_aging_core_reg_pkg::reg_dbg_cnt_notify_t reg_dbg_cnt_notify;
         this.read_dbg_cnt_notify(reg_dbg_cnt_notify);
