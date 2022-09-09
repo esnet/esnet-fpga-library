@@ -15,173 +15,100 @@
 //  computer software.
 // =============================================================================
 module state_valid_core #(
-    parameter type ID_T = logic[15:0],
-    // Simulation-only
-    parameter bit  SIM__FAST_INIT = 1  // Optimize sim time by performing fast memory init
+    parameter type ID_T = logic[7:0],
+    parameter int NUM_WR_TRANSACTIONS = 4,
+    parameter int NUM_RD_TRANSACTIONS = 8
 )(
     // Clock/reset
-    input  logic             clk,
-    input  logic             srst,
+    input  logic              clk,
+    input  logic              srst,
 
-    output logic             init_done,
+    output logic              init_done,
+
+    // Info interface
+    db_info_intf.peripheral   info_if,
 
     // Control interface
-    db_ctrl_intf.peripheral  ctrl_if
+    db_ctrl_intf.peripheral   ctrl_if,
+
+    // Status interface
+    db_status_intf.peripheral status_if,
+
+    // Update interface
+    state_update_intf.target  update_if,
+
+    // Read/write interfaces (to database/storage)
+    output logic              db_init,
+    input  logic              db_init_done,
+    db_intf.requester         db_wr_if,
+    db_intf.requester         db_rd_if
 );
     // ----------------------------------
     // Imports
     // ----------------------------------
-    import db_pkg::*;
-
-    // ----------------------------------
-    // Parameters
-    // ----------------------------------
-    localparam int DEPTH = 2**$bits(ID_T);
-    localparam int NUM_COLS = DEPTH > 4096 ? DEPTH / 4096 : 8;
-    localparam int NUM_ROWS = DEPTH / NUM_COLS;
-    localparam int MEM_RD_LATENCY = mem_pkg::get_default_rd_latency(NUM_ROWS, NUM_COLS);
-
-    localparam int COL_SEL_WID = $clog2(NUM_COLS);
-    localparam int ROW_SEL_WID = $clog2(NUM_ROWS);
-
-    // ----------------------------------
-    // Typedefs
-    // ----------------------------------
-    typedef struct packed {
-        logic [ROW_SEL_WID-1:0] row;
-        logic [COL_SEL_WID-1:0] col;
-    } id_t;
-
-    typedef logic unused_t;
-
-    typedef logic [COL_SEL_WID-1:0] col_sel_t;
-    typedef logic [0:NUM_COLS-1] row_t;
-
-    typedef struct packed {
-        logic valid;
-        id_t  id;
-        logic wr;
-        logic wr_value;
-    } ctxt_t;
-
-    // -----------------------------
-    // Signals
-    // -----------------------------
-    ctxt_t ctxt_in;
-    ctxt_t ctxt_out;
-
-    id_t   id;
-
-    logic  wr_rdy;
-    row_t  wr_data;
-    logic  wr_ack;
-
-    logic  rd;
-    logic  rd_rdy;
-    logic  rd_valid;
-    row_t  rd_data;
-    logic  rd_ack;
+    import state_pkg::*;
 
     // ----------------------------------
     // Interfaces
     // ----------------------------------
-    mem_intf #(.ADDR_WID(ROW_SEL_WID), .DATA_WID(NUM_COLS)) mem_wr_if (.clk(clk));
-    mem_intf #(.ADDR_WID(ROW_SEL_WID), .DATA_WID(NUM_COLS)) mem_rd_if (.clk(clk));
-
-    db_intf #(.KEY_T(id_t), .VALUE_T(unused_t)) ctrl_wr_if (.clk(clk));
-    db_intf #(.KEY_T(id_t), .VALUE_T(unused_t)) ctrl_rd_if (.clk(clk));
+    db_intf   #(.KEY_T(ID_T), .VALUE_T(logic)) app_wr_if__unused (.clk(clk));
+    db_intf   #(.KEY_T(ID_T), .VALUE_T(logic)) app_rd_if (.clk(clk));
 
     // ----------------------------------
-    // Valid memory
+    // Drive info interface
     // ----------------------------------
-    mem_ram_sdp_sync   #(
-        .ADDR_WID       ( ROW_SEL_WID ),
-        .DATA_WID       ( NUM_COLS ),
-        .RESET_FSM      ( 1 ),
-        .SIM__FAST_INIT ( SIM__FAST_INIT )
-    ) i_mem_ram_sdp_sync_valid (
-        .clk       ( clk ),
-        .srst      ( srst ),
-        .mem_wr_if ( mem_wr_if ),
-        .mem_rd_if ( mem_rd_if ),
-        .init_done ( init_done )
+    assign info_if._type = db_pkg::DB_TYPE_STATE;
+    assign info_if.subtype = STATE_TYPE_VALID;
+    assign info_if.size = State#(ID_T)::numIDs();
+
+    // ----------------------------------
+    // Base component
+    // ----------------------------------
+    db_core                 #(
+        .KEY_T               ( ID_T ),
+        .VALUE_T             ( logic ), // Unused
+        .NUM_WR_TRANSACTIONS ( NUM_WR_TRANSACTIONS ),
+        .NUM_RD_TRANSACTIONS ( NUM_RD_TRANSACTIONS ),
+        .DB_CACHE_EN         ( 0 ) // Read-only access from update interface
+                                   // Single-threaded from control interface
+    ) i_db_core       (
+        .clk          ( clk ),
+        .srst         ( srst ),
+        .init_done    ( init_done ),
+        .ctrl_if      ( ctrl_if ),
+        .app_wr_if    ( app_wr_if__unused ),
+        .app_rd_if    ( app_rd_if ),
+        .db_init      ( db_init ),
+        .db_init_done ( db_init_done ),
+        .db_wr_if     ( db_wr_if ),
+        .db_rd_if     ( db_rd_if )
     );
+  
+    // ----------------------------------
+    // Tie off application write interface
+    // ----------------------------------
+    assign app_wr_if__unused.req = 1'b0;
+    assign app_wr_if__unused.key = '0;
+    assign app_wr_if__unused.next = 1'b0;
+    assign app_wr_if__unused.value = '0;
+    assign app_wr_if__unused.valid = 1'b0;
 
-    // Memory read interface
-    assign rd_rdy = mem_rd_if.rdy;
-    assign mem_rd_if.rst  = 1'b0;
-    assign mem_rd_if.en   = 1'b1;
-    assign mem_rd_if.req  = ctrl_wr_if.req || ctrl_rd_if.req; // Writes must be implemented as RMW
-    assign mem_rd_if.addr = id.row;
-    assign rd_data = mem_rd_if.data;
+    // ----------------------------------
+    // Drive update interface
+    // ----------------------------------
+    assign update_if.rdy = app_rd_if.rdy;
+    assign app_rd_if.req = update_if.req;
+    assign app_rd_if.key = update_if.id;
+    assign app_rd_if.next = 1'b0;
+    assign update_if.ack = app_rd_if.ack;
+    assign update_if.state = app_rd_if.valid;
 
-    // Memory write interface
-    assign wr_rdy = mem_rd_if.rdy;
-    assign mem_wr_if.rst  = init;
-    assign mem_wr_if.en   = ctxt_out.wr;
-    assign mem_wr_if.req  = mem_rd_if.ack;
-    assign mem_wr_if.addr = ctxt_out.id.row;
-    assign mem_wr_if.data = wr_data;
-
-    // -----------------------------
-    // Transaction handling
-    // (use 'standard' database peripheral component)
-    // -----------------------------
-    db_ctrl_peripheral i_db_ctrl_peripheral (
-        .clk       ( clk ),
-        .srst      ( srst ),
-        .ctrl_if   ( ctrl_if ),
-        .init      ( init ),
-        .init_done ( init_done ),
-        .wr_if     ( ctrl_wr_if ),
-        .rd_if     ( ctrl_rd_if )
-    );
-    assign id = ctrl_wr_if.req ? ctrl_wr_if.key : ctrl_rd_if.key;
-
-    assign ctrl_wr_if.rdy = wr_rdy;
-    assign ctrl_wr_if.ack = wr_ack;
-    assign ctrl_wr_if.error = 1'b0;
-    assign ctrl_wr_if.ack_id = '0;
-
-    assign ctrl_rd_if.rdy = rd_rdy;
-    assign ctrl_rd_if.ack = rd_ack;
-    assign ctrl_rd_if.error = 1'b0;
-    assign ctrl_rd_if.ack_id = '0;
-    assign ctrl_rd_if.valid = rd_valid;
-    assign ctrl_rd_if.value = '0; // Unused (no value, 'valid' tracking only)
-
-    // RMW context
-    assign ctxt_in.valid = ctrl_wr_if.req || ctrl_rd_if.req;
-    assign ctxt_in.id = id;
-    assign ctxt_in.wr = ctrl_wr_if.req;
-    assign ctxt_in.wr_value = ctrl_wr_if.valid;
-
-    util_delay   #(
-        .DATA_T   ( ctxt_t ),
-        .DELAY    ( MEM_RD_LATENCY )
-    ) i_rd_ctxt_util_delay (
-        .clk      ( clk ),
-        .srst     ( srst ),
-        .data_in  ( ctxt_in ),
-        .data_out ( ctxt_out )
-    );
-
-    // Write valid status for specified entry
-    always_comb begin
-        wr_data = rd_data;
-        wr_data[ctxt_out.id.col] = ctxt_out.wr_value;
+    // ----------------------------------
+    // Drive status interface
+    // ----------------------------------
+    always_ff @(posedge clk) begin
+        status_if.evt_activate <= (ctrl_if.req && ctrl_if.rdy && ctrl_if.command == db_pkg::COMMAND_SET);
+        status_if.evt_deactivate <= (ctrl_if.req && ctrl_if.rdy && ctrl_if.command == db_pkg::COMMAND_UNSET);
     end
-
-    // Extract valid status for specified entry
-    always_comb begin
-        rd_valid = rd_data[ctxt_out.id.col];
-    end
-
-    // Ack
-    assign rd_ack = ctxt_out.valid;
-    assign rd_error = (ctxt_out.valid && !ctxt_out.wr && !mem_rd_if.ack);
-
-    assign wr_ack = ctxt_out.wr;
-    assign wr_error = (ctxt_out.valid && ctxt_out.wr && !mem_rd_if.ack);
 
 endmodule : state_valid_core

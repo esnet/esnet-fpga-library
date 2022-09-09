@@ -22,10 +22,10 @@
 //===================================
 `define SVUNIT_TIMEOUT 2ms
 
-module state_valid_core_unit_test;
+module state_valid_unit_test;
     import svunit_pkg::svunit_testcase;
 
-    string name = "state_valid_core_ut";
+    string name = "state_valid_ut";
     svunit_testcase svunit_ut;
 
     //===================================
@@ -46,45 +46,25 @@ module state_valid_core_unit_test;
     //===================================
     // DUT
     //===================================
-
     // Signals
     logic   clk;
     logic   srst;
     logic   init_done;
-
-    logic   db_init;
-    logic   db_init_done;
 
     // Interfaces
     db_ctrl_intf      #(.KEY_T(ID_T), .VALUE_T(STATE_T)) ctrl_if (.clk(clk));
     db_info_intf      #()                                info_if ();
     db_status_intf    #()                                status_if (.clk(clk), .srst(srst));
     state_update_intf #(.ID_T(ID_T),  .STATE_T(STATE_T)) update_if (.clk(clk));
-    db_intf           #(.KEY_T(ID_T), .VALUE_T(STATE_T)) db_wr_if (.clk(clk));
-    db_intf           #(.KEY_T(ID_T), .VALUE_T(STATE_T)) db_rd_if (.clk(clk));
 
     // Instantiation
-    state_valid_core #(
-        .ID_T ( ID_T ),
-        .NUM_WR_TRANSACTIONS ( 2 ),
-        .NUM_RD_TRANSACTIONS ( 8 )
+    state_valid #(
+        .ID_T ( ID_T )
     ) DUT (.*);
 
     //===================================
     // Testbench
     //===================================
-    // Database store
-    db_store_array #(
-        .KEY_T   ( ID_T ),
-        .VALUE_T ( DUMMY_T ),
-        .TRACK_VALID ( 1 ),
-        .SIM__FAST_INIT ( 0 )
-    ) i_db_store_array (
-        .init ( db_init ),
-        .init_done ( db_init_done ),
-        .*
-    );
-    
     // Environment
     std_verif_pkg::env env;
 
