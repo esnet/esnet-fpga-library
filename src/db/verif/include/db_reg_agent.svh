@@ -215,8 +215,8 @@ class db_reg_agent #(
     endtask
 
     // Query database size
-    // [[ implements db_agent.query_size ]]
-    task query_size(output int _size);
+    // [[ implements db_agent.get_size ]]
+    task get_size(output int _size);
         db_reg_pkg::reg_info_size_t reg_info_size;
 
         // Read database size from info_size register
@@ -226,7 +226,7 @@ class db_reg_agent #(
 
     // Query database fill level
     // [[ implements db_agent.get_fill ]]
-    task query_fill(output int _fill);
+    task get_fill(output int _fill);
         db_reg_pkg::reg_status_fill_t reg_status_fill;
 
         // Read database fill from status_fill register

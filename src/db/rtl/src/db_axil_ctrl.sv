@@ -36,11 +36,14 @@ module db_axil_ctrl #(
     input  logic               en_mon,
     input  logic               ready_mon,
 
+    // Info
+    db_info_intf.controller    info_if,
+
     // Database control interface
     db_ctrl_intf.controller    ctrl_if,
 
     // Status
-    db_status_intf.peripheral  status_if
+    db_status_intf.controller  status_if
 );
     // -----------------------------
     // Imports
@@ -154,11 +157,11 @@ module db_axil_ctrl #(
 
     // Assign static INFO register values
     assign reg_if.info_nxt_v = 1'b1;
-    assign reg_if.info_nxt.db_type = getRegFromType(status_if._type);
-    assign reg_if.info_nxt.db_subtype = status_if.subtype;
+    assign reg_if.info_nxt.db_type = getRegFromType(info_if._type);
+    assign reg_if.info_nxt.db_subtype = info_if.subtype;
 
     assign reg_if.info_size_nxt_v = 1'b1;
-    assign reg_if.info_size_nxt = status_if.size;
+    assign reg_if.info_size_nxt = info_if.size;
 
     assign reg_if.info_key_nxt_v = 1'b1;
     assign reg_if.info_key_nxt.bits = KEY_BITS;
@@ -361,7 +364,7 @@ module db_axil_ctrl #(
         else if (req)   status_error <= 1'b0;
         else if (status_rd_ack && reg_if.status.error) status_error <= 1'b0;
     end
- 
+
     // -- Maintain `timeout` flag
     initial status_timeout = 1'b0;
     always @(posedge clk) begin

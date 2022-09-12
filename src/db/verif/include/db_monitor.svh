@@ -66,10 +66,9 @@ class db_monitor #(
             output VALUE_T value
         );
         bit error;
-        bit xid;
         trace_msg("receive_raw()");
         // Receive transaction from interface
-        db_vif.receive(found, value, error, xid);
+        db_vif.receive(found, value, error);
         trace_msg("receive_raw() Done.");
     endtask
 

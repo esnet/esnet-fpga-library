@@ -28,6 +28,9 @@ class db_ctrl_agent #(
     // Control interface
     virtual db_ctrl_intf #(KEY_T, VALUE_T) ctrl_vif;
 
+    // Info interface
+    virtual db_info_intf info_vif;
+
     // Status interface
     virtual db_status_intf status_vif;
 
@@ -111,25 +114,33 @@ class db_ctrl_agent #(
     // Get database type
     // [[ implements db_agent.get_type ]]
     task get_type(output db_pkg::type_t _type);
-        _type = status_vif._type;
+        _type = info_vif._type;
     endtask
 
     // Get database subtype
     // [[ implements db_agent.get_subtype ]]
     task get_subtype(output db_pkg::subtype_t _subtype);
-        _subtype = status_vif.subtype;
+        _subtype = info_vif.subtype;
     endtask
 
-    // Query database size
-    // [[ implements db_agent.query_size ]]
-    task query_size(output int _size);
-        _size = status_vif.size;
+    // Get database size
+    // [[ implements db_agent.get_size ]]
+    task get_size(output int _size);
+        _size = info_vif.size;
     endtask
 
-    // Query database fill level
-    // [[ implements db_agent.query_fill ]]
-    task query_fill(output int _fill);
+    // Get database fill level
+    // [[ implements db_agent.get_fill ]]
+    task get_fill(output int _fill);
         _fill = status_vif.fill;
+    endtask
+
+    task get_activate_cnt(output int _cnt_activate);
+        _cnt_activate = status_vif.cnt_activate;
+    endtask
+    
+    task get_deactivate_cnt(output int _cnt_deactivate);
+        _cnt_deactivate = status_vif.cnt_deactivate;
     endtask
 
 endclass : db_ctrl_agent
