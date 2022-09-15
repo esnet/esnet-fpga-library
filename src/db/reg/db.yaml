@@ -17,9 +17,7 @@ regs:
           width: 8
           enum_hex:
             0 : UNSPECIFIED
-            1 : CACHE
-            2 : STATE
-            3 : STATS
+            1 : STASH
         - name: db_subtype
           desc: application-specific subtype identifier
           width: 8
