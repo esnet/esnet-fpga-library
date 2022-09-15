@@ -1,11 +1,11 @@
 `include "svunit_defines.svh"
 
-module db_ctrl_peripheral_unit_test;
+module db_peripheral_unit_test;
     import svunit_pkg::svunit_testcase;
     import db_pkg::*;
     import db_verif_pkg::*;
 
-    string name = "db_ctrl_peripheral_ut";
+    string name = "db_peripheral_ut";
     svunit_testcase svunit_ut;
 
     //===================================
@@ -34,21 +34,15 @@ module db_ctrl_peripheral_unit_test;
     logic init;
     logic init_done;
 
-    db_ctrl_peripheral #(
+    db_peripheral #(
         .TIMEOUT_CYCLES ( TIMEOUT_CYCLES )
     ) DUT (.*);
 
     //===================================
     // Testbench
     //===================================
-    db_status_intf status_if ();
     db_ctrl_agent #(.KEY_T(key_t), .VALUE_T(value_t)) agent;
     std_reset_intf reset_if (.clk(clk));
-
-    assign status_if._type = TYPE_UNSPECIFIED;
-    assign status_if.subtype = 8'hab;
-    assign status_if.size = SIZE;
-    assign status_if.fill = 0;
 
     // Assign clock (250MHz)
     `SVUNIT_CLK_GEN(clk, 2ns);
@@ -67,7 +61,6 @@ module db_ctrl_peripheral_unit_test;
 
         agent = new("db_agent", SIZE);
         agent.ctrl_vif = ctrl_if;
-        agent.status_vif = status_if;
         agent.set_debug_level(3);
  
     endfunction

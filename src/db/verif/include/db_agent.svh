@@ -25,7 +25,8 @@ class db_agent #(
     //===================================
     // Parameters
     //===================================
-    local int __SIZE;
+    local int __MAX_CAPACITY; // Maximum number of entries accommodated by the database
+                              // Set __MAX_CAPACITY == 0 for no limit
 
     protected int _RESET_TIMEOUT=0;
     protected int _OP_TIMEOUT=0;
@@ -33,9 +34,9 @@ class db_agent #(
     //===================================
     // Methods
     //===================================
-    function new(input string name="db_agent", input int _size=1024);
+    function new(input string name="db_agent", input int _max_capacity=0);
         super.new(name);
-        set_size(_size);
+        set_max_capacity(_max_capacity);
     endfunction
 
     // Configure trace output
@@ -71,13 +72,13 @@ class db_agent #(
     endfunction
 
     // Set size (capacity) of database
-    function automatic void set_size(input int SIZE);
-        this.__SIZE = SIZE;
+    function automatic void set_max_capacity(input int _max_capacity);
+        this.__MAX_CAPACITY = _max_capacity;
     endfunction
 
     // Get size (capacity) of database
-    function automatic int get_size();
-        return this.__SIZE;
+    function automatic int get_max_capacity();
+        return this.__MAX_CAPACITY;
     endfunction
 
     // Reset client
@@ -211,9 +212,9 @@ class db_agent #(
     virtual task get_subtype(output db_pkg::subtype_t _subtype); endtask
 
     // Query database for reported size
-    virtual task query_size(output int _size); endtask
+    virtual task get_size(output int _size); endtask
 
     // Query database for reported fill
-    virtual task query_fill(output int _fill); endtask
+    virtual task get_fill(output int _fill); endtask
 
 endclass : db_agent

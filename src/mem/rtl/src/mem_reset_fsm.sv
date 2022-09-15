@@ -47,7 +47,8 @@ module mem_reset_fsm #(
     typedef enum logic [1:0] {
         RESET,
         CLEAR,
-        DONE
+        CLEAR_DONE,
+        INIT_DONE
     } state_t;
 
     // -----------------------------
@@ -87,12 +88,16 @@ module mem_reset_fsm #(
             CLEAR : begin
 `ifdef SIMULATION
             if (SIM__FAST_INIT) begin
-                if (addr == SIM__FAST_INIT_DEPTH) state_nxt = DONE;
+                if (addr == SIM__FAST_INIT_DEPTH) state_nxt = CLEAR_DONE;
             end else
 `endif
-                if (addr == DEPTH-1) state_nxt = DONE;
+                if (addr == DEPTH-1) state_nxt = CLEAR_DONE;
             end
-            DONE : begin
+            CLEAR_DONE : begin
+                addr_reset = 1'b1;
+                if (!mem_wr_if_out.ack) state_nxt = INIT_DONE; // Flush write acks from auto-clear operation
+            end
+            INIT_DONE : begin
                 addr_reset = 1'b1;
             end
             default : begin
@@ -101,33 +106,30 @@ module mem_reset_fsm #(
         endcase
     end
 
-    // State variable for auto-clearing counters on reset (or explicit command)
+    // Address state variable (cycle through all addresses to clear)
     initial addr = '0;
     always @(posedge wr_clk) begin
         if (addr_reset) addr <= '0;
         else            addr <= addr + 1;
     end
 
-    // Reset done
-    initial reset_done = 1'b0;
+    // Init done
+    initial init_done = 1'b0;
     always @(posedge wr_clk) begin
-        if (reset)                  reset_done <= 1'b0;
-        else if (state_nxt == DONE) reset_done <= 1'b1;
-        else                        reset_done <= 1'b0;
+        if (reset)                       init_done <= 1'b0;
+        else if (state_nxt == INIT_DONE) init_done <= 1'b1;
+        else                             init_done <= 1'b0;
     end
 
     // Peripheral is ready to accept transactions when reset operation has completed
-    assign mem_wr_if_in.rdy = reset_done;
-    assign mem_wr_if_in.ack = mem_wr_if_out.ack;
+    assign mem_wr_if_in.rdy = init_done;
+    assign mem_wr_if_in.ack = init_done ? mem_wr_if_out.ack : 1'b0;
 
     // Mux between reset and regular transactions
     assign mem_wr_if_out.rst  = reset;
-    assign mem_wr_if_out.en   = reset_done ? mem_wr_if_in.en   : (state == CLEAR);
-    assign mem_wr_if_out.req  = reset_done ? mem_wr_if_in.req  : (state == CLEAR);
-    assign mem_wr_if_out.addr = reset_done ? mem_wr_if_in.addr : addr;
-    assign mem_wr_if_out.data = reset_done ? mem_wr_if_in.data : RESET_VAL;
-
-    // Drive outputs
-    assign init_done = (state == DONE);
+    assign mem_wr_if_out.en   = init_done ? mem_wr_if_in.en   : (state == CLEAR);
+    assign mem_wr_if_out.req  = init_done ? mem_wr_if_in.req  : (state == CLEAR);
+    assign mem_wr_if_out.addr = init_done ? mem_wr_if_in.addr : addr;
+    assign mem_wr_if_out.data = init_done ? mem_wr_if_in.data : RESET_VAL;
 
 endmodule : mem_reset_fsm

@@ -15,34 +15,25 @@
 //  computer software.
 // =============================================================================
 
-package db_pkg;
+interface db_info_intf;
 
-    // -----------------------------
-    // Typedefs
-    // -----------------------------
-    typedef enum logic[7:0] {
-        DB_TYPE_UNSPECIFIED = 0,
-        DB_TYPE_CACHE       = 1,
-        DB_TYPE_STATE       = 2
-    } type_t;
+    // Imports
+    import db_pkg::*;
 
-    typedef logic[7:0] subtype_t;
+    // Signals
+    type_t       _type;
+    subtype_t    subtype;
+    logic [31:0] size;
 
-    typedef enum logic [2:0] {
-        COMMAND_NOP,
-        COMMAND_GET,
-        COMMAND_SET,
-        COMMAND_UNSET,
-        COMMAND_REPLACE,
-        COMMAND_CLEAR
-    } command_t;
+    modport controller(
+        input  _type,
+        input  subtype,
+        input  size
+    );
 
-    typedef enum logic [1:0] {
-        STATUS_UNSPECIFIED,
-        STATUS_OK,
-        STATUS_ERROR,
-        STATUS_TIMEOUT
-    } status_t;
-
-endpackage : db_pkg
-
+    modport peripheral(
+        output _type,
+        output subtype,
+        output size
+    );
+endinterface : db_info_intf

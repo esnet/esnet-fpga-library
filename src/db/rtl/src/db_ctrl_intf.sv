@@ -234,45 +234,15 @@ module db_ctrl_intf_prio_mux (
     db_ctrl_intf.controller ctrl_if_to_peripheral
 );
 
-    // Typedefs
-    typedef ctrl_if_to_peripheral.KEY_T   KEY_T;
-    typedef ctrl_if_to_peripheral.VALUE_T VALUE_T;
-
     // Signals
     logic       req [2];
     logic       mux_sel;
     logic       mux_sel_reg;
     logic       req_pending;
 
-    // Interfaces
-    db_ctrl_intf #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) __ctrl_if_from_controller [2] (.clk(clk));
-    db_ctrl_intf #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) __ctrl_if_to_peripheral   [2] (.clk(clk));
-
-    // Convert to array of interfaces
-    db_ctrl_intf_connector  i_db_ctrl_intf_connector_0 (
-        .ctrl_if_from_controller ( ctrl_if_from_controller_hi_prio ),
-        .ctrl_if_to_peripheral   ( __ctrl_if_from_controller[0] )
-    );
-
-    db_ctrl_intf_connector  i_db_ctrl_intf_connector_1 (
-        .ctrl_if_from_controller ( ctrl_if_from_controller_lo_prio ),
-        .ctrl_if_to_peripheral   ( __ctrl_if_from_controller[1] )
-    );
-
-    generate
-        for (genvar i = 0; i < 2; i++) begin : g__controller
-            // Independent controller state machines
-            db_ctrl_proxy i_db_ctrl_proxy(
-                .clk ( clk ),
-                .srst ( srst ),
-                .ctrl_if_from_controller ( __ctrl_if_from_controller[i] ),
-                .ctrl_if_to_peripheral ( __ctrl_if_to_peripheral[i] )
-            );
-
-            // Requests
-            assign req[i] = __ctrl_if_to_peripheral[i].req;
-        end : g__controller
-    endgenerate
+    // Request vector
+    assign req[0] = ctrl_if_from_controller_hi_prio.req;
+    assign req[1] = ctrl_if_from_controller_lo_prio.req;
 
     // Maintain context for open transactions
     initial req_pending = 1'b0;
@@ -297,8 +267,8 @@ module db_ctrl_intf_prio_mux (
     // (Static) output mux
     db_ctrl_intf_mux i_db_ctrl_intf_mux (
         .mux_sel                   ( mux_sel ),
-        .ctrl_if_from_controller_0 ( __ctrl_if_to_peripheral[0] ),
-        .ctrl_if_from_controller_1 ( __ctrl_if_to_peripheral[1] ),
+        .ctrl_if_from_controller_0 ( ctrl_if_from_controller_hi_prio ),
+        .ctrl_if_from_controller_1 ( ctrl_if_from_controller_lo_prio ),
         .ctrl_if_to_peripheral     ( ctrl_if_to_peripheral )
     );
 

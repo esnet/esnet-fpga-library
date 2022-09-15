@@ -27,20 +27,23 @@ module db_axil_ctrl #(
     // AXI4-Lite control interface
     axi4l_intf.peripheral      axil_if,
 
-    // Control
+    // Block control
     output logic               ctrl_reset,
     output logic               ctrl_en,
 
-    // Monitoring
+    // Block monitoring
     input  logic               reset_mon,
     input  logic               en_mon,
     input  logic               ready_mon,
+
+    // Info
+    db_info_intf.controller    info_if,
 
     // Database control interface
     db_ctrl_intf.controller    ctrl_if,
 
     // Status
-    db_status_intf.peripheral  status_if
+    db_status_intf.controller  status_if
 );
     // -----------------------------
     // Imports
@@ -54,10 +57,9 @@ module db_axil_ctrl #(
     // -- RTL to regmap translation (database type)
     function automatic fld_info_db_type_t getRegFromType(input type_t db_type);
         case (db_type)
-            TYPE_CACHE : return INFO_DB_TYPE_CACHE;
-            TYPE_STATE : return INFO_DB_TYPE_STATE;
-            TYPE_STATS : return INFO_DB_TYPE_STATS;
-            default    : return INFO_DB_TYPE_UNSPECIFIED;
+            DB_TYPE_CACHE : return INFO_DB_TYPE_CACHE;
+            DB_TYPE_STATE : return INFO_DB_TYPE_STATE;
+            default       : return INFO_DB_TYPE_UNSPECIFIED;
         endcase
     endfunction
     // -- Regmap to RTL translation (command)
@@ -93,13 +95,13 @@ module db_axil_ctrl #(
     typedef logic [0:VALUE_BYTES-1] value_bytes;
 
     typedef enum logic [2:0] {
-        RESET,
-        IDLE,
-        REQ,
-        BUSY,
-        DONE,
-        ERROR,
-        TIMEOUT
+        RESET   = 0,
+        IDLE    = 1,
+        REQ     = 2,
+        BUSY    = 3,
+        DONE    = 4,
+        ERROR   = 5,
+        TIMEOUT = 6
     } state_t;
 
     // -----------------------------
@@ -127,6 +129,9 @@ module db_axil_ctrl #(
     logic      error;
     logic      timeout;
 
+    logic [7:0] state_mon_in;
+    logic [7:0] state_mon_out;
+
     // -----------------------------
     // Local interfaces
     // -----------------------------
@@ -152,11 +157,11 @@ module db_axil_ctrl #(
 
     // Assign static INFO register values
     assign reg_if.info_nxt_v = 1'b1;
-    assign reg_if.info_nxt.db_type = getRegFromType(status_if._type);
-    assign reg_if.info_nxt.db_subtype = status_if.subtype;
+    assign reg_if.info_nxt.db_type = getRegFromType(info_if._type);
+    assign reg_if.info_nxt.db_subtype = info_if.subtype;
 
     assign reg_if.info_size_nxt_v = 1'b1;
-    assign reg_if.info_size_nxt = status_if.size;
+    assign reg_if.info_size_nxt = info_if.size;
 
     assign reg_if.info_key_nxt_v = 1'b1;
     assign reg_if.info_key_nxt.bits = KEY_BITS;
@@ -184,10 +189,6 @@ module db_axil_ctrl #(
     // Command
     assign command_evt = reg_if.command_wr_evt;
 
-    // Enable
-    assign ctrl_en = 1'b1;
-    assign ctrl_reset = 1'b0;
-
     // Pack key from reg
     generate
         for (genvar g_reg = 0; g_reg < KEY_REGS; g_reg++) begin : g__key_reg
@@ -211,6 +212,34 @@ module db_axil_ctrl #(
             end : g__byte
         end : g__set_value_reg
     endgenerate
+
+    // ----------------------------------------
+    // Standard block control/monitoring
+    // ----------------------------------------
+    std_block_control i_std_block_control (
+        .ctrl_clk       ( axil_if.aclk ),
+        .ctrl_reset_in  ( reg_if.blk_control.reset ),
+        .ctrl_enable_in ( reg_if.blk_control.enable ),
+        .blk_clk        ( clk ),
+        .blk_reset_out  ( ctrl_reset ),
+        .blk_enable_out ( ctrl_en )
+    );
+
+    std_block_monitor i_std_block_monitor (
+        .blk_clk             ( clk ),
+        .blk_reset_mon_in    ( reset_mon ),
+        .blk_enable_mon_in   ( en_mon ),
+        .blk_ready_mon_in    ( ready_mon ),
+        .blk_state_mon_in    ( state_mon_in ),
+        .ctrl_clk            ( axil_if.aclk ),
+        .ctrl_reset_mon_out  ( reg_if.blk_monitor_nxt.reset_mon ),
+        .ctrl_enable_mon_out ( reg_if.blk_monitor_nxt.enable_mon ),
+        .ctrl_ready_mon_out  ( reg_if.blk_monitor_nxt.ready_mon ),
+        .ctrl_state_mon_out  ( state_mon_out )
+    );
+
+    assign state_mon_in = {'0, state};
+    assign reg_if.blk_monitor_nxt.state_mon = fld_blk_monitor_state_mon_t'(state_mon_out);
 
     // ----------------------------------------
     // Logic
@@ -335,7 +364,7 @@ module db_axil_ctrl #(
         else if (req)   status_error <= 1'b0;
         else if (status_rd_ack && reg_if.status.error) status_error <= 1'b0;
     end
- 
+
     // -- Maintain `timeout` flag
     initial status_timeout = 1'b0;
     always @(posedge clk) begin

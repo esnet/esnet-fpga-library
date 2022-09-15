@@ -60,8 +60,46 @@ regs:
                 Equal to the number of value registers to contain info_value.bytes
           width: 8
 
+  - name: blk_control
+    desc: (Standard) block control register
+    access: rw
+    fields:
+        - name: reset
+          desc: (Soft) block reset.
+          width: 1
+          init: 0
+        - name: enable
+          desc: (Soft) block enable.
+          width: 1
+          init: 1
+
+  - name: blk_monitor
+    desc: (Standard) block monitor register
+    access: ro
+    fields:
+        - name: reset_mon
+          desc: Block reset monitor.
+          width: 1
+        - name: enable_mon
+          desc: Block enable monitor.
+          width: 1
+        - name: ready_mon
+          desc: Block ready monitor.
+          width: 1
+        - name: state_mon
+          desc: Block state monitor.
+          width: 8
+          enum_hex:
+            0 : RESET
+            1 : IDLE
+            2 : REQ
+            3 : BUSY
+            4 : DONE
+            5 : ERROR
+            6 : TIMEOUT
+
   - name: command
-    desc: Control register
+    desc: Command register
     access: wr_evt
     fields:
         - name: code
