@@ -23,7 +23,7 @@ module fifo_ctrl_fsm #(
     parameter bit OFLOW_PROT = 1,
     parameter bit UFLOW_PROT = 1,
     // Derived parameters (don't override)
-    parameter int PTR_WID = $clog2(DEPTH),
+    parameter int PTR_WID = DEPTH > 1 ? $clog2(DEPTH) : 1,
     parameter int CNT_WID = $clog2(DEPTH+1),
     // Debug parameters
     parameter bit AXIL_IF = 1'b0,
@@ -74,7 +74,7 @@ module fifo_ctrl_fsm #(
         else if (wr_safe) _wr_ptr <= _wr_ptr + 1;
     end
 
-    assign wr_ptr = _wr_ptr[PTR_WID-1:0];
+    assign wr_ptr = _wr_ptr % DEPTH;
     assign wr_full = (wr_count >= DEPTH - FULL_LEVEL);  // assert wr_full when FULL_LEVEL spaces left in FIFO.
     assign wr_oflow = wr && wr_full;
 
@@ -109,7 +109,7 @@ module fifo_ctrl_fsm #(
         else if (rd_safe) _rd_ptr <= _rd_ptr + 1;
     end
 
-    assign rd_ptr = _rd_ptr[PTR_WID-1:0];
+    assign rd_ptr = _rd_ptr % DEPTH;
     assign rd_empty = (rd_count == 0);
     assign rd_uflow = rd && rd_empty;
 
