@@ -44,19 +44,25 @@ module axi4s_join
    typedef enum logic[1:0] {
       HEADER,
       PAYLOAD,
-      LAST_PAYLOAD
+      LAST_PAYLOAD,
+      B2B_HEADER
    } state_t;
 
    state_t state, state_nxt; 
 
-   logic [COUNT_WID:0] pyld_shift;
-   logic [COUNT_WID:0] pyld_shift_pipe[2];
-   logic               drop_pkt;
-
    TID_T    hdr_tid;
    TDEST_T  hdr_tdest;
 
-   // TODO: consider adding an interface check for buffer context mode.
+   logic [COUNT_WID:0] hdr_shift;
+   logic [COUNT_WID:0] hdr_shift_pipe[7];
+   logic [COUNT_WID:0] pyld_shift;
+   logic [COUNT_WID:0] pyld_shift_pipe[7];
+
+   logic [DATA_BYTE_WID-1:0] lookahead_tkeep;
+
+   logic drop_pkt, stall_pipe, adv_tlast, adv_tlast_p;
+
+
    // internal axi4s interfaces.
    axi4s_intf #(.TUSER_MODE(BUFFER_CONTEXT), .DATA_BYTE_WID(DATA_BYTE_WID),
                 .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) sync_hdr[2] ();
@@ -68,16 +74,22 @@ module axi4s_join
                 .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) drop[2] ();
 
    axi4s_intf #(.TUSER_MODE(BUFFER_CONTEXT), .DATA_BYTE_WID(DATA_BYTE_WID), 
-                .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) pipe_hdr[3] ();
+                .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) pipe_hdr[7] ();
 
    axi4s_intf #(.TUSER_MODE(BUFFER_CONTEXT), .DATA_BYTE_WID(DATA_BYTE_WID),
-                .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) pipe_pyld[3] ();
+                .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) pipe_pyld[7] ();
 
    axi4s_intf #(.TUSER_MODE(BUFFER_CONTEXT), .DATA_BYTE_WID(DATA_BYTE_WID),
                 .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) shifted_pyld ();
 
+   axi4s_intf #(.TUSER_MODE(BUFFER_CONTEXT), .DATA_BYTE_WID(DATA_BYTE_WID),
+                .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) b2b_hdr ();
+
    axi4s_intf #(.TUSER_MODE(BUFFER_CONTEXT), .DATA_BYTE_WID(DATA_BYTE_WID), 
                 .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) joined ();
+
+   axi4s_intf #(.TUSER_MODE(BUFFER_CONTEXT), .DATA_BYTE_WID(DATA_BYTE_WID), 
+                .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) joined_mux ();
 
    axi4s_intf #(.TUSER_MODE(BUFFER_CONTEXT), .DATA_BYTE_WID(DATA_BYTE_WID),
                 .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) joined_pipe ();
@@ -87,8 +99,6 @@ module axi4s_join
 
    assign clk    = axi4s_in.aclk;
    assign resetn = axi4s_in.aresetn && enable;
-
-
 
    // axi4s SOP synchronizer instantiation.
    axi4s_sync #(.MODE(SOP)) axi4s_sync_0 (
@@ -123,162 +133,234 @@ module axi4s_join
       .axi4s_out1  (sync_pyld[1])
    );
 
-   
 
-   // axi4s hdr pipeline.
-   axi4s_intf_pipe #(.MODE(PUSH)) hdr_pipe_0 (
-      .axi4s_if_from_tx (sync_hdr[1]),
-      .axi4s_if_to_rx   (pipe_hdr[0])
-   );
 
-   axi4s_intf_pipe #(.MODE(PUSH)) hdr_pipe_1 (
-      .axi4s_if_from_tx (pipe_hdr[0]),
-      .axi4s_if_to_rx   (pipe_hdr[1])
-   );
+   // --- hdr pipeline. ---
+   axi4s_intf_connector pipe_hdr_connector (.axi4s_from_tx(sync_hdr[1]), .axi4s_to_rx(pipe_hdr[0]));
 
-   axi4s_intf_pipe #(.MODE(PUSH)) hdr_pipe_2 (
-      .axi4s_if_from_tx (pipe_hdr[1]),
-      .axi4s_if_to_rx   (pipe_hdr[2])
-   );
+   generate
+      for (genvar i = 0; i < 6; i += 1) begin : g__pipe_hdr
+         axi4s_intf_pipe #(.MODE(PUSH)) hdr_pre_pipe (
+            .axi4s_if_from_tx (pipe_hdr[i]),
+            .axi4s_if_to_rx   (pipe_hdr[i+1])
+         );
+      end : g__pipe_hdr
+   endgenerate
 
-   assign pipe_hdr[2].tready = pipe_pyld[2].tready;  // drive pipe_hdr and pipe_pyld with common tready.
+   assign pipe_hdr[6].tready = pipe_pyld[5].tready;  // drive pipe_hdr and pipe_pyld with common tready.
 
 
    
-   // axi4s pyld pipeline.
-   axi4s_intf_pipe #(.MODE(PUSH)) pyld_pipe_0 (
-      .axi4s_if_from_tx (sync_pyld[1]),
-      .axi4s_if_to_rx   (pipe_pyld[0])
-   );
+   // --- pyld pipeline. ---
+   axi4s_intf_connector pipe_pyld_connector (.axi4s_from_tx(sync_pyld[1]), .axi4s_to_rx(pipe_pyld[0]));
+
+   generate
+      for (genvar i = 0; i < 5; i += 1) begin : g__pipe_pyld
+         if (i==2) begin
+            axi4s_intf_pipe #(.MODE(PUSH)) pyld_pre_pipe (
+               .axi4s_if_from_tx (shifted_pyld),
+               .axi4s_if_to_rx   (pipe_pyld[i+1])
+            );
+
+         end else begin
+            axi4s_intf_pipe #(.MODE(PUSH)) pyld_pre_pipe (
+               .axi4s_if_from_tx (pipe_pyld[i]),
+               .axi4s_if_to_rx   (pipe_pyld[i+1])
+            );
+         end
+      end : g__pipe_pyld
+   endgenerate
+
+   assign pipe_pyld[5].tready = joined.tready;
 
    // axi4s barrel shifter instantiation.
    axi4s_shift #(
       .BIGENDIAN (BIGENDIAN),
       .SHIFT_WID (COUNT_WID)
    ) axi4s_shift_0 (
-      .axi4s_in   (pipe_pyld[0]),
+      .axi4s_in   (pipe_pyld[2]),
       .axi4s_out  (shifted_pyld),
       .shift      (pyld_shift[COUNT_WID-1:0])
    );
 
-   axi4s_intf_pipe #(.MODE(PUSH)) pyld_pipe_1 (
-      .axi4s_if_from_tx (shifted_pyld),
-      .axi4s_if_to_rx   (pipe_pyld[1])
-   );
-
-   axi4s_intf_pipe #(.MODE(PUSH)) pyld_pipe_2 (
-      .axi4s_if_from_tx (pipe_pyld[1]),
-      .axi4s_if_to_rx   (pipe_pyld[2])
-   );
-
-   assign pipe_pyld[2].tready = joined.tready;
 
 
+   // --- shift pipeline. ---
+   always @(posedge clk) if (pipe_hdr[1].tvalid && pipe_hdr[1].tready)
+                         hdr_shift <= tkeep_to_shift (pipe_hdr[1].tkeep);
 
-   // capture required payload shift.
-   assign pyld_shift = (pipe_hdr[0].tvalid && pipe_hdr[0].tready) ?
-                       tkeep_to_shift (pipe_hdr[0].tkeep) : pyld_shift_pipe[0];
+   always @(posedge clk) if (pipe_hdr[1].tvalid && pipe_hdr[1].tready && pipe_hdr[1].tlast)
+                         pyld_shift <= tkeep_to_shift (pipe_hdr[1].tkeep);
 
-   always @(posedge clk)
-      if (!resetn) begin
-         pyld_shift_pipe[0] <= '0;
-         pyld_shift_pipe[1] <= '0;
-      end else begin 
-         if (pipe_hdr[0].tvalid && pipe_hdr[0].tready)  pyld_shift_pipe[0] <= pyld_shift;
-         if (pipe_hdr[1].tvalid && pipe_hdr[1].tready)  pyld_shift_pipe[1] <= pyld_shift_pipe[0];
-      end
+   assign pyld_shift_pipe[1] = pyld_shift;
+   assign hdr_shift_pipe[1]  = hdr_shift;
+
+   generate 
+      for (genvar i = 2; i < 6; i += 1) begin : g__pipe_shift
+         always @(posedge clk)
+            if (!resetn) begin
+               pyld_shift_pipe[i] <= '0;
+               hdr_shift_pipe[i]  <= '0;
+            end else begin
+               if (pipe_pyld[i].tvalid && pipe_pyld[i].tready)  pyld_shift_pipe[i] <= pyld_shift_pipe[i-1];
+               if (pipe_hdr[i].tvalid  && pipe_hdr[i].tready)   hdr_shift_pipe[i]  <= hdr_shift_pipe[i-1];
+            end
+      end : g__pipe_shift
+   endgenerate
 
 
 
-   // state machine logic.
-   always @(posedge clk)
+   // --- state machine logic. ---
+   always @(posedge clk) begin
       if (!resetn)  state <= HEADER;
       else          state <= state_nxt;
+
+      // latch tid and tdest signals.
+      if (pipe_hdr[4].tready && pipe_hdr[4].tvalid && pipe_hdr[4].sop) begin
+         hdr_tid   <= pipe_hdr[4].tid;
+         hdr_tdest <= pipe_hdr[4].tdest;
+      end
+
+      // adv_tlast pipeline.
+      if (!resetn)  adv_tlast_p <= 0;
+      else if (pipe_pyld[4].tready && pipe_pyld[4].tvalid)  adv_tlast_p <= adv_tlast;
+   end
+
+
+   // adv_tlast logic.
+   always_comb begin
+      lookahead_tkeep = join_tkeep (.shift(pyld_shift_pipe[3]), .tkeep_lsb(pipe_pyld[4].tkeep), .tkeep_msb('0));
+
+      // if last header word AND last packet word (i.e. no hdr and pyld joining), deassert adv_tlast.
+      if ((state == HEADER) && pipe_hdr[5].tready && pipe_hdr[5].tvalid && pipe_hdr[5].tlast && pipe_pyld[5].tlast)  adv_tlast = 0;
+      // otherwise, assert adv_tlast if next transaction is tlast and tkeep is all-zeros.
+      else  adv_tlast = pipe_pyld[4].tvalid && pipe_pyld[4].tlast && (lookahead_tkeep == '0);
+   end
+
 
    always_comb begin
       state_nxt = state;
       case (state)
-
         HEADER : begin
            // transition from HEADER to PAYLOAD or LAST_PAYLOAD if last hdr word, but NOT last pkt word.
-           if (pipe_hdr[2].tready && pipe_hdr[2].tvalid && pipe_hdr[2].tlast && !(pipe_pyld[2].tlast && pipe_pyld[2].tvalid)) begin
-              if (pipe_pyld[1].tlast && pipe_pyld[1].tvalid) state_nxt = LAST_PAYLOAD;
-              else                                           state_nxt = PAYLOAD;
+           if (pipe_hdr[5].tready && pipe_hdr[5].tvalid && pipe_hdr[5].tlast && !(pipe_pyld[5].tlast && pipe_pyld[5].tvalid)) begin
+              if (adv_tlast)                                      state_nxt = HEADER;
+              else if (pipe_pyld[4].tlast && pipe_pyld[4].tvalid) state_nxt = LAST_PAYLOAD;
+              else                                                state_nxt = PAYLOAD;
            end
         end
         PAYLOAD : begin
-           // transition from PAYLOAD to LAST_PAYLOAD if last pkt word.
-           if (pipe_pyld[1].tready && pipe_pyld[1].tvalid && pipe_pyld[1].tlast) state_nxt = LAST_PAYLOAD;
+           // transition from PAYLOAD to LAST_PAYLOAD if last pkt word, or back to HEADER if adv_tlast.
+           if (adv_tlast)                                                             state_nxt = HEADER;
+           else if (pipe_pyld[4].tready && pipe_pyld[4].tvalid && pipe_pyld[4].tlast) state_nxt = LAST_PAYLOAD;
         end
         LAST_PAYLOAD : begin
-           // transition from LAST_PAYLOAD back to HEADER at end of pkt.
-           if (pipe_pyld[2].tready && pipe_pyld[2].tvalid && pipe_pyld[2].tlast) state_nxt = HEADER;
+           // transition from LAST_PAYLOAD back to HEADER at end of pkt, or B2B_HEADER if next sop is concurrent.
+           if (pipe_pyld[5].tready && pipe_pyld[5].tvalid && pipe_pyld[5].tlast) begin 
+              if (pipe_hdr[5].tready && pipe_hdr[5].tvalid && pipe_hdr[5].sop)  state_nxt = B2B_HEADER;
+              else                                                              state_nxt = HEADER;
+           end
         end
+        B2B_HEADER : begin
+           // Always return to HEADER.  Other header scenarios (1-word and 2-word pkts) should not land in this state
+           // i.e. hdr and pyld tlasts are synchronized at pipeline input.
+	   state_nxt = HEADER;
+        end
+
         default : state_nxt = state;
       endcase
    end
 
+
    // hdr and pyld joining assignments.
+   assign joined.aclk    = pipe_pyld[5].aclk;
+   assign joined.aresetn = pipe_pyld[5].aresetn;
+   assign joined.tlast   = adv_tlast || (!adv_tlast_p && pipe_pyld[5].tlast && pipe_pyld[5].tvalid);
+   assign joined.tid     = hdr_tid;
+   assign joined.tdest   = hdr_tdest;
+   assign joined.tuser   = '0;
+
    always_comb begin
       case (state)
         HEADER : begin
            // if last header word AND last packet word.
-           if (pipe_hdr[2].tready && pipe_hdr[2].tvalid && pipe_hdr[2].tlast && pipe_pyld[2].tlast) begin
-              joined.tdata   = join_tdata (.shift(pyld_shift_pipe[1]), .tdata_lsb( pipe_hdr[2].tdata), .tdata_msb('0));
-              joined.tkeep   = join_tkeep (.shift(pyld_shift_pipe[1]), .tkeep_lsb( pipe_hdr[2].tkeep), .tkeep_msb('0));
-              joined.tvalid  = pipe_hdr[2].tvalid;
+           if (pipe_hdr[5].tready && pipe_hdr[5].tvalid && pipe_hdr[5].tlast && pipe_pyld[5].tlast) begin
+              joined.tdata   = join_tdata (.shift(hdr_shift_pipe[4]), .tdata_lsb( pipe_hdr[5].tdata), .tdata_msb('0));
+              joined.tkeep   = join_tkeep (.shift(hdr_shift_pipe[4]), .tkeep_lsb( pipe_hdr[5].tkeep), .tkeep_msb('0));
+              joined.tvalid  = pipe_hdr[5].tvalid;
            end else begin
-              joined.tdata   = join_tdata (.shift(pyld_shift_pipe[1]), .tdata_lsb( pipe_hdr[2].tdata), .tdata_msb(pipe_pyld[1].tdata));
-              joined.tkeep   = join_tkeep (.shift(pyld_shift_pipe[1]), .tkeep_lsb( pipe_hdr[2].tkeep), .tkeep_msb(pipe_pyld[1].tkeep));
-              joined.tvalid  = pipe_hdr[2].tvalid;
+              joined.tdata   = join_tdata (.shift(hdr_shift_pipe[4]), .tdata_lsb( pipe_hdr[5].tdata), .tdata_msb(pipe_pyld[4].tdata));
+              joined.tkeep   = join_tkeep (.shift(hdr_shift_pipe[4]), .tkeep_lsb( pipe_hdr[5].tkeep), .tkeep_msb(pipe_pyld[4].tkeep));
+              joined.tvalid  = pipe_hdr[5].tvalid;
            end
         end
         PAYLOAD : begin
-           joined.tdata   = join_tdata (.shift(pyld_shift_pipe[1]), .tdata_lsb(pipe_pyld[2].tdata), .tdata_msb(pipe_pyld[1].tdata));
-           joined.tkeep   = join_tkeep (.shift(pyld_shift_pipe[1]), .tkeep_lsb(pipe_pyld[2].tkeep), .tkeep_msb(pipe_pyld[1].tkeep));
-           joined.tvalid  = pipe_pyld[2].tvalid;
+              joined.tdata   = join_tdata (.shift(pyld_shift_pipe[4]), .tdata_lsb(pipe_pyld[5].tdata), .tdata_msb(pipe_pyld[4].tdata));
+              joined.tkeep   = join_tkeep (.shift(pyld_shift_pipe[4]), .tkeep_lsb(pipe_pyld[5].tkeep), .tkeep_msb(pipe_pyld[4].tkeep));
+              joined.tvalid  = pipe_pyld[5].tvalid && !adv_tlast_p;
         end
         LAST_PAYLOAD : begin
-           joined.tdata   = join_tdata (.shift(pyld_shift_pipe[1]), .tdata_lsb(pipe_pyld[2].tdata), .tdata_msb('0));
-           joined.tkeep   = join_tkeep (.shift(pyld_shift_pipe[1]), .tkeep_lsb(pipe_pyld[2].tkeep), .tkeep_msb('0));
-           joined.tvalid  = pipe_pyld[2].tvalid;
+              joined.tdata   = join_tdata (.shift(pyld_shift_pipe[4]), .tdata_lsb(pipe_pyld[5].tdata), .tdata_msb('0));
+              joined.tkeep   = join_tkeep (.shift(pyld_shift_pipe[4]), .tkeep_lsb(pipe_pyld[5].tkeep), .tkeep_msb('0));
+              joined.tvalid  = pipe_pyld[5].tvalid && !adv_tlast_p;
         end
-
         default : begin
-           joined.tdata   = join_tdata (.shift(pyld_shift_pipe[1]), .tdata_lsb( pipe_hdr[2].tdata), .tdata_msb(pipe_pyld[1].tdata));
-           joined.tkeep   = join_tkeep (.shift(pyld_shift_pipe[1]), .tkeep_lsb( pipe_hdr[2].tkeep), .tkeep_msb(pipe_pyld[1].tkeep));
-           joined.tvalid  = pipe_hdr[2].tvalid;
+              joined.tdata   = 'x;
+              joined.tkeep   = 'x;
+              joined.tvalid  = 'x;
         end
       endcase
    end
 
-   assign joined.aclk    = pipe_pyld[2].aclk;
-   assign joined.aresetn = pipe_pyld[2].aresetn;
-   assign joined.tlast   = pipe_pyld[2].tlast && pipe_pyld[2].tvalid;
-   assign joined.tid     = hdr_tid;   // TODO: validate tid and tdest output functionality
-   assign joined.tdest   = hdr_tdest;
-   assign joined.tuser   = '0;
 
+   // capture sop transaction for back-to-back header case.
+   assign b2b_hdr.aclk    = pipe_hdr[6].aclk;
+   assign b2b_hdr.aresetn = pipe_hdr[6].aresetn;
+   assign b2b_hdr.tvalid  = pipe_hdr[6].tvalid;
+   assign b2b_hdr.tdata   = join_tdata (.shift(hdr_shift_pipe[5]), .tdata_lsb( pipe_hdr[6].tdata), .tdata_msb(pipe_pyld[5].tdata));
+   assign b2b_hdr.tkeep   = join_tkeep (.shift(hdr_shift_pipe[5]), .tkeep_lsb( pipe_hdr[6].tkeep), .tkeep_msb(pipe_pyld[5].tkeep));
+   assign b2b_hdr.tlast   = pipe_hdr[6].tlast;
+   assign b2b_hdr.tid     = hdr_tid;
+   assign b2b_hdr.tdest   = hdr_tdest;
+   assign b2b_hdr.tuser   = '0;
 
-   // latch tid and tdest signals.
-   always @(posedge clk)
-      if (pipe_hdr[1].tready && pipe_hdr[1].tvalid && pipe_hdr[1].sop) begin
-         hdr_tid   <= pipe_hdr[1].tid;
-         hdr_tdest <= pipe_hdr[1].tdest;
-      end
+   // stall pipeline for one cycle (B2B_HEADER state) when next header is detected to be concurrent with last pkt byte.
+   assign stall_pipe = (state == B2B_HEADER);   
 
+   // joined_mux instantiation - selects captured back-to-back header when pipeline is stalled (in B2B_HEADER state).
+   axi4s_intf_2_to_1_mux join_mux (.axi4s_in_if_0(joined), .axi4s_in_if_1(b2b_hdr), .axi4s_out_if(joined_mux), .mux_sel(stall_pipe));
 
    // joined output pipe stage.
-   axi4s_intf_pipe #(.MODE(PUSH)) join_pipe (
-      .axi4s_if_from_tx (joined),
+   axi4s_intf_pipe join_pipe (
+      .axi4s_if_from_tx (joined_mux),
       .axi4s_if_to_rx   (joined_pipe)
    );
 
-   // advance tlast logic instantiation,
-   axi4s_adv_tlast axi4s_adv_tlast_0 (.axi4s_if_from_tx(joined_pipe), .axi4s_if_to_rx(axi4s_out));
+   // instantiate and terminate unused AXI-L interfaces.
+   axi4l_intf axil_to_probe ();
+   axi4l_intf axil_to_ovfl  ();
+   axi4l_intf axil_to_fifo  ();
+
+   axi4l_intf_controller_term axi4l_to_probe_term (.axi4l_if (axil_to_probe));
+   axi4l_intf_controller_term axi4l_to_ovfl_term  (.axi4l_if (axil_to_ovfl));
+   axi4l_intf_controller_term axi4l_to_fifo_term  (.axi4l_if (axil_to_fifo));
+
+   // packet fifo instantiation
+   axi4s_pkt_fifo_sync #(
+      .FIFO_DEPTH(256),  
+      .ALMOST_FULL_THRESH(143),
+      .NO_INTRA_PKT_GAP(1)
+   ) fifo_0 (
+      .srst           (1'b0),
+      .axi4s_in       (joined_pipe),
+      .axi4s_out      (axi4s_out),
+      .axil_to_probe  (axil_to_probe),
+      .axil_to_ovfl   (axil_to_ovfl),
+      .axil_if        (axil_to_fifo)
+    );
 
 
-
+   
 
 
    // tkeep_to_shift function 
@@ -294,23 +376,6 @@ module axi4s_join
       end
       return shift;
    endfunction
-
-
-
-/*
-   // join_tdata function
-   function automatic logic [DATA_BYTE_WID-1:0][7:0] join_tdata 
-      (input [DATA_BYTE_WID-1:0] tkeep, input [DATA_BYTE_WID-1:0][7:0] tdata_lsb, tdata_msb);
-
-      automatic logic [DATA_BYTE_WID-1:0][7:0] tdata_out;
-      automatic logic select_tdata_lsb = 0;
-      for (int i=0; i<DATA_BYTE_WID; i++) 
-         if (tkeep[DATA_BYTE_WID-1-i]==1'b1) select_tdata_lsb = 1'b1;
-         tdata_out[i] = select_tdata_lsb ? tdata_lsb[i] : tdata_msb[i];
-      return tdata_out;
-   endfunction
-*/
-
 
 
    // join_tdata function
@@ -331,7 +396,6 @@ module axi4s_join
 
       return tdata_out;
    endfunction
-
 
 
    // join_tkeep function
