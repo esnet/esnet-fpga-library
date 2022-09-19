@@ -272,7 +272,8 @@ module db_core_unit_test;
             // Add new random entry (same key)
             void'(std::randomize(exp_valid));
             void'(std::randomize(exp_value));
-            app_wr_if.post_update(key, exp_valid, exp_value);
+            app_wr_if.post_update(key, exp_valid, exp_value, timeout);
+            `FAIL_IF(timeout);
         end
         // Query database and check that most recently written value is returned
         app_rd_if.query(key, got_valid, got_value, error, timeout);

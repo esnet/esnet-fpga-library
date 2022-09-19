@@ -210,8 +210,8 @@ module db_peripheral #(
     // Latch response data
     always_ff @(posedge clk) begin
         if (rd_if.ack) begin
-            ctrl_if.valid = rd_if.valid;
-            ctrl_if.get_value = rd_if.value;
+            ctrl_if.get_valid <= rd_if.valid;
+            ctrl_if.get_value <= rd_if.value;
         end
     end
   

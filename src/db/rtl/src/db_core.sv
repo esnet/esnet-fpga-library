@@ -93,7 +93,9 @@ module db_core #(
     // Mux between control-plane and data-plane transactions
     // (strict priority to data plane)
     // -----------------------------
-    db_intf_prio_wr_mux #(
+    db_intf_prio_wr_mux  #(
+        .KEY_T            ( KEY_T ),
+        .VALUE_T          ( VALUE_T ),
         .NUM_TRANSACTIONS ( NUM_WR_TRANSACTIONS )
     ) i_db_intf_prio_wr_mux (
         .clk  ( clk ),
@@ -103,7 +105,9 @@ module db_core #(
         .db_if_to_responder           ( db_wr_if )
     );
 
-    db_intf_prio_rd_mux #(
+    db_intf_prio_rd_mux  #(
+        .KEY_T            ( KEY_T ),
+        .VALUE_T          ( VALUE_T ),
         .NUM_TRANSACTIONS ( NUM_RD_TRANSACTIONS )
     ) i_db_intf_prio_rd_mux (
         .clk  ( clk ),
