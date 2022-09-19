@@ -16,9 +16,9 @@
 // =============================================================================
 
 // -----------------------------------------------------------------------------
-// axi4s_copy is used to replicate a packet stream.  It copies the packet stream 
-// received on the ingress axi4s interface to two egress axi4s interfaces.
-// Both ports have to be ready, so one egress port can block the other.
+// axi4s_copy is used to replicate a packet stream on a second output interface.
+// Flow control is determined entirely by the primary output interface, and the
+// tready signal on the cp_out interface is ignored (i.e. assumed to be always 1).
 // -----------------------------------------------------------------------------
 
 module axi4s_copy
