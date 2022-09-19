@@ -28,8 +28,10 @@ module axi4s_pkt_fifo_sync
    import axi4s_pkg::*;
 #(
    parameter int   FIFO_DEPTH = 256,
+   parameter int   ALMOST_FULL_THRESH = 4,  // set to 4 for pkt_discard (IGNORES_TREADY) mode.
    parameter int   MAX_PKT_LEN = 9100,
-   parameter logic STR_FWD_MODE = 0, // when 1, full packet is required to deassert empty.
+   parameter logic STR_FWD_MODE = 0,      // when 1, full packet is required to deassert empty.
+   parameter logic NO_INTRA_PKT_GAP = 0,  // when 1, space for full packet is required to assert tready.
    // Debug parameters
    parameter bit   DEBUG_ILA = 1'b0
 ) (
@@ -82,7 +84,6 @@ module axi4s_pkt_fifo_sync
    localparam DATA_WIDTH = $size(wr_data);
    localparam PKT_DISCARD_DEPTH = $ceil($itor(MAX_PKT_LEN) / $itor(DATA_BYTE_WID)) * 3; // axi4s_pkt_discard_ovfl buffers 3 max pkts.
    localparam FIFO_SYNC_DEPTH = FIFO_DEPTH;
-   localparam ALMOST_FULL_THRESH = 4;
 
 
    // --- axi4s_pkt_discard_ovfl instantiation (if interface MODE == IGNORES_TREADY) ---
@@ -128,10 +129,16 @@ module axi4s_pkt_fifo_sync
 
          axi4l_intf_peripheral_term axi4l_to_ovfl_peripheral_term (.axi4l_if(axil_to_ovfl));
 
-         assign axi4s_to_fifo.tready = !full;
-         assign wr = axi4s_to_fifo.tvalid && axi4s_to_fifo.tready;
-      end : g__no_pkt_discard_ovfl
+         if (NO_INTRA_PKT_GAP) begin : g__no_intra_pkt_gap
+            assign axi4s_to_fifo.tready = !(almost_full && axi4s_to_fifo.sop);
+            assign wr = axi4s_to_fifo.tvalid && axi4s_to_fifo.tready;
+         end : g__no_intra_pkt_gap
 
+         else begin 
+            assign axi4s_to_fifo.tready = !full;
+            assign wr = axi4s_to_fifo.tvalid && axi4s_to_fifo.tready;
+         end
+      end : g__no_pkt_discard_ovfl
    endgenerate
 
 
