@@ -51,6 +51,11 @@ module db_core #(
     db_intf.requester        db_rd_if
 );
     // ----------------------------------
+    // Signals
+    // ----------------------------------
+    logic ctrl_init;
+
+    // ----------------------------------
     // Interfaces
     // ----------------------------------
     db_intf #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) ctrl_wr_if (.clk(clk));
@@ -178,7 +183,7 @@ module db_core #(
                 cache_result.hit <= 1'b0;
                 if (db_rd_if.req && db_rd_if.rdy) begin
                     for (int i = 0; i < CACHE_DEPTH; i++) begin
-                        int idx = CACHE_DEPTH-1-i;
+                        automatic int idx = CACHE_DEPTH-1-i;
                         if (wr_ctxt_p[idx].key == db_rd_if.key) begin
                             cache_result.hit <= 1'b1;
                             cache_result.valid <= wr_ctxt_p[idx].valid;
