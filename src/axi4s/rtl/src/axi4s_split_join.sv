@@ -17,7 +17,7 @@
 
 // -----------------------------------------------------------------------------
 // axi4s_split_join is a module that combines the axi4s split, join and
-// pkt_buffer components for the purpose of separating the headers of a packet
+// pkt_fifo_sync components for the purpose of separating the headers of a packet
 // stream (for in-line header processing).  It also recombines the processed pkt 
 // header stream with the packet payloads (after processing).  
 // -----------------------------------------------------------------------------
@@ -64,22 +64,24 @@ module axi4s_split_join
                  .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(tuser_buffer_context_mode_t) ) axi4s_hdr_out_p ();
 
    axi4s_intf #( .MODE(IGNORES_TREADY), .TUSER_MODE(BUFFER_CONTEXT), .DATA_BYTE_WID(DATA_BYTE_WID),
-                 .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(tuser_buffer_context_mode_t) ) axi4s_to_buffer ();
+                 .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(tuser_buffer_context_mode_t) ) axi4s_to_pyld_fifo ();
 
    axi4s_intf #( .TUSER_MODE(BUFFER_CONTEXT), .DATA_BYTE_WID(DATA_BYTE_WID),
-                 .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(tuser_buffer_context_mode_t) ) axi4s_to_buffer_p ();
+                 .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(tuser_buffer_context_mode_t) ) axi4s_to_pyld_fifo_p ();
 
    axi4s_intf #( .TUSER_MODE(BUFFER_CONTEXT), .DATA_BYTE_WID(DATA_BYTE_WID),
-                 .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(tuser_buffer_context_mode_t) ) axi4s_from_buffer ();
+                 .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(tuser_buffer_context_mode_t) ) axi4s_from_pyld_fifo ();
 
    axi4s_intf #( .TUSER_MODE(BUFFER_CONTEXT), .DATA_BYTE_WID(DATA_BYTE_WID),
-                 .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(tuser_buffer_context_mode_t) ) axi4s_from_buffer_p ();
+                 .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(tuser_buffer_context_mode_t) ) axi4s_from_pyld_fifo_p ();
 
    axi4s_intf #( .TUSER_MODE(BUFFER_CONTEXT), .DATA_BYTE_WID(DATA_BYTE_WID),
                  .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(tuser_buffer_context_mode_t) ) axi4s_to_split_mux ();
 
    axi4s_intf #( .TUSER_MODE(BUFFER_CONTEXT), .DATA_BYTE_WID(DATA_BYTE_WID),
                  .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(tuser_buffer_context_mode_t) ) axi4s_to_join_mux ();
+
+
 
    generate
       if (IN_PIPE)
@@ -115,23 +117,7 @@ module axi4s_split_join
 
 
 
-   always @(posedge axi4s_in.aclk) begin
-      enable       <= hdr_length != 0;  // disable joiner if hdr_length is zero.
-      hdr_length_p <= hdr_length;
-   end
-
-   // header splitter instantiation
-   axi4s_split #(
-      .BIGENDIAN (BIGENDIAN)
-   ) axi4s_split_0 (
-      .axi4s_in      (__axi4s_in_p),
-      .axi4s_out     (axi4s_to_buffer_p),
-      .axi4s_hdr_out (axi4s_to_split_mux),
-      .hdr_length    (hdr_length_p),
-      .enable        (enable)
-   );
-
-   // mux instantation used to bypass axi4s_join if not enabled.
+   // mux instantation used to bypass axi4s_split if not enabled.
    axi4s_intf_bypass_mux #(
       .PIPE_STAGES(1), .DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(tuser_buffer_context_mode_t)
     ) bypass_split_mux (
@@ -142,53 +128,108 @@ module axi4s_split_join
       .bypass           (!enable)
     );
 
-   axi4s_full_pipe
-      #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(tuser_buffer_context_mode_t))
-      to_buffer_pipe_0 (.axi4s_if_from_tx(axi4s_to_buffer_p), .axi4s_if_to_rx(axi4s_to_buffer));
+   always @(posedge axi4s_in.aclk) begin
+      enable       <= hdr_length != 0;  // disable joiner if hdr_length is zero.
+      hdr_length_p <= hdr_length;
+   end
+
+   // header splitter instantiation
+   axi4s_split #(
+      .BIGENDIAN (BIGENDIAN)
+   ) axi4s_split_0 (
+      .axi4s_in      (__axi4s_in_p),
+      .axi4s_out     (axi4s_to_pyld_fifo_p),
+      .axi4s_hdr_out (axi4s_to_split_mux),
+      .hdr_length    (hdr_length_p),
+      .enable        (enable)
+   );
 
 
 
+   // instantiate AXI-L interfaces and regmap decoder.
+   axi4l_intf axil_to_reg_blk ();
+   axi4l_intf axil_to_probe   ();
+   axi4l_intf axil_to_ovfl    ();
+   axi4l_intf axil_to_fifo    ();
 
-   // instantiate and terminate unused AXI-L interfaces.
-   axi4l_intf axil_to_probe ();
-   axi4l_intf axil_to_ovfl  ();
-   axi4l_intf axil_to_fifo  ();
+   axi4l_intf_controller_term axi4l_to_fifo_term (.axi4l_if (axil_to_fifo));
+
+   axi4s_split_join_reg_intf axi4s_split_join_regs();
 
    axi4s_split_join_decoder axi4s_split_join_decoder_0 (
       .axil_if (axil_if),
-      .probe_to_buffer_axil_if (axil_to_probe),
-      .drops_to_buffer_axil_if (axil_to_ovfl),
-      .pkt_fifo_axil_if (axil_to_fifo)
+      .axi4s_split_join_axil_if   (axil_to_reg_blk),
+      .probe_to_pyld_fifo_axil_if (axil_to_probe),
+      .drops_to_pyld_fifo_axil_if (axil_to_ovfl)
    );
 
-   // packet fifo instantiation
+   axi4l_intf axil_to_reg_blk__clk ();
+
+   axi4l_intf_cdc axi4l_intf_cdc_0 (
+       .axi4l_if_from_controller   ( axil_to_reg_blk ),
+       .clk_to_peripheral          ( axi4s_in.aclk ),
+       .axi4l_if_to_peripheral     ( axil_to_reg_blk__clk )
+   );
+
+   axi4s_split_join_reg_blk axi4s_split_join_reg_blk_0 (
+      .axil_if     (axil_to_reg_blk__clk),
+      .reg_blk_if  (axi4s_split_join_regs)
+   );
+
+
+
+   // sop_mismatch tracking logic.
+   logic sop_mismatch, sop_mismatch_latch;
+
+   always @(posedge axi4s_in.aclk) begin
+      if (!axi4s_in.aresetn)                               sop_mismatch_latch <= 0;
+      else if (axi4s_split_join_regs.sop_mismatch_rd_evt)  sop_mismatch_latch <= 0;
+      else if (sop_mismatch)                               sop_mismatch_latch <= 1;
+   end
+
+   assign axi4s_split_join_regs.sop_mismatch_nxt = sop_mismatch_latch;
+   assign axi4s_split_join_regs.sop_mismatch_nxt_v = 1;
+
+
+
+
+   // packet fifo instantiation, plus ingress and egress pipeline stages.
+   axi4s_full_pipe
+      #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(tuser_buffer_context_mode_t))
+      to_pyld_fifo_pipe_0 (.axi4s_if_from_tx(axi4s_to_pyld_fifo_p), .axi4s_if_to_rx(axi4s_to_pyld_fifo));
+
    axi4s_pkt_fifo_sync #(
        .FIFO_DEPTH(512),
        .STR_FWD_MODE(0) // FIFO needs to store-and-forward, but achieves this when axi4s_to_buffer i/f IGNORES_TREADY.
-    ) fifo_0 (
+    ) pyld_fifo_0 (
        .srst           (!enable),
-       .axi4s_in       (axi4s_to_buffer),
-       .axi4s_out      (axi4s_from_buffer),
+       .axi4s_in       (axi4s_to_pyld_fifo),
+       .axi4s_out      (axi4s_from_pyld_fifo),
        .axil_to_probe  (axil_to_probe),
        .axil_to_ovfl   (axil_to_ovfl),
        .axil_if        (axil_to_fifo)
     );
 
-   axi4s_ila axi4s_ila_to_buffer   (.axis_in(axi4s_to_buffer));
-   axi4s_ila axi4s_ila_from_buffer (.axis_in(axi4s_from_buffer));
-
    axi4s_full_pipe
       #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(tuser_buffer_context_mode_t))
-      from_buffer_pipe_0 (.axi4s_if_from_tx(axi4s_from_buffer), .axi4s_if_to_rx(axi4s_from_buffer_p));
+      from_pyld_fifo_pipe_0 (.axi4s_if_from_tx(axi4s_from_pyld_fifo), .axi4s_if_to_rx(axi4s_from_pyld_fifo_p));
 
-   // payload joiner instantiation
+   // ILA instantiations (for lab debugging).
+   axi4s_ila axi4s_ila_to_pyld_fifo   (.axis_in(axi4s_to_pyld_fifo));
+   axi4s_ila axi4s_ila_from_pyld_fifo (.axis_in(axi4s_from_pyld_fifo));
+
+
+
+
+   // payload joiner instantiation.
    axi4s_join #(
       .BIGENDIAN (BIGENDIAN)
    ) axi4s_join_0 (
       .axi4s_hdr_in  (__axi4s_hdr_in_p),
-      .axi4s_in      (axi4s_from_buffer_p),
+      .axi4s_in      (axi4s_from_pyld_fifo_p),
       .axi4s_out     (axi4s_to_join_mux),
-      .enable        (enable)
+      .enable        (enable),
+      .sop_mismatch  (sop_mismatch)
    );
 
    // mux instantation used to bypass axi4s_join if not enabled.
