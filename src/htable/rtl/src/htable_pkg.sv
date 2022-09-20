@@ -15,35 +15,30 @@
 //  computer software.
 // =============================================================================
 
-package db_pkg;
+package htable_pkg;
 
     // -----------------------------
     // Typedefs
     // -----------------------------
     typedef enum logic[7:0] {
-        DB_TYPE_UNSPECIFIED = 0,
-        DB_TYPE_STASH       = 1,
-        DB_TYPE_HTABLE      = 2
-    } type_t;
+        HTABLE_TYPE_UNSPECIFIED = 0,
+        HTABLE_TYPE_SINGLE,
+        HTABLE_TYPE_MULTI,
+        HTABLE_TYPE_MULTI_STASH
+    } htable_type_t;
 
-    typedef logic[7:0] subtype_t;
+    // Generic hash data type
+    // - width is picked to accommodate any practical
+    //   hash implementation, where hash is used to
+    //   index into tables
+    // - e.g. 32-bit hash supports hash table depths
+    //        up to 4G entries
+    typedef logic [31:0] hash_t;
 
-    typedef enum logic [2:0] {
-        COMMAND_NOP,
-        COMMAND_GET,
-        COMMAND_GET_NEXT,
-        COMMAND_SET,
-        COMMAND_UNSET,
-        COMMAND_REPLACE,
-        COMMAND_CLEAR
-    } command_t;
+    typedef enum {
+        APP_WR_MODE_NONE,
+        APP_WR_MODE_ROUND_ROBIN,
+        APP_WR_MODE_BROADCAST
+    } app_wr_mode_t;
 
-    typedef enum logic [1:0] {
-        STATUS_UNSPECIFIED,
-        STATUS_OK,
-        STATUS_ERROR,
-        STATUS_TIMEOUT
-    } status_t;
-
-endpackage : db_pkg
-
+endpackage : htable_pkg

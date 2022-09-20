@@ -58,6 +58,7 @@ module db_axil_ctrl #(
     function automatic fld_info_db_type_t getRegFromType(input type_t db_type);
         case (db_type)
             DB_TYPE_STASH  : return INFO_DB_TYPE_STASH;
+            DB_TYPE_HTABLE : return INFO_DB_TYPE_HTABLE;
             default        : return INFO_DB_TYPE_UNSPECIFIED;
         endcase
     endfunction

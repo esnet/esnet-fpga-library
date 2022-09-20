@@ -18,6 +18,7 @@ regs:
           enum_hex:
             0 : UNSPECIFIED
             1 : STASH
+            2 : HTABLE
         - name: db_subtype
           desc: application-specific subtype identifier
           width: 8
