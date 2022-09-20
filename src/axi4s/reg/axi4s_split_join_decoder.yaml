@@ -1,25 +1,24 @@
 name: axi4s_split_join
 
 blocks:
+  axi4s_split_join: &axi4s_split_join
+    !include src/axi4s/reg/axi4s_split_join.yaml
+
   axi4s_probe: &axi4s_probe
     !include src/axi4s/reg/axi4s_probe.yaml
 
-decoders:
-  fifo: &fifo
-    !include src/fifo/reg/fifo_core_decoder.yaml
-
 interfaces:
-  - block: *axi4s_probe
+  - block: *axi4s_split_join
     address: 0x0000
     width: 8
-    name: probe_to_buffer
+    name: axi4s_split_join
 
   - block: *axi4s_probe
     address: 0x0100
     width: 8
-    name: drops_to_buffer
+    name: probe_to_pyld_fifo
 
-  - decoder: *fifo
+  - block: *axi4s_probe
     address: 0x0200
-    width: 9
-    name: pkt_fifo
+    width: 8
+    name: drops_to_pyld_fifo
