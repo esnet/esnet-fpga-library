@@ -31,7 +31,8 @@ module axi4s_join
    axi4s_intf.rx   axi4s_in,
    axi4s_intf.tx   axi4s_out,
 
-   input logic     enable
+   input  logic    enable,
+   output logic    sop_mismatch
 );
 
    localparam int  DATA_BYTE_WID = axi4s_hdr_in.DATA_BYTE_WID;
@@ -105,7 +106,8 @@ module axi4s_join
       .axi4s_in0   (axi4s_hdr_in),
       .axi4s_in1   (axi4s_in),
       .axi4s_out0  (sync_hdr[0]),
-      .axi4s_out1  (sync_pyld[0])
+      .axi4s_out1  (sync_pyld[0]),
+      .sop_mismatch (sop_mismatch)
    );
 
    assign drop_pkt = sync_hdr[0].tvalid && sync_hdr[0].sop && sync_hdr[0].tlast && 
@@ -140,7 +142,7 @@ module axi4s_join
 
    generate
       for (genvar i = 0; i < 6; i += 1) begin : g__pipe_hdr
-         axi4s_intf_pipe #(.MODE(PUSH)) hdr_pre_pipe (
+         axi4s_intf_pipe #(.MODE(PUSH)) hdr_pipe (
             .axi4s_if_from_tx (pipe_hdr[i]),
             .axi4s_if_to_rx   (pipe_hdr[i+1])
          );
@@ -157,13 +159,13 @@ module axi4s_join
    generate
       for (genvar i = 0; i < 5; i += 1) begin : g__pipe_pyld
          if (i==2) begin
-            axi4s_intf_pipe #(.MODE(PUSH)) pyld_pre_pipe (
+            axi4s_intf_pipe #(.MODE(PUSH)) pyld_pipe (
                .axi4s_if_from_tx (shifted_pyld),
                .axi4s_if_to_rx   (pipe_pyld[i+1])
             );
 
          end else begin
-            axi4s_intf_pipe #(.MODE(PUSH)) pyld_pre_pipe (
+            axi4s_intf_pipe #(.MODE(PUSH)) pyld_pipe (
                .axi4s_if_from_tx (pipe_pyld[i]),
                .axi4s_if_to_rx   (pipe_pyld[i+1])
             );
@@ -336,6 +338,8 @@ module axi4s_join
       .axi4s_if_to_rx   (joined_pipe)
    );
 
+
+
    // instantiate and terminate unused AXI-L interfaces.
    axi4l_intf axil_to_probe ();
    axi4l_intf axil_to_ovfl  ();
@@ -345,12 +349,12 @@ module axi4s_join
    axi4l_intf_controller_term axi4l_to_ovfl_term  (.axi4l_if (axil_to_ovfl));
    axi4l_intf_controller_term axi4l_to_fifo_term  (.axi4l_if (axil_to_fifo));
 
-   // packet fifo instantiation
+   // output fifo instantiation
    axi4s_pkt_fifo_sync #(
-      .FIFO_DEPTH(256),  
+      .FIFO_DEPTH(256),  // if MAX_PKT_LEN = 9100B, depth >= 143 words.
       .ALMOST_FULL_THRESH(143),
       .NO_INTRA_PKT_GAP(1)
-   ) fifo_0 (
+   ) output_fifo_0 (
       .srst           (1'b0),
       .axi4s_in       (joined_pipe),
       .axi4s_out      (axi4s_out),
