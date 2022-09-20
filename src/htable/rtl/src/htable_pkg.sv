@@ -36,9 +36,9 @@ package htable_pkg;
     typedef logic [31:0] hash_t;
 
     typedef enum {
-        APP_WR_MODE_NONE,
-        APP_WR_MODE_ROUND_ROBIN,
-        APP_WR_MODE_BROADCAST
-    } app_wr_mode_t;
+        HTABLE_MULTI_INSERT_MODE_NONE,
+        HTABLE_MULTI_INSERT_MODE_ROUND_ROBIN,
+        HTABLE_MULTI_INSERT_MODE_BROADCAST
+    } htable_multi_insert_mode_t;
 
 endpackage : htable_pkg
