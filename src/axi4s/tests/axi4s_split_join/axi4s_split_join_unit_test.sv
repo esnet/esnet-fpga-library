@@ -4,15 +4,18 @@
 
 module axi4s_split_join_unit_test
 #(
-    parameter int  DATA_BYTE_WID = 16
+    parameter int  DATA_BYTE_WID = 16,
+    parameter int  INTER_PKT_GAP = 0
  );
     import svunit_pkg::svunit_testcase;
     import packet_verif_pkg::*;
     import axi4s_pkg::*;
     import axi4s_verif_pkg::*;
+    import axi4s_reg_verif_pkg::*;
+    import axi4l_verif_pkg::*;
     import pcap_pkg::*;
 
-    string name = $sformatf("axi4s_split_join_datawidth_%0d_ut", DATA_BYTE_WID);
+    string name = $sformatf("axi4s_split_join_datawidth_%0d_gap_%0d_ut", DATA_BYTE_WID, INTER_PKT_GAP);
     svunit_testcase svunit_ut;
 
     //===================================
@@ -27,8 +30,9 @@ module axi4s_split_join_unit_test
 
     logic [15:0] hdr_slice_length = 16;
 
-    // drop header (used on packets that will be dropped by header processing logic).
-    byte drop_hdr [];
+    byte drop_hdr [];     // drop header (used on packets that will be dropped by header processing logic).
+    logic drop_hdr_mode;  // 0: First hdr transaction asserts tkeep='0 and tlast=1.  1: Drops entire hdr packet.
+
     byte prefix [];
     logic [15:0] hdr_trunc_length;
 
@@ -57,8 +61,6 @@ module axi4s_split_join_unit_test
       .hdr_length    (hdr_slice_length)
     );
 
-//    axi4s_intf_connector axi4s_intf_connector_0 (.axi4s_from_tx(axi4s_in), .axi4s_to_rx(axi4s_out));   
-
    // axi4s header processor instantiation.
    axi4s_hdr_proc #(
       .BIGENDIAN (BIGENDIAN),
@@ -66,6 +68,7 @@ module axi4s_split_join_unit_test
    ) axi4s_hdr_proc_0 ( 
       .axi4s_in          (axi4s_hdr_out),
       .axi4s_out         (axi4s_hdr_in),
+      .drop_hdr_mode     (drop_hdr_mode),
       .drop_hdr          (drop_hdr),
       .prefix            (prefix),
       .hdr_trunc_length  (hdr_trunc_length)
@@ -94,13 +97,22 @@ module axi4s_split_join_unit_test
     std_verif_pkg::wire_model#(AXI4S_TRANSACTION_T) model;
     std_verif_pkg::event_scoreboard#(AXI4S_TRANSACTION_T) scoreboard;
 
+    // AXI-L reg agents
+    axi4l_reg_agent #() reg_agent;
+    axi4s_split_join_reg_blk_agent #() split_join_reg_blk_agent;
+
     // Reset
     std_reset_intf reset_if (.clk(axi4s_in.aclk));
-    assign axi4s_in.aresetn = !reset_if.reset;
-    assign reset_if.ready = !reset_if.reset;
 
-    // Assign clock (333MHz)
-    `SVUNIT_CLK_GEN(axi4s_in.aclk, 10ns);
+    assign axi4s_in.aresetn = !reset_if.reset;
+    assign axil_if.aresetn  = !reset_if.reset;
+    assign reset_if.ready   = !reset_if.reset;
+
+    // Assign axi4s clock (100MHz)
+    `SVUNIT_CLK_GEN(axi4s_in.aclk, 5ns);
+
+    // Assign axi4l clock (50MHz)
+    `SVUNIT_CLK_GEN(axil_if.aclk, 10ns);
 
     //===================================
     // Build
@@ -111,6 +123,12 @@ module axi4s_split_join_unit_test
 
         model = new();
         scoreboard = new();
+
+        reg_agent = new("axi4l_reg_agent");
+        reg_agent.axil_vif = axil_if;
+
+        split_join_reg_blk_agent = new("split_join_reg_blk", 'h0000);
+        split_join_reg_blk_agent.reg_agent = reg_agent;
 
         env = new("env", model, scoreboard, BIGENDIAN);
         env.reset_vif = reset_if;
@@ -146,7 +164,12 @@ module axi4s_split_join_unit_test
         // empty drop_hdr array (size = 0)
         drop_hdr.delete();
 
-        repeat(100) @(posedge axi4s_in.aclk); // init fifos?
+        env.driver.set_min_gap(INTER_PKT_GAP);
+
+        drop_hdr_mode = 0; // default drop hdr mode = 0 i.e. First hdr transaction asserts tkeep='0 and tlast=1.
+
+
+        repeat(100) @(posedge axi4s_in.aclk); // init buffers and fifos
     endtask
 
 
@@ -192,16 +215,21 @@ module axi4s_split_join_unit_test
 
     int tpause;
 
+    logic [15:0] pyld_size;
+
+    logic [31:0] rd_data; // register rd data.
 
 
     task packet_loop;
        // set header slice size (used by DUT) to 16B.  hdr_slice_length MUST be a multiple of DATA_BYTE_WID.
        hdr_slice_length = 16;
+       repeat(100) @(posedge axi4s_in.aclk);  // init fifos
 
        // iterate payload from 0B to 32B (3B increments).
        for (int j = 0; j <= 32; j=j+3) begin
+          pyld_size = j;
           // iterate header truncation (used by header processor ie. axi4s_trunc_0) from 1B to 16B.
-          for (int i = 1; i <= 16; i++) begin
+          for (int i = 1; i <= 16; i=i+1) begin
               // build packet headers and payload (input and expected).
               hdr_in = new[hdr_data.size()];
               hdr_in = hdr_data;
@@ -219,16 +247,15 @@ module axi4s_split_join_unit_test
               packet = new();
               packet = packet.create_from_bytes($sformatf("pkt_exp_%0d_%0d", i, j), {prefix, hdr_exp, pyld_in});
               axis_transaction = new($sformatf("trans_exp_%0d_%0d", i, j), packet);
-              env.model.inbox.put(axis_transaction);
+              repeat (4) env.model.inbox.put(axis_transaction);
 
               // build and launch input packet (hdr_in + pyld_in).
               packet = new();
               packet = packet.create_from_bytes($sformatf("pkt_in_%0d_%0d", i, j), {hdr_in, pyld_in});
               axis_transaction = new($sformatf("trans_in_%0d_%0d", i, j), packet);
-              env.driver.inbox.put(axis_transaction);
+              repeat (4) env.driver.inbox.put(axis_transaction);
 
-              // wait for packet transit time.
-              wait(axi4s_out.tready && axi4s_out.tvalid && axi4s_out.tlast); axi4s_out._wait(10);
+              axi4s_out._wait(250); // wait for packet transit time.
           end
 
           // if drop_hdr is set, send packet that will be dropped (before looping to increment payload size).
@@ -244,7 +271,8 @@ module axi4s_split_join_unit_test
 
         end
 
-       `FAIL_IF_LOG (scoreboard.report(msg) != 0, msg); `INFO(msg);
+       // check scoreboard iff drop_hdr_mode == 0.  drop_hdr_mode == 1 will raise sop_mismatch flag, but hang datapath.
+       if (drop_hdr_mode == 0) `FAIL_IF_LOG (scoreboard.report(msg) != 0, msg); `INFO(msg);
     endtask
 
 
@@ -263,15 +291,6 @@ module axi4s_split_join_unit_test
             prefix = {>>byte{'h0011223344556677_8899aabbccddeeff}};
 
             // send sequence of packets that iteratively shorten original header.
-            packet_loop;
-
-        `SVTEST_END
-
-        `SVTEST(shrink_header_with_drops)
-            // set drop header.
-            drop_hdr = {>>byte{'h9696969696969696_9696969696969696}};
-
-            // send sequence of packets that shorten original header.
             packet_loop;
 
         `SVTEST_END
@@ -295,7 +314,16 @@ module axi4s_split_join_unit_test
 
         `SVTEST_END
 
-        `SVTEST(shrink_header_with_drops_tpause_2)
+        `SVTEST(shrink_header_with_drops_mode_0)
+            // set drop header.
+            drop_hdr = {>>byte{'h9696969696969696_9696969696969696}};
+
+            // send sequence of packets that shorten original header.
+            packet_loop;
+
+        `SVTEST_END
+
+        `SVTEST(shrink_header_with_drops_mode_0_tpause_2)
             env.monitor.set_tpause(2);
 
             // set drop header.
@@ -307,7 +335,6 @@ module axi4s_split_join_unit_test
         `SVTEST_END
 
         `SVTEST(disable_test) // passthrough
-
             // set header slice size (used by DUT).
             hdr_slice_length = 0;  // length of zero disables split-join.
             repeat(100) @(posedge axi4s_in.aclk);  // init fifos
@@ -344,6 +371,25 @@ module axi4s_split_join_unit_test
 
         `SVTEST_END
 
+        `SVTEST(shrink_header_with_drops_mode_1)
+            drop_hdr_mode = 1;  // Drops entire hdr packet.
+
+            // set drop header.
+            drop_hdr = {>>byte{'h9696969696969696_9696969696969696}};
+
+            // check that sop_mismatch is NOT set.
+            split_join_reg_blk_agent.read_sop_mismatch( rd_data );
+           `FAIL_UNLESS( rd_data == 0 );
+
+            // send sequence of packets that shorten original header.
+            packet_loop;
+
+            // check that sop_mismatch is set.
+            split_join_reg_blk_agent.read_sop_mismatch( rd_data );
+           `FAIL_UNLESS( rd_data == 1 );
+
+        `SVTEST_END
+
     `SVUNIT_TESTS_END
 
 endmodule
@@ -372,9 +418,10 @@ module axi4s_hdr_proc
    axi4s_intf.rx       axi4s_in,
    axi4s_intf.tx       axi4s_out,
 
-   input byte drop_hdr [],
-   input byte prefix [],
-   input int  hdr_trunc_length
+   input logic drop_hdr_mode,  // 0: First hdr transaction asserts tkeep='0 and tlast=1.  1: Drops entire hdr packet.
+   input byte  drop_hdr [],
+   input byte  prefix [],
+   input int   hdr_trunc_length
 );
 
    // local axi4s interface instantiations
@@ -398,9 +445,12 @@ module axi4s_hdr_proc
       else if (axi4s_in.tvalid && axi4s_in.tready && axi4s_in.tlast) drop_pkt_latch <= '0;
       else if (drop_pkt)                                             drop_pkt_latch <= '1;
 
+   logic  deassert_tvalid;
+   assign deassert_tvalid = drop_hdr_mode ? (drop_pkt || drop_pkt_latch) : drop_pkt_latch;
+
    assign axi4s_to_prefix.aclk    = axi4s_in.aclk;
    assign axi4s_to_prefix.aresetn = axi4s_in.aresetn;
-   assign axi4s_to_prefix.tvalid  = drop_pkt_latch ? '0 : axi4s_in.tvalid;
+   assign axi4s_to_prefix.tvalid  = deassert_tvalid ? '0 : axi4s_in.tvalid;
    assign axi4s_to_prefix.tdata   = axi4s_in.tdata;
    assign axi4s_to_prefix.tkeep   = drop_pkt ? '0 : axi4s_in.tkeep;
    assign axi4s_to_prefix.tlast   = drop_pkt ? '1 : axi4s_in.tlast;
@@ -530,10 +580,10 @@ endmodule // axi4s_prefix
 //  Builds unit test for a specific axi4s_split_join configuration in a way
 //  that maintains SVUnit compatibility
 
-`define AXI4S_SPLIT_JOIN_UNIT_TEST(DATA_BYTE_WID)\
+`define AXI4S_SPLIT_JOIN_UNIT_TEST(DATA_BYTE_WID, INTER_PKT_GAP)\
   import svunit_pkg::svunit_testcase;\
   svunit_testcase svunit_ut;\
-  axi4s_split_join_unit_test #(DATA_BYTE_WID) test();\
+  axi4s_split_join_unit_test #(DATA_BYTE_WID, INTER_PKT_GAP) test();\
   function void build();\
     test.build();\
     svunit_ut = test.svunit_ut;\
@@ -543,19 +593,27 @@ endmodule // axi4s_prefix
   endtask
 
 
-module axi4s_split_join_datawidth_2_unit_test;
-`AXI4S_SPLIT_JOIN_UNIT_TEST(2)
+module axi4s_split_join_datawidth_4_gap_0_unit_test;
+`AXI4S_SPLIT_JOIN_UNIT_TEST(4, 0)
 endmodule
 
-module axi4s_split_join_datawidth_4_unit_test;
-`AXI4S_SPLIT_JOIN_UNIT_TEST(4)
+module axi4s_split_join_datawidth_8_gap_0_unit_test;
+`AXI4S_SPLIT_JOIN_UNIT_TEST(8, 0)
 endmodule
 
-module axi4s_split_join_datawidth_8_unit_test;
-`AXI4S_SPLIT_JOIN_UNIT_TEST(8)
+module axi4s_split_join_datawidth_16_gap_0_unit_test;
+`AXI4S_SPLIT_JOIN_UNIT_TEST(16, 0)
 endmodule
 
-module axi4s_split_join_datawidth_16_unit_test;
-`AXI4S_SPLIT_JOIN_UNIT_TEST(16)
+module axi4s_split_join_datawidth_4_gap_2_unit_test;
+`AXI4S_SPLIT_JOIN_UNIT_TEST(4, 2)
+endmodule
+
+module axi4s_split_join_datawidth_8_gap_2_unit_test;
+`AXI4S_SPLIT_JOIN_UNIT_TEST(8, 2)
+endmodule
+
+module axi4s_split_join_datawidth_16_gap_2_unit_test;
+`AXI4S_SPLIT_JOIN_UNIT_TEST(16, 2)
 endmodule
 
