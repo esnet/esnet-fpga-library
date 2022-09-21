@@ -1,0 +1,15 @@
+name: axi4s_split_join
+info: |
+  axi4s_split_join is the reigster block for the axi4s_split_join component.
+
+regs:
+  - default:
+      width  : 32
+      access : ro
+      init   : 0
+
+  - name: sop_mismatch
+    desc   : sop_mismatch is asserted if axi4s_join detects a pid mismatch on the hdr and pyld sop words. it clears-on-read.
+    access : rd_evt
+    width  : 8
+    init   : 0

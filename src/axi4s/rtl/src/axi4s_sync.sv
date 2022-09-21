@@ -34,9 +34,12 @@ module axi4s_sync
    parameter axi4s_sync_mode_t MODE = SOP
 ) ( 
    axi4s_intf.rx    axi4s_in0,  axi4s_in1,
-   axi4s_intf.tx    axi4s_out0, axi4s_out1
+   axi4s_intf.tx    axi4s_out0, axi4s_out1,
+
+   output logic     sop_mismatch
 );
 
+   logic  sync_sop, match, mismatch;
    logic  sync, sync0, sync1;
    logic  sync_stretch0, sync_stretch1;
 
@@ -45,21 +48,24 @@ module axi4s_sync
    assign tuser_in0 = axi4s_in0.tuser;
    assign tuser_in1 = axi4s_in1.tuser;
 
+   assign sync_sop = axi4s_in0.sop && axi4s_in0.tvalid && axi4s_in1.sop && axi4s_in1.tvalid;
+   assign match = (tuser_in0.wr_ptr == tuser_in1.wr_ptr);
+   assign mismatch = !match;
+
+   assign sop_mismatch = sync_sop && mismatch;
+
    always_comb begin
       case (MODE)
         SOP : begin
           // synchronize sop words and validate wr pointers (pkt id).
-          sync  = axi4s_in0.sop && axi4s_in0.tvalid &&  
-                  axi4s_in1.sop && axi4s_in1.tvalid &&
-                  tuser_in0.wr_ptr == tuser_in1.wr_ptr;
+          sync  = sync_sop && match;
           sync0 = sync || sync_stretch0 || !axi4s_in0.sop;
           sync1 = sync || sync_stretch1 || !axi4s_in1.sop;
         end
 
         HDR_TLAST : begin
           // synchronize hdr tlast words (using payload buffer context).
-          sync  = axi4s_in0.tvalid && axi4s_in0.tlast && 
-                  axi4s_in1.tvalid && tuser_in1.hdr_tlast;
+          sync  = axi4s_in0.tvalid && axi4s_in0.tlast && axi4s_in1.tvalid && tuser_in1.hdr_tlast;
           sync0 = sync || sync_stretch0 || !axi4s_in0.tlast;
           sync1 = sync || sync_stretch1 || !tuser_in1.hdr_tlast;
         end
