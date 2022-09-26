@@ -36,7 +36,8 @@ interface db_ctrl_intf #(
     logic        rdy;
     logic        ack;
     status_t     status;
-    logic        valid;
+    logic        get_valid;
+    KEY_T        get_key;
     VALUE_T      get_value;
 
     modport controller(
@@ -47,7 +48,8 @@ interface db_ctrl_intf #(
         input  rdy,
         input  ack,
         input  status,
-        input  valid,
+        input  get_valid,
+        input  get_key,
         input  get_value
     );
 
@@ -59,14 +61,15 @@ interface db_ctrl_intf #(
         output rdy,
         output ack,
         output status,
-        output valid,
+        output get_valid,
+        output get_key,
         output get_value
     );
 
     clocking cb @(posedge clk);
         default input #1step output #1step;
         output command, key, set_value;
-        input rdy, ack, status, valid, get_value;
+        input rdy, ack, status, get_valid, get_key, get_value;
         inout req;
     endclocking
 
@@ -136,7 +139,14 @@ interface db_ctrl_intf #(
     task _get_valid(
             output bit _valid
         );
-        _valid = cb.valid;
+        _valid = cb.get_valid;
+    endtask
+
+    // Receive valid (for response)
+    task _get_key(
+            output KEY_T _key
+        );
+        _key = cb.get_key;
     endtask
 
     // Receive value (for response)
@@ -187,7 +197,8 @@ module db_ctrl_intf_connector (
     assign ctrl_if_from_controller.rdy = ctrl_if_to_peripheral.rdy;
     assign ctrl_if_from_controller.ack = ctrl_if_to_peripheral.ack;
     assign ctrl_if_from_controller.status = ctrl_if_to_peripheral.status;
-    assign ctrl_if_from_controller.valid = ctrl_if_to_peripheral.valid;
+    assign ctrl_if_from_controller.get_valid = ctrl_if_to_peripheral.get_valid;
+    assign ctrl_if_from_controller.get_key = ctrl_if_to_peripheral.get_key;
     assign ctrl_if_from_controller.get_value = ctrl_if_to_peripheral.get_value;
 
 endmodule : db_ctrl_intf_connector
@@ -212,13 +223,15 @@ module db_ctrl_intf_mux (
     assign ctrl_if_from_controller_0.rdy       = mux_sel ? 1'b0 : ctrl_if_to_peripheral.rdy;
     assign ctrl_if_from_controller_0.ack       = mux_sel ? 1'b0 : ctrl_if_to_peripheral.ack;
     assign ctrl_if_from_controller_0.status    = ctrl_if_to_peripheral.status;
-    assign ctrl_if_from_controller_0.valid     = ctrl_if_to_peripheral.valid;
+    assign ctrl_if_from_controller_0.get_valid = ctrl_if_to_peripheral.get_valid;
+    assign ctrl_if_from_controller_0.get_key   = ctrl_if_to_peripheral.get_key;
     assign ctrl_if_from_controller_0.get_value = ctrl_if_to_peripheral.get_value;
 
     assign ctrl_if_from_controller_1.rdy       = mux_sel ? ctrl_if_to_peripheral.rdy : 1'b0;
     assign ctrl_if_from_controller_1.ack       = mux_sel ? ctrl_if_to_peripheral.ack : 1'b0;
     assign ctrl_if_from_controller_1.status    = ctrl_if_to_peripheral.status;
-    assign ctrl_if_from_controller_1.valid     = ctrl_if_to_peripheral.valid;
+    assign ctrl_if_from_controller_1.get_valid = ctrl_if_to_peripheral.get_valid;
+    assign ctrl_if_from_controller_1.get_key   = ctrl_if_to_peripheral.get_key;
     assign ctrl_if_from_controller_1.get_value = ctrl_if_to_peripheral.get_value;
 
 endmodule : db_ctrl_intf_mux

@@ -108,10 +108,11 @@ regs:
           enum_hex:
               0 : NOP
               1 : GET
-              2 : SET
-              3 : UNSET
-              4 : REPLACE
-              5 : CLEAR
+              2 : GET_NEXT
+              3 : SET
+              4 : UNSET
+              5 : REPLACE
+              6 : CLEAR
 
   - name: status
     desc: Status register
@@ -180,7 +181,7 @@ regs:
         - name: byte_3
           desc: 3rd byte of selected dword
           width: 8
-    count: 32
+    count: 8
 
   - name: get_valid
     desc: Valid register (for GET operations)
@@ -190,6 +191,28 @@ regs:
           desc: Last GET operation (including RMW operations like REPLACE, UNSET)
                 returned a valid entry.
           width: 1
+
+  - name: get_key
+    desc: Next key (for GET_NEXT operation)
+            Implemented as a byte array, where -
+              key[0].byte_0 contains MSb(s) of key (+ any padding required to pad to bytes),
+              key[info_key.regs-1].byte_(info_key.bytes mod 4) contains LSb(s) of key
+              key[i, i > info_key.regs] are unused
+    access: ro
+    fields:
+        - name: byte_0
+          desc: 0th byte of selected dword
+          width: 8
+        - name: byte_1
+          desc: 1st byte of selected dword
+          width: 8
+        - name: byte_2
+          desc: 2nd byte of selected dword
+          width: 8
+        - name: byte_3
+          desc: 3rd byte of selected dword
+          width: 8
+    count: 8 
 
   - name: get_value
     desc: Value register (for GET operations)
@@ -211,4 +234,4 @@ regs:
         - name: byte_3
           desc: 3rd byte of selected dword
           width: 8
-    count: 32
+    count: 8

@@ -174,6 +174,19 @@ class db_agent #(
         trace_msg($sformatf("get() Done. (valid=%b, value=0x%0x)", valid, value));
     endtask
 
+    // Get value associated with `key`, if valid
+    task get_next(
+            output bit valid, output KEY_T key, output VALUE_T value,
+            output bit error, output bit timeout
+        );
+        trace_msg($sformatf("get_next()", key));
+        transact(db_pkg::COMMAND_GET_NEXT, error, timeout, this._OP_TIMEOUT);
+        _get_valid(valid);
+        _get_key(key);
+        _get_value(value);
+        trace_msg($sformatf("get_next() Done. (valid=%b, key=0x%0x, value=0x%0x)", valid, key, value));
+    endtask
+
     // Change value associated with `key`
     task replace(
             input KEY_T key, input VALUE_T new_value, output bit valid, output VALUE_T old_value,
@@ -201,6 +214,9 @@ class db_agent #(
 
     // Read valid (from response)
     virtual task _get_valid(output bit _valid); endtask
+
+    // Read key (from response)
+    virtual task _get_key(output KEY_T _key); endtask
 
     // Read value (from response)
     virtual task _get_value(output VALUE_T _value); endtask

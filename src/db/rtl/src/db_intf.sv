@@ -24,13 +24,18 @@ interface db_intf #(
     // Signals
     logic     req;
     KEY_T     key;
-
     logic     rdy;
     logic     ack;
     logic     error;
 
-    logic     valid;
+    logic     valid; 
     VALUE_T   value;
+
+
+    logic     next; // Iterator over raw entries; when next is asserted,
+                    // key is ignored and the entry is read from the next
+                    // physical storage slot
+    KEY_T     next_key; // Key found in 'next' physical storage slot is reported in next_key
 
     modport requester(
         input  rdy,
@@ -38,8 +43,10 @@ interface db_intf #(
         input  ack,
         input  error,
         output key,
+        output next,
         inout  valid, // Input for query interface, output for update interface
-        inout  value  // Input for query interface, output for update interface
+        inout  value, // Input for query interface, output for update interface
+        input  next_key
     );
 
     modport responder(
@@ -48,14 +55,16 @@ interface db_intf #(
         output ack,
         output error,
         input  key,
+        input  next,
         inout  valid, // Output for query interface, input for update interface
-        inout  value  // Output for query interface, input for update interface
+        inout  value, // Output for query interface, input for update interface
+        output next_key
     );
 
     clocking cb @(posedge clk);
         default input #1step output #1step;
-        output key;
-        input rdy, ack, error;
+        output key, next;
+        input rdy, ack, error, next_key;
         inout req, valid, value;
     endclocking
 
@@ -72,6 +81,7 @@ interface db_intf #(
         );
         cb.req <= 1'b1;
         cb.key <= _key;
+        cb.next <= 1'b0;
         @(cb);
         wait (cb.req && cb.rdy);
         cb.req <= 1'b0;
@@ -139,6 +149,7 @@ interface db_intf #(
         );
         cb.valid <= _valid;
         cb.value <= _value;
+        cb.next <= 1'b0;
         send(_key);
     endtask
 
@@ -238,6 +249,7 @@ module db_intf_requester_term (
     // Tie off requester outputs
     assign db_if.req = 1'b0;
     assign db_if.key = '0;
+    assign db_if.next = 1'b0;
 
 endmodule : db_intf_requester_term
 
@@ -264,10 +276,12 @@ module db_intf_connector #(
 
     assign db_if_to_responder.req = db_if_from_requester.req;
     assign db_if_to_responder.key = db_if_from_requester.key;
+    assign db_if_to_responder.next = db_if_from_requester.next;
 
     assign db_if_from_requester.rdy = db_if_to_responder.rdy;
     assign db_if_from_requester.ack = db_if_to_responder.ack;
     assign db_if_from_requester.error = db_if_to_responder.error;
+    assign db_if_from_requester.next_key = db_if_to_responder.next_key;
 
     // Connect valid/value inout ports according to specified direction
     generate
@@ -342,19 +356,22 @@ module db_intf_mux #(
             mux_sel_t __mux_sel;
             mux_sel_t __demux_sel;
 
-            logic   db_if_from_requester_rdy   [NUM_IFS];
-            logic   db_if_from_requester_req   [NUM_IFS];
-            KEY_T   db_if_from_requester_key   [NUM_IFS];
-            logic   db_if_from_requester_ack   [NUM_IFS];
-            logic   db_if_from_requester_error [NUM_IFS];
+            logic   db_if_from_requester_rdy      [NUM_IFS];
+            logic   db_if_from_requester_req      [NUM_IFS];
+            KEY_T   db_if_from_requester_key      [NUM_IFS];
+            logic   db_if_from_requester_next     [NUM_IFS];
+            logic   db_if_from_requester_ack      [NUM_IFS];
+            logic   db_if_from_requester_error    [NUM_IFS];
 
             // Convert between array of signals and array of interfaces
             for (genvar g_if = 0; g_if < NUM_IFS; g_if++) begin : g__if
-                assign db_if_from_requester[g_if].rdy   = db_if_from_requester_rdy[g_if];
-                assign db_if_from_requester[g_if].ack   = db_if_from_requester_ack[g_if];
-                assign db_if_from_requester[g_if].error = db_if_from_requester_error[g_if];
-                assign db_if_from_requester_req[g_if]   = db_if_from_requester[g_if].req;
-                assign db_if_from_requester_key[g_if]   = db_if_from_requester[g_if].key;
+                assign db_if_from_requester[g_if].rdy      = db_if_from_requester_rdy[g_if];
+                assign db_if_from_requester[g_if].ack      = db_if_from_requester_ack[g_if];
+                assign db_if_from_requester[g_if].error    = db_if_from_requester_error[g_if];
+                assign db_if_from_requester_req[g_if]  = db_if_from_requester[g_if].req;
+                assign db_if_from_requester_key[g_if]  = db_if_from_requester[g_if].key;
+                assign db_if_from_requester_next[g_if] = db_if_from_requester[g_if].next;
+                assign db_if_from_requester[g_if].next_key = db_if_to_responder.next_key;
             end : g__if
 
             // Mux requests
@@ -363,6 +380,7 @@ module db_intf_mux #(
             always_comb begin
                 db_if_to_responder.req = db_if_from_requester_req[__mux_sel];
                 db_if_to_responder.key = db_if_from_requester_key[__mux_sel];
+                db_if_to_responder.next = db_if_from_requester_next[__mux_sel];
                 for (integer i = 0; i < NUM_IFS; i++) begin
                     if (i == __mux_sel) db_if_from_requester_rdy[i] = db_if_to_responder.rdy;
                     else                db_if_from_requester_rdy[i] = 1'b0;
@@ -602,16 +620,18 @@ module db_intf_demux #(
             mux_sel_t __demux_sel;
             mux_sel_t __mux_sel;
 
-            logic   db_if_to_responder_rdy   [NUM_IFS];
-            logic   db_if_to_responder_req   [NUM_IFS];
-            logic   db_if_to_responder_ack   [NUM_IFS];
-            logic   db_if_to_responder_error [NUM_IFS];
+            logic   db_if_to_responder_rdy      [NUM_IFS];
+            logic   db_if_to_responder_req      [NUM_IFS];
+            logic   db_if_to_responder_ack      [NUM_IFS];
+            logic   db_if_to_responder_error    [NUM_IFS];
+            KEY_T   db_if_to_responder_next_key [NUM_IFS];
 
             // Convert between array of signals and array of interfaces
             for (genvar g_if = 0; g_if < NUM_IFS; g_if++) begin : g__if
                 assign db_if_to_responder_rdy[g_if] = db_if_to_responder[g_if].rdy;
                 assign db_if_to_responder_ack[g_if] = db_if_to_responder[g_if].ack;
                 assign db_if_to_responder_error[g_if] = db_if_to_responder[g_if].error;
+                assign db_if_to_responder_next_key[g_if] = db_if_to_responder[g_if].next_key;
                 assign db_if_to_responder[g_if].req = db_if_to_responder_req[g_if];
                 assign db_if_to_responder[g_if].key = db_if_from_requester.key;
             end : g__if
@@ -648,6 +668,7 @@ module db_intf_demux #(
             always_comb begin
                 db_if_from_requester.ack = db_if_to_responder_ack[__mux_sel];
                 db_if_from_requester.error = db_if_to_responder_error[__mux_sel];
+                db_if_from_requester.next_key = db_if_to_responder_next_key[__mux_sel];
             end
 
             // Connect valid/value inout ports according to specified direction

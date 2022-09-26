@@ -105,6 +105,11 @@ class db_ctrl_agent #(
         ctrl_vif._get_valid(_valid);
     endtask
 
+    // Read key (from response)
+    // [[ implements db_agent::_get_key ]]
+    task _get_key(output KEY_T _key);
+        ctrl_vif._get_key(_key);
+    endtask
     // Read value (from response)
     // [[ implements db_agent::_get_value ]]
     task _get_value(output VALUE_T _value);

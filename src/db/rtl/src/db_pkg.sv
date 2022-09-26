@@ -31,6 +31,7 @@ package db_pkg;
     typedef enum logic [2:0] {
         COMMAND_NOP,
         COMMAND_GET,
+        COMMAND_GET_NEXT,
         COMMAND_SET,
         COMMAND_UNSET,
         COMMAND_REPLACE,
