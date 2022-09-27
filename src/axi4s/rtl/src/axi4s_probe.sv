@@ -68,50 +68,85 @@ module axi4s_probe
    logic  pkt_error;
    assign pkt_error = (axi4s_if.TUSER_MODE == PKT_ERROR) && axi4s_if.tuser;
    
-   logic        pkt_count_incr;
-   logic [49:0] pkt_count;
-   logic [7:0]  byte_count_incr;
-   logic [55:0] byte_count;
+   logic        pkt_cnt_incr;
+   logic        pkt_cnt_incr_p;
 
-   logic        byte_count_val;
-   logic [55:0] byte_count_prev;
-   logic        restore_count;
+   logic [7:0]  byte_cnt_incr;
+   logic [15:0] byte_cnt_int;
+   logic        byte_cnt_int_val;
+
+   logic [55:0] byte_cnt;
+   logic [55:0] byte_cnt_base;
+
+   logic [49:0] pkt_cnt;
+   logic [49:0] pkt_cnt_base;
+
+   logic        disable_update;
+   logic        disable_update_p;
+
+   logic        clear_evt;
+
+   assign clear_evt = reg_if.probe_control_wr_evt && (reg_if.probe_control.clear == '1);  // CLR_ON_WR_EVT
+
+   assign byte_cnt_base = clear_evt ? '0 : byte_cnt;
+   assign  pkt_cnt_base = clear_evt ? '0 :  pkt_cnt;
+
+   assign byte_cnt_int_val = pkt_cnt_incr_p;
 
    always @(posedge axi4s_if.aclk) 
-      if (!axi4s_if.aresetn || reg_if.byte_count_lower_rd_evt) begin
-         pkt_count_incr  <= 0;
-         byte_count_incr <= 0;
-         byte_count_val  <= 0;
-         byte_count_prev <= 0;
-         restore_count   <= 0;
-         pkt_count       <= 0;
-         byte_count      <= 0;
+      if (!axi4s_if.aresetn) begin
+         pkt_cnt_incr     <= 0;
+         pkt_cnt_incr_p   <= 0;
+         byte_cnt_incr    <= 0;
+         disable_update   <= 0;
+         disable_update_p <= 0;
+         byte_cnt_int     <= 0;
+         pkt_cnt          <= 0;
+         byte_cnt         <= 0;
 
-      end else if (!reg_if.halt_counters[0]) begin
-         byte_count_incr <= incr_en ? count_ones(axi4s_if.tkeep) : 0;
-         pkt_count_incr  <= incr_en && axi4s_if.tlast;
+      end else begin
+         pkt_cnt_incr    <= incr_en && axi4s_if.tlast;
+         pkt_cnt_incr_p  <= pkt_cnt_incr;
 
-         byte_count_val  <= pkt_count_incr;  // byte_count is valid on cycle that increments pkt_count.
-         if (byte_count_val) byte_count_prev <= byte_count;  // store previous byte_count on tlast.
+         byte_cnt_incr <= incr_en ? count_ones(axi4s_if.tkeep) : '0;
 
-         // if counting ERRORS, restore previous byte_count if NO pkt_error is detected on tlast.
-         // else (if counting GOOD pkts), restore previous byte_count if PKT_ERROR is detected on tlast.
-         if (MODE == ERRORS) restore_count <= incr_en && axi4s_if.tlast && !pkt_error;
-         else                restore_count <= incr_en && axi4s_if.tlast &&  pkt_error;
-         
-         pkt_count  <= restore_count ? pkt_count : (pkt_count  + {49'd0, pkt_count_incr});
-         byte_count <= restore_count ? byte_count_prev : (byte_count + {48'd0, byte_count_incr});
+         // if counting ERRORS, disable byte_cnt update if NO pkt_error is detected on tlast.
+         // else (if counting GOOD pkts), disable byte_cnt update if PKT_ERROR is detected on tlast.
+         if (MODE == ERRORS) disable_update <= incr_en && axi4s_if.tlast && !pkt_error;
+         else                disable_update <= incr_en && axi4s_if.tlast &&  pkt_error;
+
+         disable_update_p <= disable_update;
+
+         if (byte_cnt_int_val) byte_cnt_int <= {8'd0, byte_cnt_incr};  // reset intermediate byte cnt at end of pkt.
+         else                  byte_cnt_int <= (byte_cnt_int + {8'd0, byte_cnt_incr});
+
+         if (disable_update_p)      pkt_cnt <= pkt_cnt_base;
+         else                       pkt_cnt <= pkt_cnt_base + {49'd0, pkt_cnt_incr_p};
+
+         if (disable_update_p)      byte_cnt <= byte_cnt_base;
+         else if (byte_cnt_int_val) byte_cnt <= byte_cnt_base + {40'd0, byte_cnt_int};
+         else                       byte_cnt <= byte_cnt_base;
+
        end 
 
    // register read interface connections
-   assign reg_if.pkt_count_upper_nxt  =  {14'd0,  pkt_count[49:32] };
-   assign reg_if.pkt_count_lower_nxt  =           pkt_count[31:0];
-   assign reg_if.byte_count_upper_nxt =  { 8'd0, byte_count[55:32] };
-   assign reg_if.byte_count_lower_nxt =          byte_count[31:0];
+   assign reg_if.pkt_count_upper_nxt  =  {14'd0,  pkt_cnt[49:32] };
+   assign reg_if.pkt_count_lower_nxt  =           pkt_cnt[31:0];
+   assign reg_if.byte_count_upper_nxt =  { 8'd0, byte_cnt[55:32] };
+   assign reg_if.byte_count_lower_nxt =          byte_cnt[31:0];
 
-   assign reg_if.pkt_count_upper_nxt_v  = 1'b1;
-   assign reg_if.pkt_count_lower_nxt_v  = 1'b1;
-   assign reg_if.byte_count_upper_nxt_v = 1'b1;
-   assign reg_if.byte_count_lower_nxt_v = 1'b1;
+   always_comb begin
+      if (reg_if.probe_control.latch == '1) begin  // LATCH_ON_WR_EVT
+         reg_if.pkt_count_upper_nxt_v  = reg_if.probe_control_wr_evt ? 1'b1 : 1'b0;
+         reg_if.pkt_count_lower_nxt_v  = reg_if.probe_control_wr_evt ? 1'b1 : 1'b0;
+         reg_if.byte_count_upper_nxt_v = reg_if.probe_control_wr_evt ? 1'b1 : 1'b0;
+         reg_if.byte_count_lower_nxt_v = reg_if.probe_control_wr_evt ? 1'b1 : 1'b0;
+      end else begin // LATCH_ON_CLK
+         reg_if.pkt_count_upper_nxt_v  = 1'b1;
+         reg_if.pkt_count_lower_nxt_v  = 1'b1;
+         reg_if.byte_count_upper_nxt_v = 1'b1;
+         reg_if.byte_count_lower_nxt_v = 1'b1;
+      end
+   end
 
 endmodule

@@ -8,29 +8,36 @@ regs:
       init   : 0
 
   - name: pkt_count_upper
-    desc   : packet count (upper word).  full pkt_count is 50b (wraps after 66d when min pkt size is 64B).
+    desc   : packet count latch (upper word).  full pkt_count is 50b (wraps after 66d when min pkt size is 64B).
     access : ro
 
   - name: pkt_count_lower
-    desc   : packet count (lower word).
+    desc   : packet count latch (lower word).
     access : ro
 
   - name: byte_count_upper
-    desc   : byte count (upper word).  full byte_count is 56b (wraps after 66d for 100G of traffic).
+    desc   : byte count latch (upper word).  full byte_count is 56b (wraps after 66d for 100G of traffic).
     access : ro
 
   - name: byte_count_lower
-    desc   : byte count (lower word).  rd_evt is used to clear both pkt_count and byte_count.
-    access : rd_evt
+    desc   : byte count latch (lower word).
+    access : ro
 
-  - name: halt_counters
-    desc   : halts pkt_count and byte_count when set to 1. counters run when set to 0.
-    width  : 8
-    access : rw
-
-     
-
-
-
-
-        
+  - name: probe_control
+    desc   : controls the latching and clearing behaviour of the internal probe counters.
+    access : wr_evt
+    fields:
+        - name: latch
+          desc: 0 - latch regs track internal counts continuously. 1 - latch regs snapshot internal counts only on wr_evt.
+          width: 1
+          enum_hex:
+              0: LATCH_ON_CLK
+              1: LATCH_ON_WR_EVT
+          init: 0
+        - name: clear
+          desc: 0 - internal counts NOT cleared by reg events.  1 - internal counts cleared upon wr_evt. 
+          width: 1
+          enum_hex:
+              0: NO_CLEAR
+              1: CLEAR_ON_WR_EVT
+          init: 0
