@@ -437,30 +437,23 @@ endmodule : axi4s_tready_pipe
 
 
 // axi4-stream full (bidirectional) pipeline helper module
-module axi4s_full_pipe #(
-    parameter int  DATA_BYTE_WID = 8,
-    parameter type TID_T = bit,
-    parameter type TDEST_T = bit,
-    parameter type TUSER_T = bit
-) (
+module axi4s_full_pipe (
     axi4s_intf.rx axi4s_if_from_tx,
     axi4s_intf.tx axi4s_if_to_rx
 );
     import axi4s_pkg::*;
 
-// replaced localparam assignments due to vivado synthesis segmentation fault.
-/*
     localparam int  DATA_BYTE_WID = axi4s_if_from_tx.DATA_BYTE_WID;
     localparam type TID_T         = axi4s_if_from_tx.TID_T;
     localparam type TDEST_T       = axi4s_if_from_tx.TDEST_T;
     localparam type TUSER_T       = axi4s_if_from_tx.TUSER_T;
-*/
+
     axi4s_intf  #( .DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T) )
-                axi4s_if_to_rx_p ();
+                axi4s_if_from_tx_p ();
 
-    axi4s_tready_pipe in_tready_pipe_0 (.axi4s_if_from_tx(axi4s_if_from_tx), .axi4s_if_to_rx(axi4s_if_to_rx_p));
+    axi4s_intf_pipe   axi4s_intf_pipe_0   (.axi4s_if_from_tx(axi4s_if_from_tx),   .axi4s_if_to_rx(axi4s_if_from_tx_p));
 
-    axi4s_intf_pipe   out_intf_pipe_0  (.axi4s_if_from_tx(axi4s_if_to_rx_p), .axi4s_if_to_rx(axi4s_if_to_rx));
+    axi4s_tready_pipe axi4s_tready_pipe_0 (.axi4s_if_from_tx(axi4s_if_from_tx_p), .axi4s_if_to_rx(axi4s_if_to_rx));
 
 endmodule : axi4s_full_pipe
 
@@ -516,25 +509,25 @@ module axi4s_intf_bypass_mux #(
 
     // __axi4s_in assignments
     assign __axi4s_in.aclk    = axi4s_in.aclk;
-    assign __axi4s_in.aresetn = bypass ? axi4s_in.aresetn : 1'b0;
+    assign __axi4s_in.aresetn = axi4s_in.aresetn;
     assign __axi4s_in.tvalid  = bypass ? axi4s_in.tvalid  : 1'b0;
-    assign __axi4s_in.tlast  = axi4s_in.tlast;
-    assign __axi4s_in.tkeep  = axi4s_in.tkeep;
-    assign __axi4s_in.tdata  = axi4s_in.tdata;
-    assign __axi4s_in.tid    = axi4s_in.tid;
-    assign __axi4s_in.tdest  = axi4s_in.tdest;
-    assign __axi4s_in.tuser  = axi4s_in.tuser;
+    assign __axi4s_in.tlast   = axi4s_in.tlast;
+    assign __axi4s_in.tkeep   = axi4s_in.tkeep;
+    assign __axi4s_in.tdata   = axi4s_in.tdata;
+    assign __axi4s_in.tid     = axi4s_in.tid;
+    assign __axi4s_in.tdest   = axi4s_in.tdest;
+    assign __axi4s_in.tuser   = axi4s_in.tuser;
 
     // axi4s_to_block assignments
-    assign axi4s_to_block.aclk   = axi4s_in.aclk;
-    assign axi4s_to_block.aresetn = bypass ? 1'b0 : axi4s_in.aresetn;
+    assign axi4s_to_block.aclk    = axi4s_in.aclk;
+    assign axi4s_to_block.aresetn = axi4s_in.aresetn;
     assign axi4s_to_block.tvalid  = bypass ? 1'b0 : axi4s_in.tvalid;
-    assign axi4s_to_block.tlast  = axi4s_in.tlast;
-    assign axi4s_to_block.tkeep  = axi4s_in.tkeep;
-    assign axi4s_to_block.tdata  = axi4s_in.tdata;
-    assign axi4s_to_block.tid    = axi4s_in.tid;
-    assign axi4s_to_block.tdest  = axi4s_in.tdest;
-    assign axi4s_to_block.tuser  = axi4s_in.tuser;
+    assign axi4s_to_block.tlast   = axi4s_in.tlast;
+    assign axi4s_to_block.tkeep   = axi4s_in.tkeep;
+    assign axi4s_to_block.tdata   = axi4s_in.tdata;
+    assign axi4s_to_block.tid     = axi4s_in.tid;
+    assign axi4s_to_block.tdest   = axi4s_in.tdest;
+    assign axi4s_to_block.tuser   = axi4s_in.tuser;
 
     // axi4s_in tready assignment
     assign axi4s_in.tready = bypass ? __axi4s_in.tready : axi4s_to_block.tready;
