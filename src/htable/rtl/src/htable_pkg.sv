@@ -25,7 +25,8 @@ package htable_pkg;
         HTABLE_TYPE_SINGLE,
         HTABLE_TYPE_MULTI,
         HTABLE_TYPE_MULTI_STASH,
-        HTABLE_TYPE_CUCKOO
+        HTABLE_TYPE_CUCKOO,
+        HTABLE_TYPE_CUCKOO_FAST_UPDATE
     } htable_type_t;
 
     // Generic hash data type
