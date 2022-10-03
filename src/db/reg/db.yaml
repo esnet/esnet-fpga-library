@@ -180,7 +180,7 @@ regs:
         - name: byte_3
           desc: 3rd byte of selected dword
           width: 8
-    count: 8
+    count: 32
 
   - name: get_valid
     desc: Valid register (for GET operations)
@@ -211,7 +211,7 @@ regs:
         - name: byte_3
           desc: 3rd byte of selected dword
           width: 8
-    count: 8 
+    count: 32
 
   - name: get_value
     desc: Value register (for GET operations)
@@ -233,4 +233,4 @@ regs:
         - name: byte_3
           desc: 3rd byte of selected dword
           width: 8
-    count: 8
+    count: 32
