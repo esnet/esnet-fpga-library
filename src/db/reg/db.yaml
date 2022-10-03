@@ -19,6 +19,7 @@ regs:
             0 : UNSPECIFIED
             1 : STASH
             2 : HTABLE
+            3 : STATE
         - name: db_subtype
           desc: application-specific subtype identifier
           width: 8

@@ -59,6 +59,7 @@ module db_axil_ctrl #(
         case (db_type)
             DB_TYPE_STASH  : return INFO_DB_TYPE_STASH;
             DB_TYPE_HTABLE : return INFO_DB_TYPE_HTABLE;
+            DB_TYPE_STATE  : return INFO_DB_TYPE_STATE;
             default        : return INFO_DB_TYPE_UNSPECIFIED;
         endcase
     endfunction

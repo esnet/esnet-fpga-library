@@ -23,7 +23,8 @@ package db_pkg;
     typedef enum logic[7:0] {
         DB_TYPE_UNSPECIFIED = 0,
         DB_TYPE_STASH       = 1,
-        DB_TYPE_HTABLE      = 2
+        DB_TYPE_HTABLE      = 2,
+        DB_TYPE_STATE       = 3
     } type_t;
 
     typedef logic[7:0] subtype_t;
