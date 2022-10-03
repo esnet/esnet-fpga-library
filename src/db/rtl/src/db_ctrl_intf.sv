@@ -41,6 +41,7 @@ interface db_ctrl_intf #(
     VALUE_T      get_value;
 
     modport controller(
+        input  clk,
         output req,
         output command,
         output key,
@@ -54,6 +55,7 @@ interface db_ctrl_intf #(
     );
 
     modport peripheral(
+        input  clk,
         input  req,
         input  command,
         input  key,
@@ -218,6 +220,9 @@ module db_ctrl_intf_mux #(
 
     generate
         if (NUM_IFS > 1) begin : g__mux
+            // (Local) Imports
+            import db_pkg::*;
+
             // (Local) Parameters
             localparam int MUX_SEL_WID = $clog2(NUM_IFS);
 
@@ -253,6 +258,7 @@ module db_ctrl_intf_mux #(
             always_comb begin
                 ctrl_if_to_peripheral.req       = ctrl_if_from_controller_req[__mux_sel];
                 ctrl_if_to_peripheral.key       = ctrl_if_from_controller_key[__mux_sel];
+                ctrl_if_to_peripheral.command   = ctrl_if_from_controller_command[__mux_sel];
                 ctrl_if_to_peripheral.set_value = ctrl_if_from_controller_set_value[__mux_sel];
                 for (int i = 0; i < NUM_IFS; i++) begin
                     if (i == __mux_sel) begin

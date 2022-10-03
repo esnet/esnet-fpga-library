@@ -38,6 +38,7 @@ interface db_intf #(
     KEY_T     next_key; // Key found in 'next' physical storage slot is reported in next_key
 
     modport requester(
+        input  clk,
         input  rdy,
         output req,
         input  ack,
@@ -50,6 +51,7 @@ interface db_intf #(
     );
 
     modport responder(
+        input  clk,
         output rdy,
         input  req,
         output ack,
