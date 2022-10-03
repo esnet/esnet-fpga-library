@@ -39,8 +39,7 @@ module axi4s_intf_unit_test #(
 
          2: axi4s_tready_pipe DUT (.axi4s_if_from_tx(axis_in_if), .axi4s_if_to_rx(axis_out_if));
 
-         3: axi4s_full_pipe #(.DATA_BYTE_WID(DATA_BYTE_WID)) DUT
-                             (.axi4s_if_from_tx(axis_in_if), .axi4s_if_to_rx(axis_out_if));
+         3: axi4s_full_pipe DUT (.axi4s_if_from_tx(axis_in_if), .axi4s_if_to_rx(axis_out_if));
       endcase
    endgenerate
 

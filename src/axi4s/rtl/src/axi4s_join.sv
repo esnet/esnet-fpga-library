@@ -153,6 +153,16 @@ module axi4s_join
 
 
    
+   // Datapath pipeline processing stages are as follows:
+
+   // pyld_pipe[0] - Connects pipeline input.
+   // pyld_pipe[1] - Captures pipeline input.
+   // pyld_pipe[2] - Computes and captures pyld_shift (used by barrel shifter).
+   // pyld_pipe[3] - Computes and captures shifted pyld (barrel shifter output).
+   // pyld_pipe[4] - Provides lookahead to next cycle for next state determination.
+   // pyld_pipe[5] - Captures hdr and pyld data for joined output.
+   // pyld_pipe[6] - Captures next hdr when B2B_HEADER is detected.
+
    // --- pyld pipeline. ---
    axi4s_intf_connector pipe_pyld_connector (.axi4s_from_tx(sync_pyld[1]), .axi4s_to_rx(pipe_pyld[0]));
 
@@ -188,6 +198,10 @@ module axi4s_join
 
 
    // --- shift pipeline. ---
+
+   // shift pipeline stage numbering mirrors datapath pipeline stage numbering.
+   // i.e. pyld_shift_pipe[4] is used to join data from pipe_pyld[4] and pipe_pyld[5]
+
    always @(posedge clk) if (pipe_hdr[1].tvalid && pipe_hdr[1].tready)
                          hdr_shift <= tkeep_to_shift (pipe_hdr[1].tkeep);
 
@@ -214,6 +228,7 @@ module axi4s_join
 
    // --- state machine logic. ---
    always @(posedge clk) begin
+      // latch state.
       if (!resetn)  state <= HEADER;
       else          state <= state_nxt;
 
@@ -223,21 +238,19 @@ module axi4s_join
          hdr_tdest <= pipe_hdr[4].tdest;
       end
 
-      // adv_tlast pipeline.
-      if (!resetn)  adv_tlast_p <= 0;
-      else if (pipe_pyld[4].tready && pipe_pyld[4].tvalid)  adv_tlast_p <= adv_tlast;
-   end
-
-
-   // adv_tlast logic.
-   always_comb begin
-      lookahead_tkeep = join_tkeep (.shift(pyld_shift_pipe[3]), .tkeep_lsb(pipe_pyld[4].tkeep), .tkeep_msb('0));
+      // --- adv_tlast logic ---
 
       // if last header word AND last packet word (i.e. no hdr and pyld joining), deassert adv_tlast.
-      if ((state == HEADER) && pipe_hdr[5].tready && pipe_hdr[5].tvalid && pipe_hdr[5].tlast && pipe_pyld[5].tlast)  adv_tlast = 0;
+      if ((state_nxt == HEADER) && pipe_hdr[4].tready && pipe_hdr[4].tvalid && pipe_hdr[4].tlast && pipe_pyld[4].tlast)
+            adv_tlast <= 0;
       // otherwise, assert adv_tlast if next transaction is tlast and tkeep is all-zeros.
-      else  adv_tlast = pipe_pyld[4].tvalid && pipe_pyld[4].tlast && (lookahead_tkeep == '0);
+      else  adv_tlast <= pipe_pyld[3].tvalid && pipe_pyld[3].tlast && (lookahead_tkeep == '0);
+
+      if (!resetn)  adv_tlast_p <= 0;
+      else          adv_tlast_p <= (pipe_pyld[4].tready && pipe_pyld[4].tvalid) ? adv_tlast : adv_tlast_p;
    end
+
+   assign lookahead_tkeep = join_tkeep (.shift(pyld_shift_pipe[2]), .tkeep_lsb(pipe_pyld[3].tkeep), .tkeep_msb('0));
 
 
    always_comb begin
@@ -333,7 +346,7 @@ module axi4s_join
    axi4s_intf_2_to_1_mux join_mux (.axi4s_in_if_0(joined), .axi4s_in_if_1(b2b_hdr), .axi4s_out_if(joined_mux), .mux_sel(stall_pipe));
 
    // joined output pipe stage.
-   axi4s_intf_pipe join_pipe (
+   axi4s_full_pipe join_pipe (
       .axi4s_if_from_tx (joined_mux),
       .axi4s_if_to_rx   (joined_pipe)
    );
