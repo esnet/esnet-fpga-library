@@ -59,6 +59,7 @@ module db_axil_ctrl #(
         case (db_type)
             DB_TYPE_STASH  : return INFO_DB_TYPE_STASH;
             DB_TYPE_HTABLE : return INFO_DB_TYPE_HTABLE;
+            DB_TYPE_STATE  : return INFO_DB_TYPE_STATE;
             default        : return INFO_DB_TYPE_UNSPECIFIED;
         endcase
     endfunction
@@ -317,7 +318,7 @@ module db_axil_ctrl #(
     // Return response
     // -- Latch presence
     assign reg_if.get_valid_nxt_v = ctrl_if.ack;
-    assign reg_if.get_valid_nxt.value = ctrl_if.valid;
+    assign reg_if.get_valid_nxt.value = ctrl_if.get_valid;
 
     // -- Unpack value to registers
     assign get_value_bytes = ctrl_if.get_value;
@@ -339,6 +340,7 @@ module db_axil_ctrl #(
     endgenerate
 
     // -- Unpack value to registers
+    assign get_key_bytes = ctrl_if.get_key;
     generate
         for (genvar g_reg = 0; g_reg < KEY_REGS; g_reg++) begin : g__get_key_reg
             reg_t reg_key;

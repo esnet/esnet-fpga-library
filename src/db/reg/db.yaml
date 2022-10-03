@@ -19,6 +19,7 @@ regs:
             0 : UNSPECIFIED
             1 : STASH
             2 : HTABLE
+            3 : STATE
         - name: db_subtype
           desc: application-specific subtype identifier
           width: 8
@@ -180,7 +181,7 @@ regs:
         - name: byte_3
           desc: 3rd byte of selected dword
           width: 8
-    count: 8
+    count: 32
 
   - name: get_valid
     desc: Valid register (for GET operations)
@@ -211,7 +212,7 @@ regs:
         - name: byte_3
           desc: 3rd byte of selected dword
           width: 8
-    count: 8 
+    count: 32
 
   - name: get_value
     desc: Value register (for GET operations)
@@ -233,4 +234,4 @@ regs:
         - name: byte_3
           desc: 3rd byte of selected dword
           width: 8
-    count: 8
+    count: 32
