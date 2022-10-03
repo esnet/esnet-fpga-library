@@ -51,6 +51,11 @@ module db_core #(
     db_intf.requester        db_rd_if
 );
     // ----------------------------------
+    // Signals
+    // ----------------------------------
+    logic ctrl_init;
+
+    // ----------------------------------
     // Interfaces
     // ----------------------------------
     db_intf #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) ctrl_wr_if (.clk(clk));
@@ -88,7 +93,9 @@ module db_core #(
     // Mux between control-plane and data-plane transactions
     // (strict priority to data plane)
     // -----------------------------
-    db_intf_prio_wr_mux #(
+    db_intf_prio_wr_mux  #(
+        .KEY_T            ( KEY_T ),
+        .VALUE_T          ( VALUE_T ),
         .NUM_TRANSACTIONS ( NUM_WR_TRANSACTIONS )
     ) i_db_intf_prio_wr_mux (
         .clk  ( clk ),
@@ -98,7 +105,9 @@ module db_core #(
         .db_if_to_responder           ( db_wr_if )
     );
 
-    db_intf_prio_rd_mux #(
+    db_intf_prio_rd_mux  #(
+        .KEY_T            ( KEY_T ),
+        .VALUE_T          ( VALUE_T ),
         .NUM_TRANSACTIONS ( NUM_RD_TRANSACTIONS )
     ) i_db_intf_prio_rd_mux (
         .clk  ( clk ),
@@ -148,6 +157,7 @@ module db_core #(
             logic  rd_error;
             logic  rd_valid;
             VALUE_T rd_value;
+            KEY_T   rd_next_key;
 
             // Store write context
             always_ff @(posedge clk) begin
@@ -176,9 +186,9 @@ module db_core #(
 
             always_ff @(posedge clk) begin
                 cache_result.hit <= 1'b0;
-                if (db_rd_if.req && db_rd_if.rdy) begin
+                if (db_rd_if.req && db_rd_if.rdy && !db_rd_if.next) begin
                     for (int i = 0; i < CACHE_DEPTH; i++) begin
-                        int idx = CACHE_DEPTH-1-i;
+                        automatic int idx = CACHE_DEPTH-1-i;
                         if (wr_ctxt_p[idx].key == db_rd_if.key) begin
                             cache_result.hit <= 1'b1;
                             cache_result.valid <= wr_ctxt_p[idx].valid;
@@ -217,7 +227,7 @@ module db_core #(
             end
 
             // Delay read response to ensure cache lookup can complete
-            typedef struct packed {logic ack; logic error; logic valid; VALUE_T value;} rd_resp_t;
+            typedef struct packed {logic ack; logic error; logic valid; VALUE_T value; KEY_T next_key;} rd_resp_t;
             rd_resp_t rd_resp_in;
             rd_resp_t rd_resp_out;
 
@@ -225,6 +235,7 @@ module db_core #(
             assign rd_resp_in.error = db_rd_if.error;
             assign rd_resp_in.valid = db_rd_if.valid;
             assign rd_resp_in.value = db_rd_if.value;
+            assign rd_resp_in.next_key = db_rd_if.next_key;
 
             util_delay   #(
                 .DATA_T   ( rd_resp_t ),
@@ -240,12 +251,15 @@ module db_core #(
             assign rd_error = rd_resp_out.error;
             assign rd_valid = rd_resp_out.valid;
             assign rd_value = rd_resp_out.value;
+            assign rd_next_key = rd_resp_out.next_key;
 
             // Drive external read interface
-            assign db_rd_if.key = __db_rd_if.key;
             assign db_rd_if.req = __db_rd_if.req;
+            assign db_rd_if.key = __db_rd_if.key;
+            assign db_rd_if.next = __db_rd_if.next;
             assign __db_rd_if.rdy = db_rd_if.rdy;
             assign __db_rd_if.ack = rd_ack;
+            assign __db_rd_if.next_key = rd_next_key;
 
         end : g__cache
         else begin : g__no_cache

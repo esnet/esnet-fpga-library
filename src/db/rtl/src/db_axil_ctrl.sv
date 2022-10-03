@@ -57,20 +57,21 @@ module db_axil_ctrl #(
     // -- RTL to regmap translation (database type)
     function automatic fld_info_db_type_t getRegFromType(input type_t db_type);
         case (db_type)
-            DB_TYPE_CACHE : return INFO_DB_TYPE_CACHE;
-            DB_TYPE_STATE : return INFO_DB_TYPE_STATE;
-            default       : return INFO_DB_TYPE_UNSPECIFIED;
+            DB_TYPE_STASH  : return INFO_DB_TYPE_STASH;
+            DB_TYPE_HTABLE : return INFO_DB_TYPE_HTABLE;
+            default        : return INFO_DB_TYPE_UNSPECIFIED;
         endcase
     endfunction
     // -- Regmap to RTL translation (command)
     function automatic command_t getCommandFromReg(input fld_command_code_t command_code);
         case (command_code)
-            COMMAND_CODE_GET     : return COMMAND_GET;
-            COMMAND_CODE_SET     : return COMMAND_SET;
-            COMMAND_CODE_UNSET   : return COMMAND_UNSET;
-            COMMAND_CODE_REPLACE : return COMMAND_REPLACE;
-            COMMAND_CODE_CLEAR   : return COMMAND_CLEAR;
-            default              : return COMMAND_NOP;
+            COMMAND_CODE_GET      : return COMMAND_GET;
+            COMMAND_CODE_GET_NEXT : return COMMAND_GET_NEXT;
+            COMMAND_CODE_SET      : return COMMAND_SET;
+            COMMAND_CODE_UNSET    : return COMMAND_UNSET;
+            COMMAND_CODE_REPLACE  : return COMMAND_REPLACE;
+            COMMAND_CODE_CLEAR    : return COMMAND_CLEAR;
+            default               : return COMMAND_NOP;
         endcase
     endfunction
 
@@ -119,6 +120,7 @@ module db_axil_ctrl #(
     logic [0:KEY_BYTES-1]  [7:0] key_in;
     logic [0:VALUE_BYTES-1][7:0] set_value_in;
     logic [0:VALUE_BYTES-1][7:0] get_value_bytes;
+    logic [0:KEY_BYTES-1]  [7:0] get_key_bytes;
 
     logic      req;
 
@@ -334,6 +336,24 @@ module db_axil_ctrl #(
             assign reg_if.get_value_nxt_v[g_reg] = 1'b0;
             assign reg_if.get_value_nxt[g_reg] = '0;
         end : g__get_value_reg_tieoff
+    endgenerate
+
+    // -- Unpack value to registers
+    generate
+        for (genvar g_reg = 0; g_reg < KEY_REGS; g_reg++) begin : g__get_key_reg
+            reg_t reg_key;
+            for (genvar g_reg_byte = 0; g_reg_byte < 4; g_reg_byte++) begin
+                localparam int byte_idx = g_reg * 4 + g_reg_byte;
+                if (byte_idx < KEY_BYTES) assign reg_key[g_reg_byte] = get_key_bytes[byte_idx];
+                else                      assign reg_key[g_reg_byte] = '0;
+            end
+            assign reg_if.get_key_nxt_v[g_reg] = ctrl_if.ack;
+            assign reg_if.get_key_nxt[g_reg] = reg_key;
+        end : g__get_key_reg
+        for (genvar g_reg = KEY_REGS; g_reg < COUNT_GET_KEY; g_reg++) begin : g__get_key_reg_tieoff
+            assign reg_if.get_key_nxt_v[g_reg] = 1'b0;
+            assign reg_if.get_key_nxt[g_reg] = '0;
+        end : g__get_key_reg_tieoff
     endgenerate
 
     // -- Convert state to status code

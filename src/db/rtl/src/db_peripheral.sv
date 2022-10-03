@@ -113,6 +113,9 @@ module db_peripheral #(
                         COMMAND_GET : begin
                             nxt_state = RD;
                         end
+                        COMMAND_GET_NEXT : begin
+                            nxt_state = RD;
+                        end
                         COMMAND_UNSET : begin 
                             nxt_state = RMW;
                         end
@@ -204,14 +207,21 @@ module db_peripheral #(
                 wr_if.valid <= 1'b1;
                 wr_if.value <= ctrl_if.set_value;
             end
+            if (ctrl_if.command == COMMAND_GET_NEXT) begin
+                rd_if.next <= 1'b1;
+            end else begin
+                rd_if.next <= 1'b0;
+            end
         end
     end
+    assign wr_if.next = 1'b0;
 
     // Latch response data
     always_ff @(posedge clk) begin
         if (rd_if.ack) begin
-            ctrl_if.valid = rd_if.valid;
-            ctrl_if.get_value = rd_if.value;
+            ctrl_if.get_valid <= rd_if.valid;
+            ctrl_if.get_value <= rd_if.value;
+            ctrl_if.get_key <= rd_if.next_key;
         end
     end
   

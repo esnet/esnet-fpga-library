@@ -1,20 +1,19 @@
 `include "svunit_defines.svh"
 
-module db_core_unit_test;
+module db_stash_unit_test;
     import svunit_pkg::svunit_testcase;
     import db_pkg::*;
     import db_verif_pkg::*;
 
-    string name = "db_core_ut";
+    string name = "db_stash_ut";
     svunit_testcase svunit_ut;
 
     //===================================
     // Parameters
     //===================================
-    parameter int SIZE = 4096;
-    parameter int KEY_WID = $clog2(SIZE);
+    parameter int SIZE = 16;
+    parameter int KEY_WID = 96;
     parameter int VALUE_WID = 32;
-    parameter int TIMEOUT_CYCLES = 0;
     
     //===================================
     // Typedefs
@@ -30,35 +29,25 @@ module db_core_unit_test;
 
     logic init_done;
 
+    db_info_intf #() info_if ();
     db_ctrl_intf #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) ctrl_if (.clk(clk));
+    db_status_intf #() status_if (.clk(clk), .srst(srst));
 
     db_intf #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) app_wr_if (.clk(clk));
     db_intf #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) app_rd_if (.clk(clk));
     
     logic db_init;
     logic db_init_done;
-
-    db_intf #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) db_wr_if (.clk(clk));
-    db_intf #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) db_rd_if (.clk(clk));
     
-    db_core #(
+    db_stash #(
         .KEY_T (KEY_T),
-        .VALUE_T (VALUE_T)
+        .VALUE_T (VALUE_T),
+        .SIZE (SIZE)
     ) DUT (.*);
 
     //===================================
     // Testbench
     //===================================
-    // Database store
-    db_store_array #(
-        .KEY_T ( KEY_T ),
-        .VALUE_T ( VALUE_T )
-    ) i_db_store_array (
-        .init ( db_init ),
-        .init_done ( db_init_done ),
-        .*
-    );
-    
     db_ctrl_agent #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) agent;
     std_reset_intf reset_if (.clk(clk));
 
@@ -155,6 +144,45 @@ module db_core_unit_test;
         `FAIL_UNLESS(got_valid);
         `FAIL_UNLESS_EQUAL(got_value, exp_value);
     `SVTEST_END
+
+    `SVTEST(set_iterate)
+        KEY_T exp_key;
+        KEY_T got_key;
+        VALUE_T exp_value;
+        VALUE_T got_value;
+        bit got_valid;
+        bit error;
+        bit timeout;
+        int found_cnt;
+        // Randomize key/value
+        void'(std::randomize(exp_key));
+        void'(std::randomize(exp_value));
+        // Add entry
+        agent.set(exp_key, exp_value, error, timeout);
+        `FAIL_IF(error);
+        `FAIL_IF(timeout);
+        // Read back and check
+        agent.get(exp_key, got_valid, got_value, error, timeout);
+        `FAIL_IF(error);
+        `FAIL_IF(timeout);
+        `FAIL_UNLESS(got_valid);
+        `FAIL_UNLESS_EQUAL(got_value, exp_value);
+        // Iterate over all entries
+        found_cnt = 0;
+        for (int i = 0; i < SIZE; i++) begin
+            agent.get_next(got_valid, got_key, got_value, error, timeout);
+            `FAIL_IF(error);
+            `FAIL_IF(timeout);
+            if (got_valid) begin
+                `FAIL_UNLESS_EQUAL(got_key, exp_key);
+                `FAIL_UNLESS_EQUAL(got_value, exp_value);
+                found_cnt += 1;
+            end
+        end
+        `FAIL_UNLESS_EQUAL(found_cnt, 1);
+        
+    `SVTEST_END
+
 
     `SVTEST(unset)
         KEY_T key;
@@ -281,6 +309,58 @@ module db_core_unit_test;
         `FAIL_IF(timeout);
         `FAIL_UNLESS_EQUAL(got_valid, exp_valid);
         `FAIL_UNLESS_EQUAL(got_value, exp_value);
+    `SVTEST_END
+ 
+    `SVTEST(set_to_full)
+        KEY_T key [SIZE+1];
+        VALUE_T exp_value [SIZE+1];
+        VALUE_T got_value;
+        bit got_valid;
+        bit error;
+        bit timeout;
+        // Randomize key/value
+        void'(std::randomize(key));
+        void'(std::randomize(exp_value));
+        // Add entries
+        for (int i = 0; i < SIZE; i++) begin
+            // Add new random entry
+            agent.set(key[i], exp_value[i], error, timeout);
+            `FAIL_IF(error);
+            `FAIL_IF(timeout);
+            `FAIL_UNLESS_EQUAL(status_if.fill, i+1);
+        end
+        // Read back and check
+        for (int i = 0; i < SIZE; i++) begin
+            agent.get(key[i], got_valid, got_value, error, timeout);
+            `FAIL_IF(error);
+            `FAIL_IF(timeout);
+            `FAIL_UNLESS(got_valid);
+            `FAIL_UNLESS_EQUAL(got_value, exp_value[i]);
+        end
+        // Add last entry (expect failure due to full)
+        agent.set(key[SIZE], exp_value[SIZE], error, timeout);
+        `FAIL_UNLESS(error);
+        `FAIL_IF(timeout);
+        // Delete first entry
+        agent.unset(key[0], got_valid, got_value, error, timeout);
+        `FAIL_IF(error);
+        `FAIL_IF(timeout);
+        `FAIL_UNLESS(got_valid);
+        `FAIL_UNLESS_EQUAL(got_value, exp_value[0]);
+        // Check for not full
+        `FAIL_UNLESS_EQUAL(status_if.fill, SIZE-1);
+        // Try insertion again
+        agent.set(key[SIZE], exp_value[SIZE], error, timeout);
+        `FAIL_IF(error);
+        `FAIL_IF(timeout);
+        // Read back and check
+        agent.get(key[SIZE], got_valid, got_value, error, timeout);
+        `FAIL_IF(error);
+        `FAIL_IF(timeout);
+        `FAIL_UNLESS(got_valid);
+        `FAIL_UNLESS_EQUAL(got_value, exp_value[SIZE]);
+        // Should be full again
+        `FAIL_UNLESS_EQUAL(status_if.fill, SIZE);
     `SVTEST_END
 
 

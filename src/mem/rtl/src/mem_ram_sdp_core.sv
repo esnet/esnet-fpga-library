@@ -79,8 +79,7 @@ module mem_ram_sdp_core
     data_t wr_data;
 
     logic  rd_srst_local;
-    logic  rd_en;
-    logic  rd_req;
+    logic  rd;
     addr_t rd_addr;
     data_t rd_data;
 

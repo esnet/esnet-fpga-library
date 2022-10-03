@@ -72,6 +72,7 @@ module db_store_array #(
     assign db_wr_if.rdy = mem_wr_if.rdy;
     assign db_wr_if.ack = mem_wr_if.ack;
     assign db_wr_if.error = 1'b0;
+    assign db_wr_if.next_key = '0;
 
     assign mem_rd_if.rst  = 1'b0;
     assign mem_rd_if.en   = 1'b1;
@@ -80,6 +81,7 @@ module db_store_array #(
     assign db_rd_if.rdy = mem_rd_if.rdy;
     assign db_rd_if.ack = mem_rd_if.ack;
     assign db_rd_if.error = 1'b0;
+    assign db_rd_if.next_key = '0;
 
     generate
         if (TRACK_VALID) begin : g__valid_tracked

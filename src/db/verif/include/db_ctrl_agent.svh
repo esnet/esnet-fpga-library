@@ -53,6 +53,28 @@ class db_ctrl_agent #(
         _trace_msg(msg, __CLASS_NAME);
     endfunction
 
+    function automatic void attach(
+            input virtual db_ctrl_intf#(KEY_T, VALUE_T) v_ctrl_if,
+            input virtual db_status_intf v_status_if = null,
+            input virtual db_info_intf v_info_if = null
+        );
+        attach_ctrl_if(v_ctrl_if);
+        attach_status_if(v_status_if);
+        attach_info_if(v_info_if);
+    endfunction
+
+    function automatic void attach_ctrl_if(virtual db_ctrl_intf#(KEY_T, VALUE_T) ctrl_if);
+        this.ctrl_vif = ctrl_if;
+    endfunction
+
+    function automatic void attach_status_if(virtual db_status_intf status_if);
+        this.status_vif = status_if;
+    endfunction
+
+    function automatic void attach_info_if(virtual db_info_intf info_if);
+        this.info_vif = info_if;
+    endfunction
+
     // Put all (driven) interfaces into idle state
     // [[ implements std_verif_pkg::agent.idle ]]
     task idle();
@@ -105,6 +127,11 @@ class db_ctrl_agent #(
         ctrl_vif._get_valid(_valid);
     endtask
 
+    // Read key (from response)
+    // [[ implements db_agent::_get_key ]]
+    task _get_key(output KEY_T _key);
+        ctrl_vif._get_key(_key);
+    endtask
     // Read value (from response)
     // [[ implements db_agent::_get_value ]]
     task _get_value(output VALUE_T _value);
@@ -138,7 +165,7 @@ class db_ctrl_agent #(
     task get_activate_cnt(output int _cnt_activate);
         _cnt_activate = status_vif.cnt_activate;
     endtask
-    
+
     task get_deactivate_cnt(output int _cnt_deactivate);
         _cnt_deactivate = status_vif.cnt_deactivate;
     endtask

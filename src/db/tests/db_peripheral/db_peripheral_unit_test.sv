@@ -61,7 +61,6 @@ module db_peripheral_unit_test;
 
         agent = new("db_agent", SIZE);
         agent.ctrl_vif = ctrl_if;
-        agent.set_debug_level(3);
  
     endfunction
 

@@ -31,6 +31,20 @@ rtl_sim:
   tags:
     - ht-sim
   script:
+    - make -C src/std/tests/regression SEED=$SEED
+    - grep 'PASSED.*suites passing' src/std/tests/regression/run_$SEED/sim.log
+    - make -C src/sync/tests/regression SEED=$SEED
+    - grep 'PASSED.*suites passing' src/sync/tests/regression/run_$SEED/sim.log
+    - make -C src/mem/tests/regression SEED=$SEED
+    - grep 'PASSED.*suites passing' src/mem/tests/regression/run_$SEED/sim.log
+    - make -C src/reg/tests/regression SEED=$SEED
+    - grep 'PASSED.*suites passing' src/reg/tests/regression/run_$SEED/sim.log
+    - make -C src/reg/example/tests/regression SEED=$SEED
+    - grep 'PASSED.*suites passing' src/reg/example/tests/regression/run_$SEED/sim.log
+    - make -C src/fifo/tests/regression SEED=$SEED
+    - grep 'PASSED.*suites passing' src/fifo/tests/regression/run_$SEED/sim.log
+    - make -C src/packet/tests/regression SEED=$SEED
+    - grep 'PASSED.*suites passing' src/packet/tests/regression/run_$SEED/sim.log
     - make -C src/axi4l/tests/regression SEED=$SEED
     - grep 'PASSED.*suites passing' src/axi4l/tests/regression/run_$SEED/sim.log
     - make -C src/axi4s/tests/regression SEED=$SEED
@@ -39,20 +53,8 @@ rtl_sim:
     - grep 'PASSED.*suites passing' src/crc/tests/regression/run_$SEED/sim.log
     - make -C src/db/tests/regression SEED=$SEED
     - grep 'PASSED.*suites passing' src/db/tests/regression/run_$SEED/sim.log
-    - make -C src/fifo/tests/regression SEED=$SEED
-    - grep 'PASSED.*suites passing' src/fifo/tests/regression/run_$SEED/sim.log
-    - make -C src/packet/tests/regression SEED=$SEED
-    - grep 'PASSED.*suites passing' src/packet/tests/regression/run_$SEED/sim.log
-    - make -C src/reg/tests/regression SEED=$SEED
-    - grep 'PASSED.*suites passing' src/reg/tests/regression/run_$SEED/sim.log
-    - make -C src/reg/example/tests/regression SEED=$SEED
-    - grep 'PASSED.*suites passing' src/reg/example/tests/regression/run_$SEED/sim.log
-    - make -C src/std/tests/regression SEED=$SEED
-    - grep 'PASSED.*suites passing' src/std/tests/regression/run_$SEED/sim.log
-    - make -C src/sync/tests/regression SEED=$SEED
-    - grep 'PASSED.*suites passing' src/sync/tests/regression/run_$SEED/sim.log
-    - make -C src/mem/tests/regression SEED=$SEED
-    - grep 'PASSED.*suites passing' src/mem/tests/regression/run_$SEED/sim.log
+    - make -C src/htable/tests/regression SEED=$SEED
+    - grep 'PASSED.*suites passing' src/htable/tests/regression/run_$SEED/sim.log
   artifacts:
     name: "artifacts.$CI_PROJECT_NAME.$CI_JOB_NAME.$CI_PIPELINE_ID"
     reports:
