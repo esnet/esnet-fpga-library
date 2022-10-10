@@ -28,7 +28,8 @@ SRC_LIST_FILES =
 COMPONENTS = reg \
              util_rtl=$(LIB_ROOT)/src/util/rtl \
              fifo_rtl=$(LIB_ROOT)/src/fifo/rtl \
-             db_rtl=$(LIB_ROOT)/src/db/rtl
+             db_rtl=$(LIB_ROOT)/src/db/rtl \
+             htable_rtl=$(LIB_ROOT)/src/htable/rtl
 EXT_LIBS =
 
 # ----------------------------------------------------

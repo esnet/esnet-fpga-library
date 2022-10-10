@@ -44,6 +44,7 @@ SRC_LIST_FILES = $(SVUNIT_SRC_LIST_FILE)
 COMPONENTS = rtl verif tb \
              std_rtl=$(LIB_ROOT)/src/std/rtl \
              axi4l_rtl=$(LIB_ROOT)/src/axi4l/rtl \
+             htable_rtl=$(LIB_ROOT)/src/htable/rtl \
              axi4l_verif=$(LIB_ROOT)/src/axi4l/verif \
              db_verif=$(LIB_ROOT)/src/db/verif
 EXT_LIBS =
