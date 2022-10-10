@@ -1,4 +1,4 @@
-name: state_ptr_allocator
+name: state_allocator
 info: |
   This register map describes a register block for
   control and monitoring of the state pointer allocator component.
@@ -79,7 +79,7 @@ regs:
           desc: Scan FSM state.
           width: 4
 
-  - name: dbg_err_ptr
+  - name: dbg_err_id
     desc: Latches pointer associated with last allocation or deallocation error.
     access: ro
     width: 32

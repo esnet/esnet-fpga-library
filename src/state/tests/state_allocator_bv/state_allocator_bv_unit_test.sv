@@ -3,8 +3,8 @@
 // (Failsafe) timeout
 `define SVUNIT_TIMEOUT 100ms
 
-module state_ptr_bv_allocator_unit_test #(
-    parameter int PTR_WID = 8,
+module state_allocator_bv_unit_test #(
+    parameter int ID_WID = 8,
     parameter bit ALLOC_FC = 1'b0,
     parameter bit DEALLOC_FC = 1'b1
 );
@@ -12,15 +12,15 @@ module state_ptr_bv_allocator_unit_test #(
     import state_verif_pkg::*;
 
     // Synthesize testcase name from parameters
-    string name = $sformatf("state_ptr_bv_allocator_%0db_ut", PTR_WID);
+    string name = $sformatf("state_allocator_bv_%0db_ut", ID_WID);
 
     svunit_testcase svunit_ut;
 
     //===================================
     // Parameters
     //===================================
-    localparam type PTR_T = logic[PTR_WID-1:0];
-    localparam int NUM_PTRS = 2**PTR_WID;
+    localparam type ID_T = logic[ID_WID-1:0];
+    localparam int NUM_IDS = 2**ID_WID;
 
     //===================================
     // DUT
@@ -34,20 +34,20 @@ module state_ptr_bv_allocator_unit_test #(
 
     logic   alloc_req;
     logic   alloc_rdy;
-    PTR_T   alloc_ptr;
+    ID_T   alloc_id;
 
     logic   dealloc_req;
     logic   dealloc_rdy;
-    PTR_T   dealloc_ptr;
+    ID_T   dealloc_id;
 
     logic   err_alloc;
     logic   err_dealloc;
-    PTR_T   err_ptr;
+    ID_T   err_id;
 
     axi4l_intf axil_if ();
 
-    state_ptr_bv_allocator #(
-        .PTR_T          ( PTR_T ),
+    state_allocator_bv #(
+        .ID_T           ( ID_T ),
         .ALLOC_FC       ( ALLOC_FC ),
         .DEALLOC_FC     ( DEALLOC_FC ),
         .SIM__FAST_INIT ( 0 )
@@ -65,7 +65,7 @@ module state_ptr_bv_allocator_unit_test #(
     std_reset_intf reset_if (.clk(clk));
 
     axi4l_verif_pkg::axi4l_reg_agent axil_reg_agent;
-    state_ptr_allocator_reg_agent reg_agent;
+    state_allocator_reg_agent reg_agent;
 
     // Assign reset interface
     assign srst = reset_if.reset;
@@ -86,7 +86,7 @@ module state_ptr_bv_allocator_unit_test #(
         axil_reg_agent.axil_vif = axil_if;
 
         // Reg agent
-        reg_agent = new("state_ptr_allocator_reg_agent", axil_reg_agent, 0);
+        reg_agent = new("state_allocator_reg_agent", axil_reg_agent, 0);
 
     endfunction
 
@@ -166,7 +166,7 @@ module state_ptr_bv_allocator_unit_test #(
         `SVTEST(info_check)
             int size;
             reg_agent.get_size(size);
-            `FAIL_UNLESS(size == NUM_PTRS);
+            `FAIL_UNLESS(size == NUM_IDS);
         `SVTEST_END
 
         //===================================
@@ -174,21 +174,21 @@ module state_ptr_bv_allocator_unit_test #(
         //   allocate/deallocate single pointer
         //
         // Desc: Allocate a single pointer:
-        //       - ptr0 should be received, and stats should track.
+        //       - id0 should be received, and stats should track.
         //       Deallocate the pointer:
         //       - should complete successfully since the pointer was
         //       previously allocated, and stacks should
         //===================================
         `SVTEST(alloc_dealloc_single)
-            PTR_T __ptr;
+            ID_T __id;
             int cnt;
 
-            alloc(__ptr);
+            alloc(__id);
 
             // Allow counters to update
             _wait(1);
 
-            `FAIL_UNLESS(__ptr == 0);
+            `FAIL_UNLESS(__id == 0);
             reg_agent.get_active_cnt(cnt);
             `FAIL_UNLESS(cnt == 1);
             reg_agent.get_alloc_cnt(cnt);
@@ -196,12 +196,12 @@ module state_ptr_bv_allocator_unit_test #(
             reg_agent.get_dealloc_cnt(cnt);
             `FAIL_UNLESS(cnt == 0);
 
-            dealloc(__ptr);
+            dealloc(__id);
 
             // Wait for dealloc operation to complete
             _wait(20);
 
-            `FAIL_UNLESS(__ptr == 0);
+            `FAIL_UNLESS(__id == 0);
             reg_agent.get_active_cnt(cnt);
             `FAIL_UNLESS(cnt == 0);
             reg_agent.get_alloc_cnt(cnt);
@@ -224,21 +224,21 @@ module state_ptr_bv_allocator_unit_test #(
         //       - stats should track
         //===================================
         `SVTEST(alloc_dealloc_all)
-            PTR_T __ptr;
+            ID_T __id;
             int cnt;
 
             // Allocate all pointers (expect sequential allocation)
-            for (int i = 0; i < NUM_PTRS; i++) begin
-                alloc(__ptr);
-                `FAIL_UNLESS(__ptr == i);
+            for (int i = 0; i < NUM_IDS; i++) begin
+                alloc(__id);
+                `FAIL_UNLESS(__id == i);
                 _wait($urandom % 20);
             end
             // Allow counters to update
             _wait(1);
             reg_agent.get_active_cnt(cnt);
-            `FAIL_UNLESS(cnt == NUM_PTRS);
+            `FAIL_UNLESS(cnt == NUM_IDS);
             reg_agent.get_alloc_cnt(cnt);
-            `FAIL_UNLESS(cnt == NUM_PTRS);
+            `FAIL_UNLESS(cnt == NUM_IDS);
             reg_agent.get_dealloc_cnt(cnt);
             `FAIL_UNLESS(cnt == 0);
 
@@ -247,7 +247,7 @@ module state_ptr_bv_allocator_unit_test #(
             `FAIL_IF(alloc_rdy == 1);
             
             // Deallocate all pointers
-            for (int i = 0; i < NUM_PTRS; i++) begin
+            for (int i = 0; i < NUM_IDS; i++) begin
                 dealloc(i);
             end
             // Wait for dealloc operation to complete
@@ -255,9 +255,9 @@ module state_ptr_bv_allocator_unit_test #(
             reg_agent.get_active_cnt(cnt);
             `FAIL_UNLESS(cnt == 0);
             reg_agent.get_alloc_cnt(cnt);
-            `FAIL_UNLESS(cnt == NUM_PTRS);
+            `FAIL_UNLESS(cnt == NUM_IDS);
             reg_agent.get_dealloc_cnt(cnt);
-            `FAIL_UNLESS(cnt == NUM_PTRS);
+            `FAIL_UNLESS(cnt == NUM_IDS);
         `SVTEST_END
 
         //===================================
@@ -277,21 +277,21 @@ module state_ptr_bv_allocator_unit_test #(
         //         proper pointer value reported
         //===================================
         `SVTEST(dealloc_error)
-            localparam int __TC_NUM_PTRS = NUM_PTRS/4;
-            const int NUM_ERRS = $urandom % __TC_NUM_PTRS;
-            PTR_T __ptr [__TC_NUM_PTRS];
+            localparam int __TC_NUM_IDS = NUM_IDS/4;
+            const int NUM_ERRS = $urandom % __TC_NUM_IDS;
+            ID_T __id [__TC_NUM_IDS];
             int cnt;
 
-            for (int i = 0; i < __TC_NUM_PTRS; i++) begin
-                alloc(__ptr[i]);
+            for (int i = 0; i < __TC_NUM_IDS; i++) begin
+                alloc(__id[i]);
             end
 
             // Allow counters to update
             _wait(1);
             reg_agent.get_active_cnt(cnt);
-            `FAIL_UNLESS(cnt == __TC_NUM_PTRS);
+            `FAIL_UNLESS(cnt == __TC_NUM_IDS);
             reg_agent.get_alloc_cnt(cnt);
-            `FAIL_UNLESS(cnt == __TC_NUM_PTRS);
+            `FAIL_UNLESS(cnt == __TC_NUM_IDS);
             reg_agent.get_dealloc_cnt(cnt);
             `FAIL_UNLESS(cnt == 0);
             reg_agent.get_dealloc_err_cnt(cnt);
@@ -301,13 +301,13 @@ module state_ptr_bv_allocator_unit_test #(
             reg_agent.disable_allocation();
 
             // Shuffle list of pointers
-            __ptr.shuffle();
+            __id.shuffle();
 
             // Deallocate all pointers
             fork
                 begin
-                    foreach (__ptr[i]) begin
-                        dealloc(__ptr[i]);
+                    foreach (__id[i]) begin
+                        dealloc(__id[i]);
                     end
                 end
                 begin
@@ -315,8 +315,8 @@ module state_ptr_bv_allocator_unit_test #(
                     `FAIL_IF_LOG(
                         err_dealloc == 1,
                         $sformatf(
-                            "Unexpected deallocation error for ptr[0x%x]",
-                            err_ptr
+                            "Unexpected deallocation error for id[0x%x]",
+                            err_id
                         )
                     );
                 end
@@ -328,29 +328,29 @@ module state_ptr_bv_allocator_unit_test #(
             reg_agent.get_active_cnt(cnt);
             `FAIL_UNLESS(cnt == 0);
             reg_agent.get_alloc_cnt(cnt);
-            `FAIL_UNLESS(cnt == __TC_NUM_PTRS);
+            `FAIL_UNLESS(cnt == __TC_NUM_IDS);
             reg_agent.get_dealloc_cnt(cnt);
-            `FAIL_UNLESS(cnt == __TC_NUM_PTRS);
+            `FAIL_UNLESS(cnt == __TC_NUM_IDS);
             reg_agent.get_dealloc_err_cnt(cnt);
             `FAIL_UNLESS(cnt == 0);
 
             // Shuffle list of pointers again
-            __ptr.shuffle();
+            __id.shuffle();
 
             // Deallocate a subset of the pointers again; check for (expected) deallocation errors
             for (int i = 0; i < NUM_ERRS; i++) begin
-                dealloc(__ptr[i]);
+                dealloc(__id[i]);
 
                 // Should trigger deallocation error
                 wait(err_dealloc);
  
                 // Check that pointer corresponding to failed deallocation is reported correctly
                 `FAIL_UNLESS_LOG(
-                    err_ptr == __ptr[i],
+                    err_id == __id[i],
                     $sformatf(
-                        "Mismatch in deallocation error pointer. Exp: ptr[0x%x], Got: ptr[0x%x].",
-                        __ptr[i],
-                        err_ptr
+                        "Mismatch in deallocation error pointer. Exp: id[0x%x], Got: id[0x%x].",
+                        __id[i],
+                        err_id
                     )
                 );
                 
@@ -366,9 +366,9 @@ module state_ptr_bv_allocator_unit_test #(
             reg_agent.get_active_cnt(cnt);
             `FAIL_UNLESS(cnt == 0);
             reg_agent.get_alloc_cnt(cnt);
-            `FAIL_UNLESS(cnt == __TC_NUM_PTRS);
+            `FAIL_UNLESS(cnt == __TC_NUM_IDS);
             reg_agent.get_dealloc_cnt(cnt);
-            `FAIL_UNLESS(cnt == __TC_NUM_PTRS);
+            `FAIL_UNLESS(cnt == __TC_NUM_IDS);
             reg_agent.get_dealloc_err_cnt(cnt);
             `FAIL_UNLESS(cnt == NUM_ERRS);
 
@@ -387,17 +387,17 @@ module state_ptr_bv_allocator_unit_test #(
         @(posedge clk);
     endtask
 
-    task alloc(output PTR_T ptr);
+    task alloc(output ID_T id);
         alloc_req <= 1'b1;
         do @(posedge clk);
         while (!alloc_rdy);
         alloc_req <= 1'b0;
-        ptr = alloc_ptr;
+        id = alloc_id;
     endtask
 
-    task dealloc(input PTR_T ptr);
+    task dealloc(input ID_T id);
         dealloc_req <= 1'b1;
-        dealloc_ptr <= ptr;
+        dealloc_id <= id;
         do @(posedge clk);
         while (!dealloc_rdy);
         dealloc_req <= 1'b0;
@@ -413,15 +413,15 @@ module state_ptr_bv_allocator_unit_test #(
         repeat(cycles) @(posedge clk);
     endtask
 
-endmodule : state_ptr_bv_allocator_unit_test
+endmodule : state_allocator_bv_unit_test
 
 // 'Boilerplate' unit test wrapper code
 //  Builds unit test for a specific configuration in a way
 //  that maintains SVUnit compatibility
-`define STATE_PTR_BV_ALLOCATOR_UNIT_TEST(PTR_WID)\
+`define STATE_ALLOCATOR_BV_UNIT_TEST(ID_WID)\
   import svunit_pkg::svunit_testcase;\
   svunit_testcase svunit_ut;\
-  state_ptr_bv_allocator_unit_test#(PTR_WID) test();\
+  state_allocator_bv_unit_test#(ID_WID) test();\
   function void build();\
     test.build();\
     svunit_ut = test.svunit_ut;\
@@ -431,18 +431,18 @@ endmodule : state_ptr_bv_allocator_unit_test
   endtask
 
 // (Distributed RAM) 8-bit pointer allocator
-module state_ptr_bv_allocator_8b_unit_test;
-`STATE_PTR_BV_ALLOCATOR_UNIT_TEST(8);
+module state_tr_bv_allocator_8b_unit_test;
+`STATE_ALLOCATOR_BV_UNIT_TEST(8);
 endmodule
 
 // (Block RAM) 4096-entry, 12-bit pointer allocator
-module state_ptr_bv_allocator_12b_unit_test;
-`STATE_PTR_BV_ALLOCATOR_UNIT_TEST(12);
+module state_allocator_bv_12b_unit_test;
+`STATE_ALLOCATOR_BV_UNIT_TEST(12);
 endmodule
 
 // (Block RAM) 65536-entry, 16-bit pointer allocator
-module state_ptr_bv_allocator_16b_unit_test;
-`STATE_PTR_BV_ALLOCATOR_UNIT_TEST(16);
+module state_allocator_bv_16b_unit_test;
+`STATE_ALLOCATOR_BV_UNIT_TEST(16);
 endmodule
 
 

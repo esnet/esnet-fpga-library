@@ -39,8 +39,9 @@
 // The application deallocates a pointer by pushing it into the deallocation FIFO.
 // The allocator FSM pulls values from this FIFO and sets the corresponding bit in
 // the bit vector (to indicate available or unallocated).
-module state_ptr_bv_allocator #(
-    parameter type PTR_T = logic[7:0],
+module state_allocator_bv #(
+    parameter type ID_T = logic[7:0],
+    parameter int  NUM_IDS = 2**$bits(ID_T),
     parameter bit  ALLOC_FC = 1'b1,   // Can flow control alloc interface,
                                       // i.e. requester waits on alloc_rdy
     parameter bit  DEALLOC_FC = 1'b1, // Can flow control dealloc interface,
@@ -59,17 +60,17 @@ module state_ptr_bv_allocator #(
     // Allocate interface
     input  logic  alloc_req,
     output logic  alloc_rdy,
-    output PTR_T  alloc_ptr,
+    output ID_T   alloc_id,
 
     // Deallocate interface
     input  logic  dealloc_req,
     output logic  dealloc_rdy,
-    input  PTR_T  dealloc_ptr,
+    input  ID_T   dealloc_id,
 
     // Errors
     output logic  err_alloc,
     output logic  err_dealloc,
-    output PTR_T  err_ptr,
+    output ID_T   err_id,
 
     // AXI-L control/monitoring
     axi4l_intf.peripheral axil_if
@@ -78,24 +79,25 @@ module state_ptr_bv_allocator #(
     // -----------------------------
     // Imports
     // -----------------------------
-    import state_ptr_allocator_reg_pkg::*;
+    import state_allocator_reg_pkg::*;
 
     // -----------------------------
     // Parameters
     // -----------------------------
-    localparam int PTR_WID = $bits(PTR_T);
-    localparam int NUM_PTRS = 2**PTR_WID;
-    localparam int NUM_COLS = NUM_PTRS > 65536 ? NUM_PTRS / 4096 :
-                              NUM_PTRS > 16    ? 16 : 1;
-    localparam int NUM_ROWS = NUM_PTRS / NUM_COLS;
+    localparam int NUM_COLS = NUM_IDS > 65536 ? NUM_IDS / 4096 :
+                              NUM_IDS > 16    ? 16 : 1;
+    localparam int NUM_ROWS = NUM_IDS / NUM_COLS;
+
+    // Check that width of ID field is sufficient to describe specified number of IDs
+    initial assert(2**$bits(ID_T) >= NUM_IDS) else $fatal(1, "ID field too narrow.");
 
     // Check for valid decomposition of pointers into rows/columns
-    initial assert(NUM_PTRS == NUM_COLS * NUM_ROWS) else $fatal(1, "Dimensioning error in pointer array.");
+    initial assert(NUM_IDS == NUM_COLS * NUM_ROWS) else $fatal(1, "Dimensioning error in pointer array.");
 
     localparam int COL_WID = $clog2(NUM_COLS);
     localparam int ROW_WID = $clog2(NUM_ROWS);
 
-    localparam int PTR_CNT_WID = $clog2(NUM_PTRS + 1);
+    localparam int ID_CNT_WID = $clog2(NUM_IDS + 1);
 
     localparam int MEM_RD_LATENCY = mem_pkg::get_default_rd_latency(NUM_ROWS, NUM_COLS);
 
@@ -130,7 +132,7 @@ module state_ptr_bv_allocator #(
     typedef struct packed {
         logic [ROW_WID-1:0] row;
         logic [COL_WID-1:0] col;
-    } ptr_addr_t;
+    } id_addr_t;
 
     typedef struct packed {
         logic valid;
@@ -145,7 +147,7 @@ module state_ptr_bv_allocator #(
 
     axi4l_intf #() axil_if__clk ();
 
-    state_ptr_allocator_reg_intf reg_if ();
+    state_allocator_reg_intf reg_if ();
 
     // -----------------------------
     // Signals
@@ -171,12 +173,12 @@ module state_ptr_bv_allocator #(
     rd_ctxt_t     rd_ctxt_out;
 
     mem_data_t colmask;
-    ptr_addr_t ptr;
+    id_addr_t  id;
     logic      modify_err;
 
     // Alloc FIFO
     logic       alloc_q_wr;
-    PTR_T       alloc_q_wr_data;
+    ID_T        alloc_q_wr_data;
     logic       alloc_q_full;
     logic       alloc_q_empty;
     logic       alloc_q_uflow;
@@ -185,7 +187,7 @@ module state_ptr_bv_allocator #(
     logic       alloc_fail;
 
     logic       __alloc;
-    ptr_addr_t  __alloc_ptr;
+    id_addr_t   __alloc_id;
 
     // Scan FSM
     scan_state_t scan_state;
@@ -209,7 +211,7 @@ module state_ptr_bv_allocator #(
     // Deallocation FIFO
     logic      dealloc_q_full;
     logic      dealloc_q_rd;
-    PTR_T      dealloc_q_rd_data;
+    ID_T       dealloc_q_rd_data;
     logic      dealloc_q_empty;
     logic      dealloc_q_oflow;
 
@@ -217,7 +219,7 @@ module state_ptr_bv_allocator #(
     logic      dealloc_fail;
 
     logic      __dealloc;
-    ptr_addr_t __dealloc_ptr;
+    id_addr_t  __dealloc_id;
 
 
     reg_status_flags_t status_flags;
@@ -233,14 +235,14 @@ module state_ptr_bv_allocator #(
     );
 
     // Registers
-    state_ptr_allocator_reg_blk i_state_ptr_allocator_reg_blk (
+    state_allocator_reg_blk i_state_allocator_reg_blk (
         .axil_if    ( axil_if__clk ),
         .reg_blk_if ( reg_if )
     );
 
     // Export parameterization info to regmap
     assign reg_if.info_size_nxt_v = 1'b1;
-    assign reg_if.info_size_nxt = NUM_PTRS;
+    assign reg_if.info_size_nxt = NUM_IDS;
 
     // Block-level reset control
     initial local_srst = 1'b1;
@@ -293,13 +295,13 @@ module state_ptr_bv_allocator #(
     assign mem_wr_if.rst = 1'b0;
     assign mem_wr_if.en  = init_done;
     assign mem_wr_if.req = wr;
-    assign mem_wr_if.addr = ptr.row;
+    assign mem_wr_if.addr = id.row;
     assign mem_wr_if.data = wr_data;
 
     assign mem_rd_if.rst = 1'b0;
     assign mem_rd_if.en = init_done;
     assign mem_rd_if.req = rd || scan_rd;
-    assign mem_rd_if.addr = rd ? ptr.row : scan_row;
+    assign mem_rd_if.addr = rd ? id.row : scan_row;
 
     assign rd_rdy      = mem_rd_if.rdy;
     assign scan_rd_rdy = mem_rd_if.rdy && !rd;
@@ -324,54 +326,50 @@ module state_ptr_bv_allocator #(
     // -----------------------------
     // Allocation queue
     // -----------------------------
-    fifo_sync #(
-        .DATA_T  ( PTR_T ),
-        .DEPTH   ( 32 ),
-        .FWFT    ( 1 )
+    fifo_small #(
+        .DATA_T  ( ID_T ),
+        .DEPTH   ( 32 )
     ) i_alloc_q  (
         .clk     ( clk ),
         .srst    ( local_srst ),
         .wr      ( alloc_q_wr ),
         .wr_data ( alloc_q_wr_data ),
-        .rd      ( alloc ),
-        .rd_data ( alloc_ptr ),
-        .count   ( ),
         .full    ( alloc_q_full ),
-        .empty   ( alloc_q_empty ),
         .oflow   ( ),
+        .rd      ( alloc ),
+        .rd_data ( alloc_id ),
+        .empty   ( alloc_q_empty ),
         .uflow   ( alloc_q_uflow )
     );
 
     assign alloc_rdy = __en && !alloc_q_empty;
     assign alloc = alloc_req && alloc_rdy;
     assign alloc_fail = ALLOC_FC ? 1'b0 : alloc_req && !alloc_rdy;
-    assign alloc_q_wr_data = {0, __alloc_ptr};
+    assign alloc_q_wr_data = {0, __alloc_id};
 
     // -----------------------------
     // Deallocation queue
     // -----------------------------
-    fifo_sync #(
-        .DATA_T   ( PTR_T ),
-        .DEPTH    ( 32 ),
-        .FWFT     ( 1 )
+    fifo_small #(
+        .DATA_T   ( ID_T ),
+        .DEPTH    ( 32 )
     ) i_dealloc_q (
         .clk      ( clk ),
         .srst     ( local_srst ),
-        .wr       ( dealloc_req ),
-        .wr_data  ( dealloc_ptr ),
+        .wr       ( dealloc_req && dealloc_rdy ),
+        .wr_data  ( dealloc_id ),
+        .full     ( dealloc_q_full ),
+        .oflow    ( dealloc_q_oflow ),
         .rd       ( dealloc_q_rd ),
         .rd_data  ( dealloc_q_rd_data ),
-        .count    ( ),
-        .full     ( dealloc_q_full ),
         .empty    ( dealloc_q_empty ),
-        .oflow    ( dealloc_q_oflow ),
         .uflow    ( )
     );
 
     assign dealloc_rdy = __en && !dealloc_q_full;
     assign dealloc = done && __dealloc;
     assign dealloc_fail = DEALLOC_FC ? 1'b0 : dealloc_req && !dealloc_rdy;
-    assign __dealloc_ptr = dealloc_q_rd_data;
+    assign __dealloc_id = dealloc_q_rd_data;
 
     // -----------------------------
     // Main FSM
@@ -440,17 +438,17 @@ module state_ptr_bv_allocator #(
     // Latch set/clear
     always_ff @(posedge clk) begin
         if (state == DEALLOC) begin
-            __alloc         <= 1'b0;
-            __dealloc       <= 1'b1;
-            ptr             <= __dealloc_ptr;
+            __alloc   <= 1'b0;
+            __dealloc <= 1'b1;
+            id        <= __dealloc_id;
         end else if (state == ALLOC) begin
-            __alloc         <= 1'b1;
-            __dealloc       <= 1'b0;
-            ptr             <= __alloc_ptr;
+            __alloc   <= 1'b1;
+            __dealloc <= 1'b0;
+            id        <= __alloc_id;
         end
     end
 
-    always @(posedge clk) if (rd) colmask <= (1'b1 << ptr.col);
+    always @(posedge clk) if (rd) colmask <= (1'b1 << id.col);
 
     // Latch read data
     always_ff @(posedge clk) if (rd_ack) rd_data <= mem_rd_if.data;
@@ -462,7 +460,7 @@ module state_ptr_bv_allocator #(
     // (i.e. pointer to allocate already allocated, pointer to deallocate already deallocated)
     always_comb begin
         modify_err = 1'b0;
-        if (__dealloc == rd_data[ptr.col]) modify_err = 1'b1;
+        if (__dealloc == rd_data[id.col]) modify_err = 1'b1;
     end
 
     // -----------------------------
@@ -547,15 +545,15 @@ module state_ptr_bv_allocator #(
     always_ff @(posedge clk) if (scan_check) scan_col <= __scan_col;
 
     // Assign next pointer to be allocated from scan result
-    assign __alloc_ptr.row = scan_row;
-    assign __alloc_ptr.col = scan_col;
+    assign __alloc_id.row = scan_row;
+    assign __alloc_id.col = scan_col;
 
     // ----------------------------------
     // Error reporting
     // ----------------------------------
     assign err_alloc   = error && __alloc;
     assign err_dealloc = error && __dealloc;
-    assign err_ptr     = ptr;
+    assign err_id      = id;
 
     // ----------------------------------
     // Debug status
@@ -568,8 +566,8 @@ module state_ptr_bv_allocator #(
     assign reg_if.dbg_status_scan_nxt.state = scan_state;
 
     // Latch value of pointer on error
-    assign reg_if.dbg_err_ptr_nxt_v = err_alloc || err_dealloc;
-    assign reg_if.dbg_err_ptr_nxt = err_ptr;
+    assign reg_if.dbg_err_id_nxt_v = err_alloc || err_dealloc;
+    assign reg_if.dbg_err_id_nxt = err_id;
 
     // Counters
     // -- function-level reset
@@ -629,4 +627,4 @@ module state_ptr_bv_allocator #(
         end
     end
 
-endmodule : state_ptr_bv_allocator
+endmodule : state_allocator_bv
