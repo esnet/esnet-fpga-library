@@ -34,24 +34,24 @@ module std_block_monitor (
     output logic       ctrl_ready_mon_out,
     output logic [7:0] ctrl_state_mon_out
 );
-    // Synchronize monitor outputs to ctrl_clk_in
+    // Synchronize monitor outputs to ctrl_clk
     sync_level i_sync_level__reset_mon (
         .lvl_in  ( blk_reset_mon_in ),
-        .clk_out ( ctrl_clk_in ),
+        .clk_out ( ctrl_clk ),
         .rst_out ( 1'b0 ),
         .lvl_out ( ctrl_reset_mon_out )
     );
 
     sync_level i_sync_level__enable_mon (
         .lvl_in  ( blk_enable_mon_in ),
-        .clk_out ( ctrl_clk_in ),
+        .clk_out ( ctrl_clk ),
         .rst_out ( 1'b0 ),
         .lvl_out ( ctrl_enable_mon_out )
     );
 
     sync_level i_sync_level__ready_mon (
         .lvl_in  ( blk_ready_mon_in ),
-        .clk_out ( ctrl_clk_in ),
+        .clk_out ( ctrl_clk ),
         .rst_out ( 1'b0 ),
         .lvl_out ( ctrl_ready_mon_out )
     );
