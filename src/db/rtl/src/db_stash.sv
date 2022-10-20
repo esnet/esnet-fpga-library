@@ -100,7 +100,9 @@ module db_stash #(
         .KEY_T ( KEY_T ),
         .VALUE_T ( VALUE_T ),
         .NUM_WR_TRANSACTIONS ( 2 ),
-        .NUM_RD_TRANSACTIONS ( 2 )
+        .NUM_RD_TRANSACTIONS ( 2 ),
+        .DB_CACHE_EN ( 0 ),
+        .APP_CACHE_EN ( 0 ) // No caching; writes/reads are executed in one cycle
     ) i_db_core (
         .*
     );
