@@ -24,6 +24,11 @@ module htable_multi_core
     parameter int  HASH_LATENCY = 0,
     parameter int  NUM_WR_TRANSACTIONS = 2,
     parameter int  NUM_RD_TRANSACTIONS = 8,
+    parameter bit  APP_CACHE_EN = 1'b0,     // Enable caching of update/lookup interface transactions to ensure consistency
+                                            // of underlying table data for cases where multiple transactions
+                                            // (closely spaced in time) target the same table entry; can be disabled to
+                                            // achieve a less complex implementation for applications insensitive to
+                                            // this type of inconsistency
     parameter htable_multi_insert_mode_t INSERT_MODE = HTABLE_MULTI_INSERT_MODE_NONE // Insert mode
                                             // Typical implementation will be reads (lookups) from the
                                             // application interface and writes (insertions) from the control
@@ -119,13 +124,15 @@ module htable_multi_core
             // (Local) interfaces
             db_info_intf __info_if ();
 
+            // Single-table hashtable instance
             htable_core #(
                 .KEY_T               ( KEY_T ),
                 .VALUE_T             ( VALUE_T ),
                 .SIZE                ( TABLE_SIZE[g_tbl] ),
                 .HASH_LATENCY        ( HASH_LATENCY ),
                 .NUM_WR_TRANSACTIONS ( NUM_WR_TRANSACTIONS ),
-                .NUM_RD_TRANSACTIONS ( NUM_RD_TRANSACTIONS )
+                .NUM_RD_TRANSACTIONS ( NUM_RD_TRANSACTIONS ),
+                .APP_CACHE_EN        ( APP_CACHE_EN )
             ) i_htable_core   (
                 .clk           ( clk ),
                 .srst          ( srst ),

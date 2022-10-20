@@ -98,15 +98,15 @@ module htable_cuckoo_fast_update_core
         .VALUE_T      ( VALUE_T ),
         .NUM_WR_TRANSACTIONS ( NUM_WR_TRANSACTIONS ),
         .NUM_RD_TRANSACTIONS ( NUM_RD_TRANSACTIONS ),
-        .CACHE_EN            ( 1 )
-    ) i_db_core (
-        .clk ( clk ),
-        .srst ( srst ),
-        .init_done ( init_done ),
-        .ctrl_if   ( ctrl_if ),
-        .app_wr_if ( update_if ),
-        .app_rd_if ( lookup_if ),
-        .db_init   ( init ),
+        .APP_CACHE_EN ( 1 )
+    ) i_db_core       (
+        .clk          ( clk ),
+        .srst         ( srst ),
+        .init_done    ( init_done ),
+        .ctrl_if      ( ctrl_if ),
+        .app_wr_if    ( update_if ),
+        .app_rd_if    ( lookup_if ),
+        .db_init      ( init ),
         .db_init_done ( fast_update_init_done ),
         .db_wr_if     ( __update_if ),
         .db_rd_if     ( __lookup_if )

@@ -22,7 +22,13 @@ module htable_core
     parameter int  SIZE = 4096,          // Sets table depth/hash width (expect power of 2)
     parameter int  HASH_LATENCY = 0,
     parameter int  NUM_WR_TRANSACTIONS = 2,
-    parameter int  NUM_RD_TRANSACTIONS = 8
+    parameter int  NUM_RD_TRANSACTIONS = 8,
+    parameter bit  APP_CACHE_EN = 1'b0      // Enable caching of update/lookup interface transactions to ensure consistency
+                                            // of underlying table data for cases where multiple transactions
+                                            // (closely spaced in time) target the same table entry; can be disabled to
+                                            // achieve a less complex implementation for applications insensitive to
+                                            // this type of inconsistency
+
 )(
     // Clock/reset
     input  logic             clk,
@@ -129,7 +135,7 @@ module htable_core
         .VALUE_T             ( entry_t ),
         .NUM_WR_TRANSACTIONS ( NUM_WR_TRANSACTIONS ),
         .NUM_RD_TRANSACTIONS ( NUM_RD_TRANSACTIONS ),
-        .CACHE_EN            ( 1 )
+        .APP_CACHE_EN        ( APP_CACHE_EN )
     ) i_db_core       (
         .clk          ( clk ),
         .srst         ( srst ),
