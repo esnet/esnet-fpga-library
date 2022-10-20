@@ -25,7 +25,7 @@ module db_core #(
     parameter int  NUM_RD_TRANSACTIONS = 8, // Maximum number of database read transactions that can
                                             // be in flight (from the perspective of this module)
                                             // at any given time.
-    parameter int  CACHE_EN = 1'b1          // Enable caching to ensure consistency of underlying state
+    parameter bit  CACHE_EN = 1'b1          // Enable caching to ensure consistency of underlying state
                                             // data for cases where multiple transactions (closely spaced
                                             // in time) target the same state ID; in general, caching should
                                             // be enabled, but it can be disabled to achieve a less complex
