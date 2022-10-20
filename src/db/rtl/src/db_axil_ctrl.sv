@@ -244,6 +244,8 @@ module db_axil_ctrl #(
     assign state_mon_in = {'0, state};
     assign reg_if.blk_monitor_nxt.state_mon = fld_blk_monitor_state_mon_t'(state_mon_out);
 
+    assign reg_if.blk_monitor_nxt_v = 1'b1;
+
     // ----------------------------------------
     // Logic
     // ----------------------------------------
