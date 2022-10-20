@@ -21,7 +21,7 @@ module htable_cuckoo_fast_update_core_unit_test;
     parameter int NUM_TABLES = 3;
     parameter int TABLE_SIZE[NUM_TABLES] = '{default: 256};
 
-    const int SIZE = TABLE_SIZE.sum() + 1;
+    const int SIZE = TABLE_SIZE.sum();
 
     parameter int UPDATE_BURST_SIZE = 8;
     
@@ -337,6 +337,36 @@ module htable_cuckoo_fast_update_core_unit_test;
         `FAIL_UNLESS_EQUAL(got_value, exp_value);
     `SVTEST_END
 
+    `SVTEST(many_entries)
+         const int NUM_ENTRIES = SIZE/2;
+         VALUE_T entries [KEY_T];
+         VALUE_T got_value;
+         bit got_valid;
+         bit error;
+         bit timeout;
+         for (int i = 0; i < NUM_ENTRIES; i++) begin
+             KEY_T __key;
+             VALUE_T __value;
+             // Randomize key/value
+             void'(std::randomize(__key));
+             void'(std::randomize(__value));
+             entries[__key] = __value;
+             // Add entry
+             update_if.update(__key, 1'b1, __value, error, timeout, 1000);
+             `FAIL_IF(error);
+             `FAIL_IF(timeout);
+             update_if._wait(100);
+         end
+         foreach (entries[key]) begin
+             // Query database from app interface
+             lookup_if.query(key, got_valid, got_value, error, timeout);
+             `FAIL_IF(error);
+             `FAIL_IF(timeout);
+             `FAIL_UNLESS(got_valid);
+             `FAIL_UNLESS_EQUAL(got_value, entries[key]);
+         end
+    `SVTEST_END
+
     `SVTEST(max_burst_update)
         localparam int BURST_CNT = UPDATE_BURST_SIZE;
         KEY_T key [BURST_CNT];
@@ -365,7 +395,7 @@ module htable_cuckoo_fast_update_core_unit_test;
 
 
     `SVTEST(burst_update_same_key)
-        localparam int BURST_CNT = 10;
+        localparam int BURST_CNT = 8;
         KEY_T key;
         VALUE_T exp_value;
         VALUE_T got_value;
@@ -387,7 +417,7 @@ module htable_cuckoo_fast_update_core_unit_test;
         `FAIL_UNLESS(got_valid);
         `FAIL_UNLESS_EQUAL(got_value, exp_value);
     `SVTEST_END
-
+    
     `SVUNIT_TESTS_END
 
     task reset();

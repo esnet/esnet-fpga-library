@@ -68,7 +68,7 @@ module htable_cuckoo_fast_update_core
     // Signals
     // ----------------------------------
     logic init;
-    logic local_srst;
+    logic __srst;
     logic fast_update_init_done;
     logic cuckoo_init_done;
 
@@ -76,10 +76,10 @@ module htable_cuckoo_fast_update_core
     // Interfaces
     // ----------------------------------
     db_info_intf cuckoo_info_if ();
-    db_status_intf cuckoo_status_if (.clk(clk), .srst(srst));
+    db_status_intf cuckoo_status_if (.clk(clk), .srst(__srst));
     db_ctrl_intf  #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) cuckoo_ctrl_if (.clk(clk));
     db_intf #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) cuckoo_lookup_if (.clk(clk));
-    
+
     db_intf #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) __lookup_if (.clk(clk));
     db_intf #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) __update_if (.clk(clk));
 
@@ -93,9 +93,9 @@ module htable_cuckoo_fast_update_core
     // ----------------------------------
     // Database core
     // ----------------------------------
-    db_core #(
-        .KEY_T               ( KEY_T ),
-        .VALUE_T             ( VALUE_T ),
+    db_core          #(
+        .KEY_T        ( KEY_T ),
+        .VALUE_T      ( VALUE_T ),
         .NUM_WR_TRANSACTIONS ( NUM_WR_TRANSACTIONS ),
         .NUM_RD_TRANSACTIONS ( NUM_RD_TRANSACTIONS ),
         .CACHE_EN            ( 1 )
@@ -111,14 +111,14 @@ module htable_cuckoo_fast_update_core
         .db_wr_if     ( __update_if ),
         .db_rd_if     ( __lookup_if )
     );
- 
+
     // ----------------------------------
     // Local reset/init
     // ----------------------------------
-    initial local_srst = 1'b1;
+    initial __srst = 1'b1;
     always @(posedge clk) begin
-        if (srst || init) local_srst <= 1'b1;
-        else              local_srst <= 1'b0;
+        if (srst || init) __srst <= 1'b1;
+        else              __srst <= 1'b0;
     end
 
     // ----------------------------------
@@ -131,7 +131,7 @@ module htable_cuckoo_fast_update_core
         .UPDATE_BURST_SIZE   ( UPDATE_BURST_SIZE )
     ) i_htable_fast_update_core (
         .clk           ( clk ),
-        .srst          ( local_srst ),
+        .srst          ( __srst ),
         .en            ( en ),
         .init_done     ( fast_update_init_done ),
         .lookup_if     ( __lookup_if ),
@@ -154,8 +154,8 @@ module htable_cuckoo_fast_update_core
         .NUM_RD_TRANSACTIONS ( NUM_RD_TRANSACTIONS )
     ) i_htable_cuckoo_core   (
         .clk                 ( clk ),
-        .srst                ( local_srst ),
-        .en                  ( 1'b1 ),
+        .srst                ( __srst ),
+        .en                  ( en ),
         .init_done           ( cuckoo_init_done ),
         .info_if             ( cuckoo_info_if ),
         .status_if           ( status_if ),
@@ -170,6 +170,6 @@ module htable_cuckoo_fast_update_core
         .tbl_wr_if           ( tbl_wr_if ),
         .tbl_rd_if           ( tbl_rd_if )
     );
-   
+
 endmodule : htable_cuckoo_fast_update_core
 

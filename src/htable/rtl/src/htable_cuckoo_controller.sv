@@ -418,9 +418,9 @@ module htable_cuckoo_controller
             if (HASH_LATENCY > 0) begin : g__hash_latency
                 // (Local) typedefs
                 typedef struct packed {
-                    logic     req;
-                    command_t command;
-                    entry_t   entry;
+                    logic       req;
+                    command_t   command;
+                    TBL_ENTRY_T entry;
                 } req_ctxt_t;
 
                 req_ctxt_t req_ctxt_in;
@@ -455,8 +455,8 @@ module htable_cuckoo_controller
             assign __tbl_ctrl_if[g_tbl].ack       = tbl_ctrl_if[g_tbl].ack;
             assign __tbl_ctrl_if[g_tbl].status    = tbl_ctrl_if[g_tbl].status;
             assign __tbl_ctrl_if[g_tbl].get_valid = tbl_ctrl_if[g_tbl].get_valid;
+            assign __tbl_ctrl_if[g_tbl].get_value = get_entry;
             assign __tbl_ctrl_if[g_tbl].get_key   = get_entry.key;
-            assign __tbl_ctrl_if[g_tbl].get_value = get_entry.value;
         end : g__tbl
     endgenerate
 

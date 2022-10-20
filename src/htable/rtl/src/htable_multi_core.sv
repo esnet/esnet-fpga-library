@@ -155,6 +155,7 @@ module htable_multi_core
             assign lookup_if__tbl_value[g_tbl] = lookup_if__tbl[g_tbl].value;
             assign lookup_if__tbl[g_tbl].req = lookup_if.req;
             assign lookup_if__tbl[g_tbl].key = lookup_if.key;
+            assign lookup_if__tbl[g_tbl].next = 1'b0;
         end : g__tbl
     endgenerate
 
@@ -183,6 +184,7 @@ module htable_multi_core
             end
         end
     end
+    assign lookup_if.next_key = '0;
 
     generate
         if (INSERT_MODE == HTABLE_MULTI_INSERT_MODE_NONE) begin : g__htable_multi_ins_mode_none
@@ -190,8 +192,12 @@ module htable_multi_core
             for (genvar g_tbl = 0; g_tbl < NUM_TABLES; g_tbl++) begin : g__tbl
                 assign update_if__tbl[g_tbl].req = 1'b0;
                 assign update_if__tbl[g_tbl].key = '0;
+                assign update_if__tbl[g_tbl].next = 1'b0;
                 assign update_if__tbl[g_tbl].valid = 1'b0;
                 assign update_if__tbl[g_tbl].value = '0;
+                assign update_if.rdy = 1'b0;
+                assign update_if.error = 1'b0;
+                assign update_if.next_key = '0;
             end : g__tbl
         end : g__htable_multi_ins_mode_none
         else if (INSERT_MODE == HTABLE_MULTI_INSERT_MODE_ROUND_ROBIN) begin : g__htable_multi_ins_mode_round_robin
@@ -221,6 +227,7 @@ module htable_multi_core
             for (genvar g_tbl = 0; g_tbl < NUM_TABLES; g_tbl++) begin : g__tbl
                 assign update_if__tbl[g_tbl].req = update_if.req;
                 assign update_if__tbl[g_tbl].key = update_if.key;
+                assign update_if__tbl[g_tbl].next = 1'b0;
                 assign update_if__tbl[g_tbl].valid = update_if.valid;
                 assign update_if__tbl[g_tbl].value = update_if.value;
 
@@ -231,6 +238,7 @@ module htable_multi_core
             assign update_if.rdy = update_if__tbl_rdy[0];
             assign update_if.ack = update_if__tbl_ack[0];
             assign update_if.error = update_if__tbl_error[0];
+            assign update_if.next_key = '0;
         end : g__htable_multi_ins_mode_broadcast
     endgenerate
 

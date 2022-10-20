@@ -151,7 +151,6 @@ module htable_core
     // ----------------------------------
     assign tbl_wr_if.req = __tbl_wr_if.req;
     assign tbl_wr_if.key = __tbl_wr_if.key;
-    assign tbl_wr_if.next = 1'b0;
     assign tbl_wr_if.valid = __tbl_wr_if.valid;
     assign tbl_wr_if.value = __tbl_wr_if.value;
     assign __tbl_wr_if.rdy = tbl_wr_if.rdy;
@@ -160,12 +159,18 @@ module htable_core
 
     assign tbl_rd_if.req = __tbl_rd_if.req;
     assign tbl_rd_if.key = __tbl_rd_if.key;
-    assign tbl_rd_if.next = 1'b0;
     assign __tbl_rd_if.rdy = tbl_rd_if.rdy;
     assign __tbl_rd_if.ack = tbl_rd_if.ack;
     assign __tbl_rd_if.error = tbl_rd_if.error;
     assign __tbl_rd_if.valid = tbl_rd_if.valid;
     assign __tbl_rd_if.value = tbl_rd_if.value;
+
+    // Not yet supported
+    assign tbl_wr_if.next = 1'b0;
+    assign __tbl_wr_if.next_key = '0;
+
+    assign tbl_rd_if.next = 1'b0;
+    assign __tbl_rd_if.next_key = '0;
 
     // ----------------------------------
     // Drive hash interface
@@ -253,14 +258,17 @@ module htable_core
     assign update_if.rdy = init_done;
     assign __update_if.req = wr_req;
     assign __update_if.key = __update_hash;
+    assign __update_if.next = 1'b0;
     assign __update_if.valid = wr_ctxt.valid;
     assign __update_if.value = wr_ctxt.entry;
     assign update_if.ack = __update_if.ack;
     assign update_if.error = __update_if.error;
+    assign update_if.next_key = '0;
 
     assign lookup_if.rdy = init_done;
     assign __lookup_if.req = rd_req;
     assign __lookup_if.key = __lookup_hash;
+    assign __lookup_if.next = lookup_if.next;
 
     // ----------------------------------
     // Store read context
@@ -270,7 +278,7 @@ module htable_core
         .DEPTH   ( NUM_RD_TRANSACTIONS )
     ) i_fifo_small__rd_ctxt (
         .clk     ( clk ),
-        .srst    ( srst ),
+        .srst    ( srst || tbl_init ),
         .wr      ( rd_req ),
         .wr_data ( rd_ctxt_in ),
         .full    ( ),
@@ -288,7 +296,7 @@ module htable_core
 
     initial lookup_if.ack = 1'b0;
     always @(posedge clk) begin
-        if (srst)                 lookup_if.ack <= 1'b0;
+        if (srst || tbl_init)     lookup_if.ack <= 1'b0;
         else if (__lookup_if.ack) lookup_if.ack <= 1'b1;
         else                      lookup_if.ack <= 1'b0;
     end
@@ -304,6 +312,8 @@ module htable_core
             lookup_if.value <= '0;
         end
     end
+
+    assign lookup_if.next_key = '0; // Unsupported
 
 endmodule : htable_core
 

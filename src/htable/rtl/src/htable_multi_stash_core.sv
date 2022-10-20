@@ -205,11 +205,13 @@ module htable_multi_stash_core
     // Lookup interface is ready when both tables and stash are ready
     assign lookup_if.rdy = tbl_lookup_if.rdy && stash_lookup_if.rdy;
 
-    assign tbl_lookup_if.req   = lookup_if.req;
+    assign tbl_lookup_if.req   = lookup_if.req && stash_lookup_if.rdy;
     assign tbl_lookup_if.key   = lookup_if.key;
+    assign tbl_lookup_if.next = 1'b0; // Unsupported in lookup context
 
-    assign stash_lookup_if.req = lookup_if.req;
+    assign stash_lookup_if.req = lookup_if.req && tbl_lookup_if.rdy;
     assign stash_lookup_if.key = lookup_if.key;
+    assign stash_lookup_if.next = 1'b0; // Unsupported in lookup context
             
     // Lookup response
     assign lookup_if.ack = tbl_lookup_if.ack;
