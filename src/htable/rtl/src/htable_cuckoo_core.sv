@@ -81,7 +81,7 @@ module htable_cuckoo_core
     // ----------------------------------
     assign info_if._type = db_pkg::DB_TYPE_HTABLE;
     assign info_if.subtype = HTABLE_TYPE_CUCKOO;
-    assign info_if.size = tbl_info_if.size;
+    assign info_if.size = tbl_info_if.size - 1; // Don't include single-entry 'bubble' stash
 
     // ----------------------------------
     // Cuckoo controller

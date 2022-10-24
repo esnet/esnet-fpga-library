@@ -21,7 +21,7 @@ module htable_cuckoo_core_unit_test;
     parameter int NUM_TABLES = 3;
     parameter int TABLE_SIZE[NUM_TABLES] = '{default: 256};
 
-    const int SIZE = TABLE_SIZE.sum() + 1;
+    const int SIZE = TABLE_SIZE.sum();
     
     //===================================
     // Typedefs
