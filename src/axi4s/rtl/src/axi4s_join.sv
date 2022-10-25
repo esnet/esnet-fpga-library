@@ -95,6 +95,9 @@ module axi4s_join
    axi4s_intf #(.TUSER_MODE(BUFFER_CONTEXT), .DATA_BYTE_WID(DATA_BYTE_WID),
                 .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) joined_pipe ();
 
+   axi4s_intf #(.TUSER_MODE(BUFFER_CONTEXT), .DATA_BYTE_WID(DATA_BYTE_WID),
+                .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) axi4s_to_fifo ();
+
 
    logic clk, resetn;
 
@@ -239,12 +242,11 @@ module axi4s_join
       end
 
       // --- adv_tlast logic ---
-
-      // if last header word AND last packet word (i.e. no hdr and pyld joining), deassert adv_tlast.
-      if ((state_nxt == HEADER) && pipe_hdr[4].tready && pipe_hdr[4].tvalid && pipe_hdr[4].tlast && pipe_pyld[4].tlast)
+      // if last packet word, deassert adv_tlast.
+      if (pipe_pyld[4].tready && pipe_pyld[4].tvalid && pipe_pyld[4].tlast)
             adv_tlast <= 0;
-      // otherwise, assert adv_tlast if next transaction is tlast and tkeep is all-zeros.
-      else  adv_tlast <= pipe_pyld[3].tvalid && pipe_pyld[3].tlast && (lookahead_tkeep == '0);
+      // otherwise assert adv_tlast if next transaction is tlast and tkeep all-zeros (only when combining data in PAYLOAD states).
+      else  adv_tlast <= pipe_pyld[3].tvalid && pipe_pyld[3].tlast && (lookahead_tkeep == '0) && (state_nxt != HEADER);
 
       if (!resetn)  adv_tlast_p <= 0;
       else          adv_tlast_p <= (pipe_pyld[4].tready && pipe_pyld[4].tvalid) ? adv_tlast : adv_tlast_p;
@@ -259,9 +261,8 @@ module axi4s_join
         HEADER : begin
            // transition from HEADER to PAYLOAD or LAST_PAYLOAD if last hdr word, but NOT last pkt word.
            if (pipe_hdr[5].tready && pipe_hdr[5].tvalid && pipe_hdr[5].tlast && !(pipe_pyld[5].tlast && pipe_pyld[5].tvalid)) begin
-              if (adv_tlast)                                      state_nxt = HEADER;
-              else if (pipe_pyld[4].tlast && pipe_pyld[4].tvalid) state_nxt = LAST_PAYLOAD;
-              else                                                state_nxt = PAYLOAD;
+              if (pipe_pyld[4].tlast && pipe_pyld[4].tvalid) state_nxt = LAST_PAYLOAD;
+              else                                           state_nxt = PAYLOAD;
            end
         end
         PAYLOAD : begin
@@ -351,6 +352,9 @@ module axi4s_join
       .axi4s_if_to_rx   (joined_pipe)
    );
 
+   // advance tlast logic instantiation.  ensures clean (non zero) tlast transactions for open-nic-shell.
+   // required for some hdr-to-pyld transitions (which can have empty tlast tansactions, to avoid added complexity in state machine).
+   axi4s_adv_tlast axi4s_adv_tlast_0 (.axi4s_if_from_tx(joined_pipe), .axi4s_if_to_rx(axi4s_to_fifo));
 
 
    // instantiate and terminate unused AXI-L interfaces.
@@ -369,7 +373,7 @@ module axi4s_join
       .NO_INTRA_PKT_GAP(1)
    ) output_fifo_0 (
       .srst           (1'b0),
-      .axi4s_in       (joined_pipe),
+      .axi4s_in       (axi4s_to_fifo),
       .axi4s_out      (axi4s_out),
       .axil_to_probe  (axil_to_probe),
       .axil_to_ovfl   (axil_to_ovfl),
