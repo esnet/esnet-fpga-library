@@ -179,7 +179,7 @@ class db_agent #(
             output bit valid, output KEY_T key, output VALUE_T value,
             output bit error, output bit timeout
         );
-        trace_msg($sformatf("get_next()", key));
+        trace_msg("get_next()");
         transact(db_pkg::COMMAND_GET_NEXT, error, timeout, this._OP_TIMEOUT);
         _get_valid(valid);
         _get_key(key);
