@@ -94,4 +94,7 @@ module fifo_small #(
     // Read
     assign rd_data = mem[rd_ptr];
 
+    // Terminate unused AXI-L interface
+    axi4l_intf_controller_term i_axi4l_intf_controller_term (.axi4l_if (axil_if__unused));
+
 endmodule : fifo_small
