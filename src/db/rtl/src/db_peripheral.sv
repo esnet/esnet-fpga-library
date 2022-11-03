@@ -125,6 +125,9 @@ module db_peripheral #(
                         COMMAND_UNSET : begin 
                             nxt_state = RMW;
                         end
+                        COMMAND_UNSET_NEXT : begin
+                            nxt_state = RMW;
+                        end
                         COMMAND_REPLACE : begin
                             nxt_state = RMW;
                         end
@@ -214,21 +217,25 @@ module db_peripheral #(
         if (ctrl_if.req && ctrl_if.rdy) begin
             wr_if.key <= ctrl_if.key;
             rd_if.key <= ctrl_if.key;
-            if (ctrl_if.command == COMMAND_UNSET) begin
+            if (ctrl_if.command == COMMAND_UNSET || ctrl_if.command == COMMAND_UNSET_NEXT) begin
                 wr_if.valid <= 1'b0;
                 wr_if.value <= '0;
             end else begin
                 wr_if.valid <= 1'b1;
                 wr_if.value <= ctrl_if.set_value;
             end
-            if (ctrl_if.command == COMMAND_GET_NEXT) begin
+            if (ctrl_if.command == COMMAND_UNSET_NEXT ) begin
+                wr_if.next <= 1'b1;
+            end else begin
+                wr_if.next <= 1'b0;
+            end
+            if (ctrl_if.command == COMMAND_GET_NEXT || ctrl_if.command == COMMAND_UNSET_NEXT) begin
                 rd_if.next <= 1'b1;
             end else begin
                 rd_if.next <= 1'b0;
             end
         end
     end
-    assign wr_if.next = 1'b0;
 
     // Latch response data
     always_ff @(posedge clk) begin

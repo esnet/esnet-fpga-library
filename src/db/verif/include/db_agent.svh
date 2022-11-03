@@ -174,7 +174,7 @@ class db_agent #(
         trace_msg($sformatf("get() Done. (valid=%b, value=0x%0x)", valid, value));
     endtask
 
-    // Get value associated with `key`, if valid
+    // Get value (and key) associated with 'next' entry, if valid
     task get_next(
             output bit valid, output KEY_T key, output VALUE_T value,
             output bit error, output bit timeout
@@ -197,6 +197,19 @@ class db_agent #(
         transact(db_pkg::COMMAND_REPLACE, error, timeout, this._OP_TIMEOUT);
         _get_valid(valid);
         _get_value(old_value);
+    endtask
+
+    // Uninstall 'next' entry
+    task unset_next(
+            output bit valid, output KEY_T key, output VALUE_T value,
+            output bit error, output bit timeout
+        );
+        trace_msg("unset_next()");
+        transact(db_pkg::COMMAND_UNSET_NEXT, error, timeout, this._OP_TIMEOUT);
+        _get_valid(valid);
+        _get_key(key);
+        _get_value(value);
+        trace_msg("unset_next() Done.");
     endtask
 
     //===================================
