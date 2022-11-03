@@ -59,6 +59,8 @@ module htable_cuckoo_controller
     // ----------------------------------
     localparam type TBL_ENTRY_T = struct packed {KEY_T key; VALUE_T value;};
 
+    localparam int TBL_IDX_WID = $clog2(NUM_TABLES);
+
     // ----------------------------------
     // Typedefs
     // ----------------------------------
@@ -90,6 +92,8 @@ module htable_cuckoo_controller
         ERROR               = 24
     } state_t;
 
+    typedef logic [TBL_IDX_WID-1:0] tbl_idx_t;
+
     // ----------------------------------
     // Signals
     // ----------------------------------
@@ -110,13 +114,14 @@ module htable_cuckoo_controller
 
     logic     stash_active;
 
-    int   tbl_idx;
+    tbl_idx_t tbl_idx;
     logic tbl_idx_reset;
     logic tbl_idx_inc;
 
     // Control (upstream)
     logic     ctrl_rdy;
     logic     ctrl_ack;
+    logic     ctrl_valid;
     status_t  ctrl_status;
 
     // Table control (downstream)
@@ -352,12 +357,22 @@ module htable_cuckoo_controller
     end
 
     // Drive upstream control interface
+    initial ctrl_valid = 1'b0;
+    always @(posedge clk) begin
+        if (srst) ctrl_valid <= 1'b0;
+        else begin
+            if (state == IDLE)                 ctrl_valid <= 1'b0;
+            else if (state == CHECK_FOUND)     ctrl_valid <= 1'b1;
+            else if (state == CHECK_NOT_FOUND) ctrl_valid <= 1'b0;
+        end
+    end
+
     assign ctrl_if.rdy = ctrl_rdy;
     assign ctrl_if.ack = ctrl_ack;
     assign ctrl_if.status = ctrl_status;
-    assign ctrl_if.get_valid = prev_valid;
-    assign ctrl_if.get_value = prev_value;
-    assign ctrl_if.get_key   = prev_key;
+    assign ctrl_if.get_valid = ctrl_valid;
+    assign ctrl_if.get_value = ctrl_valid ? prev_value : '0;
+    assign ctrl_if.get_key   = ctrl_valid ? prev_key   : '0;
 
     // Drive downstream table interface
     assign __ctrl_if.req       = tbl_req;
@@ -391,7 +406,9 @@ module htable_cuckoo_controller
         .KEY_T   ( KEY_T ),
         .VALUE_T ( TBL_ENTRY_T )
     ) i_db_ctrl_intf_demux       (
-        .demux_sel               ( tbl_idx ),
+        .clk                     ( clk ),
+        .srst                    ( srst ),
+        .demux_sel               ( {'0, tbl_idx} ),
         .ctrl_if_from_controller ( __ctrl_if ),
         .ctrl_if_to_peripheral   ( __tbl_ctrl_if )
     );
