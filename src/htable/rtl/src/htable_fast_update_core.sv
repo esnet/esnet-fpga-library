@@ -119,7 +119,7 @@ module htable_fast_update_core #(
     // ----------------------------------
     // Update stash
     // ----------------------------------
-    db_stash      #(
+    db_stash_fifo #(
         .KEY_T     ( KEY_T ),
         .VALUE_T   ( UPDATE_ENTRY_T ),
         .SIZE      ( UPDATE_BURST_SIZE )
@@ -260,7 +260,7 @@ module htable_fast_update_core #(
             end
             STASH_POP : begin
                 stash_req = 1'b1;
-                stash_command = COMMAND_UNSET;
+                stash_command = COMMAND_UNSET_NEXT;
                 if (stash_ctrl_if.rdy) nxt_state = STASH_POP_PENDING;
             end
             STASH_POP_PENDING : begin
