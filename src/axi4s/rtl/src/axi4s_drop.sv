@@ -17,7 +17,7 @@
 
 // -----------------------------------------------------------------------------
 // axi4s_drop is used to drop packets from the egress packet stream when the
-// drop_pkt signal is asserted.  All egress packet words between the asseertion
+// drop_pkt signal is asserted.  All egress packet words between the assertion
 // of the drop_pkt signal and the last ingress pkt word are dropped.
 // -----------------------------------------------------------------------------
 

@@ -45,6 +45,7 @@ module axi4s_split
 
    // signals
    logic [PTR_LEN-1:0] wr_ptr; // wr pointer for pkt buffer addressing, or pkt_id.   
+   logic [PTR_LEN-1:0] pid;    // wr_ptr of hdr_out sop.
 
    // internal axi4s interfaces.
    axi4s_intf #(.TUSER_MODE(BUFFER_CONTEXT), .DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T), 
@@ -52,6 +53,9 @@ module axi4s_split
 
    axi4s_intf #(.TUSER_MODE(BUFFER_CONTEXT), .DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T), 
                 .TDEST_T(TDEST_T), .TUSER_T(tuser_buffer_context_mode_t)) axi4s_to_trunc ();
+
+   axi4s_intf #(.TUSER_MODE(BUFFER_CONTEXT), .DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T),
+                .TDEST_T(TDEST_T), .TUSER_T(tuser_buffer_context_mode_t)) __axi4s_hdr_out ();
 
 
    // wr_ptr logic
@@ -87,8 +91,24 @@ module axi4s_split
       .BIGENDIAN (BIGENDIAN)
    ) axi4s_trunc_0 (
       .axi4s_in   (axi4s_to_trunc),
-      .axi4s_out  (axi4s_hdr_out),
+      .axi4s_out  (__axi4s_hdr_out),
       .length     (hdr_length)
    );
+
+   always @(posedge axi4s_in.aclk) pid <= (__axi4s_hdr_out.tvalid && __axi4s_hdr_out.sop) ? __axi4s_hdr_out.tuser.wr_ptr : pid;
+
+   // axi4s_hdr_out interface signalling. assigns pid (sop wr_ptr) to hdr pkt.
+   assign axi4s_hdr_out.aclk             = __axi4s_hdr_out.aclk;
+   assign axi4s_hdr_out.aresetn          = __axi4s_hdr_out.aresetn;
+   assign axi4s_hdr_out.tvalid           = __axi4s_hdr_out.tvalid;
+   assign axi4s_hdr_out.tdata            = __axi4s_hdr_out.tdata;
+   assign axi4s_hdr_out.tkeep            = __axi4s_hdr_out.tkeep;
+   assign axi4s_hdr_out.tdest            = __axi4s_hdr_out.tdest;
+   assign axi4s_hdr_out.tid              = __axi4s_hdr_out.tid;
+   assign axi4s_hdr_out.tlast            = __axi4s_hdr_out.tlast;
+   assign axi4s_hdr_out.tuser.wr_ptr     = (__axi4s_hdr_out.tvalid && __axi4s_hdr_out.sop) ? __axi4s_hdr_out.tuser.wr_ptr : pid;
+   assign axi4s_hdr_out.tuser.hdr_tlast  = '0;
+
+   assign __axi4s_hdr_out.tready         = axi4s_hdr_out.tready;
 
 endmodule // axi4s_split

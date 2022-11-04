@@ -220,7 +220,43 @@ module axi4s_split_join_unit_test
     logic [31:0] rd_data; // register rd data.
 
 
-    task packet_loop;
+    task passthrough_packet_loop;
+       repeat(100) @(posedge axi4s_in.aclk);  // init fifos
+
+       // iterate payload from 1B to 32B (1B increment).
+       for (int j = 0; j <= 96; j=j+1) begin
+          pyld_size = j;
+          // build packet headers and payload (input and expected).
+          hdr_in = new[hdr_data.size()];
+          hdr_in = hdr_data;
+
+          pyld_in = new[j];
+          for (int k = 0; k < j; k++) pyld_in[k] = pyld_data[k];
+
+          // set header processing truncation length.  larger then biggest header (no truncation).
+          hdr_trunc_length = 128;
+
+          // build input packet (hdr_exp + pyld_in).
+          packet = new();
+          packet = packet.create_from_bytes($sformatf("pkt_exp_%0d", j), {hdr_in, pyld_in});
+
+          // submit expected packet to scoreboard.
+          axis_transaction = new($sformatf("trans_exp_%0d", j), packet);
+          repeat (4) env.model.inbox.put(axis_transaction);
+
+          // launch input packet.
+          axis_transaction = new($sformatf("trans_in_%0d", j), packet);
+          repeat (4) env.driver.inbox.put(axis_transaction);
+
+          // wait for packet transit time.
+          axi4s_out._wait(200); // wait for packet transit time.
+       end
+
+      `FAIL_IF_LOG (scoreboard.report(msg) != 0, msg); `INFO(msg);
+    endtask
+
+
+    task processed_packet_loop;
        // set header slice size (used by DUT) to 16B.  hdr_slice_length MUST be a multiple of DATA_BYTE_WID.
        hdr_slice_length = 16;
        repeat(100) @(posedge axi4s_in.aclk);  // init fifos
@@ -278,11 +314,27 @@ module axi4s_split_join_unit_test
 
     `SVUNIT_TESTS_BEGIN
 
+        `SVTEST(disable_test) // passthrough
+            // set header slice size (used by DUT).
+            hdr_slice_length = 0;  // length of zero disables split-join.
+
+            passthrough_packet_loop;
+
+        `SVTEST_END
+
+        `SVTEST(passthrough_test) // passthrough
+            // set header slice size (used by DUT).
+            hdr_slice_length = 32;  // larger than hdr_data.size of pkt traffic (simulates full ingress pkt within slice).
+
+            passthrough_packet_loop;
+
+        `SVTEST_END
+
         `SVTEST(shrink_header)
             // leave prefix undefined i.e. no header growth.
 
             // send sequence of packets that iteratively shorten original header.
-            packet_loop;
+            processed_packet_loop;
 
         `SVTEST_END
 
@@ -291,7 +343,7 @@ module axi4s_split_join_unit_test
             prefix = {>>byte{'h0011223344556677_8899aabbccddeeff}};
 
             // send sequence of packets that iteratively shorten original header.
-            packet_loop;
+            processed_packet_loop;
 
         `SVTEST_END
 
@@ -299,7 +351,7 @@ module axi4s_split_join_unit_test
             env.monitor.set_tpause(2);
 
             // send sequence of packets that iteratively shorten original header.
-            packet_loop;
+            processed_packet_loop;
 
         `SVTEST_END
 
@@ -310,7 +362,7 @@ module axi4s_split_join_unit_test
             prefix = {>>byte{'h0011223344556677_8899aabbccddeeff}};
 
             // send sequence of packets that iteratively shorten original header.
-            packet_loop;
+            processed_packet_loop;
 
         `SVTEST_END
 
@@ -319,7 +371,7 @@ module axi4s_split_join_unit_test
             drop_hdr = {>>byte{'h9696969696969696_9696969696969696}};
 
             // send sequence of packets that shorten original header.
-            packet_loop;
+            processed_packet_loop;
 
         `SVTEST_END
 
@@ -330,44 +382,7 @@ module axi4s_split_join_unit_test
             drop_hdr = {>>byte{'h9696969696969696_9696969696969696}};
 
             // send sequence of packets that shorten original header.
-            packet_loop;
-
-        `SVTEST_END
-
-        `SVTEST(disable_test) // passthrough
-            // set header slice size (used by DUT).
-            hdr_slice_length = 0;  // length of zero disables split-join.
-            repeat(100) @(posedge axi4s_in.aclk);  // init fifos
-
-            // iterate payload from 1B to 32B (1B increment).
-            for (int j = 1; j <= 32; j=j+1) begin
-               // build packet headers and payload (input and expected).
-               hdr_in = new[hdr_data.size()];
-               hdr_in = hdr_data;
-
-               pyld_in = new[j];
-               for (int k = 0; k < j; k++) pyld_in[k] = pyld_data[k];
-
-               // set header processing truncation length.
-               hdr_trunc_length = 64;
-
-               // build input packet (hdr_exp + pyld_in).
-               packet = new();
-               packet = packet.create_from_bytes($sformatf("pkt_exp_%0d", j), {hdr_in, pyld_in});
-
-               // submit expected packet to scoreboard.
-               axis_transaction = new($sformatf("trans_exp_%0d", j), packet);
-               env.model.inbox.put(axis_transaction);
-
-               // launch input packet.
-               axis_transaction = new($sformatf("trans_in_%0d", j), packet);
-               env.driver.inbox.put(axis_transaction);
-
-               // wait for packet transit time.
-               wait(axi4s_out.tready && axi4s_out.tvalid && axi4s_out.tlast); axi4s_out._wait(10);
-            end
-
-           `FAIL_IF_LOG (scoreboard.report(msg) != 0, msg); `INFO(msg);
+            processed_packet_loop;
 
         `SVTEST_END
 
@@ -382,7 +397,7 @@ module axi4s_split_join_unit_test
            `FAIL_UNLESS( rd_data == 0 );
 
             // send sequence of packets that shorten original header.
-            packet_loop;
+            processed_packet_loop;
 
             // check that sop_mismatch is set.
             split_join_reg_blk_agent.read_sop_mismatch( rd_data );
