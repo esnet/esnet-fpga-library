@@ -25,6 +25,14 @@ This library contains general-purpose FPGA RTL design files and associated verif
 suites, as well as standard Makefiles, scripts and tools for a structured FPGA design
 methodology.
 
+The ESnet FPGA library is made available in the hope that it will
+be useful to the FPGA design community. Users should note that it is
+made available on an "as-is" basis, and should not expect any
+technical support or other assistance with building or using this
+software. For more information, please refer to the LICENSE.md file in
+the source code repository.
+
+The developers of the ESnet FPGA library can be reached by email at smartnic@es.net.
 
 
 # Directory Structure
@@ -35,6 +43,7 @@ esnet-fpga-library/
     ├── src/
     ├── tools/
     ├── paths.mk
+    ├── LICENSE.md
     └── README.md
 
 scripts/
@@ -49,8 +58,14 @@ src/
 tools/
   Contains useful productivity tools for a structured FPGA design methodology. 
 
-paths.mk  - Sets environment variables for standard pathnames.
-README.md - This README file.
+paths.mk
+  Sets environment variables for standard pathnames.
+
+LICENSE.md
+  Contains the licensing terms and copyright notice for this repository.
+
+README.md
+  This README file.
 
 ```
 **NOTE: See lower level README files for more details.**
