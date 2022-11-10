@@ -8,11 +8,19 @@ blocks:
   db: &db
     !include src/db/reg/db.yaml
 
+decoders:
+  htable: &htable
+    !include src/htable/reg/htable_cuckoo_fast_update_decoder.yaml
+
 interfaces:
   - block: *cache
-    width: 9
+    width: 8
     address: 0x0000
     name: cache
+  - decoder: *htable
+    width: 8
+    address: 0x0100
+    name: htable
   - block: *allocator
     address: 0x0200
     width: 9

@@ -60,7 +60,7 @@ regs:
     fields:
         - name: _clear
           width: 1
-          desc: Latch and clear when clear is set; Latch (and presetrve) when clear is unset.
+          desc: Latch and clear when clear is set; Latch (and preserve) when clear is unset.
 
   - name: cnt_req_upper
     access: ro

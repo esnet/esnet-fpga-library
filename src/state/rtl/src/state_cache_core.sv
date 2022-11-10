@@ -175,6 +175,7 @@ module state_cache_core
 
     axi4l_intf #() cache_axil_if ();
     axi4l_intf #() cache_axil_if__clk ();
+    axi4l_intf #() htable_axil_if ();
     axi4l_intf #() db_axil_if ();
     axi4l_intf #() allocator_axil_if ();
 
@@ -192,6 +193,7 @@ module state_cache_core
     state_cache_decoder i_state_cache_decoder (
         .axil_if           ( axil_if ),
         .cache_axil_if     ( cache_axil_if ),
+        .htable_axil_if    ( htable_axil_if ),
         .allocator_axil_if ( allocator_axil_if ),
         .db_axil_if        ( db_axil_if )
     );
@@ -213,7 +215,7 @@ module state_cache_core
 
     // Block control
     std_block_control i_std_block_control (
-        .ctrl_clk       ( axil_if.aclk ),
+        .ctrl_clk       ( clk ),
         .ctrl_reset_in  ( reg_if.control.reset ),
         .ctrl_enable_in ( reg_if.control.enable ),
         .blk_clk        ( clk ),
@@ -228,7 +230,7 @@ module state_cache_core
         .blk_enable_mon_in   ( __en ),
         .blk_ready_mon_in    ( init_done ),
         .blk_state_mon_in    ( delete_state_mon_in ),
-        .ctrl_clk            ( axil_if.aclk ),
+        .ctrl_clk            ( clk ),
         .ctrl_reset_mon_out  ( reg_if.status_nxt.reset_mon ),
         .ctrl_enable_mon_out ( reg_if.status_nxt.enable_mon),
         .ctrl_ready_mon_out  ( reg_if.status_nxt.ready_mon ),
@@ -305,6 +307,7 @@ module state_cache_core
         .srst                ( htable_srst ),
         .en                  ( htable_en ),
         .init_done           ( htable_init_done ),
+        .axil_if             ( htable_axil_if ),
         .info_if             ( htable_info_if ),
         .status_if           ( htable_status_if  ),
         .ctrl_if             ( htable_ctrl_if ),

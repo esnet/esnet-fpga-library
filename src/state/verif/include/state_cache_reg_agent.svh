@@ -21,6 +21,8 @@ class state_cache_reg_agent#(type KEY_T = bit, type ID_T = bit) extends state_ca
     // Properties
     //===================================
     db_reg_agent #(KEY_T, ID_T) db_agent;
+    htable_cuckoo_reg_agent cuckoo_agent;
+    htable_fast_update_reg_agent fast_update_agent;
     state_allocator_reg_agent allocator_agent;
 
     //===================================
@@ -34,6 +36,8 @@ class state_cache_reg_agent#(type KEY_T = bit, type ID_T = bit) extends state_ca
     );
         super.new(name, BASE_OFFSET);
         this.reg_agent = reg_agent;
+        this.cuckoo_agent = new("cuckoo_agent", reg_agent, BASE_OFFSET + 'h100);
+        this.fast_update_agent = new("cuckoo_agent", reg_agent, BASE_OFFSET + 'h180);
         this.allocator_agent = new("allocator_agent", reg_agent, BASE_OFFSET + 'h200);
         this.db_agent = new("db_agent", NUM_IDS, reg_agent, BASE_OFFSET + 'h400);
         this.db_agent.set_reset_timeout(4*NUM_IDS);

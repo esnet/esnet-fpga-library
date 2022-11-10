@@ -46,7 +46,8 @@ COMPONENTS = rtl verif tb \
              axi4l_rtl=$(LIB_ROOT)/src/axi4l/rtl \
              htable_rtl=$(LIB_ROOT)/src/htable/rtl \
              axi4l_verif=$(LIB_ROOT)/src/axi4l/verif \
-             db_verif=$(LIB_ROOT)/src/db/verif
+             db_verif=$(LIB_ROOT)/src/db/verif \
+             htable_verif=$(LIB_ROOT)/src/htable/verif
 EXT_LIBS =
 
 # ----------------------------------------------------
