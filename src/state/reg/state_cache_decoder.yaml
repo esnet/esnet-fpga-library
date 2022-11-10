@@ -1,0 +1,23 @@
+name: state_cache
+
+blocks:
+  cache: &cache
+    !include src/state/reg/state_cache.yaml
+  allocator: &allocator
+    !include src/state/reg/state_allocator.yaml
+  db: &db
+    !include src/db/reg/db.yaml
+
+interfaces:
+  - block: *cache
+    width: 9
+    address: 0x0000
+    name: cache
+  - block: *allocator
+    address: 0x0200
+    width: 9
+    name: allocator
+  - block: *db
+    address: 0x0400
+    width: 10
+    name: db

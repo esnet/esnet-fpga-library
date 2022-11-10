@@ -111,8 +111,9 @@ regs:
               2 : GET_NEXT
               3 : SET
               4 : UNSET
-              5 : REPLACE
-              6 : CLEAR
+              5 : UNSET_NEXT
+              6 : REPLACE
+              7 : CLEAR
 
   - name: status
     desc: Status register

@@ -217,7 +217,7 @@ module htable_core_unit_test;
         `FAIL_UNLESS_EQUAL(got_entry.key, key);
         `FAIL_UNLESS_EQUAL(got_entry.value, exp_value);
         // Read back and check that entry is cleared
-        agent.get(key, got_valid, got_entry, error, timeout);
+        agent.get(hash(key), got_valid, got_entry, error, timeout);
         `FAIL_IF(error);
         `FAIL_IF(timeout);
         `FAIL_IF(got_valid);

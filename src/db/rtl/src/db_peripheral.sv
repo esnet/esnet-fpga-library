@@ -70,6 +70,13 @@ module db_peripheral #(
     state_t state;
     state_t nxt_state;
 
+    logic    ctrl_rdy;
+    logic    ctrl_ack;
+    status_t ctrl_status;
+
+    logic wr_req;
+    logic rd_req;
+
     logic timeout;
     logic reset_timer;
     logic inc_timer;
@@ -91,20 +98,19 @@ module db_peripheral #(
         nxt_state = state;
         reset_timer = 1'b0;
         inc_timer = 1'b0;
-        ctrl_if.rdy = 1'b0;
-        ctrl_if.ack = 1'b0;
-        ctrl_if.status = STATUS_ERROR;
+        ctrl_rdy = 1'b0;
+        ctrl_ack = 1'b0;
+        ctrl_status = STATUS_ERROR;
         init = 1'b0;
-        wr_if.req = 1'b0;
-        rd_if.req = 1'b0;
-        
+        wr_req = 1'b0;
+        rd_req = 1'b0;
         case (state)
             RESET : begin
                 if (init_done__debounced) nxt_state = IDLE;
             end
             IDLE : begin
                 reset_timer = 1'b1;
-                ctrl_if.rdy = 1'b1;
+                ctrl_rdy = 1'b1;
                 if (ctrl_if.req) begin
                     case (ctrl_if.command)
                         COMMAND_CLEAR : begin
@@ -117,6 +123,9 @@ module db_peripheral #(
                             nxt_state = RD;
                         end
                         COMMAND_UNSET : begin 
+                            nxt_state = RMW;
+                        end
+                        COMMAND_UNSET_NEXT : begin
                             nxt_state = RMW;
                         end
                         COMMAND_REPLACE : begin
@@ -141,18 +150,18 @@ module db_peripheral #(
             end
             RD : begin
                 inc_timer = 1'b1;
-                rd_if.req = 1'b1;
+                rd_req = 1'b1;
                 if (rd_if.rdy) nxt_state = RD_PENDING;
             end
             RMW : begin
                 inc_timer = 1'b1;
-                wr_if.req = 1'b1;
-                rd_if.req = 1'b1;
+                wr_req = 1'b1;
+                rd_req = 1'b1;
                 if (wr_if.rdy && rd_if.rdy) nxt_state = RD_PENDING;
             end
             WR : begin
                 inc_timer = 1'b1;
-                wr_if.req = 1'b1;
+                wr_req = 1'b1;
                 if (wr_if.rdy) nxt_state = WR_PENDING;
             end
             CLEAR_PENDING : begin
@@ -174,47 +183,59 @@ module db_peripheral #(
                 end
             end
             DONE : begin
-                ctrl_if.ack = 1'b1;
-                ctrl_if.status = STATUS_OK;
+                ctrl_ack = 1'b1;
+                ctrl_status = STATUS_OK;
                 nxt_state = IDLE;
             end
             ERROR : begin
-                ctrl_if.ack = 1'b1;
-                ctrl_if.status = STATUS_ERROR;
+                ctrl_ack = 1'b1;
+                ctrl_status = STATUS_ERROR;
                 nxt_state = IDLE;
             end
             TIMEOUT : begin
-                ctrl_if.ack = 1'b1;
-                ctrl_if.status = STATUS_TIMEOUT;
+                ctrl_ack = 1'b1;
+                ctrl_status = STATUS_TIMEOUT;
                 nxt_state = IDLE;
             end
             default : begin
                 nxt_state = ERROR;
             end
         endcase
-        
     end
+
+    // Drive control response
+    assign ctrl_if.rdy = ctrl_rdy;
+    assign ctrl_if.ack = ctrl_ack;
+    assign ctrl_if.status = ctrl_status;
+
+    // Drive write/read requests
+    assign wr_if.req = wr_req;
+    assign rd_if.req = rd_req;
 
     // Latch request data
     always_ff @(posedge clk) begin
         if (ctrl_if.req && ctrl_if.rdy) begin
             wr_if.key <= ctrl_if.key;
             rd_if.key <= ctrl_if.key;
-            if (ctrl_if.command == COMMAND_UNSET) begin
+            if (ctrl_if.command == COMMAND_UNSET || ctrl_if.command == COMMAND_UNSET_NEXT) begin
                 wr_if.valid <= 1'b0;
                 wr_if.value <= '0;
             end else begin
                 wr_if.valid <= 1'b1;
                 wr_if.value <= ctrl_if.set_value;
             end
-            if (ctrl_if.command == COMMAND_GET_NEXT) begin
+            if (ctrl_if.command == COMMAND_UNSET_NEXT ) begin
+                wr_if.next <= 1'b1;
+            end else begin
+                wr_if.next <= 1'b0;
+            end
+            if (ctrl_if.command == COMMAND_GET_NEXT || ctrl_if.command == COMMAND_UNSET_NEXT) begin
                 rd_if.next <= 1'b1;
             end else begin
                 rd_if.next <= 1'b0;
             end
         end
     end
-    assign wr_if.next = 1'b0;
 
     // Latch response data
     always_ff @(posedge clk) begin
@@ -224,7 +245,7 @@ module db_peripheral #(
             ctrl_if.get_key <= rd_if.next_key;
         end
     end
-  
+
     // Implement (optional) init_done debouncing to account for possible pipeline delays
     generate
         if (INIT_DONE_DEBOUNCE_CNT > 0) begin : g__init_done_debounce

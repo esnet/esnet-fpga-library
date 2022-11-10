@@ -1,0 +1,117 @@
+name: state_cache
+info: |
+  This register map describes a register block for
+  control and monitoring of the stateful cache component.
+regs:
+  - default:
+      width: 32
+      access: rw
+      init: 0
+
+  - name: info_size
+    desc: Info (number of IDs tracked)
+    access: ro
+
+  - name: control
+    access: rw
+    fields:
+        - name:  reset
+          desc:  (soft) block reset
+          width: 1
+          init:  0
+        - name:  enable
+          desc:  (soft) block enable
+          width: 1
+          init:  1
+
+  - name: status
+    access: ro
+    fields:
+        - name:  reset_mon
+          desc:  block reset monitor
+          width: 1
+        - name:  enable_mon
+          desc:  block enable monitor
+          width: 1
+        - name:  ready_mon
+          desc:  block ready monitor
+          width: 1
+
+  - name: dbg_delete_status
+    desc: Debug status.
+    access: ro
+    fields:
+        - name: state
+          desc: Delete FSM state.
+          width: 3
+          enum_hex:
+              0 : RESET
+              1 : IDLE
+              2 : REVMAP_REQ
+              3 : REVMAP_PENDING
+              4 : REQ
+              5 : DEALLOC_ID
+              6 : DONE
+              7 : ERROR
+
+  - name: cnt_control
+    access: wr_evt
+    desc: Latch counts. Acts on all cnt_* counters within block.
+    fields:
+        - name: _clear
+          width: 1
+          desc: Latch and clear when clear is set; Latch (and presetrve) when clear is unset.
+
+  - name: cnt_req_upper
+    access: ro
+    desc: Count of cache lookup requests processed (bits 63:32).
+    width: 32
+
+  - name: cnt_req_lower
+    access: ro
+    desc: Count of cache lookup requests processed (bits 31:0).
+    width: 32
+
+  - name: cnt_tracked_existing_upper
+    access: ro
+    desc: Count of cache hits (bits 63:32).
+    width: 32
+
+  - name: cnt_tracked_existing_lower
+    access: ro
+    desc: Count of cache hits (bits 31:0).
+    width: 32
+
+  - name: cnt_tracked_new_upper
+    access: ro
+    desc: Count of cache misses resulting in new entry added (bits 63:32).
+    width: 32
+
+  - name: cnt_tracked_new_lower
+    access: ro
+    desc: Count of cache misses resulting in new entry added (bits 31:0).
+    width: 32
+
+  - name: cnt_not_tracked_upper
+    access: ro
+    desc: Count of cache misses with no entry added (untracked) (bits 63:32).
+    width: 32
+
+  - name: cnt_not_tracked_lower
+    access: ro
+    desc: Count of cache misses with no entry added (untracked) (bits 31:0).
+    width: 32
+
+  - name: dbg_control
+    access: rw
+    fields:
+        - name:  clear_counts
+          desc:  clear all debug counters.
+          width: 1
+          init:  0
+
+  - name: dbg_cnt_active
+    access: ro
+    desc: Count of currently active timers.
+    width: 32
+

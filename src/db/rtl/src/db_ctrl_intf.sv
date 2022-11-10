@@ -213,6 +213,8 @@ module db_ctrl_intf_mux #(
     parameter type KEY_T = logic[7:0],
     parameter type VALUE_T = logic[7:0]
 ) (
+    input logic             clk,
+    input logic             srst,
     input int               mux_sel,
     db_ctrl_intf.peripheral ctrl_if_from_controller [NUM_IFS],
     db_ctrl_intf.controller ctrl_if_to_peripheral
@@ -231,43 +233,102 @@ module db_ctrl_intf_mux #(
 
             // (Local) signals
             mux_sel_t __mux_sel;
+            mux_sel_t __mux_sel_reg;
             logic     ctrl_if_from_controller_rdy       [NUM_IFS];
             logic     ctrl_if_from_controller_ack       [NUM_IFS];
             logic     ctrl_if_from_controller_req       [NUM_IFS];
             command_t ctrl_if_from_controller_command   [NUM_IFS];
             KEY_T     ctrl_if_from_controller_key       [NUM_IFS];
             VALUE_T   ctrl_if_from_controller_set_value [NUM_IFS];
+            status_t  ctrl_if_from_controller_status    [NUM_IFS];
+            logic     ctrl_if_from_controller_get_valid [NUM_IFS];
+            VALUE_T   ctrl_if_from_controller_get_value [NUM_IFS];
+            KEY_T     ctrl_if_from_controller_get_key   [NUM_IFS];
+
+            logic      ctrl_req;
+            logic      ctrl_rdy;
+            logic      req_pending;
 
             // Convert between array of signals and array of interfaces
             for (genvar g_if = 0; g_if < NUM_IFS; g_if++) begin : g__if
-                assign ctrl_if_from_controller[g_if].rdy       = ctrl_if_from_controller_rdy   [g_if];
-                assign ctrl_if_from_controller[g_if].ack       = ctrl_if_from_controller_ack   [g_if];
-                assign ctrl_if_from_controller[g_if].status    = ctrl_if_to_peripheral.status;
-                assign ctrl_if_from_controller[g_if].get_valid = ctrl_if_to_peripheral.get_valid;
-                assign ctrl_if_from_controller[g_if].get_key   = ctrl_if_to_peripheral.get_key;
-                assign ctrl_if_from_controller[g_if].get_value = ctrl_if_to_peripheral.get_value;
+                assign ctrl_if_from_controller[g_if].rdy       = ctrl_if_from_controller_rdy[g_if];
+                assign ctrl_if_from_controller[g_if].ack       = ctrl_if_from_controller_ack[g_if];
                 assign ctrl_if_from_controller_req      [g_if] = ctrl_if_from_controller[g_if].req;
                 assign ctrl_if_from_controller_command  [g_if] = ctrl_if_from_controller[g_if].command;
                 assign ctrl_if_from_controller_key      [g_if] = ctrl_if_from_controller[g_if].key;
                 assign ctrl_if_from_controller_set_value[g_if] = ctrl_if_from_controller[g_if].set_value;
+                assign ctrl_if_from_controller[g_if].status    = ctrl_if_from_controller_status[g_if];
+                assign ctrl_if_from_controller[g_if].get_valid = ctrl_if_from_controller_get_valid[g_if];
+                assign ctrl_if_from_controller[g_if].get_value = ctrl_if_from_controller_get_value[g_if];
+                assign ctrl_if_from_controller[g_if].get_key   = ctrl_if_from_controller_get_key[g_if];
             end : g__if
 
+            assign __mux_sel = mux_sel[MUX_SEL_WID-1:0] % NUM_IFS;
+
+            initial __mux_sel_reg = '0;
+            always @(posedge clk) if (ctrl_req && ctrl_rdy) __mux_sel_reg <= __mux_sel;
+
             // Mux requests
-            assign __mux_sel = mux_sel % NUM_IFS;
+            assign ctrl_req = ctrl_if_from_controller_req[__mux_sel];
 
             always_comb begin
-                ctrl_if_to_peripheral.req       = ctrl_if_from_controller_req[__mux_sel];
-                ctrl_if_to_peripheral.key       = ctrl_if_from_controller_key[__mux_sel];
-                ctrl_if_to_peripheral.command   = ctrl_if_from_controller_command[__mux_sel];
-                ctrl_if_to_peripheral.set_value = ctrl_if_from_controller_set_value[__mux_sel];
                 for (int i = 0; i < NUM_IFS; i++) begin
-                    if (i == __mux_sel) begin
-                        ctrl_if_from_controller_rdy[i]    = ctrl_if_to_peripheral.rdy;
-                        ctrl_if_from_controller_ack[i]    = ctrl_if_to_peripheral.ack;
-                    end else begin
-                        ctrl_if_from_controller_rdy[i]    = 1'b0;
-                        ctrl_if_from_controller_ack[i]    = 1'b0;
+                    if (i == __mux_sel) ctrl_if_from_controller_rdy[i] = ctrl_rdy;
+                    else                ctrl_if_from_controller_rdy[i] = 1'b0;
+                end
+            end
+
+            // Latch request
+            initial ctrl_if_to_peripheral.req = 1'b0;
+            always @(posedge clk) begin
+                if (srst)                      ctrl_if_to_peripheral.req <= 1'b0;
+                else if (ctrl_req && ctrl_rdy)      ctrl_if_to_peripheral.req <= 1'b1;
+                else if (ctrl_if_to_peripheral.rdy) ctrl_if_to_peripheral.req <= 1'b0;
+            end
+
+            initial ctrl_rdy = 1'b0;
+            always @(posedge clk) begin
+                if (srst) ctrl_rdy <= 1'b0;
+                else begin
+                    if (ctrl_req)                       ctrl_rdy <= 1'b0;
+                    else if (ctrl_if_to_peripheral.ack) ctrl_rdy <= 1'b1;
+                    else if (req_pending)               ctrl_rdy <= 1'b0;
+                    else                                ctrl_rdy <= 1'b1;
+                end
+            end
+
+            always_ff @(posedge clk) if (ctrl_req && ctrl_rdy) begin
+                ctrl_if_to_peripheral.key       <= ctrl_if_from_controller_key[__mux_sel];
+                ctrl_if_to_peripheral.command   <= ctrl_if_from_controller_command[__mux_sel];
+                ctrl_if_to_peripheral.set_value <= ctrl_if_from_controller_set_value[__mux_sel];
+            end
+
+            // Maintain context for open transactions
+            initial req_pending = 1'b0;
+            always @(posedge clk) begin
+                if (srst)                           req_pending <= 1'b0;
+                else if (ctrl_if_to_peripheral.ack) req_pending <= 1'b0;
+                else if (ctrl_req && ctrl_rdy)      req_pending <= 1'b1;
+            end
+
+            // Demux result
+            initial ctrl_if_from_controller_ack = '{NUM_IFS{1'b0}};
+            always @(posedge clk) begin
+                if (srst) ctrl_if_from_controller_ack <= '{NUM_IFS{1'b0}};
+                else begin
+                    for (int i = 0; i < NUM_IFS; i++) begin
+                        if (i == __mux_sel_reg) ctrl_if_from_controller_ack[i] <= ctrl_if_to_peripheral.ack;
+                        else                    ctrl_if_from_controller_ack[i] <= 1'b0;
                     end
+                end
+            end
+
+            always_ff @(posedge clk) begin
+                for (int i = 0; i < NUM_IFS; i++) begin
+                    ctrl_if_from_controller_status   [i] <= ctrl_if_to_peripheral.status;
+                    ctrl_if_from_controller_get_valid[i] <= ctrl_if_to_peripheral.get_valid;
+                    ctrl_if_from_controller_get_key  [i] <= ctrl_if_to_peripheral.get_key;
+                    ctrl_if_from_controller_get_value[i] <= ctrl_if_to_peripheral.get_value;
                 end
             end
         end : g__mux
@@ -289,6 +350,8 @@ module db_ctrl_intf_2to1_mux #(
     parameter type KEY_T = logic[7:0],
     parameter type VALUE_T = logic[7:0]
 ) (
+    input logic             clk,
+    input logic             srst,
     input logic             mux_sel,
     db_ctrl_intf.peripheral ctrl_if_from_controller_0,
     db_ctrl_intf.peripheral ctrl_if_from_controller_1,
@@ -313,6 +376,8 @@ module db_ctrl_intf_2to1_mux #(
         .KEY_T   ( KEY_T ),
         .VALUE_T ( VALUE_T )
     ) i_db_ctrl_intf_mux (
+        .clk ( clk ),
+        .srst ( srst ),
         .mux_sel ( {31'b0, mux_sel} ),
         .ctrl_if_from_controller ( ctrl_if_from_controller ),
         .ctrl_if_to_peripheral   ( ctrl_if_to_peripheral )
@@ -369,6 +434,8 @@ module db_ctrl_intf_prio_mux #(
         .KEY_T   ( KEY_T ),
         .VALUE_T ( VALUE_T )
     ) i_db_ctrl_intf_2to1_mux (
+        .clk                       ( clk ),
+        .srst                      ( srst ),
         .mux_sel                   ( mux_sel ),
         .ctrl_if_from_controller_0 ( ctrl_if_from_controller_hi_prio ),
         .ctrl_if_from_controller_1 ( ctrl_if_from_controller_lo_prio ),
@@ -385,7 +452,9 @@ module db_ctrl_intf_demux #(
     parameter type KEY_T = logic[7:0],
     parameter type VALUE_T = logic[7:0]
 ) (
-    input int               demux_sel,
+    input logic             clk,
+    input logic             srst,
+    input int unsigned      demux_sel,
     db_ctrl_intf.peripheral ctrl_if_from_controller,
     db_ctrl_intf.controller ctrl_if_to_peripheral [NUM_IFS]
 );
@@ -400,15 +469,28 @@ module db_ctrl_intf_demux #(
             // (Local) Typedefs
             typedef logic [MUX_SEL_WID-1:0] mux_sel_t;
 
+            typedef struct packed {
+                mux_sel_t mux_sel;
+                KEY_T     key;
+                command_t command;
+                VALUE_T   value;
+            } req_ctxt_t;
+
             // (Local) signals
-            mux_sel_t __demux_sel;
-            logic     ctrl_if_to_peripheral_rdy       [NUM_IFS];
-            logic     ctrl_if_to_peripheral_ack       [NUM_IFS];
-            status_t  ctrl_if_to_peripheral_status    [NUM_IFS];
-            logic     ctrl_if_to_peripheral_get_valid [NUM_IFS];
-            KEY_T     ctrl_if_to_peripheral_get_key   [NUM_IFS];
-            VALUE_T   ctrl_if_to_peripheral_get_value [NUM_IFS];
-            logic     ctrl_if_to_peripheral_req       [NUM_IFS];
+            mux_sel_t  __demux_sel;
+            logic      ctrl_if_to_peripheral_rdy       [NUM_IFS];
+            logic      ctrl_if_to_peripheral_ack       [NUM_IFS];
+            status_t   ctrl_if_to_peripheral_status    [NUM_IFS];
+            logic      ctrl_if_to_peripheral_get_valid [NUM_IFS];
+            KEY_T      ctrl_if_to_peripheral_get_key   [NUM_IFS];
+            VALUE_T    ctrl_if_to_peripheral_get_value [NUM_IFS];
+            logic      ctrl_if_to_peripheral_req       [NUM_IFS];
+
+            logic      req;
+            logic      rdy;
+            logic      ack;
+            logic      req_pending;
+            req_ctxt_t req_ctxt;
 
             // Convert between array of signals and array of interfaces
             for (genvar g_if = 0; g_if < NUM_IFS; g_if++) begin : g__if
@@ -419,29 +501,76 @@ module db_ctrl_intf_demux #(
                 assign ctrl_if_to_peripheral_get_key  [g_if] = ctrl_if_to_peripheral[g_if].get_key;
                 assign ctrl_if_to_peripheral_get_value[g_if] = ctrl_if_to_peripheral[g_if].get_value;
                 assign ctrl_if_to_peripheral[g_if].req       = ctrl_if_to_peripheral_req[g_if];
-                assign ctrl_if_to_peripheral[g_if].command   = ctrl_if_from_controller.command;
-                assign ctrl_if_to_peripheral[g_if].key       = ctrl_if_from_controller.key;
-                assign ctrl_if_to_peripheral[g_if].set_value = ctrl_if_from_controller.set_value;
+                assign ctrl_if_to_peripheral[g_if].command   = req_ctxt.command;
+                assign ctrl_if_to_peripheral[g_if].key       = req_ctxt.key;
+                assign ctrl_if_to_peripheral[g_if].set_value = req_ctxt.value;
             end : g__if
 
-            // Mux requests
-            assign __demux_sel = demux_sel % NUM_IFS;
+            // Latch request
+            initial req = 1'b0;
+            always @(posedge clk) begin
+                if (srst)                                                            req <= 1'b0;
+                else if (ctrl_if_from_controller.req && ctrl_if_from_controller.rdy) req <= 1'b1;
+                else if (rdy)                                                        req <= 1'b0;
+            end
 
+            always_ff @(posedge clk) if (ctrl_if_from_controller.req && ctrl_if_from_controller.rdy) begin
+                req_ctxt.key <= ctrl_if_from_controller.key;
+                req_ctxt.command <= ctrl_if_from_controller.command;
+                req_ctxt.value <= ctrl_if_from_controller.set_value;
+            end
+
+            // Latch mux select
+            initial __demux_sel = '0;
+            always @(posedge clk) begin
+                if (srst) __demux_sel <= '0;
+                else if (ctrl_if_from_controller.req && ctrl_if_from_controller.rdy) __demux_sel <= demux_sel[MUX_SEL_WID-1:0] % NUM_IFS;
+            end
+
+            // Maintain context for open transactions
+            initial req_pending = 1'b0;
+            always @(posedge clk) begin
+                if (srst)                                                            req_pending <= 1'b0;
+                else if (ctrl_if_from_controller.ack)                                req_pending <= 1'b0;
+                else if (ctrl_if_from_controller.req && ctrl_if_from_controller.rdy) req_pending <= 1'b1;
+            end
+
+            // Ready to accept new transaction if none are currently pending
+            initial ctrl_if_from_controller.rdy = 1'b0;
+            always @(posedge clk) begin
+                if (srst)                                 ctrl_if_from_controller.rdy <= 1'b0;
+                else begin
+                    if (ctrl_if_from_controller.req)      ctrl_if_from_controller.rdy <= 1'b0;
+                    else if (ctrl_if_from_controller.ack) ctrl_if_from_controller.rdy <= 1'b1;
+                    else if (req_pending)                 ctrl_if_from_controller.rdy <= 1'b0;
+                    else                                  ctrl_if_from_controller.rdy <= 1'b1;
+                end
+            end
+
+            // Demux control signals
             always_comb begin
-                ctrl_if_from_controller.rdy       = ctrl_if_to_peripheral_rdy      [__demux_sel];
-                ctrl_if_from_controller.ack       = ctrl_if_to_peripheral_ack      [__demux_sel];
+                rdy = ctrl_if_to_peripheral_rdy [__demux_sel];
+                ack = ctrl_if_to_peripheral_ack [__demux_sel];
+                for (int i = 0; i < NUM_IFS; i++) begin
+                    if (i == __demux_sel) ctrl_if_to_peripheral_req[i] = req;
+                    else                  ctrl_if_to_peripheral_req[i] = 1'b0;
+                end
+            end
+
+            // Latch result
+            initial ctrl_if_from_controller.ack = 1'b0;
+            always @(posedge clk) begin
+                if (srst) ctrl_if_from_controller.ack <= 1'b0;
+                else      ctrl_if_from_controller.ack <= ack;
+            end
+
+            always_ff @(posedge clk) begin
                 ctrl_if_from_controller.status    = ctrl_if_to_peripheral_status   [__demux_sel];
                 ctrl_if_from_controller.get_valid = ctrl_if_to_peripheral_get_valid[__demux_sel];
                 ctrl_if_from_controller.get_key   = ctrl_if_to_peripheral_get_key  [__demux_sel];
                 ctrl_if_from_controller.get_value = ctrl_if_to_peripheral_get_value[__demux_sel];
-                for (int i = 0; i < NUM_IFS; i++) begin
-                    if (i == __demux_sel) begin
-                        ctrl_if_to_peripheral_req[i] = ctrl_if_from_controller.req;
-                    end else begin
-                        ctrl_if_to_peripheral_req[i] = 1'b0;
-                    end
-                end
             end
+
         end : g__demux
         else begin : g__connector
             // Single interface, no demux required

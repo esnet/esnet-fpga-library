@@ -119,7 +119,7 @@ module htable_fast_update_core #(
     // ----------------------------------
     // Update stash
     // ----------------------------------
-    db_stash      #(
+    db_stash_fifo #(
         .KEY_T     ( KEY_T ),
         .VALUE_T   ( UPDATE_ENTRY_T ),
         .SIZE      ( UPDATE_BURST_SIZE )
@@ -135,11 +135,11 @@ module htable_fast_update_core #(
     );
 
     // Map from common lookup/update interfaces to stash-specific interfaces
-    assign stash_lookup_if.req = lookup_if.req && lookup_if.rdy;
+    assign stash_lookup_if.req = lookup_if.req && tbl_lookup_if.rdy;
     assign stash_lookup_if.key = lookup_if.key;
     assign stash_lookup_if.next = 1'b0;
 
-    assign stash_update_if.req = update_if.req;
+    assign stash_update_if.req = update_if.req && (stash_status_if.fill < UPDATE_BURST_SIZE);
     assign stash_update_if.key = update_if.key;
     assign stash_update_if.next = 1'b0;
     assign stash_update_if.valid = 1'b1;
@@ -176,7 +176,7 @@ module htable_fast_update_core #(
     // ----------------------------------
     // Drive table lookup interface
     // ----------------------------------
-    assign tbl_lookup_if.req = lookup_if.req && lookup_if.rdy;
+    assign tbl_lookup_if.req = lookup_if.req && stash_lookup_if.rdy;
     assign tbl_lookup_if.key = lookup_if.key;
     assign tbl_lookup_if.next = 1'b0;
 
@@ -221,17 +221,17 @@ module htable_fast_update_core #(
         tbl_command = COMMAND_NOP;
         case (state)
             RESET : begin
-                if (init_done) nxt_state <= IDLE;
+                if (init_done) nxt_state = IDLE;
             end
             IDLE : begin
                 if (en) begin
-                    if (stash_status_if.fill > 0) nxt_state <= GET_NEXT;
+                    if (stash_status_if.fill > 0) nxt_state = GET_NEXT;
                 end
             end
             GET_NEXT : begin
                 stash_req = 1'b1;
                 stash_command = COMMAND_GET_NEXT;
-                if (stash_ctrl_if.rdy) nxt_state <= GET_NEXT_PENDING;
+                if (stash_ctrl_if.rdy) nxt_state = GET_NEXT_PENDING;
             end
             GET_NEXT_PENDING : begin
                 if (stash_ctrl_if.ack) begin
@@ -260,20 +260,23 @@ module htable_fast_update_core #(
             end
             STASH_POP : begin
                 stash_req = 1'b1;
-                stash_command = COMMAND_UNSET;
+                stash_command = COMMAND_UNSET_NEXT;
                 if (stash_ctrl_if.rdy) nxt_state = STASH_POP_PENDING;
             end
-            STASH_POP_PENDING: begin
+            STASH_POP_PENDING : begin
                 if (stash_ctrl_if.ack) begin
                     if (stash_ctrl_if.status != STATUS_OK) nxt_state = ERROR;
                     else if (stash_ctrl_if.get_valid)      nxt_state = DONE;
                     else                                   nxt_state = ERROR;
                 end
             end
-            DONE: begin
+            DONE : begin
                 nxt_state = IDLE;
             end
-            ERROR: begin
+            ERROR : begin
+                nxt_state = IDLE;
+            end
+            default : begin
                 nxt_state = IDLE;
             end
         endcase

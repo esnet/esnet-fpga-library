@@ -1,0 +1,81 @@
+name: state_aging_core
+info: |
+  This register map describes a register block for
+  control and monitoring of the state aging core component.
+regs:
+  - default:
+      width: 32
+      access: rw
+      init: 0
+
+  - name: info_size
+    desc: Info (number of IDs tracked)
+    access: ro
+
+  - name: info_timer_bits
+    desc: Info (timer width in bits)
+    access: ro
+
+  - name: info_timer_ratio
+    desc: Info (ratio describing number of input timestamp clock increments per timer tick)
+    access: ro
+
+  - name: control
+    access: rw
+    fields:
+        - name:  reset
+          desc:  soft reset.
+          width: 1
+          init:  0
+        - name:  enable
+          desc:  enable aging state machine.
+          width: 1
+          init:  1
+
+  - name: status
+    access: ro
+    fields:
+        - name:  reset
+          desc:  reset status
+          width: 1
+        - name:  init_done
+          desc:  memory init done
+          width: 1
+
+  - name: dbg_control
+    access: rw
+    fields:
+        - name:  clear_counts
+          desc:  clear all debug counters.
+          width: 1
+          init:  0
+
+  - name: dbg_status
+    desc: Debug status.
+    access: ro
+    fields:
+        - name: state
+          desc: Aging FSM state.
+          width: 4
+
+  - name: dbg_cnt_timer
+    access: ro
+    desc: Count of timer ticks synthesized.
+    width: 32
+  
+  - name: dbg_cnt_active
+    access: ro
+    desc: Count of currently active timers. Based on delta counts of timers enabled/disabled.
+    width: 32
+
+  - name: dbg_cnt_active_last_scan
+    access: ro
+    desc: Approximate count of active timers. Based on number of timers that were active in most recent polling cycle.
+    width: 32
+
+  - name: dbg_cnt_notify
+    access: ro
+    desc: Count of notification messages generated.
+    width: 32
+
+

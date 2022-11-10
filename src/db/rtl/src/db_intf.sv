@@ -377,7 +377,7 @@ module db_intf_mux #(
             end : g__if
 
             // Mux requests
-            assign __mux_sel = mux_sel % NUM_IFS;
+            assign __mux_sel = mux_sel[MUX_SEL_WID-1:0] % NUM_IFS;
 
             always_comb begin
                 db_if_to_responder.req = db_if_from_requester_req[__mux_sel];
@@ -526,8 +526,11 @@ module db_intf_prio_mux #(
     // Signals
     logic mux_sel;
 
+    // Interfaces
+    db_intf #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) __db_if_from_requester_hi_prio (.clk(clk));
+
     // Priority select
-    assign mux_sel = (db_if_from_requester_lo_prio.req && !db_if_from_requester_hi_prio.req) ? 1 : 0;
+    assign mux_sel = db_if_from_requester_hi_prio.req ? 0 : 1;
 
     // Mux
     db_intf_2to1_mux     #(
@@ -539,10 +542,33 @@ module db_intf_prio_mux #(
         .clk ( clk ),
         .srst ( srst ),
         .mux_sel ( mux_sel ),
-        .db_if_from_requester_0 ( db_if_from_requester_hi_prio ),
+        .db_if_from_requester_0 ( __db_if_from_requester_hi_prio ),
         .db_if_from_requester_1 ( db_if_from_requester_lo_prio ),
         .db_if_to_responder ( db_if_to_responder )
     );
+
+    // Drive hi prio ready signal directly to avoid timing loop
+    assign db_if_from_requester_hi_prio.rdy = db_if_to_responder.rdy;
+
+    // Connect remainder of hi prio interface signals
+    assign __db_if_from_requester_hi_prio.req = db_if_from_requester_hi_prio.req;
+    assign __db_if_from_requester_hi_prio.key = db_if_from_requester_hi_prio.key;
+    assign __db_if_from_requester_hi_prio.next = db_if_from_requester_hi_prio.next;
+    assign db_if_from_requester_hi_prio.ack = __db_if_from_requester_hi_prio.ack;
+    assign db_if_from_requester_hi_prio.error = __db_if_from_requester_hi_prio.error;
+    assign db_if_from_requester_hi_prio.next_key = __db_if_from_requester_hi_prio.next_key;
+
+    // Connect valid/value inout ports according to specified direction
+    generate
+        if (WR_RD_N) begin : g__wr
+            assign __db_if_from_requester_hi_prio.valid = db_if_from_requester_hi_prio.valid;
+            assign __db_if_from_requester_hi_prio.value = db_if_from_requester_hi_prio.value;
+        end : g__wr
+        else begin : g__rd
+            assign db_if_from_requester_hi_prio.valid = __db_if_from_requester_hi_prio.valid;
+            assign db_if_from_requester_hi_prio.value = __db_if_from_requester_hi_prio.value;
+        end : g__rd
+    endgenerate
 
 endmodule : db_intf_prio_mux
 
@@ -639,7 +665,7 @@ module db_intf_demux #(
             end : g__if
 
             // Demux requests
-            assign __demux_sel = demux_sel % NUM_IFS;
+            assign __demux_sel = demux_sel[MUX_SEL_WID-1:0] % NUM_IFS;
 
             always_comb begin
                 db_if_from_requester.rdy = db_if_to_responder_rdy[__demux_sel];

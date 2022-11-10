@@ -128,6 +128,8 @@ module db_axil_ctrl #(
     state_t    state;
     state_t    nxt_state;
 
+    logic      ctrl_req;
+
     logic      done;
     logic      error;
     logic      timeout;
@@ -244,6 +246,8 @@ module db_axil_ctrl #(
     assign state_mon_in = {'0, state};
     assign reg_if.blk_monitor_nxt.state_mon = fld_blk_monitor_state_mon_t'(state_mon_out);
 
+    assign reg_if.blk_monitor_nxt_v = 1'b1;
+
     // ----------------------------------------
     // Logic
     // ----------------------------------------
@@ -278,7 +282,7 @@ module db_axil_ctrl #(
 
     always_comb begin
         nxt_state = state;
-        ctrl_if.req = 1'b0;
+        ctrl_req = 1'b0;
         done = 1'b0;
         error = 1'b0;
         timeout = 1'b0;
@@ -290,7 +294,7 @@ module db_axil_ctrl #(
                 if (req) nxt_state = REQ;
             end
             REQ : begin
-                ctrl_if.req = 1'b1;
+                ctrl_req = 1'b1;
                 if (ctrl_if.rdy) nxt_state = BUSY;
             end
             BUSY : begin
@@ -314,6 +318,9 @@ module db_axil_ctrl #(
             end
         endcase
     end
+
+    // Drive control request
+    assign ctrl_if.req = ctrl_req;
 
     // Return response
     // -- Latch presence

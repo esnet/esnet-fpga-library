@@ -24,6 +24,11 @@ module htable_multi_core
     parameter int  HASH_LATENCY = 0,
     parameter int  NUM_WR_TRANSACTIONS = 2,
     parameter int  NUM_RD_TRANSACTIONS = 8,
+    parameter bit  APP_CACHE_EN = 1'b0,     // Enable caching of update/lookup interface transactions to ensure consistency
+                                            // of underlying table data for cases where multiple transactions
+                                            // (closely spaced in time) target the same table entry; can be disabled to
+                                            // achieve a less complex implementation for applications insensitive to
+                                            // this type of inconsistency
     parameter htable_multi_insert_mode_t INSERT_MODE = HTABLE_MULTI_INSERT_MODE_NONE // Insert mode
                                             // Typical implementation will be reads (lookups) from the
                                             // application interface and writes (insertions) from the control
@@ -75,27 +80,37 @@ module htable_multi_core
 );
 
     // ----------------------------------
+    // Typedefs
+    // ----------------------------------
+    typedef struct packed {
+        logic   error;
+        logic   valid;
+        VALUE_T value;
+    } lookup_resp_t;
+
+    // ----------------------------------
     // Signals
     // ----------------------------------
     logic [NUM_TABLES-1:0] init_done__tbl;
 
-    int                    info_if__tbl_size [NUM_TABLES];
+    int                    info_if_size__tbl [NUM_TABLES];
 
     KEY_T                  __lookup_key [NUM_TABLES];
     KEY_T                  __update_key [NUM_TABLES];
 
-    logic [NUM_TABLES-1:0] lookup_if__tbl_rdy;
-    logic                  lookup_if__tbl_ack   [NUM_TABLES];
-    logic                  lookup_if__tbl_error [NUM_TABLES];
-    logic                  lookup_if__tbl_valid [NUM_TABLES];
-    VALUE_T                lookup_if__tbl_value [NUM_TABLES];
+    logic                  lookup_done;
+
+    logic [NUM_TABLES-1:0] lookup_done__tbl;
+    logic [NUM_TABLES-1:0] lookup_error__tbl;
+    logic [NUM_TABLES-1:0] lookup_valid__tbl;
+    VALUE_T                lookup_value__tbl[NUM_TABLES];
+    logic [NUM_TABLES-1:0] lookup_if_rdy__tbl;
 
     // ----------------------------------
     // Interfaces
     // ----------------------------------
     db_info_intf info_if__tbl ();
     db_intf #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) update_if__tbl [NUM_TABLES] (.clk(clk));
-    db_intf #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) lookup_if__tbl [NUM_TABLES] (.clk(clk));
 
     // ----------------------------------
     // Export info
@@ -105,7 +120,7 @@ module htable_multi_core
     always_comb begin
         info_if.size = 0;
         for (int tbl = 0; tbl < NUM_TABLES; tbl++) begin
-            info_if.size += info_if__tbl_size[tbl];
+            info_if.size += info_if_size__tbl[tbl];
         end
     end
 
@@ -116,16 +131,24 @@ module htable_multi_core
     // ----------------------------------
     generate
         for (genvar g_tbl = 0; g_tbl < NUM_TABLES; g_tbl++) begin : g__tbl
+            // (Local) signals
+            lookup_resp_t lookup_resp_in;
+            lookup_resp_t lookup_resp_out;
+            logic         lookup_resp_q_empty;
+
             // (Local) interfaces
             db_info_intf __info_if ();
+            db_intf #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) __lookup_if (.clk(clk));
 
+            // Single-table hashtable instance
             htable_core #(
                 .KEY_T               ( KEY_T ),
                 .VALUE_T             ( VALUE_T ),
                 .SIZE                ( TABLE_SIZE[g_tbl] ),
                 .HASH_LATENCY        ( HASH_LATENCY ),
                 .NUM_WR_TRANSACTIONS ( NUM_WR_TRANSACTIONS ),
-                .NUM_RD_TRANSACTIONS ( NUM_RD_TRANSACTIONS )
+                .NUM_RD_TRANSACTIONS ( NUM_RD_TRANSACTIONS ),
+                .APP_CACHE_EN        ( APP_CACHE_EN )
             ) i_htable_core   (
                 .clk           ( clk ),
                 .srst          ( srst ),
@@ -136,7 +159,7 @@ module htable_multi_core
                 .update_key    ( __update_key  [g_tbl] ),
                 .update_hash   ( update_hash   [g_tbl] ),
                 .update_if     ( update_if__tbl[g_tbl] ),
-                .lookup_if     ( lookup_if__tbl[g_tbl] ),
+                .lookup_if     ( __lookup_if           ),
                 .tbl_ctrl_if   ( tbl_ctrl_if   [g_tbl] ),
                 .tbl_init      ( tbl_init      [g_tbl] ),
                 .tbl_init_done ( tbl_init_done [g_tbl] ),
@@ -145,16 +168,40 @@ module htable_multi_core
             );
 
             // Retrieve size info
-            assign info_if__tbl_size[g_tbl] = __info_if.size;
+            assign info_if_size__tbl[g_tbl] = __info_if.size;
 
-            // Map between array of interfaces and array of signals
-            assign lookup_if__tbl_rdy[g_tbl] = lookup_if__tbl[g_tbl].rdy;
-            assign lookup_if__tbl_ack[g_tbl] = lookup_if__tbl[g_tbl].ack;
-            assign lookup_if__tbl_error[g_tbl] = lookup_if__tbl[g_tbl].error;
-            assign lookup_if__tbl_valid[g_tbl] = lookup_if__tbl[g_tbl].valid;
-            assign lookup_if__tbl_value[g_tbl] = lookup_if__tbl[g_tbl].value;
-            assign lookup_if__tbl[g_tbl].req = lookup_if.req;
-            assign lookup_if__tbl[g_tbl].key = lookup_if.key;
+            // Drive local lookup interface
+            assign __lookup_if.req = lookup_if.req;
+            assign __lookup_if.key = lookup_if.key;
+            assign __lookup_if.next = 1'b0;
+
+            assign lookup_if_rdy__tbl[g_tbl] = __lookup_if.rdy;
+
+            // Capture lookup result
+            assign lookup_resp_in.error = __lookup_if.error;
+            assign lookup_resp_in.valid = __lookup_if.valid;
+            assign lookup_resp_in.value = __lookup_if.value;
+
+            fifo_small #(
+                .DATA_T ( lookup_resp_t ),
+                .DEPTH  ( NUM_RD_TRANSACTIONS )
+            ) i_fifo_small__lookup_resp (
+                .clk  ( clk ),
+                .srst ( srst || tbl_init [g_tbl] ),
+                .wr   ( __lookup_if.ack ),
+                .wr_data ( lookup_resp_in ),
+                .full    ( ),
+                .oflow   ( ),
+                .rd      ( lookup_done ),
+                .rd_data ( lookup_resp_out ),
+                .empty   ( lookup_resp_q_empty ),
+                .uflow   ( )
+            );
+
+            assign lookup_done__tbl[g_tbl] = !lookup_resp_q_empty;
+            assign lookup_error__tbl[g_tbl] = lookup_resp_out.error;
+            assign lookup_valid__tbl[g_tbl] = lookup_resp_out.valid;
+            assign lookup_value__tbl[g_tbl] = lookup_resp_out.value;
         end : g__tbl
     endgenerate
 
@@ -165,24 +212,26 @@ module htable_multi_core
     assign update_key = __update_key[0];
 
     // Combine read responses
-    assign lookup_if.rdy = &lookup_if__tbl_rdy;
+    assign lookup_if.rdy = &lookup_if_rdy__tbl;
 
-    always_comb begin
-        lookup_if.ack = 1'b0;
-        lookup_if.error = 1'b0;
-        lookup_if.valid = 1'b0;
-        lookup_if.value = '0;
+    assign lookup_done = &lookup_done__tbl;
+
+    initial lookup_if.ack = 1'b0;
+    always @(posedge clk) begin
+        if (srst)             lookup_if.ack <= 1'b0;
+        else if (lookup_done) lookup_if.ack <= 1'b1;
+        else                  lookup_if.ack <= 1'b0;
+    end
+
+    always_ff @(posedge clk) begin
+        lookup_if.error <= |lookup_error__tbl;
+        lookup_if.valid <= |lookup_valid__tbl;
+        lookup_if.value <= '0;
         for (int i = 0; i < NUM_TABLES; i++) begin
-            if (lookup_if__tbl_ack[i]) begin
-                lookup_if.ack = 1'b1;
-                if (lookup_if__tbl_error[i]) lookup_if.error = 1'b1;
-                if (lookup_if__tbl_valid[i]) begin
-                    lookup_if.valid = 1'b1;
-                    lookup_if.value = lookup_if__tbl_value[i];
-                end
-            end
+            if (lookup_valid__tbl[i]) lookup_if.value <= lookup_value__tbl[i];
         end
     end
+    assign lookup_if.next_key = '0;
 
     generate
         if (INSERT_MODE == HTABLE_MULTI_INSERT_MODE_NONE) begin : g__htable_multi_ins_mode_none
@@ -190,8 +239,12 @@ module htable_multi_core
             for (genvar g_tbl = 0; g_tbl < NUM_TABLES; g_tbl++) begin : g__tbl
                 assign update_if__tbl[g_tbl].req = 1'b0;
                 assign update_if__tbl[g_tbl].key = '0;
+                assign update_if__tbl[g_tbl].next = 1'b0;
                 assign update_if__tbl[g_tbl].valid = 1'b0;
                 assign update_if__tbl[g_tbl].value = '0;
+                assign update_if.rdy = 1'b0;
+                assign update_if.error = 1'b0;
+                assign update_if.next_key = '0;
             end : g__tbl
         end : g__htable_multi_ins_mode_none
         else if (INSERT_MODE == HTABLE_MULTI_INSERT_MODE_ROUND_ROBIN) begin : g__htable_multi_ins_mode_round_robin
@@ -221,6 +274,7 @@ module htable_multi_core
             for (genvar g_tbl = 0; g_tbl < NUM_TABLES; g_tbl++) begin : g__tbl
                 assign update_if__tbl[g_tbl].req = update_if.req;
                 assign update_if__tbl[g_tbl].key = update_if.key;
+                assign update_if__tbl[g_tbl].next = 1'b0;
                 assign update_if__tbl[g_tbl].valid = update_if.valid;
                 assign update_if__tbl[g_tbl].value = update_if.value;
 
@@ -231,6 +285,7 @@ module htable_multi_core
             assign update_if.rdy = update_if__tbl_rdy[0];
             assign update_if.ack = update_if__tbl_ack[0];
             assign update_if.error = update_if__tbl_error[0];
+            assign update_if.next_key = '0;
         end : g__htable_multi_ins_mode_broadcast
     endgenerate
 
