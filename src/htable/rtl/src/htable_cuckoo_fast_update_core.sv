@@ -43,6 +43,9 @@ module htable_cuckoo_fast_update_core
     // Control interface
     db_ctrl_intf.peripheral   ctrl_if,
 
+    // AXI-L control/monitoring interface
+    axi4l_intf.peripheral     axil_if,
+
     // Lookup interface (from application)
     db_intf.responder         lookup_if,
 
@@ -76,7 +79,6 @@ module htable_cuckoo_fast_update_core
     // Interfaces
     // ----------------------------------
     db_info_intf cuckoo_info_if ();
-    db_status_intf cuckoo_status_if (.clk(clk), .srst(__srst));
     db_ctrl_intf  #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) cuckoo_ctrl_if (.clk(clk));
     db_intf #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) cuckoo_lookup_if (.clk(clk));
 
@@ -157,6 +159,7 @@ module htable_cuckoo_fast_update_core
         .srst                ( __srst ),
         .en                  ( en ),
         .init_done           ( cuckoo_init_done ),
+        .axil_if             ( axil_if ),
         .info_if             ( cuckoo_info_if ),
         .status_if           ( status_if ),
         .ctrl_if             ( cuckoo_ctrl_if ),

@@ -2,6 +2,7 @@
 
 module htable_cuckoo_fast_update_core_unit_test;
     import svunit_pkg::svunit_testcase;
+    import axi4l_verif_pkg::*;
     import db_pkg::*;
     import htable_pkg::*;
     import db_verif_pkg::*;
@@ -42,6 +43,8 @@ module htable_cuckoo_fast_update_core_unit_test;
     logic en;
 
     logic init_done;
+
+    axi4l_intf #() axil_if ();
 
     db_info_intf info_if ();
     db_status_intf status_if (.clk(clk), .srst(srst));
@@ -99,15 +102,21 @@ module htable_cuckoo_fast_update_core_unit_test;
         end
     endgenerate
     
+    axi4l_reg_agent axil_reg_agent;
     db_ctrl_agent #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) agent;
     std_reset_intf reset_if (.clk(clk));
 
     // Assign clock (250MHz)
     `SVUNIT_CLK_GEN(clk, 2ns);
 
+    // Assign AXI clock (100MHz)
+    `SVUNIT_CLK_GEN(axil_if.aclk, 5ns);
+
     // Assign reset interface
     assign srst = reset_if.reset;
     assign reset_if.ready = init_done;
+
+    assign axil_if.aresetn = !reset_if.reset;
 
     assign en = 1'b1;
 
@@ -116,6 +125,9 @@ module htable_cuckoo_fast_update_core_unit_test;
     //===================================
     function void build();
         svunit_ut = new(name);
+
+        axil_reg_agent = new;
+        axil_reg_agent.axil_vif = axil_if;
 
         agent = new("db_ctrl_agent", SIZE);
         agent.attach(ctrl_if, status_if, info_if);
@@ -129,7 +141,7 @@ module htable_cuckoo_fast_update_core_unit_test;
     //===================================
     task setup();
         svunit_ut.setup();
-        
+        axil_reg_agent.idle();
         agent.idle();
         lookup_if.idle();
         update_if.idle();

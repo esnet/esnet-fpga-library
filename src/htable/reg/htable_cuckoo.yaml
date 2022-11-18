@@ -1,0 +1,138 @@
+name: htable_cuckoo
+info: |
+  This register map describes a register block for
+  control and monitoring of a cuckoo hash table
+regs:
+  - default:
+      width: 32
+      access: rw
+      init: 0
+
+  - name: info
+    desc: Info (reports block parameterization)
+    access: ro
+    fields:
+        - name: num_tables
+          width: 8
+        - name: key_width
+          width: 12
+        - name: value_width
+          width: 12
+
+  - name: control
+    access: rw
+    fields:
+        - name:  reset
+          desc:  (soft) block reset
+          width: 1
+          init:  0
+        - name:  enable
+          desc:  (soft) block enable
+          width: 1
+          init:  1
+
+  - name: status
+    access: ro
+    fields:
+        - name:  reset_mon
+          desc:  block reset monitor
+          width: 1
+        - name:  enable_mon
+          desc:  block enable monitor
+          width: 1
+        - name:  ready_mon
+          desc:  block ready monitor
+          width: 1
+
+  - name: dbg_status
+    desc: (Debug) status monitor.
+    access: ro
+    fields:
+        - name: state
+          desc: FSM state.
+          width: 8
+          enum_hex:
+              00 : RESET
+              01 : IDLE
+              02 : CLEAR
+              03 : CLEAR_PENDING
+              04 : CLEAR_NEXT
+              05 : CLEAR_STASH
+              06 : CLEAR_STASH_PENDING
+              07 : CHECK
+              08 : CHECK_PENDING
+              09 : CHECK_NEXT
+              0A : CHECK_FOUND
+              0B : CHECK_NOT_FOUND
+              0C : DELETE
+              0D : DELETE_PENDING
+              0E : INSERT_GET
+              0F : INSERT_GET_PENDING
+              10 : INSERT_PUSH
+              11 : INSERT_PUSH_PENDING
+              12 : INSERT_SET
+              13 : INSERT_SET_PENDING
+              14 : INSERT_POP
+              15 : INSERT_POP_PENDING
+              16 : INSERT_NEXT
+              17 : DONE
+              18 : ERROR
+
+  - name: cnt_control
+    access: wr_evt
+    desc: Latch counts. Acts on all cnt_* counters within block.
+    fields:
+        - name: _clear
+          width: 1
+          desc: Latch and clear when clear is set; Latch (and preserve) when clear is unset.
+
+  - name: cnt_insert_ok_upper
+    access: ro
+    desc: Count of (successful) table insertions (bits 63:32)
+    width: 32
+
+  - name: cnt_insert_ok_lower
+    access: ro
+    desc: Count of (successful) table insertions (bits 31:0)
+    width: 32
+
+  - name: cnt_insert_fail_upper
+    access: ro
+    desc: Count of failed table insertions (bits 63:32)
+    width: 32
+
+  - name: cnt_insert_fail_lower
+    access: ro
+    desc: Count of failed table insertions (bits 31:0)
+    width: 32
+
+  - name: cnt_delete_ok_upper
+    access: ro
+    desc: Count of (successful) table deletions (bits 63:32)
+    width: 32
+
+  - name: cnt_delete_ok_lower
+    access: ro
+    desc: Count of (successful) table deletions (bits 31:0)
+    width: 32
+
+  - name: cnt_delete_fail_upper
+    access: ro
+    desc: Count of failed table deletions (bits 63:32)
+    width: 32
+
+  - name: cnt_delete_fail_lower
+    access: ro
+    desc: Count of failed table deletions (bits 31:0)
+    width: 32
+
+  - name: cnt_active
+    access: ro
+    desc: Count of currently active timers (latched)
+    width: 32
+
+  - name: dbg_cnt_active
+    access: ro
+    desc: Count of currently active timers (free-run)
+    width: 32
+

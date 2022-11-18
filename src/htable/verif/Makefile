@@ -25,8 +25,10 @@ SRC_LIST_FILES =
 #   List IP component and external library dependencies
 #   (see $SCRIPTS_ROOT/Makefiles/dependencies.mk)
 # ----------------------------------------------------
-COMPONENTS = reg \
-             db_rtl=$(LIB_ROOT)/src/db/rtl
+COMPONENTS = rtl reg.verif \
+             std_verif=$(LIB_ROOT)/src/std/verif \
+             reg_verif=$(LIB_ROOT)/src/reg/verif \
+             db_verif=$(LIB_ROOT)/src/db/verif
 EXT_LIBS =
 
 # ----------------------------------------------------

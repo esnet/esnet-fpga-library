@@ -24,7 +24,7 @@ waves ?= OFF
 # Top
 #   Specify top module(s) for elaboration
 # ----------------------------------------------------
-TOP = $(SVUNIT_TOP)
+TOP = $(SVUNIT_TOP) htable_tb.glbl
 
 # ----------------------------------------------------
 # Sources
@@ -41,9 +41,11 @@ SRC_LIST_FILES = $(SVUNIT_SRC_LIST_FILE)
 #   List IP component and external library dependencies
 #   (see $SCRIPTS_ROOT/Makefiles/dependencies.mk for details)
 # ----------------------------------------------------
-COMPONENTS = rtl \
+COMPONENTS = rtl verif tb \
              std_rtl=$(LIB_ROOT)/src/std/rtl \
+             axi4l_rtl=$(LIB_ROOT)/src/axi4l/rtl \
              db_rtl=$(LIB_ROOT)/src/db/rtl \
+             axi4l_verif=$(LIB_ROOT)/src/axi4l/verif \
              db_verif=$(LIB_ROOT)/src/db/verif
 EXT_LIBS =
 

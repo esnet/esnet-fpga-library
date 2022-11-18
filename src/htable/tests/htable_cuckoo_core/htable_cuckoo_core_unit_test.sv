@@ -4,7 +4,9 @@ module htable_cuckoo_core_unit_test;
     import svunit_pkg::svunit_testcase;
     import db_pkg::*;
     import htable_pkg::*;
+    import axi4l_verif_pkg::*;
     import db_verif_pkg::*;
+    import htable_verif_pkg::*;
 
     string name = "htable_cuckoo_core_ut";
     svunit_testcase svunit_ut;
@@ -14,12 +16,12 @@ module htable_cuckoo_core_unit_test;
     //===================================
     parameter int KEY_WID = 96;
     parameter int VALUE_WID = 32;
-    parameter int HASH_WID = 8;
+    parameter int HASH_WID = 13;
     parameter int TIMEOUT_CYCLES = 0;
     parameter int HASH_LATENCY = 0;
     
     parameter int NUM_TABLES = 3;
-    parameter int TABLE_SIZE[NUM_TABLES] = '{default: 256};
+    parameter int TABLE_SIZE[NUM_TABLES] = '{default: 8192};
 
     const int SIZE = TABLE_SIZE.sum();
     
@@ -40,6 +42,8 @@ module htable_cuckoo_core_unit_test;
     logic en;
 
     logic init_done;
+
+    axi4l_intf #() axil_if ();
 
     db_info_intf info_if ();
     db_status_intf status_if (.clk(clk), .srst(srst));
@@ -95,14 +99,20 @@ module htable_cuckoo_core_unit_test;
         end
     endgenerate
     
-    db_ctrl_agent #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) agent;
+    axi4l_reg_agent axil_reg_agent;
+    htable_cuckoo_reg_agent reg_agent;
+    db_ctrl_agent #(KEY_T, VALUE_T) agent;
     std_reset_intf reset_if (.clk(clk));
 
     // Assign clock (250MHz)
     `SVUNIT_CLK_GEN(clk, 2ns);
 
+    // Assign AXI-L clock (100MHz)
+    `SVUNIT_CLK_GEN(axil_if.aclk, 5ns);
+
     // Assign reset interface
     assign srst = reset_if.reset;
+    assign axil_if.aresetn = !srst;
     assign reset_if.ready = init_done;
 
     assign en = 1'b1;
@@ -112,6 +122,11 @@ module htable_cuckoo_core_unit_test;
     //===================================
     function void build();
         svunit_ut = new(name);
+
+        axil_reg_agent = new();
+        axil_reg_agent.axil_vif = axil_if;
+
+        reg_agent = new("cuckoo_reg_agent", axil_reg_agent);
 
         agent = new("db_ctrl_agent", SIZE);
         agent.attach(ctrl_if, status_if, info_if);
@@ -126,6 +141,7 @@ module htable_cuckoo_core_unit_test;
     task setup();
         svunit_ut.setup();
         
+        axil_reg_agent.idle();
         agent.idle();
         lookup_if.idle();
 
@@ -146,6 +162,7 @@ module htable_cuckoo_core_unit_test;
     //===================================
     // Tests
     //===================================
+    stats_t exp_stats;
 
     //===================================
     // All tests are defined between the
@@ -172,12 +189,23 @@ module htable_cuckoo_core_unit_test;
         // Get info and check against expected
         agent.get_type(got_type);
         `FAIL_UNLESS_EQUAL(got_type, db_pkg::DB_TYPE_HTABLE);
-
         agent.get_subtype(got_subtype);
         `FAIL_UNLESS_EQUAL(got_subtype, htable_pkg::HTABLE_TYPE_CUCKOO);
-
         agent.get_size(got_size);
         `FAIL_UNLESS_EQUAL(got_size, SIZE);
+    `SVTEST_END
+
+    `SVTEST(info_reg)
+        int got_num_tables;
+        int got_key_width;
+        int got_value_width;
+        // Get info and check against expected
+        reg_agent.get_num_tables(got_num_tables);
+        `FAIL_UNLESS_EQUAL(got_num_tables, NUM_TABLES);
+        reg_agent.get_key_width(got_key_width);
+        `FAIL_UNLESS_EQUAL(got_key_width, KEY_WID);
+        reg_agent.get_value_width(got_value_width);
+        `FAIL_UNLESS_EQUAL(got_value_width, VALUE_WID);
     `SVTEST_END
 
     `SVTEST(ctrl_reset)
@@ -185,6 +213,10 @@ module htable_cuckoo_core_unit_test;
         agent.clear_all(error, timeout);
         `FAIL_IF(error);
         `FAIL_IF(timeout);
+    `SVTEST_END
+
+    `SVTEST(soft_reset)
+        reg_agent.soft_reset();
     `SVTEST_END
 
     `SVTEST(set_get)
@@ -201,12 +233,16 @@ module htable_cuckoo_core_unit_test;
         agent.set(key, exp_value, error, timeout);
         `FAIL_IF(error);
         `FAIL_IF(timeout);
+        exp_stats.insert_ok += 1;
+        exp_stats.active += 1;
         // Read back and check
         agent.get(key, got_valid, got_value, error, timeout);
         `FAIL_IF(error);
         `FAIL_IF(timeout);
         `FAIL_UNLESS(got_valid);
         `FAIL_UNLESS_EQUAL(got_value, exp_value);
+        // Check stats
+        check_stats();
     `SVTEST_END
 
     `SVTEST(unset)
@@ -223,18 +259,24 @@ module htable_cuckoo_core_unit_test;
         agent.set(key, exp_value, error, timeout);
         `FAIL_IF(error);
         `FAIL_IF(timeout);
+        exp_stats.insert_ok += 1;
+        exp_stats.active += 1;
         // Clear entry (and check previous value)
         agent.unset(key, got_valid, got_value, error, timeout);
         `FAIL_IF(error);
         `FAIL_IF(timeout);
         `FAIL_UNLESS(got_valid);
         `FAIL_UNLESS_EQUAL(got_value, exp_value);
+        exp_stats.delete_ok += 1;
+        exp_stats.active -= 1;
         // Read back and check that entry is cleared
         agent.get(key, got_valid, got_value, error, timeout);
         `FAIL_IF(error);
         `FAIL_IF(timeout);
         `FAIL_IF(got_valid);
         `FAIL_UNLESS_EQUAL(got_value, '0);
+        // Check stats
+        check_stats();
     `SVTEST_END
 
     `SVTEST(replace)
@@ -252,6 +294,8 @@ module htable_cuckoo_core_unit_test;
         agent.set(key, exp_value[0], error, timeout);
         `FAIL_IF(error);
         `FAIL_IF(timeout);
+        exp_stats.insert_ok += 1;
+        exp_stats.active += 1;
         // Replace entry (and check previous value)
         agent.replace(key, exp_value[1], got_valid, got_value, error, timeout);
         `FAIL_IF(error);
@@ -264,6 +308,8 @@ module htable_cuckoo_core_unit_test;
         `FAIL_IF(timeout);
         `FAIL_UNLESS(got_valid);
         `FAIL_UNLESS_EQUAL(got_value, exp_value[1]);
+        // Check stats
+        check_stats();
     `SVTEST_END
 
     `SVTEST(set_query)
@@ -280,13 +326,123 @@ module htable_cuckoo_core_unit_test;
         agent.set(key, exp_value, error, timeout);
         `FAIL_IF(error);
         `FAIL_IF(timeout);
+        exp_stats.insert_ok += 1;
+        exp_stats.active += 1;
         // Query database from app interface
         lookup_if.query(key, got_valid, got_value, error, timeout);
         `FAIL_IF(error);
         `FAIL_IF(timeout);
         `FAIL_UNLESS(got_valid);
         `FAIL_UNLESS_EQUAL(got_value, exp_value);
+        // Check stats
+        check_stats();
     `SVTEST_END
+
+    `SVTEST(many_entries)
+        const int NUM_ENTRIES = SIZE/10;
+        VALUE_T entries [KEY_T];
+        bit error;
+        bit timeout;
+        
+        do begin
+            KEY_T __key;
+            VALUE_T __value;
+            // Generate random (unique) key
+            void'(std::randomize(__key));
+            if (entries.exists(__key)) continue;
+            // Generate random value
+            void'(std::randomize(__value));
+            // Add key to hash table
+            agent.set(__key, __value, error, timeout);
+            `FAIL_IF(error);
+            `FAIL_IF(timeout);
+            exp_stats.insert_ok += 1;
+            exp_stats.active += 1;
+            entries[__key] = __value;
+        end while (entries.size() < NUM_ENTRIES);
+        foreach(entries[key]) begin
+            bit got_valid;
+            VALUE_T got_value;
+            lookup_if.query(key, got_valid, got_value, error, timeout);
+            `FAIL_IF(error);
+            `FAIL_IF(timeout);
+            `FAIL_UNLESS(got_valid);
+            `FAIL_UNLESS_EQUAL(got_value, entries[key]);
+        end
+        // Check stats
+        check_stats();
+    `SVTEST_END
+
+    `SVTEST(fill_to_50percent)
+        const int NUM_ENTRIES = SIZE/2;
+        VALUE_T entries [KEY_T];
+        bit error;
+        bit timeout;
+        
+        do begin
+            KEY_T __key;
+            VALUE_T __value;
+            // Generate random (unique) key
+            void'(std::randomize(__key));
+            if (entries.exists(__key)) continue;
+            // Generate random value
+            void'(std::randomize(__value));
+            // Add key to hash table
+            agent.set(__key, __value, error, timeout);
+            `FAIL_IF(error);
+            `FAIL_IF(timeout);
+            exp_stats.insert_ok += 1;
+            exp_stats.active += 1;
+            entries[__key] = __value;
+        end while (entries.size() < NUM_ENTRIES);
+        foreach(entries[key]) begin
+            bit got_valid;
+            VALUE_T got_value;
+            lookup_if.query(key, got_valid, got_value, error, timeout);
+            `FAIL_IF(error);
+            `FAIL_IF(timeout);
+            `FAIL_UNLESS(got_valid);
+            `FAIL_UNLESS_EQUAL(got_value, entries[key]);
+        end
+        // Check stats
+        check_stats();
+    `SVTEST_END
+
+    `SVTEST(fill_to_75percent)
+        const int NUM_ENTRIES = SIZE*0.75;
+        VALUE_T entries [KEY_T];
+        bit error;
+        bit timeout;
+        
+        do begin
+            KEY_T __key;
+            VALUE_T __value;
+            // Generate random (unique) key
+            void'(std::randomize(__key));
+            if (entries.exists(__key)) continue;
+            // Generate random value
+            void'(std::randomize(__value));
+            // Add key to hash table
+            agent.set(__key, __value, error, timeout);
+            `FAIL_IF(error);
+            `FAIL_IF(timeout);
+            exp_stats.insert_ok += 1;
+            exp_stats.active += 1;
+            entries[__key] = __value;
+        end while (entries.size() < NUM_ENTRIES);
+        foreach(entries[key]) begin
+            bit got_valid;
+            VALUE_T got_value;
+            lookup_if.query(key, got_valid, got_value, error, timeout);
+            `FAIL_IF(error);
+            `FAIL_IF(timeout);
+            `FAIL_UNLESS(got_valid);
+            `FAIL_UNLESS_EQUAL(got_value, entries[key]);
+        end
+        // Check stats
+        check_stats();
+    `SVTEST_END
+
 
     `SVUNIT_TESTS_END
 
@@ -294,10 +450,30 @@ module htable_cuckoo_core_unit_test;
         bit timeout;
         reset_if.pulse(8);
         reset_if.wait_ready(timeout, 0);
+        exp_stats = '{default: '0};
     endtask
 
     function automatic hash_t hash(input KEY_T key, input int tbl);
         return key[HASH_WID*tbl +: HASH_WID];
     endfunction
+
+    task check_stats(input bit clear = 1'b0);
+        stats_t got_stats;
+        bit [31:0] got_dbg_active;
+        // Registers
+        reg_agent.get_stats(got_stats, clear);
+        reg_agent.get_dbg_active_cnt(got_dbg_active);
+        `FAIL_UNLESS_EQUAL(got_stats.insert_ok,   exp_stats.insert_ok);
+        `FAIL_UNLESS_EQUAL(got_stats.insert_fail, exp_stats.insert_fail);
+        `FAIL_UNLESS_EQUAL(got_stats.delete_ok,   exp_stats.delete_ok);
+        `FAIL_UNLESS_EQUAL(got_stats.delete_fail, exp_stats.delete_fail);
+        `FAIL_UNLESS_EQUAL(got_stats.active,      exp_stats.active);
+        `FAIL_UNLESS_EQUAL(got_dbg_active,        exp_stats.active);
+        // Status interface
+        `FAIL_UNLESS_EQUAL(status_if.fill,          exp_stats.active);
+        `FAIL_UNLESS_EQUAL(status_if.cnt_active,    exp_stats.active);
+        `FAIL_UNLESS_EQUAL(status_if.cnt_activate,  exp_stats.insert_ok);
+        `FAIL_UNLESS_EQUAL(status_if.cnt_deactivate,exp_stats.delete_ok);
+    endtask
 
 endmodule
