@@ -22,6 +22,7 @@ package htable_verif_pkg;
     // Verif class definitions
     // (declared here to enforce htable_verif_pkg:: namespace for verification definitions)
     `include "htable_cuckoo_reg_agent.svh"
+    `include "htable_fast_update_reg_agent.svh"
 
     //===================================
     // Typedefs
