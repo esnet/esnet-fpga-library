@@ -20,7 +20,7 @@
 module crc_unit_test
 #(
     parameter crc_pkg::crc_spec_t CRC_SPEC = crc_pkg::DEFAULT_CRC,
-    parameter int DATA_BYTES
+    parameter int DATA_BYTES = 4
 ) (
 );
     import svunit_pkg::svunit_testcase;
@@ -128,8 +128,8 @@ module crc_unit_test
     //===================================
     // Functions
     //===================================
-    function CRC_T calculate(input byte data[]);
-        byte data_zero_padded [];
+    function automatic CRC_T calculate(input byte data[]);
+        automatic byte data_zero_padded [];
 
         // Check that data width is less than or equal to configured data width
         assert(data.size() <= DATA_BYTES);
@@ -149,7 +149,7 @@ module crc_unit_test
         );
     endfunction
 
-    function void string_to_bytes(input string input_string, output byte bytes[]);
+    function automatic void string_to_bytes(input string input_string, output byte bytes[]);
         bytes = new[input_string.len()];
         foreach (input_string[idx]) begin
             bytes[idx] = input_string[idx];
@@ -166,7 +166,7 @@ module crc_unit_test
     function void zero_pad_data(input byte data[], output byte data_zero_padded []);
         const automatic int DATA_IN_BYTES = data.size();
         const automatic int PAD_BYTES = DATA_BYTES > DATA_IN_BYTES ? DATA_BYTES-DATA_IN_BYTES : 0;
-        byte data_padded [$] = data;
+        automatic byte data_padded [$] = data;
         for (int i = 0; i < PAD_BYTES; i++) begin
             data_padded.push_front(8'h00);
         end
