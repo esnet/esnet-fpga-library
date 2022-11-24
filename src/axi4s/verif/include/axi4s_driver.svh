@@ -106,7 +106,7 @@ class axi4s_driver #(
             input int     twait=0
         );
         // Signals
-        tdata_t tdata = 0;
+        tdata_t tdata = '1;
         tkeep_t tkeep = 0;
         bit     tlast = 0;
         int byte_idx = 0;
@@ -126,7 +126,7 @@ class axi4s_driver #(
                 if (data.size() == 0) tlast = 1'b1;
                 trace_msg($sformatf("send_raw: Sending word %0d.", word_idx));
                 axis_vif.send(tdata, tkeep, tlast, id, dest, user, twait);
-                tdata = 0;
+                tdata = '1;
                 tkeep = 0;
                 byte_idx = 0;
                 word_idx++;
