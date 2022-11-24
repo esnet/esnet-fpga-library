@@ -60,10 +60,11 @@ regs:
               05 : TBL_INSERT
               06 : TBL_DELETE
               07 : TBL_UPDATE_PENDING
-              08 : STASH_POP
-              09 : STASH_POP_PENDING
-              0A : DONE
-              0B : ERROR
+              08 : TBL_UPDATE_DONE
+              09 : TBL_UPDATE_ERROR
+              0A : STASH_POP
+              0B : STASH_POP_PENDING
+              0C : ERROR
 
   - name: cnt_control
     access: wr_evt

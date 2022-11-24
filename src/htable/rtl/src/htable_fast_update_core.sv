@@ -68,10 +68,11 @@ module htable_fast_update_core #(
         TBL_INSERT         = 5,
         TBL_DELETE         = 6,
         TBL_UPDATE_PENDING = 7,
-        STASH_POP          = 8,
-        STASH_POP_PENDING  = 9,
-        DONE               = 10,
-        ERROR              = 11
+        TBL_UPDATE_DONE    = 8,
+        TBL_UPDATE_ERROR   = 9,
+        STASH_POP          = 10,
+        STASH_POP_PENDING  = 11,
+        ERROR              = 12
     } state_t;
 
     typedef struct packed {
@@ -316,9 +317,15 @@ module htable_fast_update_core #(
             end
             TBL_UPDATE_PENDING : begin
                 if (tbl_ctrl_if.ack) begin
-                    if (tbl_ctrl_if.status != STATUS_OK) nxt_state = ERROR;
-                    else                                 nxt_state = STASH_POP;
+                    if (tbl_ctrl_if.status != STATUS_OK) nxt_state = TBL_UPDATE_ERROR;
+                    else                                 nxt_state = TBL_UPDATE_DONE;
                 end
+            end
+            TBL_UPDATE_DONE : begin
+                nxt_state = STASH_POP;
+            end
+            TBL_UPDATE_ERROR : begin
+                nxt_state = STASH_POP;
             end
             STASH_POP : begin
                 stash_req = 1'b1;
@@ -328,18 +335,15 @@ module htable_fast_update_core #(
             STASH_POP_PENDING : begin
                 if (stash_ctrl_if.ack) begin
                     if (stash_ctrl_if.status != STATUS_OK) nxt_state = ERROR;
-                    else if (stash_ctrl_if.get_valid)      nxt_state = DONE;
+                    else if (stash_ctrl_if.get_valid)      nxt_state = IDLE;
                     else                                   nxt_state = ERROR;
                 end
-            end
-            DONE : begin
-                nxt_state = IDLE;
             end
             ERROR : begin
                 nxt_state = IDLE;
             end
             default : begin
-                nxt_state = IDLE;
+                nxt_state = ERROR;
             end
         endcase
     end
@@ -401,10 +405,10 @@ module htable_fast_update_core #(
         __delete_ok   <= 1'b0;
         __delete_fail <= 1'b0;
         if (update_if.req && update_if.rdy) __update <= 1'b1;
-        if (state == DONE) begin
+        if (state == TBL_UPDATE_DONE) begin
             if (__command == INSERT)      __insert_ok <= 1'b1;
             else if (__command == DELETE) __delete_ok <= 1'b1;
-        end else if (state == ERROR) begin
+        end else if (state == TBL_UPDATE_ERROR) begin
             if (__command == INSERT)      __insert_fail <= 1'b1;
             else if (__command == DELETE) __delete_fail <= 1'b1;
         end
