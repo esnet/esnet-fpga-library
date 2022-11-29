@@ -35,6 +35,9 @@ module axi4s_pkt_fifo_async
    input logic     clk_out,
    axi4s_intf.tx   axi4s_out,
 
+   input  logic [15:0] flow_ctl_thresh,
+   output logic        flow_ctl,
+
    axi4l_intf.peripheral axil_to_probe,
    axi4l_intf.peripheral axil_to_ovfl,
    axi4l_intf.peripheral axil_if
@@ -145,6 +148,7 @@ module axi4s_pkt_fifo_async
    assign wr_data.tdata = axi4s_to_fifo.tdata;
 
    assign almost_full = wr_count > (FIFO_ASYNC_DEPTH - ALMOST_FULL_THRESH);
+   assign flow_ctl    = wr_count > flow_ctl_thresh;
 
    assign rd = !empty && axi4s_out.tready;
 
