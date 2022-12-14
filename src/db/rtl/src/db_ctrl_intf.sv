@@ -206,6 +206,56 @@ module db_ctrl_intf_connector (
 endmodule : db_ctrl_intf_connector
 
 
+// Database control interface proxy stage
+module db_ctrl_intf_proxy #(
+    parameter type KEY_T = logic[7:0],
+    parameter type VALUE_T = logic[7:0]
+) (
+    input logic clk,
+    input logic srst,
+    db_ctrl_intf.peripheral ctrl_if_from_controller,
+    db_ctrl_intf.controller ctrl_if_to_peripheral
+);
+    // Signals
+    logic pending;
+    logic in_progress;
+
+    // Proxy requests
+    initial pending = 1'b0;
+    always @(posedge clk) begin
+        if (srst)                                                            pending <= 1'b0;
+        else if (ctrl_if_from_controller.req && ctrl_if_from_controller.rdy) pending <= 1'b1;
+        else if (ctrl_if_to_peripheral.rdy)                                  pending <= 1'b0;
+    end
+
+    initial in_progress = 1'b0;
+    always @(posedge clk) begin
+        if (srst)                                                        in_progress <= 1'b0;
+        else if (ctrl_if_to_peripheral.req && ctrl_if_to_peripheral.rdy) in_progress <= 1'b1;
+        else if (ctrl_if_to_peripheral.ack)                              in_progress <= 1'b0;
+    end
+
+    assign ctrl_if_to_peripheral.req = pending;
+    assign ctrl_if_from_controller.rdy = !pending && !in_progress;
+
+    // Latch request context
+    always_ff @(posedge clk) begin
+        if (ctrl_if_from_controller.req && ctrl_if_from_controller.rdy) begin
+            ctrl_if_to_peripheral.command   <= ctrl_if_from_controller.command;
+            ctrl_if_to_peripheral.key       <= ctrl_if_from_controller.key;
+            ctrl_if_to_peripheral.set_value <= ctrl_if_from_controller.set_value;
+        end
+    end
+
+    // Pass response directly
+    assign ctrl_if_from_controller.ack       = ctrl_if_to_peripheral.ack;
+    assign ctrl_if_from_controller.status    = ctrl_if_to_peripheral.status;
+    assign ctrl_if_from_controller.get_valid = ctrl_if_to_peripheral.get_valid;
+    assign ctrl_if_from_controller.get_key   = ctrl_if_to_peripheral.get_key;
+    assign ctrl_if_from_controller.get_value = ctrl_if_to_peripheral.get_value;
+
+endmodule : db_ctrl_intf_proxy
+
 // Database control interface static mux component
 // - provides static (hard) mux between NUM_IFS control interfaces
 module db_ctrl_intf_mux #(
@@ -230,6 +280,9 @@ module db_ctrl_intf_mux #(
 
             // (Local) Typedefs
             typedef logic [MUX_SEL_WID-1:0] mux_sel_t;
+
+            // (Local) Interfaces
+            db_ctrl_intf #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) __ctrl_if_to_peripheral (.clk(clk));
 
             // (Local) signals
             mux_sel_t __mux_sel;
@@ -266,50 +319,30 @@ module db_ctrl_intf_mux #(
             assign __mux_sel = mux_sel[MUX_SEL_WID-1:0] % NUM_IFS;
 
             initial __mux_sel_reg = '0;
-            always @(posedge clk) if (ctrl_req && ctrl_rdy) __mux_sel_reg <= __mux_sel;
+            always @(posedge clk) if (__ctrl_if_to_peripheral.req && __ctrl_if_to_peripheral.rdy) __mux_sel_reg <= __mux_sel;
+
+            // Proxy requests
+            db_ctrl_intf_proxy #(
+                .KEY_T   ( KEY_T ),
+                .VALUE_T ( VALUE_T )
+            ) i_db_ctrl_intf_proxy (
+                .clk  ( clk ),
+                .srst ( srst ),
+                .ctrl_if_from_controller ( __ctrl_if_to_peripheral ),
+                .ctrl_if_to_peripheral   ( ctrl_if_to_peripheral )
+            );
 
             // Mux requests
-            assign ctrl_req = ctrl_if_from_controller_req[__mux_sel];
-
             always_comb begin
                 for (int i = 0; i < NUM_IFS; i++) begin
-                    if (i == __mux_sel) ctrl_if_from_controller_rdy[i] = ctrl_rdy;
+                    if (i == __mux_sel) ctrl_if_from_controller_rdy[i] = __ctrl_if_to_peripheral.rdy;
                     else                ctrl_if_from_controller_rdy[i] = 1'b0;
                 end
             end
-
-            // Latch request
-            initial ctrl_if_to_peripheral.req = 1'b0;
-            always @(posedge clk) begin
-                if (srst)                      ctrl_if_to_peripheral.req <= 1'b0;
-                else if (ctrl_req && ctrl_rdy)      ctrl_if_to_peripheral.req <= 1'b1;
-                else if (ctrl_if_to_peripheral.rdy) ctrl_if_to_peripheral.req <= 1'b0;
-            end
-
-            initial ctrl_rdy = 1'b0;
-            always @(posedge clk) begin
-                if (srst) ctrl_rdy <= 1'b0;
-                else begin
-                    if (ctrl_req)                       ctrl_rdy <= 1'b0;
-                    else if (ctrl_if_to_peripheral.ack) ctrl_rdy <= 1'b1;
-                    else if (req_pending)               ctrl_rdy <= 1'b0;
-                    else                                ctrl_rdy <= 1'b1;
-                end
-            end
-
-            always_ff @(posedge clk) if (ctrl_req && ctrl_rdy) begin
-                ctrl_if_to_peripheral.key       <= ctrl_if_from_controller_key[__mux_sel];
-                ctrl_if_to_peripheral.command   <= ctrl_if_from_controller_command[__mux_sel];
-                ctrl_if_to_peripheral.set_value <= ctrl_if_from_controller_set_value[__mux_sel];
-            end
-
-            // Maintain context for open transactions
-            initial req_pending = 1'b0;
-            always @(posedge clk) begin
-                if (srst)                           req_pending <= 1'b0;
-                else if (ctrl_if_to_peripheral.ack) req_pending <= 1'b0;
-                else if (ctrl_req && ctrl_rdy)      req_pending <= 1'b1;
-            end
+            assign __ctrl_if_to_peripheral.req     = ctrl_if_from_controller_req        [__mux_sel];
+            assign __ctrl_if_to_peripheral.command = ctrl_if_from_controller_command    [__mux_sel];
+            assign __ctrl_if_to_peripheral.key     = ctrl_if_from_controller_key        [__mux_sel];
+            assign __ctrl_if_to_peripheral.set_value = ctrl_if_from_controller_set_value [__mux_sel];
 
             // Demux result
             initial ctrl_if_from_controller_ack = '{NUM_IFS{1'b0}};
@@ -317,7 +350,7 @@ module db_ctrl_intf_mux #(
                 if (srst) ctrl_if_from_controller_ack <= '{NUM_IFS{1'b0}};
                 else begin
                     for (int i = 0; i < NUM_IFS; i++) begin
-                        if (i == __mux_sel_reg) ctrl_if_from_controller_ack[i] <= ctrl_if_to_peripheral.ack;
+                        if (i == __mux_sel_reg) ctrl_if_from_controller_ack[i] <= __ctrl_if_to_peripheral.ack;
                         else                    ctrl_if_from_controller_ack[i] <= 1'b0;
                     end
                 end
@@ -325,10 +358,10 @@ module db_ctrl_intf_mux #(
 
             always_ff @(posedge clk) begin
                 for (int i = 0; i < NUM_IFS; i++) begin
-                    ctrl_if_from_controller_status   [i] <= ctrl_if_to_peripheral.status;
-                    ctrl_if_from_controller_get_valid[i] <= ctrl_if_to_peripheral.get_valid;
-                    ctrl_if_from_controller_get_key  [i] <= ctrl_if_to_peripheral.get_key;
-                    ctrl_if_from_controller_get_value[i] <= ctrl_if_to_peripheral.get_value;
+                    ctrl_if_from_controller_status   [i] <= __ctrl_if_to_peripheral.status;
+                    ctrl_if_from_controller_get_valid[i] <= __ctrl_if_to_peripheral.get_valid;
+                    ctrl_if_from_controller_get_key  [i] <= __ctrl_if_to_peripheral.get_key;
+                    ctrl_if_from_controller_get_value[i] <= __ctrl_if_to_peripheral.get_value;
                 end
             end
         end : g__mux
@@ -398,47 +431,41 @@ module db_ctrl_intf_prio_mux #(
     db_ctrl_intf.peripheral ctrl_if_from_controller_lo_prio,
     db_ctrl_intf.controller ctrl_if_to_peripheral
 );
+    // Interfaces
+    db_ctrl_intf #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) __ctrl_if_from_controller_hi_prio (.clk(clk));
+    db_ctrl_intf #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) __ctrl_if_from_controller_lo_prio (.clk(clk));
 
-    // Signals
-    logic       req [2];
-    logic       mux_sel;
-    logic       mux_sel_reg;
-    logic       req_pending;
+    // Proxy requests
+    db_ctrl_intf_proxy #(
+        .KEY_T   ( KEY_T ),
+        .VALUE_T ( VALUE_T )
+    ) i_db_ctrl_intf_proxy__hi_prio (
+        .clk  ( clk ),
+        .srst ( srst ),
+        .ctrl_if_from_controller ( ctrl_if_from_controller_hi_prio ),
+        .ctrl_if_to_peripheral   ( __ctrl_if_from_controller_hi_prio )
+    );
 
-    // Request vector
-    assign req[0] = ctrl_if_from_controller_hi_prio.req;
-    assign req[1] = ctrl_if_from_controller_lo_prio.req;
+    db_ctrl_intf_proxy #(
+        .KEY_T   ( KEY_T ),
+        .VALUE_T ( VALUE_T )
+    ) i_db_ctrl_intf_proxy__lo_prio (
+        .clk  ( clk ),
+        .srst ( srst ),
+        .ctrl_if_from_controller ( ctrl_if_from_controller_lo_prio ),
+        .ctrl_if_to_peripheral   ( __ctrl_if_from_controller_lo_prio )
+    );
 
-    // Maintain context for open transactions
-    initial req_pending = 1'b0;
-    always @(posedge clk) begin
-        if (srst)                           req_pending <= 1'b0;
-        else if (ctrl_if_to_peripheral.ack) req_pending <= 1'b0;
-        else if (req[mux_sel])              req_pending <= 1'b1;
-    end
-
-    // Mux select
-    always_comb begin
-        mux_sel = mux_sel_reg;
-        if (!req_pending) mux_sel = req[0]? 0 : 1;
-    end
-
-    initial mux_sel_reg = 0;
-    always @(posedge clk) begin
-        if (srst) mux_sel_reg <= 0;
-        else      mux_sel_reg <= mux_sel;
-    end
-
-    // (Static) output mux
+    // (Static) output mux (strict priority to hi_prio input)
     db_ctrl_intf_2to1_mux #(
         .KEY_T   ( KEY_T ),
         .VALUE_T ( VALUE_T )
     ) i_db_ctrl_intf_2to1_mux (
         .clk                       ( clk ),
         .srst                      ( srst ),
-        .mux_sel                   ( mux_sel ),
-        .ctrl_if_from_controller_0 ( ctrl_if_from_controller_hi_prio ),
-        .ctrl_if_from_controller_1 ( ctrl_if_from_controller_lo_prio ),
+        .mux_sel                   ( __ctrl_if_from_controller_hi_prio.req ),
+        .ctrl_if_from_controller_0 ( __ctrl_if_from_controller_lo_prio ),
+        .ctrl_if_from_controller_1 ( __ctrl_if_from_controller_hi_prio ),
         .ctrl_if_to_peripheral     ( ctrl_if_to_peripheral )
     );
 
