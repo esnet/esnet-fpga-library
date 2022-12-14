@@ -29,6 +29,8 @@ module axi4s_drop
    axi4s_intf.rx    axi4s_in,
    axi4s_intf.tx    axi4s_out,
 
+   axi4l_intf.peripheral  axil_if,
+
    input logic drop_pkt
 );
 
@@ -37,6 +39,7 @@ module axi4s_drop
    localparam type TDEST_T       = axi4s_in.TDEST_T;
    localparam type TUSER_T       = axi4s_in.TUSER_T;
 
+   axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) __axi4s_in  ();
    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) axi4s_out_p ();
 
    logic drop_pkt_latch, drop;
@@ -68,5 +71,26 @@ module axi4s_drop
       else
          axi4s_intf_connector out_intf_connector_0 (.axi4s_from_tx(axi4s_out_p), .axi4s_to_rx(axi4s_out));
    endgenerate
+
+
+
+   // axi4s drop counter instantiation and signalling.
+   assign __axi4s_in.tready = axi4s_in.tready && drop;
+
+   // axis4s out interface signalling.
+   assign __axi4s_in.aclk    = axi4s_in.aclk;
+   assign __axi4s_in.aresetn = axi4s_in.aresetn;
+   assign __axi4s_in.tvalid  = axi4s_in.tvalid;
+   assign __axi4s_in.tdata   = axi4s_in.tdata;
+   assign __axi4s_in.tkeep   = axi4s_in.tkeep;
+   assign __axi4s_in.tlast   = axi4s_in.tlast;
+   assign __axi4s_in.tid     = axi4s_in.tid;
+   assign __axi4s_in.tdest   = axi4s_in.tdest;
+   assign __axi4s_in.tuser   = axi4s_in.tuser;
+
+   axi4s_probe axi4s_drop_count (
+      .axi4l_if  (axil_if),
+      .axi4s_if  (__axi4s_in)
+   );
 
 endmodule // axi4s_drop

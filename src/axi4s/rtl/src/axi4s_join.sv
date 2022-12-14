@@ -117,18 +117,28 @@ module axi4s_join
                      sync_hdr[0].tkeep == '0;
 
    // axi4s header drop instantiation.
+   axi4l_intf axil_to_drop_0 ();
+
    axi4s_drop axi4s_drop_0 (
       .axi4s_in    (sync_hdr[0]),
       .axi4s_out   (drop[0]),
+      .axil_if     (axil_to_drop_0),
       .drop_pkt    (drop_pkt)
    );
 
+   axi4l_intf_controller_term axi4l_to_drop_0_term (.axi4l_if (axil_to_drop_0));
+
    // axi4s payload drop instantiation.
+   axi4l_intf axil_to_drop_1 ();
+
    axi4s_drop axi4s_drop_1 (
       .axi4s_in    (sync_pyld[0]),
       .axi4s_out   (drop[1]),
+      .axil_if     (axil_to_drop_1),
       .drop_pkt    (drop_pkt)
    );
+
+   axi4l_intf_controller_term axi4l_to_drop_1_term (.axi4l_if (axil_to_drop_1));
 
    // axi4s HDR_TLAST synchronizer instantiation.
    axi4s_sync #(.MODE(HDR_TLAST)) axi4s_sync_1 (
