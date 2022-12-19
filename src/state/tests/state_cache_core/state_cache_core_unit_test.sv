@@ -158,7 +158,7 @@ module state_cache_core_unit_test;
         reg_agent = new("axil_reg_agent");
         reg_agent.axil_vif = axil_if;
 
-        // Instantiate agent
+        // Instantiate agents
         agent = new("state_cache_agent", NUM_IDS, reg_agent);
 
     endfunction
@@ -227,6 +227,37 @@ module state_cache_core_unit_test;
         // Retrieve size
         agent.get_size(got_size);
         `FAIL_UNLESS_EQUAL(got_size, NUM_IDS);
+    `SVTEST_END
+
+    //===================================
+    // Test:
+    //   Info (htable)
+    //
+    // Description:
+    //   Check reported parameterization
+    //   of underlying data structure and
+    //   compare against expected
+    //===================================
+    `SVTEST(info_htable)
+        int got_num_tables;
+        int got_burst_size;
+        int got_key_width;
+        int got_value_width;
+        // Get (cuckoo) info and check against expected
+        agent.cuckoo_agent.get_num_tables(got_num_tables);
+        `FAIL_UNLESS_EQUAL(got_num_tables, NUM_TABLES);
+        agent.cuckoo_agent.get_key_width(got_key_width);
+        `FAIL_UNLESS_EQUAL(got_key_width, KEY_WID);
+        agent.cuckoo_agent.get_value_width(got_value_width);
+        `FAIL_UNLESS_EQUAL(got_value_width, ID_WID);
+
+        // Get (fast update) info and check against expected
+        agent.fast_update_agent.get_burst_size(got_burst_size);
+        `FAIL_UNLESS_EQUAL(got_burst_size, BURST_SIZE);
+        agent.fast_update_agent.get_key_width(got_key_width);
+        `FAIL_UNLESS_EQUAL(got_key_width, KEY_WID);
+        agent.fast_update_agent.get_value_width(got_value_width);
+        `FAIL_UNLESS_EQUAL(got_value_width, ID_WID);
     `SVTEST_END
 
     //===================================
@@ -353,7 +384,7 @@ module state_cache_core_unit_test;
         logic _new;
         logic error;
         logic timeout;
-        
+
         // Allow ID allocator to queue up a 'max burst' number of IDs
         lookup_if._wait(100);
 
@@ -452,12 +483,12 @@ module state_cache_core_unit_test;
 
         // Generate random (unique) key
         void'(std::randomize(key));
-        
+
         // Perform lookup in data plane (expect miss resulting in auto-insertion)
         lookup(key, __tracked, exp_id, __new);
         `FAIL_UNLESS(__tracked);
         `FAIL_UNLESS(__new);
-        
+
         // Lookup same key 'max burst - 1' more times
         for (int i = 0; i < BURST_SIZE-1; i++) begin
             // Perform lookup in data plane (expect hit)
@@ -543,7 +574,7 @@ module state_cache_core_unit_test;
         ID_T __id;
         bit __tracked;
         bit __new;
-        
+
         // Allow ID allocator to queue up a 'max burst' number of IDs
         lookup_if._wait(100);
 
@@ -667,7 +698,7 @@ module state_cache_core_unit_test;
         logic got_valid;
         logic error;
         logic timeout;
-        
+
         // Allow ID allocator to queue up a 'max burst' number of IDs
         lookup_if._wait(100);
 

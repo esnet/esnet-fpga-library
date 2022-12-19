@@ -28,8 +28,7 @@ SRC_LIST_FILES =
 COMPONENTS = rtl reg.verif \
              std_verif=$(LIB_ROOT)/src/std/verif \
              reg_verif=$(LIB_ROOT)/src/reg/verif \
-             db_verif=$(LIB_ROOT)/src/db/verif \
-             htable_verif=$(LIB_ROOT)/src/htable/verif
+             db_verif=$(LIB_ROOT)/src/db/verif
 EXT_LIBS =
 
 # ----------------------------------------------------

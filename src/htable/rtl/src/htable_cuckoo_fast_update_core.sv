@@ -43,6 +43,9 @@ module htable_cuckoo_fast_update_core
     // Control interface
     db_ctrl_intf.peripheral   ctrl_if,
 
+    // AXI-L control/monitoring interface
+    axi4l_intf.peripheral     axil_if,
+
     // Lookup interface (from application)
     db_intf.responder         lookup_if,
 
@@ -76,12 +79,14 @@ module htable_cuckoo_fast_update_core
     // Interfaces
     // ----------------------------------
     db_info_intf cuckoo_info_if ();
-    db_status_intf cuckoo_status_if (.clk(clk), .srst(__srst));
     db_ctrl_intf  #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) cuckoo_ctrl_if (.clk(clk));
     db_intf #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) cuckoo_lookup_if (.clk(clk));
 
     db_intf #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) __lookup_if (.clk(clk));
     db_intf #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) __update_if (.clk(clk));
+
+    axi4l_intf #() cuckoo_axil_if ();
+    axi4l_intf #() fast_update_axil_if ();
 
     // ----------------------------------
     // Export info
@@ -89,6 +94,16 @@ module htable_cuckoo_fast_update_core
     assign info_if._type = db_pkg::DB_TYPE_HTABLE;
     assign info_if.subtype = HTABLE_TYPE_CUCKOO_FAST_UPDATE;
     assign info_if.size = cuckoo_info_if.size;
+
+    // ----------------------------------
+    // AXI-L control
+    // ----------------------------------
+    // Decoder
+    htable_cuckoo_fast_update_decoder i_htable_cuckoo_fast_update_decoder (
+        .axil_if             ( axil_if ),
+        .cuckoo_axil_if      ( cuckoo_axil_if ),
+        .fast_update_axil_if ( fast_update_axil_if )
+    );
 
     // ----------------------------------
     // Database core
@@ -134,6 +149,7 @@ module htable_cuckoo_fast_update_core
         .srst          ( __srst ),
         .en            ( en ),
         .init_done     ( fast_update_init_done ),
+        .axil_if       ( fast_update_axil_if ),
         .lookup_if     ( __lookup_if ),
         .update_if     ( __update_if ),
         .tbl_init_done ( cuckoo_init_done ),
@@ -157,6 +173,7 @@ module htable_cuckoo_fast_update_core
         .srst                ( __srst ),
         .en                  ( en ),
         .init_done           ( cuckoo_init_done ),
+        .axil_if             ( cuckoo_axil_if ),
         .info_if             ( cuckoo_info_if ),
         .status_if           ( status_if ),
         .ctrl_if             ( cuckoo_ctrl_if ),

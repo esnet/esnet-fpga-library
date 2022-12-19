@@ -2,9 +2,11 @@
 
 module htable_cuckoo_fast_update_core_unit_test;
     import svunit_pkg::svunit_testcase;
+    import axi4l_verif_pkg::*;
     import db_pkg::*;
     import htable_pkg::*;
     import db_verif_pkg::*;
+    import htable_verif_pkg::*;
 
     string name = "htable_cuckoo_fast_update_core_ut";
     svunit_testcase svunit_ut;
@@ -33,6 +35,11 @@ module htable_cuckoo_fast_update_core_unit_test;
     parameter type HASH_T = logic [HASH_WID-1:0];
     parameter type ENTRY_T = struct packed {KEY_T key; VALUE_T value;};
 
+    typedef struct {
+        int update;
+        int active;
+    } update_stats_t;
+
     //===================================
     // DUT
     //===================================
@@ -42,6 +49,8 @@ module htable_cuckoo_fast_update_core_unit_test;
     logic en;
 
     logic init_done;
+
+    axi4l_intf #() axil_if ();
 
     db_info_intf info_if ();
     db_status_intf status_if (.clk(clk), .srst(srst));
@@ -99,15 +108,23 @@ module htable_cuckoo_fast_update_core_unit_test;
         end
     endgenerate
     
+    axi4l_reg_agent axil_reg_agent;
+    htable_cuckoo_reg_agent cuckoo_reg_agent;
+    htable_fast_update_reg_agent fast_update_reg_agent;
     db_ctrl_agent #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) agent;
     std_reset_intf reset_if (.clk(clk));
 
     // Assign clock (250MHz)
     `SVUNIT_CLK_GEN(clk, 2ns);
 
+    // Assign AXI clock (100MHz)
+    `SVUNIT_CLK_GEN(axil_if.aclk, 5ns);
+
     // Assign reset interface
     assign srst = reset_if.reset;
     assign reset_if.ready = init_done;
+
+    assign axil_if.aresetn = !reset_if.reset;
 
     assign en = 1'b1;
 
@@ -116,6 +133,12 @@ module htable_cuckoo_fast_update_core_unit_test;
     //===================================
     function void build();
         svunit_ut = new(name);
+
+        axil_reg_agent = new;
+        axil_reg_agent.axil_vif = axil_if;
+
+        cuckoo_reg_agent      = new("cuckoo_reg_agent",      axil_reg_agent, 'h00);
+        fast_update_reg_agent = new("fast_update_reg_agent", axil_reg_agent, 'h80);
 
         agent = new("db_ctrl_agent", SIZE);
         agent.attach(ctrl_if, status_if, info_if);
@@ -129,7 +152,7 @@ module htable_cuckoo_fast_update_core_unit_test;
     //===================================
     task setup();
         svunit_ut.setup();
-        
+        axil_reg_agent.idle();
         agent.idle();
         lookup_if.idle();
         update_if.idle();
@@ -151,6 +174,8 @@ module htable_cuckoo_fast_update_core_unit_test;
     //===================================
     // Tests
     //===================================
+    stats_t exp_cuckoo_stats;
+    update_stats_t exp_update_stats;
 
     //===================================
     // All tests are defined between the
@@ -185,6 +210,32 @@ module htable_cuckoo_fast_update_core_unit_test;
         `FAIL_UNLESS_EQUAL(got_size, SIZE);
     `SVTEST_END
 
+    `SVTEST(cuckoo_info_reg)
+        int got_num_tables;
+        int got_key_width;
+        int got_value_width;
+        // Get info and check against expected
+        cuckoo_reg_agent.get_num_tables(got_num_tables);
+        `FAIL_UNLESS_EQUAL(got_num_tables, NUM_TABLES);
+        cuckoo_reg_agent.get_key_width(got_key_width);
+        `FAIL_UNLESS_EQUAL(got_key_width, KEY_WID);
+        cuckoo_reg_agent.get_value_width(got_value_width);
+        `FAIL_UNLESS_EQUAL(got_value_width, VALUE_WID);
+    `SVTEST_END
+
+    `SVTEST(fast_update_info)
+        int got_burst_size;
+        int got_key_width;
+        int got_value_width;
+        // Get info and check against expected
+        fast_update_reg_agent.get_burst_size(got_burst_size);
+        `FAIL_UNLESS_EQUAL(got_burst_size, UPDATE_BURST_SIZE);
+        fast_update_reg_agent.get_key_width(got_key_width);
+        `FAIL_UNLESS_EQUAL(got_key_width, KEY_WID);
+        fast_update_reg_agent.get_value_width(got_value_width);
+        `FAIL_UNLESS_EQUAL(got_value_width, VALUE_WID);
+    `SVTEST_END
+
     `SVTEST(ctrl_reset)
         bit error, timeout;
         agent.clear_all(error, timeout);
@@ -206,12 +257,25 @@ module htable_cuckoo_fast_update_core_unit_test;
         agent.set(key, exp_value, error, timeout);
         `FAIL_IF(error);
         `FAIL_IF(timeout);
+        exp_update_stats.update += 1;
         // Read back and check
         agent.get(key, got_valid, got_value, error, timeout);
         `FAIL_IF(error);
         `FAIL_IF(timeout);
         `FAIL_UNLESS(got_valid);
         `FAIL_UNLESS_EQUAL(got_value, exp_value);
+        // Wait for cuckoo insertion
+        agent._wait(100);
+        exp_cuckoo_stats.insert_ok += 1;
+        exp_cuckoo_stats.active += 1;
+         // Read back and check
+        agent.get(key, got_valid, got_value, error, timeout);
+        `FAIL_IF(error);
+        `FAIL_IF(timeout);
+        `FAIL_UNLESS(got_valid);
+        `FAIL_UNLESS_EQUAL(got_value, exp_value);
+        // Check stats
+        check_stats();
     `SVTEST_END
 
     `SVTEST(unset)
@@ -337,6 +401,111 @@ module htable_cuckoo_fast_update_core_unit_test;
         `FAIL_UNLESS_EQUAL(got_value, exp_value);
     `SVTEST_END
 
+    `SVTEST(delete)
+        KEY_T key;
+        VALUE_T exp_value;
+        VALUE_T got_value;
+        bit got_valid;
+        bit error;
+        bit timeout;
+        // Randomize key/value
+        void'(std::randomize(key));
+        void'(std::randomize(exp_value));
+        // Insert entry
+        update_if.update(key, 1'b1, exp_value, error, timeout);
+        `FAIL_IF(error);
+        `FAIL_IF(timeout);
+        exp_update_stats.update += 1;
+        exp_cuckoo_stats.insert_ok += 1;
+        exp_cuckoo_stats.active += 1;
+        // Query database from app interface
+        lookup_if.query(key, got_valid, got_value, error, timeout);
+        `FAIL_IF(error);
+        `FAIL_IF(timeout);
+        `FAIL_UNLESS(got_valid);
+        `FAIL_UNLESS_EQUAL(got_value, exp_value);
+        // Delete entry
+        update_if.update(key, 1'b0, '0, error, timeout);
+        `FAIL_IF(error);
+        `FAIL_IF(timeout);
+        exp_update_stats.update += 1;
+        exp_cuckoo_stats.delete_ok += 1;
+        exp_cuckoo_stats.active -= 1;
+        // Wait for delete to be processed
+        update_if._wait(50);
+        // Query database from app interface
+        lookup_if.query(key, got_valid, got_value, error, timeout);
+        `FAIL_IF(error);
+        `FAIL_IF(timeout);
+        `FAIL_IF(got_valid);
+        // Check stats
+        check_stats();
+    `SVTEST_END
+
+    `SVTEST(delete_fail)
+        KEY_T key;
+        VALUE_T exp_value;
+        VALUE_T got_value;
+        bit got_valid;
+        bit error;
+        bit timeout;
+        // Randomize key/value
+        void'(std::randomize(key));
+        void'(std::randomize(exp_value));
+        // Insert entry
+        update_if.update(key, 1'b1, exp_value, error, timeout);
+        `FAIL_IF(error);
+        `FAIL_IF(timeout);
+        exp_update_stats.update += 1;
+        exp_cuckoo_stats.insert_ok += 1;
+        exp_cuckoo_stats.active += 1;
+        // Query database from app interface
+        lookup_if.query(key, got_valid, got_value, error, timeout);
+        `FAIL_IF(error);
+        `FAIL_IF(timeout);
+        `FAIL_UNLESS(got_valid);
+        `FAIL_UNLESS_EQUAL(got_value, exp_value);
+        // Delete entry
+        update_if.update(key, 1'b0, '0, error, timeout);
+        `FAIL_IF(error);
+        `FAIL_IF(timeout);
+        exp_update_stats.update += 1;
+        exp_cuckoo_stats.delete_ok += 1;
+        exp_cuckoo_stats.active -= 1;
+        // Wait for delete to be processed
+        update_if._wait(50);
+        // Query database from app interface
+        lookup_if.query(key, got_valid, got_value, error, timeout);
+        `FAIL_IF(error);
+        `FAIL_IF(timeout);
+        `FAIL_IF(got_valid);
+        // Delete entry again (should fail)
+        update_if.update(key, 1'b0, '0, error, timeout);
+        `FAIL_IF(error);
+        `FAIL_IF(timeout);
+        exp_update_stats.update += 1;
+        exp_cuckoo_stats.delete_fail += 1;
+        // Wait for delete to be processed
+        update_if._wait(50);
+        // Insert entry again
+        update_if.update(key, 1'b1, exp_value, error, timeout);
+        `FAIL_IF(error);
+        `FAIL_IF(timeout);
+        exp_update_stats.update += 1;
+        exp_cuckoo_stats.insert_ok += 1;
+        exp_cuckoo_stats.active += 1;
+        // Wait for insert to be processed
+        update_if._wait(50);
+        // Query database from app interface
+        lookup_if.query(key, got_valid, got_value, error, timeout);
+        `FAIL_IF(error);
+        `FAIL_IF(timeout);
+        `FAIL_UNLESS(got_valid);
+        `FAIL_UNLESS_EQUAL(got_value, exp_value);
+        // Check stats
+        check_stats();
+    `SVTEST_END
+
     `SVTEST(many_entries)
          const int NUM_ENTRIES = SIZE/2;
          VALUE_T entries [KEY_T];
@@ -424,10 +593,43 @@ module htable_cuckoo_fast_update_core_unit_test;
         bit timeout;
         reset_if.pulse(8);
         reset_if.wait_ready(timeout, 0);
+        exp_cuckoo_stats = '{default: '0};
+        exp_update_stats = '{default: '0};
     endtask
 
     function automatic hash_t hash(input KEY_T key, input int tbl);
         return key[HASH_WID*tbl +: HASH_WID];
     endfunction
+
+    task check_stats(input bit clear = 1'b0);
+        stats_t got_stats;
+        bit [31:0] got_dbg_active;
+        bit [63:0] got_update;
+        // Registers
+        cuckoo_reg_agent.get_stats(got_stats, clear);
+        cuckoo_reg_agent.get_dbg_active_cnt(got_dbg_active);
+        `FAIL_UNLESS_EQUAL(got_stats.insert_ok,   exp_cuckoo_stats.insert_ok);
+        `FAIL_UNLESS_EQUAL(got_stats.insert_fail, exp_cuckoo_stats.insert_fail);
+        `FAIL_UNLESS_EQUAL(got_stats.delete_ok,   exp_cuckoo_stats.delete_ok);
+        `FAIL_UNLESS_EQUAL(got_stats.delete_fail, exp_cuckoo_stats.delete_fail);
+        `FAIL_UNLESS_EQUAL(got_stats.active,      exp_cuckoo_stats.active);
+        `FAIL_UNLESS_EQUAL(got_dbg_active,        exp_cuckoo_stats.active);
+        // Status interface
+        `FAIL_UNLESS_EQUAL(status_if.fill,          exp_cuckoo_stats.active);
+        `FAIL_UNLESS_EQUAL(status_if.cnt_active,    exp_cuckoo_stats.active);
+        `FAIL_UNLESS_EQUAL(status_if.cnt_activate,  exp_cuckoo_stats.insert_ok);
+        `FAIL_UNLESS_EQUAL(status_if.cnt_deactivate,exp_cuckoo_stats.delete_ok);
+         // Update stats
+         fast_update_reg_agent.get_stats(got_stats, clear);
+         fast_update_reg_agent.get_update_cnt(got_update);
+         fast_update_reg_agent.get_dbg_active_cnt(got_dbg_active);
+         `FAIL_UNLESS_EQUAL(got_stats.insert_ok,   exp_cuckoo_stats.insert_ok);
+         `FAIL_UNLESS_EQUAL(got_stats.insert_fail, exp_cuckoo_stats.insert_fail);
+         `FAIL_UNLESS_EQUAL(got_stats.delete_ok,   exp_cuckoo_stats.delete_ok);
+         `FAIL_UNLESS_EQUAL(got_stats.delete_fail, exp_cuckoo_stats.delete_fail);
+         `FAIL_UNLESS_EQUAL(got_stats.active,      exp_update_stats.active);
+         `FAIL_UNLESS_EQUAL(got_dbg_active,        exp_update_stats.active);
+         `FAIL_UNLESS_EQUAL(got_update,            exp_update_stats.update);
+    endtask
 
 endmodule

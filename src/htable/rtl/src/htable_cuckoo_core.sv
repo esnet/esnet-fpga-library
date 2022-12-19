@@ -33,6 +33,9 @@ module htable_cuckoo_core
 
     output logic              init_done,
 
+    // AXI-L control/monitoring
+    axi4l_intf.peripheral     axil_if,
+
     // Info interface
     db_info_intf.peripheral   info_if,
 
@@ -97,9 +100,11 @@ module htable_cuckoo_core
         .srst          ( srst ),
         .en            ( en ),
         .init_done     ( init_done ),
+        .axil_if       ( axil_if ),
         .key           ( ctrl_key ),
         .hash          ( ctrl_hash ),
         .ctrl_if       ( ctrl_if ),
+        .status_if     ( status_if ),
         .stash_ctrl_if ( stash_ctrl_if ),
         .tbl_ctrl_if   ( tbl_ctrl_if )
     );

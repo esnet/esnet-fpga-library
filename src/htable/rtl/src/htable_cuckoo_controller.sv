@@ -31,17 +31,23 @@ module htable_cuckoo_controller
 
     input  logic              init_done,
 
+    // AXI-L control/monitoring
+    axi4l_intf.peripheral     axil_if,
+
     // Hashing interface
     output KEY_T              key  [NUM_TABLES],
     input  hash_t             hash [NUM_TABLES],
 
-    // Control interface
+    // Table control
     db_ctrl_intf.peripheral   ctrl_if,                 // KEY_T/VALUE_T configuration
+
+    // Status reporting
+    db_status_intf.peripheral status_if,
 
     // Bubble stash interface (size 1)
     db_ctrl_intf.controller   stash_ctrl_if,           // KEY_T/VALUE_T configuration
 
-    // Table control
+    // (Sub)table control
     db_ctrl_intf.controller   tbl_ctrl_if [NUM_TABLES] // This control interface provides direct access
                                                        // to the underlying hash table for table management
                                                        // (e.g. insertion/deletion/optimization)
@@ -97,6 +103,11 @@ module htable_cuckoo_controller
     // ----------------------------------
     // Signals
     // ----------------------------------
+    logic __srst;
+    logic __en;
+
+    logic [7:0] state_mon;
+
     state_t state;
     state_t nxt_state;
 
@@ -138,13 +149,59 @@ module htable_cuckoo_controller
     db_ctrl_intf #(.KEY_T(KEY_T), .VALUE_T(TBL_ENTRY_T)) __ctrl_if (.clk(clk));
     db_ctrl_intf #(.KEY_T(KEY_T), .VALUE_T(TBL_ENTRY_T)) __tbl_ctrl_if [NUM_TABLES] (.clk(clk));
 
+    axi4l_intf #() axil_if__clk ();
+    htable_cuckoo_reg_intf reg_if ();
+
+    // ----------------------------------
+    // AXI-L control
+    // ----------------------------------
+    // Pass AXI-L interface from aclk (AXI-L clock) to clk domain
+    axi4l_intf_cdc i_axil_intf_cdc (
+        .axi4l_if_from_controller   ( axil_if ),
+        .clk_to_peripheral          ( clk ),
+        .axi4l_if_to_peripheral     ( axil_if__clk )
+    );
+
+    htable_cuckoo_reg_blk i_htable_cuckoo_reg_blk (
+        .axil_if    ( axil_if__clk ),
+        .reg_blk_if ( reg_if )
+    );
+
+    assign reg_if.info_nxt.num_tables = NUM_TABLES[7:0];
+    assign reg_if.info_nxt.key_width = $bits(KEY_T);
+    assign reg_if.info_nxt.value_width = $bits(VALUE_T);
+    assign reg_if.info_nxt_v = 1'b1;
+
+    assign reg_if.status_nxt_v = 1'b1;
+    assign reg_if.status_nxt.reset_mon = __srst;
+    assign reg_if.status_nxt.enable_mon = __en;
+    assign reg_if.status_nxt.ready_mon = init_done;
+
+    assign state_mon = {3'b0, state};
+    assign reg_if.dbg_status_nxt_v = 1'b1;
+    assign reg_if.dbg_status_nxt.state = htable_cuckoo_reg_pkg::fld_dbg_status_state_t'(state_mon);
+
+    // Block reset
+    initial __srst = 1'b1;
+    always @(posedge clk) begin
+        if (srst || reg_if.control.reset) __srst <= 1'b1;
+        else                              __srst <= 1'b0;
+    end
+
+    // Block enable
+    initial __en = 1'b0;
+    always @(posedge clk) begin
+        if (en && reg_if.control.enable) __en <= 1'b1;
+        else                             __en <= 1'b0;
+    end
+
     // ----------------------------------
     // Logic
     // ----------------------------------
     initial state = RESET;
     always @(posedge clk) begin
-        if (srst) state <= RESET;
-        else      state <= nxt_state;
+        if (__srst) state <= RESET;
+        else        state <= nxt_state;
     end
 
     always_comb begin
@@ -351,7 +408,7 @@ module htable_cuckoo_controller
     // Maintain stash context
     initial stash_active = 1'b0;
     always @(posedge clk) begin
-        if (srst) stash_active <= 1'b0;
+        if (__srst) stash_active <= 1'b0;
         else if (state == INSERT_PUSH) stash_active <= 1'b1;
         else if (state == INSERT_POP)  stash_active <= 1'b0;
     end
@@ -359,7 +416,7 @@ module htable_cuckoo_controller
     // Drive upstream control interface
     initial ctrl_valid = 1'b0;
     always @(posedge clk) begin
-        if (srst) ctrl_valid <= 1'b0;
+        if (__srst) ctrl_valid <= 1'b0;
         else begin
             if (state == IDLE)                 ctrl_valid <= 1'b0;
             else if (state == CHECK_FOUND)     ctrl_valid <= 1'b1;
@@ -407,8 +464,8 @@ module htable_cuckoo_controller
         .VALUE_T ( TBL_ENTRY_T )
     ) i_db_ctrl_intf_demux       (
         .clk                     ( clk ),
-        .srst                    ( srst ),
-        .demux_sel               ( {'0, tbl_idx} ),
+        .srst                    ( __srst ),
+        .demux_sel               ( {{32-TBL_IDX_WID{1'b0}}, tbl_idx} ),
         .ctrl_if_from_controller ( __ctrl_if ),
         .ctrl_if_to_peripheral   ( __tbl_ctrl_if )
     );
@@ -452,7 +509,7 @@ module htable_cuckoo_controller
                     .DELAY    ( HASH_LATENCY )
                 ) i_util_delay__req_ctxt (
                     .clk      ( clk ),
-                    .srst     ( srst ),
+                    .srst     ( 1'b0 ),
                     .data_in  ( req_ctxt_in ),
                     .data_out ( req_ctxt_out )
                 );
@@ -476,6 +533,107 @@ module htable_cuckoo_controller
             assign __tbl_ctrl_if[g_tbl].get_key   = get_entry.key;
         end : g__tbl
     endgenerate
+
+    // -----------------------------
+    // Counters
+    // -----------------------------
+    logic __insert_ok;
+    logic __insert_fail;
+    logic __delete_ok;
+    logic __delete_fail;
+    logic __active;
+
+    logic cnt_latch;
+    logic cnt_clear;
+
+    logic [63:0] cnt_insert_ok;
+    logic [63:0] cnt_insert_fail;
+    logic [63:0] cnt_delete_ok;
+    logic [63:0] cnt_delete_fail;
+    logic [31:0] cnt_active;
+
+    // Synthesize (and buffer) counter update signals
+    always_ff @(posedge clk) begin
+        __insert_ok   <= 1'b0;
+        __insert_fail <= 1'b0;
+        __delete_ok   <= 1'b0;
+        __delete_fail <= 1'b0;
+        if (ctrl_if.ack) begin
+            if (ctrl_if.status == STATUS_OK) begin
+                if (__command == COMMAND_SET)        __insert_ok <= 1'b1;
+                else if (__command == COMMAND_UNSET) __delete_ok <= 1'b1;
+            end else begin
+                if (__command == COMMAND_SET)        __insert_fail <= 1'b1;
+                else if (__command == COMMAND_UNSET) __delete_fail <= 1'b1;
+            end
+        end
+    end
+
+    // Buffer latch/clear signals from regmap
+    initial begin
+        cnt_clear = 1'b0;
+    end
+    always @(posedge clk) begin
+        if (__srst || (reg_if.cnt_control_wr_evt && reg_if.cnt_control._clear)) cnt_clear <= 1'b1;
+        else cnt_clear <= 1'b0;
+    end
+
+    always_ff @(posedge clk) begin
+        if (reg_if.cnt_control_wr_evt) cnt_latch <= 1'b1;
+        else                           cnt_latch <= 1'b0;
+    end
+
+    // Insert OK
+    always_ff @(posedge clk) begin
+        if (cnt_clear)        cnt_insert_ok <= 0;
+        else if (__insert_ok) cnt_insert_ok <= cnt_insert_ok + 1;
+    end
+    // Insert FAIL
+    always_ff @(posedge clk) begin
+        if (cnt_clear)          cnt_insert_fail <= 0;
+        else if (__insert_fail) cnt_insert_fail <= cnt_insert_fail + 1;
+    end
+    // Delete OK
+    always_ff @(posedge clk) begin
+        if (cnt_clear)        cnt_delete_ok <= 0;
+        else if (__delete_ok) cnt_delete_ok <= cnt_delete_ok + 1;
+    end
+    // Delete FAIL
+    always_ff @(posedge clk) begin
+        if (cnt_clear)          cnt_delete_fail <= 0;
+        else if (__delete_fail) cnt_delete_fail <= cnt_delete_fail + 1;
+    end
+    // Active
+    always_ff @(posedge clk) begin
+        if (__srst) cnt_active <= 0;
+        else if (__insert_ok) cnt_active <= cnt_active + 1;
+        else if (__delete_ok) cnt_active <= cnt_active - 1;
+    end
+
+    assign reg_if.cnt_insert_ok_upper_nxt_v   = cnt_latch;
+    assign reg_if.cnt_insert_ok_lower_nxt_v   = cnt_latch;
+    assign reg_if.cnt_insert_fail_upper_nxt_v = cnt_latch;
+    assign reg_if.cnt_insert_fail_lower_nxt_v = cnt_latch;
+    assign reg_if.cnt_delete_ok_upper_nxt_v   = cnt_latch;
+    assign reg_if.cnt_delete_ok_lower_nxt_v   = cnt_latch;
+    assign reg_if.cnt_delete_fail_upper_nxt_v = cnt_latch;
+    assign reg_if.cnt_delete_fail_lower_nxt_v = cnt_latch;
+    assign reg_if.cnt_active_nxt_v = cnt_latch;
+    assign reg_if.dbg_cnt_active_nxt_v = 1'b1;
+
+    assign {reg_if.cnt_insert_ok_upper_nxt,   reg_if.cnt_insert_ok_lower_nxt}   = cnt_insert_ok;
+    assign {reg_if.cnt_insert_fail_upper_nxt, reg_if.cnt_insert_fail_lower_nxt} = cnt_insert_fail;
+    assign {reg_if.cnt_delete_ok_upper_nxt,   reg_if.cnt_delete_ok_lower_nxt}   = cnt_delete_ok;
+    assign {reg_if.cnt_delete_fail_upper_nxt, reg_if.cnt_delete_fail_lower_nxt} = cnt_delete_fail;
+    assign reg_if.cnt_active_nxt = cnt_active;
+    assign reg_if.dbg_cnt_active_nxt = cnt_active;
+
+    // -----------------------------
+    // Assign status interface
+    // -----------------------------
+    assign status_if.fill = cnt_active;
+    assign status_if.evt_activate = __insert_ok;
+    assign status_if.evt_deactivate = __delete_ok;
 
 endmodule : htable_cuckoo_controller
 

@@ -29,12 +29,15 @@ module htable_fast_update_core #(
 
     output logic              init_done,
 
+    // AXI-L interface
+    axi4l_intf.peripheral     axil_if,
+
     // Lookup/update interfaces (from application)
     db_intf.responder         lookup_if,
     db_intf.responder         update_if, // Supports both insertion/deletions
                                          // (indicated by setting valid to 1/0 respectively)
 
-    // Table interfaces
+    // Table interface
     input   logic             tbl_init_done,
     db_ctrl_intf.controller   tbl_ctrl_if,
 
@@ -65,10 +68,11 @@ module htable_fast_update_core #(
         TBL_INSERT         = 5,
         TBL_DELETE         = 6,
         TBL_UPDATE_PENDING = 7,
-        STASH_POP          = 8,
-        STASH_POP_PENDING  = 9,
-        DONE               = 10,
-        ERROR              = 11
+        TBL_UPDATE_DONE    = 8,
+        TBL_UPDATE_ERROR   = 9,
+        STASH_POP          = 10,
+        STASH_POP_PENDING  = 11,
+        ERROR              = 12
     } state_t;
 
     typedef struct packed {
@@ -77,9 +81,19 @@ module htable_fast_update_core #(
         UPDATE_ENTRY_T entry;
     } stash_resp_t;
 
+    typedef enum logic {
+        INSERT = 0,
+        DELETE = 1
+    } command_ctxt_t;
+
     // ----------------------------------
     // Signals
     // ----------------------------------
+    logic __srst;
+    logic __en;
+
+    logic [7:0] state_mon;
+
     state_t state;
     state_t nxt_state;
 
@@ -102,6 +116,9 @@ module htable_fast_update_core #(
     logic     tbl_req;
     command_t tbl_command;
 
+    // Command context
+    command_ctxt_t __command;
+
     // ----------------------------------
     // Interfaces
     // ----------------------------------
@@ -110,6 +127,52 @@ module htable_fast_update_core #(
     db_ctrl_intf #(.KEY_T(KEY_T), .VALUE_T(UPDATE_ENTRY_T)) stash_ctrl_if (.clk(clk));
     db_intf #(.KEY_T(KEY_T), .VALUE_T(UPDATE_ENTRY_T)) stash_lookup_if (.clk(clk));
     db_intf #(.KEY_T(KEY_T), .VALUE_T(UPDATE_ENTRY_T)) stash_update_if (.clk(clk));
+
+    axi4l_intf #() axil_if__clk ();
+    htable_fast_update_reg_intf reg_if ();
+
+    // ----------------------------------
+    // AXI-L control
+    // ----------------------------------
+    // Pass AXI-L interface from aclk (AXI-L clock) to clk domain
+    axi4l_intf_cdc i_axil_intf_cdc (
+        .axi4l_if_from_controller   ( axil_if ),
+        .clk_to_peripheral          ( clk ),
+        .axi4l_if_to_peripheral     ( axil_if__clk )
+    );
+
+    htable_fast_update_reg_blk i_htable_fast_update_reg_blk (
+        .axil_if    ( axil_if__clk ),
+        .reg_blk_if ( reg_if )
+    );
+
+    assign reg_if.info_nxt.burst_size = UPDATE_BURST_SIZE[7:0];
+    assign reg_if.info_nxt.key_width = $bits(KEY_T);
+    assign reg_if.info_nxt.value_width = $bits(VALUE_T);
+    assign reg_if.info_nxt_v = 1'b1;
+
+    assign reg_if.status_nxt_v = 1'b1;
+    assign reg_if.status_nxt.reset_mon = __srst;
+    assign reg_if.status_nxt.enable_mon = __en;
+    assign reg_if.status_nxt.ready_mon = init_done;
+
+    assign state_mon = {4'b0, state};
+    assign reg_if.dbg_status_nxt_v = 1'b1;
+    assign reg_if.dbg_status_nxt.state = htable_fast_update_reg_pkg::fld_dbg_status_state_t'(state_mon);
+
+    // Block reset
+    initial __srst = 1'b1;
+    always @(posedge clk) begin
+        if (srst || reg_if.control.reset) __srst <= 1'b1;
+        else                              __srst <= 1'b0;
+    end
+
+    // Block enable
+    initial __en = 1'b0;
+    always @(posedge clk) begin
+        if (en && reg_if.control.enable) __en <= 1'b1;
+        else                             __en <= 1'b0;
+    end
 
     // ----------------------------------
     // Init done
@@ -125,7 +188,7 @@ module htable_fast_update_core #(
         .SIZE      ( UPDATE_BURST_SIZE )
     ) i_db_stash   (
         .clk       ( clk ),
-        .srst      ( srst ),
+        .srst      ( __srst ),
         .init_done ( stash_init_done ),
         .info_if   ( stash_info_if__unused ),
         .ctrl_if   ( stash_ctrl_if ),
@@ -162,7 +225,7 @@ module htable_fast_update_core #(
         .DEPTH   ( NUM_RD_TRANSACTIONS )
     ) i_fifo_small__stash_resp_ctxt (
         .clk     ( clk ),
-        .srst    ( srst ),
+        .srst    ( __srst ),
         .wr      ( stash_lookup_if.ack ),
         .wr_data ( stash_resp_in ),
         .full    ( ),
@@ -209,7 +272,7 @@ module htable_fast_update_core #(
     // ----------------------------------
     initial state = RESET;
     always @(posedge clk) begin
-        if (srst) state <= RESET;
+        if (__srst) state <= RESET;
         else      state <= nxt_state;
     end
 
@@ -224,7 +287,7 @@ module htable_fast_update_core #(
                 if (init_done) nxt_state = IDLE;
             end
             IDLE : begin
-                if (en) begin
+                if (__en) begin
                     if (stash_status_if.fill > 0) nxt_state = GET_NEXT;
                 end
             end
@@ -254,9 +317,15 @@ module htable_fast_update_core #(
             end
             TBL_UPDATE_PENDING : begin
                 if (tbl_ctrl_if.ack) begin
-                    if (tbl_ctrl_if.status != STATUS_OK) nxt_state = ERROR;
-                    else                                 nxt_state = STASH_POP;
+                    if (tbl_ctrl_if.status != STATUS_OK) nxt_state = TBL_UPDATE_ERROR;
+                    else                                 nxt_state = TBL_UPDATE_DONE;
                 end
+            end
+            TBL_UPDATE_DONE : begin
+                nxt_state = STASH_POP;
+            end
+            TBL_UPDATE_ERROR : begin
+                nxt_state = STASH_POP;
             end
             STASH_POP : begin
                 stash_req = 1'b1;
@@ -266,18 +335,15 @@ module htable_fast_update_core #(
             STASH_POP_PENDING : begin
                 if (stash_ctrl_if.ack) begin
                     if (stash_ctrl_if.status != STATUS_OK) nxt_state = ERROR;
-                    else if (stash_ctrl_if.get_valid)      nxt_state = DONE;
+                    else if (stash_ctrl_if.get_valid)      nxt_state = IDLE;
                     else                                   nxt_state = ERROR;
                 end
-            end
-            DONE : begin
-                nxt_state = IDLE;
             end
             ERROR : begin
                 nxt_state = IDLE;
             end
             default : begin
-                nxt_state = IDLE;
+                nxt_state = ERROR;
             end
         endcase
     end
@@ -288,6 +354,12 @@ module htable_fast_update_core #(
             ctrl_key   <= stash_ctrl_if.get_key;
             ctrl_value <= stash_ctrl_if_get_entry.value;
         end
+    end
+
+    // Latch current command context
+    always_ff @(posedge clk) begin
+        if (state == TBL_INSERT)      __command <= INSERT;
+        else if (state == TBL_DELETE) __command <= DELETE;
     end
 
     // ----------------------------------
@@ -306,5 +378,101 @@ module htable_fast_update_core #(
     assign tbl_ctrl_if.command = tbl_command;
     assign tbl_ctrl_if.key = ctrl_key;
     assign tbl_ctrl_if.set_value = ctrl_value;
+
+    // -----------------------------
+    // Counters
+    // -----------------------------
+    logic __update;
+    logic __insert_ok;
+    logic __insert_fail;
+    logic __delete_ok;
+    logic __delete_fail;
+
+    logic cnt_latch;
+    logic cnt_clear;
+
+    logic [63:0] cnt_update;
+    logic [63:0] cnt_insert_ok;
+    logic [63:0] cnt_insert_fail;
+    logic [63:0] cnt_delete_ok;
+    logic [63:0] cnt_delete_fail;
+
+    // Synthesize (and buffer) counter update signals
+    always_ff @(posedge clk) begin
+        __update      <= 1'b0;
+        __insert_ok   <= 1'b0;
+        __insert_fail <= 1'b0;
+        __delete_ok   <= 1'b0;
+        __delete_fail <= 1'b0;
+        if (update_if.req && update_if.rdy) __update <= 1'b1;
+        if (state == TBL_UPDATE_DONE) begin
+            if (__command == INSERT)      __insert_ok <= 1'b1;
+            else if (__command == DELETE) __delete_ok <= 1'b1;
+        end else if (state == TBL_UPDATE_ERROR) begin
+            if (__command == INSERT)      __insert_fail <= 1'b1;
+            else if (__command == DELETE) __delete_fail <= 1'b1;
+        end
+    end
+
+    // Buffer latch/clear signals from regmap
+    initial begin
+        cnt_clear = 1'b0;
+    end
+    always @(posedge clk) begin
+        if (__srst || (reg_if.cnt_control_wr_evt && reg_if.cnt_control._clear)) cnt_clear <= 1'b1;
+        else cnt_clear <= 1'b0;
+    end
+
+    always_ff @(posedge clk) begin
+        if (reg_if.cnt_control_wr_evt) cnt_latch <= 1'b1;
+        else                           cnt_latch <= 1'b0;
+    end
+
+    // Update
+    always_ff @(posedge clk) begin
+        if (cnt_clear)     cnt_update <= 0;
+        else if (__update) cnt_update <= cnt_update + 1;
+    end
+    // Insert OK
+    always_ff @(posedge clk) begin
+        if (cnt_clear)        cnt_insert_ok <= 0;
+        else if (__insert_ok) cnt_insert_ok <= cnt_insert_ok + 1;
+    end
+    // Insert FAIL
+    always_ff @(posedge clk) begin
+        if (cnt_clear)          cnt_insert_fail <= 0;
+        else if (__insert_fail) cnt_insert_fail <= cnt_insert_fail + 1;
+    end
+    // Delete OK
+    always_ff @(posedge clk) begin
+        if (cnt_clear)        cnt_delete_ok <= 0;
+        else if (__delete_ok) cnt_delete_ok <= cnt_delete_ok + 1;
+    end
+    // Delete FAIL
+    always_ff @(posedge clk) begin
+        if (cnt_clear)          cnt_delete_fail <= 0;
+        else if (__delete_fail) cnt_delete_fail <= cnt_delete_fail + 1;
+    end
+
+    assign reg_if.cnt_update_upper_nxt_v      = cnt_latch;
+    assign reg_if.cnt_update_lower_nxt_v      = cnt_latch;
+    assign reg_if.cnt_insert_ok_upper_nxt_v   = cnt_latch;
+    assign reg_if.cnt_insert_ok_lower_nxt_v   = cnt_latch;
+    assign reg_if.cnt_insert_fail_upper_nxt_v = cnt_latch;
+    assign reg_if.cnt_insert_fail_lower_nxt_v = cnt_latch;
+    assign reg_if.cnt_delete_ok_upper_nxt_v   = cnt_latch;
+    assign reg_if.cnt_delete_ok_lower_nxt_v   = cnt_latch;
+    assign reg_if.cnt_delete_fail_upper_nxt_v = cnt_latch;
+    assign reg_if.cnt_delete_fail_lower_nxt_v = cnt_latch;
+    assign reg_if.cnt_active_nxt_v = cnt_latch;
+    assign reg_if.dbg_cnt_active_nxt_v = 1'b1;
+
+    assign {reg_if.cnt_update_upper_nxt,      reg_if.cnt_update_lower_nxt}      = cnt_update;
+    assign {reg_if.cnt_insert_ok_upper_nxt,   reg_if.cnt_insert_ok_lower_nxt}   = cnt_insert_ok;
+    assign {reg_if.cnt_insert_fail_upper_nxt, reg_if.cnt_insert_fail_lower_nxt} = cnt_insert_fail;
+    assign {reg_if.cnt_delete_ok_upper_nxt,   reg_if.cnt_delete_ok_lower_nxt}   = cnt_delete_ok;
+    assign {reg_if.cnt_delete_fail_upper_nxt, reg_if.cnt_delete_fail_lower_nxt} = cnt_delete_fail;
+    assign reg_if.cnt_active_nxt = stash_status_if.fill;
+    assign reg_if.dbg_cnt_active_nxt = stash_status_if.fill;
 
 endmodule : htable_fast_update_core

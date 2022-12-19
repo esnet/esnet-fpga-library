@@ -10,7 +10,7 @@ include $(IP_ROOT)/config.mk
 
 # ----------------------------------------------------
 # Sources
-#   List source files and include directories for component.
+# 	List source files and include directories for component.
 #   (see $(SCRIPTS_ROOT)/Makefiles/sources.mk)
 #   Note: if no sources are explicitly listed, all
 #   source files from ./src are added automatically,
@@ -25,11 +25,7 @@ SRC_LIST_FILES =
 #   List IP component and external library dependencies
 #   (see $SCRIPTS_ROOT/Makefiles/dependencies.mk)
 # ----------------------------------------------------
-COMPONENTS = rtl reg.verif \
-             std_verif=$(LIB_ROOT)/src/std/verif \
-             reg_verif=$(LIB_ROOT)/src/reg/verif \
-             db_verif=$(LIB_ROOT)/src/db/verif \
-             htable_verif=$(LIB_ROOT)/src/htable/verif
+COMPONENTS =
 EXT_LIBS =
 
 # ----------------------------------------------------
