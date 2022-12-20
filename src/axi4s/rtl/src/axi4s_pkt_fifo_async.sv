@@ -48,7 +48,13 @@ module axi4s_pkt_fifo_async
    localparam type TID_T                    = axi4s_in.TID_T;
    localparam type TDEST_T                  = axi4s_in.TDEST_T;
    localparam type TUSER_T                  = axi4s_in.TUSER_T;
+   localparam axi4s_mode_t MODE             = axi4s_in.MODE;
    localparam axi4s_tuser_mode_t TUSER_MODE = axi4s_in.TUSER_MODE;
+
+   axi4s_intf  #(.DATA_BYTE_WID(DATA_BYTE_WID),
+                 .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T),
+                 .MODE(MODE), .TUSER_MODE(TUSER_MODE))
+                 axi4s_in_p ();
 
    axi4s_intf  #(.DATA_BYTE_WID(DATA_BYTE_WID),
                  .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T), .TUSER_MODE(TUSER_MODE))
@@ -91,9 +97,11 @@ module axi4s_pkt_fifo_async
    // --- axi4s_pkt_discard_ovfl instantiation (if interface MODE == IGNORES_TREADY) ---
    generate
       if (axi4s_in.MODE == IGNORES_TREADY) begin : g__pkt_discard_ovfl
+         axi4s_intf_pipe axi4s_in_pipe (.axi4s_if_from_tx(axi4s_in), .axi4s_if_to_rx(axi4s_in_p));
+
          // connector drives axi4s_in.tready to 1'b1 when interface operates in IGNORE_TREADY mode.
          axi4s_intf_connector axi4s_in_connector (
-            .axi4s_from_tx (axi4s_in),
+            .axi4s_from_tx (axi4s_in_p),
             .axi4s_to_rx   (__axi4s_in)
          );
 
