@@ -37,7 +37,7 @@ module util_pipe #(
         // Pipeline (pass signals from input to output through pipelining flops)
         if (PIPE_STAGES > 0) begin : g__pipe
             // (Local) signals
-            (* shreg_extract = "no" *) DATA_T data_d [PIPE_STAGES];
+            (* SHREG_EXTRACT = "no", DONT_TOUCH = "yes" *) DATA_T data_d [PIPE_STAGES];
 
             // Data pipeline
             initial data_d = '{default: RESET_VAL};
