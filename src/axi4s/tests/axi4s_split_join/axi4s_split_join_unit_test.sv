@@ -282,14 +282,18 @@ module axi4s_split_join_unit_test
               // build and launch expected packet (hdr_exp + pyld_in).
               packet = new();
               packet = packet.create_from_bytes($sformatf("pkt_exp_%0d_%0d", i, j), {prefix, hdr_exp, pyld_in});
-              axis_transaction = new($sformatf("trans_exp_%0d_%0d", i, j), packet);
-              repeat (4) env.model.inbox.put(axis_transaction);
+              for (int k = 0; k < 4; k++) begin
+                 axis_transaction = new($sformatf("trans_exp_%0d_%0d", i, j), packet, k%2, k%2+1); // alternate tid & tdest.
+                 env.model.inbox.put(axis_transaction);
+              end
 
               // build and launch input packet (hdr_in + pyld_in).
               packet = new();
-              packet = packet.create_from_bytes($sformatf("pkt_in_%0d_%0d", i, j), {hdr_in, pyld_in});
-              axis_transaction = new($sformatf("trans_in_%0d_%0d", i, j), packet);
-              repeat (4) env.driver.inbox.put(axis_transaction);
+              packet = packet.create_from_bytes($sformatf("pkt_in_%0d_%0d", i, j), {hdr_in, pyld_in});  // alternate tid & tdest.
+              for (int k = 0; k < 4; k++) begin
+                 axis_transaction = new($sformatf("trans_in_%0d_%0d", i, j), packet, k%2, k%2+1);
+                 env.driver.inbox.put(axis_transaction);
+              end
 
               axi4s_out._wait(250); // wait for packet transit time.
           end

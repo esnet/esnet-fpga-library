@@ -246,7 +246,10 @@ module axi4s_join
       else          state <= state_nxt;
 
       // latch tid and tdest signals.
-      if (pipe_hdr[4].tready && pipe_hdr[4].tvalid && pipe_hdr[4].sop) begin
+      if ((state_nxt == B2B_HEADER) && pipe_hdr[5].tvalid && pipe_hdr[5].tready && pipe_hdr[5].sop) begin
+         hdr_tid   <= pipe_hdr[5].tid;
+         hdr_tdest <= pipe_hdr[5].tdest;
+      end else if ((state_nxt == HEADER) && pipe_hdr[4].tvalid && pipe_hdr[4].tready && pipe_hdr[4].sop) begin
          hdr_tid   <= pipe_hdr[4].tid;
          hdr_tdest <= pipe_hdr[4].tdest;
       end
