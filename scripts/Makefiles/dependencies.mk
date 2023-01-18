@@ -14,32 +14,40 @@
 #   third-party or static IP that can [or must] be pre-compiled).
 #
 #   Component dependencies are described via space-separated list COMPONENTS,
-#   with each element rovided in one of two forms:
+#   with each element describing an IP component using dot notation:
 #
-#   1. 'internal' component reference
-#       These refer to other components within the same
-#       IP library. For example, a testbench could have
-#       a dependency on the common verif library components.
-#       This dependency is described simply as:
+#   	[<library_name>.]<ip_name>.[<sub_ip_name(s)>.]<subcomponent>
 #
-#       verif
+#   Implicit in each reference is that the IP component can be compiled by
+#   executing `make compile` at the path:
 #
-#       Implicit in this reference is that there is a source directory
-#       located at [ip_path]/verif that can be compiled into a simulation
-#       library [ip_path]/verif/lib by executing 'make compile' at that
-#       locati.
+#       $(SRC_ROOT)/ip_name/<sub_ip_names..>/<subcomponent>
 #
-#   2. 'external' or fully-specified component reference
-#       These refer to components outside the given IP library.
-#       For example, a testbench could have a dependency on the AXI-L
-#       verif libary components. Such a dependency could be described, e.g. as:
+#   within the source library mapped to <library_name>.
 #
-#       axil_verif=[path_to_axil_ip]/verif
+#   e.g. a FIFO library exists in the source tree at $(SRC_ROOT)/fifo. The
+#        library contains rtl/ verif/ and tb/ directories providing RTL,
+#        verification and testbench subcomponents, respectively.
 #
-#       Implicit in this reference is that the axil_verif library can be
-#       compiled by executing 'make compile' at [path_to_axil_ip]/verif AND
-#       that the resulting compiled simulation library will be named:
-#       axil_verif.$(SIM_LIB_EXT) and located at [path_to_axil_ip]/verif/lib.
+#        A downstream application that includes a FIFO instance from the
+#        library would include the FIFO rtl component using the following
+#        reference:
+#
+#            fifo.rtl
+#
+#        Similarly, the testbench for the application might include the verification
+#        library using:
+#
+#            fifo.verif
+#
+#        These references resolve correctly assuming the FIFO and application are
+#        co-located within the same library, i.e. at $(SRC_ROOT). IP components from
+#        'external' libraries can also be imported. For example, the FIFO IP might
+#        be provided by a 'common; FPGA library that is imported into the application.
+#        In this case it is necessary to also include the name used to by the
+#        application to map the common library. For example:
+#
+#            common.fifo.rtl
 #
 COMPONENTS=
 

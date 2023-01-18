@@ -34,7 +34,7 @@
 
 # Recover scripts directory path
 SCRIPT_PATH=`dirname $0`
-SCRIPTS_ROOT=`readlink -f ${SCRIPT_PATH}`
+SCRIPTS_ROOT=`realpath ${SCRIPT_PATH}`
 
 # IP name is provided as the first argument
 IP_NAME_ARG=$1
@@ -42,8 +42,7 @@ shift
 
 IP_DIR=`basename ${IP_NAME_ARG}`
 
-# Strip HDL extension (where applicable) from IP name...
-IP_NAME="`echo ${IP_DIR} | sed 's:.HDL::'`"
+IP_NAME="`echo ${IP_NAME_ARG} | tr '[:upper:]' '[:lower:]'`"
 
 if [ -d ${IP_NAME_ARG} ]; then
     echo "Updating ${IP_NAME} IP at ${IP_NAME_ARG}..."

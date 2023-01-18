@@ -1,20 +1,24 @@
 # -----------------------------------------------
 # Path setup
 # -----------------------------------------------
-# Set relative to IP directory
-# Note: IP_ROOT is configured in calling (parent) Makefile
-PROJ_ROOT := $(IP_ROOT)/../..
-
-# All other project paths can be derived
-include $(PROJ_ROOT)/paths.mk
+IP_ROOT := .
 
 # -----------------------------------------------
-# Custom IP config
+# IP config
 # -----------------------------------------------
-# IP library name - if unset, defaults to IP_ROOT directory name (with ".HDL" suffix stripped, when present)
-IP_NAME =
+include $(IP_ROOT)/config.mk
 
 # -----------------------------------------------
-# Import base IP config
+# Targets
 # -----------------------------------------------
+all: regression
+
+regression: _regression
+
+clean: _clean
+
+.PHONY: all regression clean
+
+# Import standard IP root targets
 include $(SCRIPTS_ROOT)/Makefiles/ip_base.mk
+

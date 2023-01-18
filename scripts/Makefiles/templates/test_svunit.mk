@@ -24,7 +24,7 @@ waves ?= OFF
 # Top
 #   Specify top module(s) for elaboration
 # ----------------------------------------------------
-TOP =
+TOP = $(SVUNIT_TOP)
 
 # ----------------------------------------------------
 # Sources
@@ -34,7 +34,7 @@ TOP =
 # ----------------------------------------------------
 SRC_FILES =
 INC_DIRS =
-SRC_LIST_FILES =
+SRC_LIST_FILES = $(SVUNIT_SRC_LIST_FILE)
 
 # ----------------------------------------------------
 # Dependencies
@@ -54,6 +54,16 @@ EXT_LIBS =
 override DEFINES += SIMULATION
 
 # ----------------------------------------------------
+# Run-time arguments
+#   List runtime arguments passed to simulator as
+#   plusarg (+ARG) references.
+#   Arguments listed here will add to any arguments
+#   set at the command line, as e.g.:
+#   make PLUSARGS="FAST_SIM MODE=1"
+# ----------------------------------------------------
+override PLUSARGS +=
+
+# ----------------------------------------------------
 # Options
 # ----------------------------------------------------
 COMPILE_OPTS=
@@ -63,20 +73,30 @@ SIM_OPTS=
 # ----------------------------------------------------
 # Targets
 # ----------------------------------------------------
-all: sim
+all: build_test sim
+
+build_test: _build_test
 
 sim: _sim
 
 clean: _clean_test _clean_sim
 
-.PHONY: all sim clean
+.PHONY: all build_test sim clean
 
 # ----------------------------------------------------
 # Test configuration
 # ----------------------------------------------------
-LIB_NAME = test
 SRC_DIR = .
 INC_DIR = .
+
+# ----------------------------------------------------
+# Import SVUNIT build targets/configuration
+# ----------------------------------------------------
+include $(SCRIPTS_ROOT)/Makefiles/svunit.mk
+
+# Export SVUNIT configuration
+SVUNIT_TOP = $(COMPONENT_NAME).$(SVUNIT_TOP_MODULE)
+SVUNIT_SRC_LIST_FILE = $(SVUNIT_FILE_LIST)
 
 # ----------------------------------------------------
 # Import Vivado sim targets
