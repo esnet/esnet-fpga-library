@@ -1,15 +1,14 @@
-# ----------------------------------------------------
-# IP configuration
+# -----------------------------------------------
+# IP root Makefile snippet
 #
-# Where IP_NAME is not set explicitly by parent (calling)
-# Makefile, set IP_NAME to name of IP root directory
-# (with '.HDL' suffix removed, where present)
-# ----------------------------------------------------
-IP_NAME_RAW := $(notdir $(abspath $(IP_ROOT)))
-# (Remove .HDL suffix)
-IP_NAME_NORMALIZED := $(patsubst %.HDL,%,$(IP_NAME_RAW))
-# (Convert to lowercase)
-ifeq ($(strip $(IP_NAME)),)
-	IP_NAME := $(shell echo $(IP_NAME_NORMALIZED) | tr '[:upper:]' '[:lower:]')
+#   - provides standard targets for IP libraries
+# -----------------------------------------------
+# Targets
+_regression:
+ifeq ($(wildcard tests/regression),)
+	@echo "Skipping regression. No test suite present."
+else
+	@$(MAKE) -s -C tests/regression
 endif
 
+.PHONY: _regression

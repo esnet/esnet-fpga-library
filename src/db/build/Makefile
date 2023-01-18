@@ -26,7 +26,7 @@ OUT_DIR=out
 # -----------------------------------------------
 # Regmap YAML definitions
 # -----------------------------------------------
-REG_BLOCK_YAML = ../reg/db.yaml
+REG_BLOCK_YAML = ../regio/db.yaml
 REG_DECODER_YAML :=
 
 # -----------------------------------------------
@@ -40,7 +40,7 @@ REGIO_GENERATE_OPTS := --recursive
 # ----------------------------------------------------
 all: opt
 
-pre_synth: _reg_src
+pre_synth: _reg_rtl
 synth:     _synth
 opt:       _opt
 place:     _place

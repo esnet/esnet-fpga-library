@@ -1,20 +1,24 @@
 # -----------------------------------------------
 # Path setup
 # -----------------------------------------------
-# Set relative to IP directory
-# Note: IP_ROOT is configured in calling (parent) Makefile
-LIB_ROOT := $(abspath $(IP_ROOT)/../../..)
-
-# All other project paths can be derived
-include $(LIB_ROOT)/paths.mk
+IP_ROOT := .
 
 # -----------------------------------------------
-# Custom IP config
+# IP config
 # -----------------------------------------------
-# IP library name - if unset, defaults to IP_ROOT directory name
-IP_NAME = xilinx_axis
+include $(IP_ROOT)/config.mk
 
 # -----------------------------------------------
-# Import default IP config
+# Targets
 # -----------------------------------------------
+all: regression
+
+regression: _regression
+
+clean: _clean
+
+.PHONY: all regression clean
+
+# Import standard IP root targets
 include $(SCRIPTS_ROOT)/Makefiles/ip_base.mk
+

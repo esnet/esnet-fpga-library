@@ -16,7 +16,7 @@ include $(IP_ROOT)/config.mk
 #       make waves=ON
 #       make SEED=29 waves=ON
 # -----------------------------------------------
-REGRESSION ?= 0
+REGRESSION = 1
 SEED ?= 0
 waves ?= OFF
 
@@ -41,9 +41,7 @@ SRC_LIST_FILES = $(SVUNIT_SRC_LIST_FILE)
 #   List IP component and external library dependencies
 #   (see $SCRIPTS_ROOT/Makefiles/dependencies.mk for details)
 # ----------------------------------------------------
-COMPONENTS = mem.rtl \
-             std.rtl \
-             std.verif
+COMPONENTS = packet.rtl packet.tb packet.verif
 EXT_LIBS =
 
 # ----------------------------------------------------

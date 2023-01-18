@@ -25,10 +25,11 @@ SRC_LIST_FILES =
 #   List IP component and external library dependencies
 #   (see $SCRIPTS_ROOT/Makefiles/dependencies.mk)
 # ----------------------------------------------------
-COMPONENTS = reg xilinx_ip \
-             mem_rtl=$(LIB_ROOT)/src/mem/rtl \
-             sync_rtl=$(LIB_ROOT)/src/sync/rtl \
-             axi4l_rtl=$(LIB_ROOT)/src/axi4l/rtl
+COMPONENTS = fifo.regio.rtl \
+             fifo.xilinx_ip \
+             mem.rtl \
+             sync.rtl \
+             axi4l.rtl
 EXT_LIBS =
 
 # ----------------------------------------------------

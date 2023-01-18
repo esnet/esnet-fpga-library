@@ -41,9 +41,7 @@ SRC_LIST_FILES = $(SVUNIT_SRC_LIST_FILE)
 #   List IP component and external library dependencies
 #   (see $SCRIPTS_ROOT/Makefiles/dependencies.mk for details)
 # ----------------------------------------------------
-COMPONENTS = mem.rtl \
-             std.rtl \
-             std.verif
+COMPONENTS = crc.rtl crc.verif
 EXT_LIBS =
 
 # ----------------------------------------------------

@@ -25,8 +25,8 @@ SRC_LIST_FILES =
 #   List IP component and external library dependencies
 #   (see $SCRIPTS_ROOT/Makefiles/dependencies.mk)
 # ----------------------------------------------------
-COMPONENTS = reg \
-             db_rtl=$(LIB_ROOT)/src/db/rtl
+COMPONENTS = htable.regio.rtl \
+             db.rtl
 EXT_LIBS =
 
 # ----------------------------------------------------

@@ -24,7 +24,7 @@ waves ?= OFF
 # Top
 #   Specify top module(s) for elaboration
 # ----------------------------------------------------
-TOP = $(SVUNIT_TOP)
+TOP = $(SVUNIT_TOP) axi4l__tb.glbl
 
 # ----------------------------------------------------
 # Sources
@@ -41,9 +41,14 @@ SRC_LIST_FILES = $(SVUNIT_SRC_LIST_FILE)
 #   List IP component and external library dependencies
 #   (see $SCRIPTS_ROOT/Makefiles/dependencies.mk for details)
 # ----------------------------------------------------
-COMPONENTS = mem.rtl \
-             std.rtl \
-             std.verif
+COMPONENTS = axi4l.rtl axi4l.verif axi4l.tb \
+             xilinx.axi.rtl \
+             reg.proxy.rtl \
+             reg.proxy.verif \
+             reg.example.rtl \
+             reg.example.regio.rtl \
+             reg.example.regio.verif \
+             apb.rtl
 EXT_LIBS =
 
 # ----------------------------------------------------
@@ -59,7 +64,7 @@ override DEFINES += SIMULATION
 # Options
 # ----------------------------------------------------
 COMPILE_OPTS=
-ELAB_OPTS=--debug typical
+ELAB_OPTS=--debug typical --relax
 SIM_OPTS=
 
 # ----------------------------------------------------

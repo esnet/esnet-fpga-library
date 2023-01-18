@@ -6,8 +6,8 @@
 #        the following input 'arguments':
 #        - SCRIPTS_ROOT: path to project scripts directory
 #        - RUN_DIR: path to output/run directory
-#        - LIB_NAME_LOWER: (lowercase) name of pre-compiled simulation library
-#        - LIB_DIR: destination of pre-compiled simulation library
+#        - COMPONENT_NAME: name of pre-compiled simulation library
+#        - OBJ_DIR: destination of pre-compiled simulation library
 #        - TOP: name of top module(s) for design
 #        - SNAPSHOT: name of snapshot to create
 #        - LIB_REFS: list of pre-compiled library dependencies
@@ -28,7 +28,7 @@ SNAPSHOT ?= snapshot
 # -----------------------------------------------
 # Library references
 # -----------------------------------------------
-COMPILE_LIB_REF = $(LIB_NAME_LOWER:%=-L %=$(abspath $(LIB_DIR)))
+COMPILE_LIB_REF = $(COMPONENT_NAME:%=-L %=$(abspath $(OBJ_DIR)))
 
 # -----------------------------------------------
 # Elaboration options

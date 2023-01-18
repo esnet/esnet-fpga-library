@@ -25,8 +25,7 @@ SRC_LIST_FILES =
 #   List IP component and external library dependencies
 #   (see $SCRIPTS_ROOT/Makefiles/dependencies.mk)
 # ----------------------------------------------------
-COMPONENTS = \
-             reg_rtl=$(LIB_ROOT)/src/reg/rtl
+COMPONENTS = reg.rtl
 EXT_LIBS =
 
 # ----------------------------------------------------

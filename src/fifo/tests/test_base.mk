@@ -24,7 +24,7 @@ waves ?= OFF
 # Top
 #   Specify top module(s) for elaboration
 # ----------------------------------------------------
-TOP = $(SVUNIT_TOP) fifo_tb.glbl
+TOP = $(SVUNIT_TOP) fifo__tb.glbl
 
 # ----------------------------------------------------
 # Sources
@@ -41,10 +41,10 @@ SRC_LIST_FILES = $(SVUNIT_SRC_LIST_FILE)
 #   List IP component and external library dependencies
 #   (see $SCRIPTS_ROOT/Makefiles/dependencies.mk for details)
 # ----------------------------------------------------
-COMPONENTS = rtl verif tb \
-             std_rtl=$(LIB_ROOT)/src/std/rtl \
-             axi4l_rtl=$(LIB_ROOT)/src/axi4l/rtl \
-             axi4l_verif=$(LIB_ROOT)/src/axi4l/verif
+COMPONENTS = fifo.rtl fifo.verif fifo.tb \
+             std.rtl \
+             axi4l.rtl \
+             axi4l.verif
 EXT_LIBS =
 
 # ----------------------------------------------------
@@ -79,7 +79,6 @@ clean: _clean_test _clean_sim
 # ----------------------------------------------------
 # Test configuration
 # ----------------------------------------------------
-LIB_NAME = test
 SRC_DIR = .
 INC_DIR = .
 
@@ -89,7 +88,7 @@ INC_DIR = .
 include $(SCRIPTS_ROOT)/Makefiles/svunit.mk
 
 # Export SVUNIT configuration
-SVUNIT_TOP = $(LIB_NAME).$(SVUNIT_TOP_MODULE)
+SVUNIT_TOP = $(COMPONENT_NAME).$(SVUNIT_TOP_MODULE)
 SVUNIT_SRC_LIST_FILE = $(SVUNIT_FILE_LIST)
 
 # ----------------------------------------------------

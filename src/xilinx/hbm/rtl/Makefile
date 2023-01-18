@@ -1,7 +1,7 @@
 # -----------------------------------------------
 # Path setup
 # -----------------------------------------------
-IP_ROOT := ..
+IP_ROOT := ../..
 
 # -----------------------------------------------
 # IP config
@@ -25,10 +25,10 @@ SRC_LIST_FILES =
 #   List IP component and external library dependencies
 #   (see $SCRIPTS_ROOT/Makefiles/dependencies.mk)
 # ----------------------------------------------------
-COMPONENTS = reg \
-             sync_rtl=$(LIB_ROOT)/src/sync/rtl \
-             apb_rtl=$(LIB_ROOT)/src/apb/rtl \
-             axi3_rtl=$(LIB_ROOT)/src/axi3/rtl
+COMPONENTS = xilinx.hbm.regio.rtl \
+             sync.rtl \
+             apb.rtl \
+             axi3.rtl
 EXT_LIBS =
 
 # ----------------------------------------------------
