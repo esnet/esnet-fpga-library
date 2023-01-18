@@ -16,7 +16,9 @@ include $(SCRIPTS_ROOT)/Makefiles/vivado_build_base.mk
 
 # Export Make variables for use in Tcl scripts
 export TOP
-export OUT_DIR ?= out
+export OUT_DIR ?= $(COMPONENT_OUT_PATH)
+
+VIVADO_LOG_DIR = $(OUT_DIR)
 
 # -----------------------------------------------
 # Command

@@ -11,6 +11,8 @@
 # -----------------------------------------------
 VIVADO_SCRIPTS_ROOT := $(SCRIPTS_ROOT)/vivado
 
+VIVADO_LOG_DIR ?= .
+
 # -----------------------------------------------
 # Import part configuration
 # -----------------------------------------------
@@ -22,9 +24,16 @@ export PART
 export BOARD_PART
 
 # -----------------------------------------------
+# Options
+# -----------------------------------------------
+VIVADO_DEFAULT_OPTIONS = -mode batch -notrace -nojournal -log $(VIVADO_LOG_DIR)/vivado.log
+
+VIVADO_OPTIONS += $(VIVADO_DEFAULT_OPTIONS)
+
+# -----------------------------------------------
 # Commands
 # -----------------------------------------------
-VIVADO_CMD_BASE = vivado -mode batch -notrace -source $(VIVADO_SCRIPTS_ROOT)/part.tcl -source $(VIVADO_SCRIPTS_ROOT)/procs.tcl
+VIVADO_CMD_BASE = vivado $(VIVADO_OPTIONS) -source $(VIVADO_SCRIPTS_ROOT)/part.tcl -source $(VIVADO_SCRIPTS_ROOT)/procs.tcl
 
 # -----------------------------------------------
 # Targets

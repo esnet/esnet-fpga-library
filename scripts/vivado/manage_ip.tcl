@@ -40,66 +40,45 @@ if {$phase == "create"} {
     if {[info exists BOARD_PART]} {
         vivadoProcs::set_board_part $BOARD_PART
     }
+    set xci_files [lindex $argv 1]
+    add_files $xci_files
     vivadoProcs::close_proj
     puts "Done."
 } else {
-    if { [file exists $PROJ_FILE ] } {
-        vivadoProcs::open_proj $PROJ_NAME $PROJ_DIR
-        switch $phase {
-            import {
-                set xci_files [lindex $argv 1]
-                foreach xci_file $xci_files {
-                    if {[llength [get_files -quiet $xci_file]] > 0} {
-                        puts "IP already present ($xci_file). Skipping import."
-                    } else {
-                        puts "Adding $xci_file..."
-                        read_ip $xci_files
-                    }
+    vivadoProcs::create_ip_proj_in_memory $PART
+    if {[info exists BOARD_PART]} {
+        vivadoProcs::set_board_part $BOARD_PART
+    }
+    set xci_files [lindex $argv 1]
+    foreach xci_file $xci_files {
+        puts "Adding $xci_file..."
+        read_ip $xci_file
+    }
+    switch $phase {
+        generate {
+            generate_target all [get_ips]
+            export_ip_user_files -of_objects [get_ips]
+        }
+        synth {
+            foreach ip [get_ips *] {
+                if {[get_property GENERATE_SYNTH_CHECKPOINT ${ip}]} {
+                    synth_ip $ip
                 }
-            }
-            generate {
-                if {$argc > 1} {
-                    set target [lindex $argv 1]
-                } else {
-                    set target all
-                }
-                if {$argc > 2} {
-                    set ips [get_ips [lindex $argv 2]]
-                } else {
-                    set ips [get_ips *]
-                }
-                generate_target $target $ips
-            }
-            synth {
-                if {$argc > 1} {
-                    set ips [get_ips [lindex $argv 1]]
-                } else {
-                    set ips [get_ips *]
-                }
-                foreach ip $ips {
-                    if {[get_property GENERATE_SYNTH_CHECKPOINT ${ip}]} {
-                        synth_ip $ip
-                    }
-                }
-            }
-            reset {
-                if {$argc > 1} {
-                    set target [lindex $argv 1]
-                } else {
-                    set target all
-                }
-                reset_target -quiet $target [get_ips *]
-            }
-            status {
-                report_ip_status
-            }
-            default {
-                puts "INVALID IP job: $phase (create/import/generate/synth/reset/status)"
             }
         }
-        vivadoProcs::close_proj
-    } else {
-        puts "Managed IP project not available."
+        reset {
+            reset_target -quiet all [get_ips]
+        }
+        status {
+            report_ip_status
+        }
+        upgrade {
+            upgrade_ip [get_ips]
+        }
+        default {
+            puts "INVALID IP job: $phase (create/generate/synth/reset/status/upgrade)"
+        }
     }
+    vivadoProcs::close_proj
 }
 
