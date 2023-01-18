@@ -37,3 +37,6 @@ webtalk*.jou
 ######################
 **/.svunit
 
+# Output products    #
+######################
+**/.out
