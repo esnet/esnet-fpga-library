@@ -25,8 +25,9 @@ SRC_LIST_FILES =
 #   List IP component and external library dependencies
 #   (see $SCRIPTS_ROOT/Makefiles/dependencies.mk)
 # ----------------------------------------------------
-COMPONENTS = reg.example.regio.rtl \
-             axi4l.rtl
+COMPONENTS = reg \
+             reg.verif
+EXT_LIBS =
 
 # ----------------------------------------------------
 # Defines
@@ -46,13 +47,18 @@ SIM_OPTS=
 # ----------------------------------------------------
 all: compile
 
-compile: _compile
+compile: reg
+	$(MAKE) _compile
+
+reg:
+	@$(MAKE) -C .. _reg
 
 clean: _clean_compile
 
-.PHONY: all compile clean
+.PHONY: all compile reg clean
 
 # ----------------------------------------------------
 # Import Vivado compile targets
 # ----------------------------------------------------
+COMPONENT_NAME = reg_verif
 include $(SCRIPTS_ROOT)/Makefiles/vivado_compile.mk

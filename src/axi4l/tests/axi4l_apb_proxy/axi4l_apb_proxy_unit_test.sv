@@ -4,6 +4,7 @@ module axi4l_apb_proxy_unit_test;
     import svunit_pkg::svunit_testcase;
     import axi4l_verif_pkg::*;
     import reg_verif_pkg::*;
+    import reg_proxy_verif_pkg::*;
     import example_reg_pkg::*;
     import reg_example_reg_verif_pkg::*;
 

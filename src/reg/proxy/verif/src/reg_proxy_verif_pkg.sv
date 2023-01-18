@@ -15,10 +15,12 @@
 //  computer software.
 // =============================================================================
 
-package reg_verif_pkg;
+package reg_proxy_verif_pkg;
+
+    // Imports
+    import reg_verif_pkg::*;
 
     // Class definitions
-    `include "reg_agent.svh"
-    `include "reg_blk_agent.svh"
+    `include "reg_proxy_agent.svh"
 
-endpackage : reg_verif_pkg
+endpackage : reg_proxy_verif_pkg

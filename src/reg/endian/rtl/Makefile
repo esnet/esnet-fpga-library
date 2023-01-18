@@ -25,8 +25,9 @@ SRC_LIST_FILES =
 #   List IP component and external library dependencies
 #   (see $SCRIPTS_ROOT/Makefiles/dependencies.mk)
 # ----------------------------------------------------
-COMPONENTS = reg.example.regio.rtl \
+COMPONENTS = reg.endian.regio.rtl \
              axi4l.rtl
+EXT_LIBS =
 
 # ----------------------------------------------------
 # Defines
