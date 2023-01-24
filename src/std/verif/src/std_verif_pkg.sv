@@ -29,7 +29,6 @@ package std_verif_pkg;
     `include "scoreboard.svh"
     `include "env.svh"
 
-
     // Basic implementation classes
     `include "event_scoreboard.svh"
     `include "table_scoreboard.svh"

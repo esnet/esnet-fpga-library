@@ -31,28 +31,26 @@
 IP_NAME_ARG=$1
 shift
 
-# Strip HDL extension (where applicable) from IP name...
-IP_NAME="`echo ${IP_NAME_ARG} | sed 's/.HDL//'`"
+# Convert to lowercase
+IP_NAME="`echo ${IP_NAME_ARG} | tr '[:upper:]' '[:lower:]'`"
 
-# ... but add it back to directory name for consistency
-IP_DIR=${IP_NAME}.HDL
-
-# Use lowercase for naming libraries
-IP_NAME_LOWER="`echo ${IP_NAME_ARG} | tr '[:upper:]' '[:lower:]'`"
+# IP directory
+IP_DIR=${IP_NAME}
 
 # Component list is provided in remaining arguments.
 # Note: 'rtl' component is created by default
 # e.g. 'init_ip.sh IP_NAME tb verif' initializes IP 'IP_NAME' with
 #      subdirectories 'rtl', 'tb' and 'verif'
-COMPONENTS_ARGS="rtl reg verif $@"
+COMPONENTS_ARGS="rtl regio verif $@"
 # (Uniquify component list - guards against unintentional duplication of rtl component)
 COMPONENTS_LINES="`echo ${COMPONENTS_ARGS} | tr ' ' '\n' | sort -u`"
 # (List, separated by spaces)
 COMPONENTS="`echo ${COMPONENTS_LINES} | tr '\n' ' '`"
 
 # Recover scripts directory path
-SCRIPTS_ROOT="`dirname $0`"
-SVUNIT_ROOT=${SCRIPTS_ROOT}/../svunit
+__SCRIPTS_ROOT="`dirname $0`"
+SCRIPTS_ROOT="`realpath ${__SCRIPTS_ROOT}`"
+SVUNIT_ROOT=${SCRIPTS_ROOT}/../tools/svunit
 
 COMPONENT_SUBDIRS="src include"
 
@@ -66,7 +64,7 @@ if (mkdir $IP_DIR); then
     # -----------------------
     cd $IP_DIR
     # Copy 'root' Makefile
-    cp ${SCRIPTS_ROOT}/Makefiles/ip_root.mk Makefile
+    cp ${SCRIPTS_ROOT}/Makefiles/ip.mk Makefile
     # Copy path setup Makefile snippet
     cp ${SCRIPTS_ROOT}/Makefiles/ip_config.mk config.mk
     # Copy README and customize
@@ -79,14 +77,13 @@ if (mkdir $IP_DIR); then
     for subdir in ${COMPONENTS}
     do
         cd $subdir
-        if [ "${subdir}" = "reg" ]; then
+        if [ "${subdir}" = "regio" ]; then
             # Create reg-specific component-level compilation Makefile
-            cp ${SCRIPTS_ROOT}/Makefiles/component_reg.mk Makefile
-            sed -i "s/MY_IP_NAME/${IP_NAME_LOWER}/g" Makefile
-            cp ${SCRIPTS_ROOT}/env/gitignore_reg .gitignore
+            cp ${SCRIPTS_ROOT}/Makefiles/component_regio.mk Makefile
+            sed -i "s/MY_IP_NAME/${IP_NAME}/g" Makefile
             # Create example reg block yaml description
-            cp ${SCRIPTS_ROOT}/env/reg_blk_example.yaml ${IP_NAME_LOWER}.yaml
-            sed -i "s/MY_IP_NAME/${IP_NAME_LOWER}/g" ${IP_NAME_LOWER}.yaml
+            cp ${SCRIPTS_ROOT}/env/reg_blk_example.yaml ${IP_NAME}.yaml
+            sed -i "s/MY_IP_NAME/${IP_NAME}/g" ${IP_NAME}.yaml
         else
             mkdir ${COMPONENT_SUBDIRS}
             # Create component-level compilation Makefile

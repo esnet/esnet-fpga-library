@@ -15,13 +15,11 @@
 #        - P4_FILE: path to p4 file describing vitisnetp4 component functionality
 #        - P4_OPTS: (optional) dictionary of options to pass to the P4 compiler
 
-# -----------------------------------------------
-# Include base Vivado IP management Make instructions
-# -----------------------------------------------
-include $(SCRIPTS_ROOT)/Makefiles/vivado_manage_ip.mk
+# Default IP location is output directory
+VITISNETP4_IP_DIR ?= $(COMPONENT_OUT_PATH)
 
-# Default IP location is current directory
-VITISNETP4_IP_DIR ?= .
+# Set IP source directory for manage IP targets
+IP_SRC_DIR = $(VITISNETP4_IP_DIR)
 
 # -----------------------------------------------
 # Command
@@ -31,11 +29,15 @@ VIVADO_VITISNETP4_CMD = $(VIVADO_CMD_BASE) -source $(VIVADO_SCRIPTS_ROOT)/vitisn
 # -----------------------------------------------
 # Source files
 # -----------------------------------------------
-VITISNETP4_XCI_DIR = $(VITISNETP4_IP_DIR)/$(VITISNETP4_IP_NAME)
+VITISNETP4_XCI_DIR = $(abspath $(VITISNETP4_IP_DIR)/$(VITISNETP4_IP_NAME))
 VITISNETP4_XCI_FILE = $(VITISNETP4_XCI_DIR)/$(VITISNETP4_IP_NAME).xci
+
 VITISNETP4_DRV_DPI_DIR = $(VITISNETP4_XCI_DIR)
 VITISNETP4_DRV_DPI_LIB = vitisnetp4_drv_dpi
 VITISNETP4_DRV_DPI_FILE = $(VITISNETP4_DRV_DPI_DIR)/$(VITISNETP4_DRV_DPI_LIB).so
+
+VITISNETP4_EXDES_DIR = $(VITISNETP4_XCI_DIR)_ex
+VITISNETP4_EXDES_PKG = $(VITISNETP4_EXDES_DIR)/imports/example_design_pkg.sv
 
 # -----------------------------------------------
 # Options
@@ -60,14 +62,26 @@ _vitisnetp4: $(VITISNETP4_XCI_FILE)
 
 _vitisnetp4_drv_dpi: $(VITISNETP4_DRV_DPI_FILE)
 
+_vitisnetp4_exdes: $(VITISNETP4_EXDES_PKG)
+
 _vitisnetp4_clean:
 	@rm -rf $(VITISNETP4_XCI_DIR)
 
 .PHONY: _vitisnetp4_params _vitisnetp4 _vitisnetp4_drv_dpi _vitisnetp4_clean
 
-$(VITISNETP4_XCI_FILE): $(P4_FILE) | $(VITISNETP4_IP_DIR) _ip_proj
-	$(VIVADO_VITISNETP4_CMD) -tclargs create $(VITISNETP4_IP_NAME) $(P4_FILE) "$(P4_OPTS)" $(VITISNETP4_IP_DIR)
+$(VITISNETP4_XCI_FILE): $(P4_FILE) | $(VITISNETP4_IP_DIR)
+	@-rm -rf $(VITISNETP4_XCI_DIR)
+	@$(VIVADO_VITISNETP4_CMD) -tclargs create $(VITISNETP4_IP_NAME) $(P4_FILE) "$(P4_OPTS)" $(VITISNETP4_IP_DIR)
 
 $(VITISNETP4_DRV_DPI_FILE): $(VITISNETP4_XCI_FILE)
-	$(VIVADO_VITISNETP4_CMD) -tclargs drv_dpi $(VITISNETP4_IP_NAME) $(VITISNETP4_IP_DIR) $(VITISNETP4_DRV_DPI_DIR)
+	@$(VIVADO_VITISNETP4_CMD) -tclargs drv_dpi $(VITISNETP4_IP_NAME) $(VITISNETP4_IP_DIR) $(VITISNETP4_DRV_DPI_DIR)
+
+$(VITISNETP4_EXDES_PKG): $(VITISNETP4_XCI_FILE)
+	@-rm -rf $(VITISNETP4_EXDES_DIR)
+	@$(VIVADO_VITISNETP4_CMD) -tclargs exdes $(VITISNETP4_IP_NAME) $(VITISNETP4_IP_DIR)
+
+# -----------------------------------------------
+# Include base Vivado IP management Make instructions
+# -----------------------------------------------
+include $(SCRIPTS_ROOT)/Makefiles/vivado_manage_ip.mk
 

@@ -1,7 +1,7 @@
 # -----------------------------------------------
 # Path setup
 # -----------------------------------------------
-IP_ROOT := ..
+IP_ROOT := ../..
 
 # -----------------------------------------------
 # IP config
@@ -25,8 +25,8 @@ SRC_LIST_FILES =
 #   List IP component and external library dependencies
 #   (see $SCRIPTS_ROOT/Makefiles/dependencies.mk)
 # ----------------------------------------------------
-COMPONENTS = reg \
-             axi4l_rtl=$(LIB_ROOT)/src/axi4l/rtl
+COMPONENTS = reg.example.regio.rtl \
+             axi4l.rtl
 
 # ----------------------------------------------------
 # Defines

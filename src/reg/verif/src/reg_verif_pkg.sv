@@ -17,10 +17,8 @@
 
 package reg_verif_pkg;
 
-    // Testbench class definitions
-    // (declared here to enforce tb_pkg:: namespace for testbench definitions)
+    // Class definitions
     `include "reg_agent.svh"
     `include "reg_blk_agent.svh"
-    `include "reg_proxy_agent.svh"
 
 endpackage : reg_verif_pkg

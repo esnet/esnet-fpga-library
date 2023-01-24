@@ -1,0 +1,31 @@
+name: state_cache
+
+blocks:
+  cache: &cache
+    !include src/state/regio/state_cache.yaml
+  allocator: &allocator
+    !include src/state/regio/state_allocator.yaml
+  db: &db
+    !include src/db/regio/db.yaml
+
+decoders:
+  htable: &htable
+    !include src/htable/regio/htable_cuckoo_fast_update_decoder.yaml
+
+interfaces:
+  - block: *cache
+    width: 8
+    address: 0x0000
+    name: cache
+  - decoder: *htable
+    width: 8
+    address: 0x0100
+    name: htable
+  - block: *allocator
+    address: 0x0200
+    width: 9
+    name: allocator
+  - block: *db
+    address: 0x0400
+    width: 10
+    name: db

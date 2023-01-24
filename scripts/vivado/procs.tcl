@@ -1,10 +1,18 @@
 namespace eval vivadoProcs {
 
-    proc __create_proj {part proj_name proj_dir {ip 0}} { 
+    proc __create_proj {part proj_name proj_dir {ip 0} {in_memory 0}} { 
         if {$ip} {
-            create_project $proj_name $proj_dir -part $part -force -ip
+            if {$in_memory} {
+                create_project $proj_name $proj_dir -part $part -force -ip -in_memory
+            } else {
+                create_project $proj_name $proj_dir -part $part -force -ip
+            }
         } else {
-            create_project $proj_name $proj_dir -part $part -force
+            if {$in_memory} {
+                create_project $proj_name $proj_dir -part $part -force -in_memory
+            } else {
+                create_project $proj_name $proj_dir -part $part -force
+            }
         }
         set_property target_simulator XSim [current_project]
     }
@@ -13,8 +21,8 @@ namespace eval vivadoProcs {
         open_project -quiet [file join $proj_dir $proj_name.xpr]
     }
 
-    proc create_ip_proj {part {proj_name "ip_proj"} {proj_dir "[file join [pwd] ip_proj]"}} {
-        if {[catch {__create_proj $part $proj_name $proj_dir 1} msg options]} {
+    proc create_ip_proj {part {proj_name "ip_proj"} {proj_dir "[file join [pwd] ip_proj]"} {in_memory 0}} {
+        if {[catch {__create_proj $part $proj_name $proj_dir 1 $in_memory} msg options]} {
             puts stderr "unexpected script error: $msg"
             if {[info exists env(DEBUG)]} {
                 puts stderr "---- BEGIN TRACE ----"
@@ -25,6 +33,10 @@ namespace eval vivadoProcs {
             # Reserve code 1 for "expected" error exits...
             exit 2
         }
+    }
+
+    proc create_ip_proj_in_memory {part {proj_name "ip_proj"} {proj_dir "[file join [pwd] ip_proj]"}} {
+        create_ip_proj $part $proj_name $proj_dir 1
     }
 
     proc create_proj {part top {proj_name "proj"} {proj_dir "[file join [pwd] proj]"}} {

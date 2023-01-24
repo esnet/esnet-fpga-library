@@ -20,12 +20,10 @@ webtalk*.jou
 *.rlx
 
 # Simulation
-**/lib/sub.libs
-**/lib/compile*.log
-**/lib/compile*.sh
 **/run_[0-9]*/
 .sim_waves.tcl
 **/tests*/*/*.wcfg
+xvlog*.log
 
 # Synthesis
 *.dcp
@@ -33,7 +31,15 @@ webtalk*.jou
 
 **/.Xil
 
+# IP                 #
+######################
+**/ip_proj
+**/ip_user_files
+
 # SVUnit             #
 ######################
 **/.svunit
 
+# Output products    #
+######################
+**/.out

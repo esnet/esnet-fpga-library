@@ -39,12 +39,17 @@ The developers of the ESnet FPGA library can be reached by email at smartnic@es.
 
 ```
 esnet-fpga-library/
+    ├── cfg/
     ├── scripts/
     ├── src/
     ├── tools/
+    ├── config.mk
     ├── paths.mk
     ├── LICENSE.md
     └── README.md
+
+cfg/
+  Contains configuration files for the FPGA library.
 
 scripts/
   Contains common Makefiles and Tcl scripts for maintaining a standard design directory
@@ -58,8 +63,11 @@ src/
 tools/
   Contains useful productivity tools for a structured FPGA design methodology. 
 
+config.mk
+  Sets environment variables.
+
 paths.mk
-  Sets environment variables for standard pathnames.
+  Describes paths to resources provided by the library.
 
 LICENSE.md
   Contains the licensing terms and copyright notice for this repository.

@@ -25,10 +25,10 @@ SRC_LIST_FILES =
 #   List IP component and external library dependencies
 #   (see $SCRIPTS_ROOT/Makefiles/dependencies.mk)
 # ----------------------------------------------------
-COMPONENTS = rtl \
-             std_verif=$(LIB_ROOT)/src/std/verif \
-             packet_verif=$(LIB_ROOT)/src/packet/verif \
-             reg_verif=$(LIB_ROOT)/src/reg/verif
+COMPONENTS = axi4s.rtl \
+             std.verif \
+             packet.verif \
+             reg.verif
 EXT_LIBS =
 
 # ----------------------------------------------------

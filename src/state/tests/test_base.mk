@@ -24,7 +24,7 @@ waves ?= OFF
 # Top
 #   Specify top module(s) for elaboration
 # ----------------------------------------------------
-TOP = $(SVUNIT_TOP) state_tb.glbl
+TOP = $(SVUNIT_TOP) state__tb.glbl
 
 # ----------------------------------------------------
 # Sources
@@ -41,13 +41,15 @@ SRC_LIST_FILES = $(SVUNIT_SRC_LIST_FILE)
 #   List IP component and external library dependencies
 #   (see $SCRIPTS_ROOT/Makefiles/dependencies.mk for details)
 # ----------------------------------------------------
-COMPONENTS = rtl verif tb \
-             std_rtl=$(LIB_ROOT)/src/std/rtl \
-             axi4l_rtl=$(LIB_ROOT)/src/axi4l/rtl \
-             htable_rtl=$(LIB_ROOT)/src/htable/rtl \
-             axi4l_verif=$(LIB_ROOT)/src/axi4l/verif \
-             db_verif=$(LIB_ROOT)/src/db/verif \
-             htable_verif=$(LIB_ROOT)/src/htable/verif
+COMPONENTS = state.rtl \
+             state.verif \
+             state.tb \
+             std.rtl \
+             axi4l.rtl \
+             htable.rtl \
+             axi4l.verif \
+             db.verif \
+             htable.verif
 EXT_LIBS =
 
 # ----------------------------------------------------
@@ -82,7 +84,6 @@ clean: _clean_test _clean_sim
 # ----------------------------------------------------
 # Test configuration
 # ----------------------------------------------------
-LIB_NAME = test
 SRC_DIR = .
 INC_DIR = .
 
@@ -92,7 +93,7 @@ INC_DIR = .
 include $(SCRIPTS_ROOT)/Makefiles/svunit.mk
 
 # Export SVUNIT configuration
-SVUNIT_TOP = $(LIB_NAME).$(SVUNIT_TOP_MODULE)
+SVUNIT_TOP = $(COMPONENT_NAME).$(SVUNIT_TOP_MODULE)
 SVUNIT_SRC_LIST_FILE = $(SVUNIT_FILE_LIST)
 
 # ----------------------------------------------------
