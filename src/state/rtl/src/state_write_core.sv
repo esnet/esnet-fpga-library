@@ -14,7 +14,7 @@
 //  This notice including this sentence must appear on any copies of this
 //  computer software.
 // =============================================================================
-module state_write #(
+module state_write_core #(
     parameter type ID_T = logic[7:0],
     parameter type STATE_T = logic[31:0],
     parameter int  NUM_WR_TRANSACTIONS = 4, // Maximum number of database write transactions that can
@@ -39,40 +39,61 @@ module state_write #(
     db_ctrl_intf.peripheral   ctrl_if,
 
     // Update interface (from application)
-    state_update_intf.target  update_if
+    state_update_intf.target  update_if,
+
+    // Read/write interfaces (to database/storage)
+    output logic              db_init,
+    input  logic              db_init_done,
+    db_intf.requester         db_wr_if,
+    db_intf.requester         db_rd_if
 );
+    // ----------------------------------
+    // Imports
+    // ----------------------------------
+    import state_pkg::*;
+
+    // ----------------------------------
+    // Parameters
+    // ----------------------------------
     // ----------------------------------
     // Signals
     // ----------------------------------
-    logic db_init;
-    logic db_init_done;
+    STATE_T update_data;
+    STATE_T new_state;
 
     // ----------------------------------
-    // Interfaces
+    // Base state component
     // ----------------------------------
-    db_intf #(.KEY_T(ID_T), .VALUE_T(STATE_T)) db_wr_if (.clk(clk));
-    db_intf #(.KEY_T(ID_T), .VALUE_T(STATE_T)) db_rd_if (.clk(clk));
-
-    // ----------------------------------
-    // State write logic
-    // ----------------------------------
-    state_write_core        #(
+    state_core              #(
+        .TYPE                ( STATE_TYPE_WRITE ),
         .ID_T                ( ID_T ),
         .STATE_T             ( STATE_T ),
-        .NUM_WR_TRANSACTIONS ( 4 ),
-        .NUM_RD_TRANSACTIONS ( 8 )
-    ) i_state_write_core  ( .* );
-    
-    // ----------------------------------
-    // State data store
-    // ----------------------------------
-    db_store_array  #(
-        .KEY_T       ( ID_T ),
-        .VALUE_T     ( STATE_T )
-    ) i_db_store_array (
-        .init      ( db_init ),
-        .init_done ( db_init_done ),
-        .*
+        .UPDATE_T            ( STATE_T ),
+        .NUM_WR_TRANSACTIONS ( NUM_WR_TRANSACTIONS ),
+        .NUM_RD_TRANSACTIONS ( NUM_RD_TRANSACTIONS ),
+        .CACHE_EN            ( 1 )
+    ) i_state_core           (
+        .clk                 ( clk ),
+        .srst                ( srst ),
+        .init_done           ( init_done ),
+        .info_if             ( info_if ),
+        .ctrl_if             ( ctrl_if ),
+        .update_if           ( update_if ),
+        .prev_state          ( ),
+        .update_init         ( ),
+        .update_data         ( update_data ),
+        .new_state           ( new_state ),
+        .db_init             ( db_init ),
+        .db_init_done        ( db_init_done ),
+        .db_wr_if            ( db_wr_if ),
+        .db_rd_if            ( db_rd_if )
     );
 
-endmodule : state_write
+    // ----------------------------------
+    // State update logic
+    // ----------------------------------
+    always_comb begin
+        new_state = update_data;
+    end
+
+endmodule : state_write_core

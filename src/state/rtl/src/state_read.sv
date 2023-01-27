@@ -32,74 +32,47 @@ module state_read #(
 
     output logic              init_done,
 
+    // Info interface
+    db_info_intf.peripheral   info_if,
+
     // Control interface
     db_ctrl_intf.peripheral   ctrl_if,
 
-    // Status interface
-    db_status_intf.peripheral status_if,
-
     // Update interface (from application)
-    state_update_intf.target  update_if,
-
-    // Read/write interfaces (to database/storage)
-    output logic              db_init,
-    input  logic              db_init_done,
-    db_intf.requester         db_wr_if,
-    db_intf.requester         db_rd_if
+    state_update_intf.target  update_if
 );
-    // ----------------------------------
-    // Imports
-    // ----------------------------------
-    import db_pkg::*;
-    import state_pkg::*;
-
-    // ----------------------------------
-    // Parameters
-    // ----------------------------------
-    // ----------------------------------
+     // ----------------------------------
     // Signals
     // ----------------------------------
-    STATE_T new_state;
+    logic db_init;
+    logic db_init_done;
 
     // ----------------------------------
-    // Export status
+    // Interfaces
     // ----------------------------------
-    assign status_if._type = DB_TYPE_STATE;
-    assign status_if.subtype = STATE_TYPE_READ;
-    assign status_if.size = State#(ID_T)::numIDs();
-    assign status_if.fill = State#(ID_T)::numIDs();
+    db_intf #(.KEY_T(ID_T), .VALUE_T(STATE_T)) db_wr_if (.clk(clk));
+    db_intf #(.KEY_T(ID_T), .VALUE_T(STATE_T)) db_rd_if (.clk(clk));
 
     // ----------------------------------
-    // Base state component
+    // State read logic
     // ----------------------------------
-    state_core              #(
+    state_read_core         #(
         .ID_T                ( ID_T ),
-        .STATE_T             ( logic ),
-        .UPDATE_T            ( logic ), // Unused
-        .NUM_WR_TRANSACTIONS ( NUM_WR_TRANSACTIONS ),
-        .NUM_RD_TRANSACTIONS ( NUM_RD_TRANSACTIONS ),
-        .APP_CACHE_EN        ( 0 ) // No writes from update interface
-    ) i_state_core           (
-        .clk                 ( clk ),
-        .srst                ( srst ),
-        .init_done           ( init_done ),
-        .ctrl_if             ( ctrl_if ),
-        .update_if           ( update_if ),
-        .prev_state          ( prev_state ),
-        .update_init         ( ),
-        .update_data         ( ),
-        .new_state           ( new_state ),
-        .db_init             ( db_init ),
-        .db_init_done        ( db_init_done ),
-        .db_wr_if            ( db_wr_if ),
-        .db_rd_if            ( db_rd_if )
+        .STATE_T             ( STATE_T ),
+        .NUM_WR_TRANSACTIONS ( 1 ),
+        .NUM_RD_TRANSACTIONS ( 8 )
+    ) i_state_read_core ( .* );
+   
+    // ----------------------------------
+    // State data store
+    // ----------------------------------
+    db_store_array  #(
+        .KEY_T       ( ID_T ),
+        .VALUE_T     ( STATE_T )
+    ) i_db_store_array (
+        .init      ( db_init ),
+        .init_done ( db_init_done ),
+        .*
     );
-
-    // ----------------------------------
-    // State update logic
-    // ----------------------------------
-    always_comb begin
-        new_state = prev_state;
-    end
 
 endmodule : state_read
