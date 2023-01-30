@@ -63,7 +63,7 @@ override DEFINES += SIMULATION
 # Options
 # ----------------------------------------------------
 COMPILE_OPTS=
-ELAB_OPTS=--debug typical --relax
+ELAB_OPTS=--debug typical
 SIM_OPTS=
 
 # ----------------------------------------------------

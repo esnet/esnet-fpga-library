@@ -35,16 +35,17 @@ GLBL_V_LIBRARY = __xilinx
 TOP += $(GLBL_V_LIBRARY).glbl
 SNAPSHOT ?= snapshot
 
+TIMESCALE ?= 1ns/1ps
+
 # -----------------------------------------------
 # Library references
 # -----------------------------------------------
 COMPILE_LIB_REF = $(COMPONENT_NAME:%=-L %=$(abspath $(OBJ_DIR)))
 
-
 # -----------------------------------------------
 # Elaboration options
 # -----------------------------------------------
-ELAB_OPTS += --prj glbl.prj
+ELAB_OPTS += --prj glbl.prj --timescale $(TIMESCALE)
 
 # -----------------------------------------------
 # Log files
