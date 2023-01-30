@@ -24,7 +24,7 @@ waves ?= OFF
 # Top
 #   Specify top module(s) for elaboration
 # ----------------------------------------------------
-TOP = $(SVUNIT_TOP) axi4l__tb.glbl
+TOP = $(SVUNIT_TOP)
 
 # ----------------------------------------------------
 # Sources
@@ -41,7 +41,7 @@ SRC_LIST_FILES = $(SVUNIT_SRC_LIST_FILE)
 #   List IP component and external library dependencies
 #   (see $SCRIPTS_ROOT/Makefiles/dependencies.mk for details)
 # ----------------------------------------------------
-COMPONENTS = axi4l.rtl axi4l.verif axi4l.tb \
+COMPONENTS = axi4l.rtl axi4l.verif \
              xilinx.axi.rtl \
              reg.proxy.rtl \
              reg.proxy.verif \

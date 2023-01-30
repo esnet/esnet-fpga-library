@@ -24,7 +24,7 @@ waves ?= OFF
 # Top
 #   Specify top module(s) for elaboration
 # ----------------------------------------------------
-TOP = $(SVUNIT_TOP) axi4s__tb.glbl
+TOP = $(SVUNIT_TOP)
 
 # ----------------------------------------------------
 # Sources
@@ -43,7 +43,6 @@ SRC_LIST_FILES = $(SVUNIT_SRC_LIST_FILE)
 # ----------------------------------------------------
 COMPONENTS = axi4s.rtl \
              axi4s.verif \
-             axi4s.tb \
              axi4s.regio.verif \
              std.rtl \
              packet.verif \

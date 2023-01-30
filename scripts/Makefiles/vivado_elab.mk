@@ -20,9 +20,19 @@
 include $(SCRIPTS_ROOT)/Makefiles/vivado_compile.mk
 
 # -----------------------------------------------
+# Xilinx glbl.v
+#
+# - compile glbl.v file from Vivado distribution and
+#   make available as top-level module to simplify
+#   elaboration of designs that include Xilinx IP
+# -----------------------------------------------
+GLBL_V_FILE = $(XILINX_VIVADO)/data/verilog/src/glbl.v
+GLBL_V_LIBRARY = __xilinx
+
+# -----------------------------------------------
 # Configuration
 # -----------------------------------------------
-TOP ?=
+TOP += $(GLBL_V_LIBRARY).glbl
 SNAPSHOT ?= snapshot
 
 # -----------------------------------------------
@@ -30,10 +40,11 @@ SNAPSHOT ?= snapshot
 # -----------------------------------------------
 COMPILE_LIB_REF = $(COMPONENT_NAME:%=-L %=$(abspath $(OBJ_DIR)))
 
+
 # -----------------------------------------------
 # Elaboration options
 # -----------------------------------------------
-ELAB_OPTS ?=
+ELAB_OPTS += --prj glbl.prj
 
 # -----------------------------------------------
 # Log files
@@ -51,6 +62,7 @@ ELAB_CMD = xelab $(TOP) $(ELAB_LOG) $(ELAB_OPTS) $(DEFINE_REFS) $(LIB_REFS) $(CO
 # -----------------------------------------------
 _elab: _compile | $(RUN_DIR)
 	@cd $(RUN_DIR) && \
+	echo 'verilog $(GLBL_V_LIBRARY) "$(GLBL_V_FILE)"' > glbl.prj && \
 	echo $(ELAB_CMD) > $(ELAB_CMD_LOG) && \
 	$(ELAB_CMD)
 
