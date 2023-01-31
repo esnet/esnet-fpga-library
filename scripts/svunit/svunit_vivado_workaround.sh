@@ -30,14 +30,14 @@
 #
 #   'list_of_suites.find() with (item.get_results() == PASS)'
 #
-#   This construct is not handled by Vivado (as of v2020.1), with a tool error
+#   This construct is not handled by Vivado (as of v2022.2), with a tool error
 #   as the unfortunate result:
 #
 #  "FATAL_ERROR: Vivado Simulator kernel has discovered an exceptional condition
 #  from which it cannot recover. Process will terminate."
 #
 #   The following workaround makes ephemeral copies of the svunit_testsuite.sv
-#   and svunit_testrunner.sv source files, and replaces the problemetic iterator
+#   and svunit_testrunner.sv source files, and replaces the problematic iterator
 #   with a less elegant but simpler 'iterate over all elements of the list and
 #   check for PASS' construction.
 #
@@ -56,9 +56,6 @@ echo +incdir+${TARGET_DIR} >> ${TARGET_DIR}/.svunit.f
 
 # Create ephemeral copies of svunit_testsuite.sv and svunit_testrunner in
 # run directory.
-# Note: Use sv_ extension for svunit_testcase source file to avoid side effects
-#       with subsequent executions of buildSVUnit (build scripts 'finds'
-#       testsuites to add to list when this file is present as .sv file)
 cp ${SVUNIT_INSTALL}/svunit_base/svunit_testsuite.sv ${TARGET_DIR}/svunit_testsuite__vivado.sv
 cp ${SVUNIT_INSTALL}/svunit_base/svunit_testrunner.sv ${TARGET_DIR}/svunit_testrunner__vivado.sv
 
