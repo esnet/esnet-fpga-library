@@ -67,8 +67,10 @@ _elab: _compile | $(RUN_DIR)
 	echo $(ELAB_CMD) > $(ELAB_CMD_LOG) && \
 	$(ELAB_CMD)
 
-_clean_elab: _clean_compile
+_elab_clean: _clean_compile
 	@rm -rf $(RUN_DIR)
 
+.PHONY: _elab _elab_clean
+
 $(RUN_DIR):
-	@mkdir $(RUN_DIR)
+	@mkdir -p $(RUN_DIR)

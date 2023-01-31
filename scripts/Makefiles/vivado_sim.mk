@@ -56,11 +56,13 @@ SIM_CMD = $(if $(filter ON,$(waves)),$(SIM_CMD_ALL_WAVES),$(SIM_CMD_NO_WAVES))
 # Targets
 # -----------------------------------------------
 _sim: _elab
-	cd $(RUN_DIR) && \
+	@cd $(RUN_DIR) && \
 	echo $(SIM_CMD) > $(SIM_CMD_LOG) && \
 	$(SIM_CMD)
 
-_clean_sim: _clean_elab
+_clean_sim: _elab_clean
 	@echo -n "Removing run directories... "
 	@find . -maxdepth 1 -type d -regex "\./run_[0-9]+" -exec rm -rf {} \;
 	@echo "Done."
+
+.PHONY: _sim _clean_sim
