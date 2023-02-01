@@ -9,7 +9,9 @@
 # ----------------------------------------------------
 # Configuration
 # ----------------------------------------------------
-SVUNIT_DIR := $(abspath .svunit)
+include $(SCRIPTS_ROOT)/Makefiles/component_base.mk
+
+SVUNIT_DIR := $(COMPONENT_OUT_PATH)/svunit
 SVUNIT_TOP_MODULE = testrunner
 
 # ----------------------------------------------------
@@ -38,12 +40,15 @@ SVUNIT_CMD := $(SVUNIT_ENV_SETUP); $(SVUNIT_BUILD_CMD); $(SVUNIT_VIVADO_WORKAROU
 # ----------------------------------------------------
 # Targets
 # ----------------------------------------------------
-_build_test:
+_build_test: | $(SVUNIT_DIR)
 ifeq ($(REGRESSION), 1)
-	cd .. && $(SVUNIT_CMD)
+	@cd .. && $(SVUNIT_CMD)
 else
-	$(SVUNIT_CMD)
+	@$(SVUNIT_CMD)
 endif
 
 _clean_test:
 	@rm -rf $(SVUNIT_DIR)
+
+$(SVUNIT_DIR):
+	@mkdir -p $(SVUNIT_DIR)

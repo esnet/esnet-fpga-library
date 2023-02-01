@@ -24,7 +24,7 @@ waves ?= OFF
 # Top
 #   Specify top module(s) for elaboration
 # ----------------------------------------------------
-TOP = $(SVUNIT_TOP) reg__example__tb.glbl
+TOP = $(SVUNIT_TOP)
 
 # ----------------------------------------------------
 # Sources
@@ -44,7 +44,6 @@ SRC_LIST_FILES = $(SVUNIT_SRC_LIST_FILE)
 COMPONENTS = reg.example.rtl \
              reg.example.regio.rtl \
              reg.example.regio.verif \
-             reg.example.tb \
              axi4l.verif
 EXT_LIBS =
 
@@ -61,7 +60,7 @@ override DEFINES += SIMULATION
 # Options
 # ----------------------------------------------------
 COMPILE_OPTS=
-ELAB_OPTS=--debug typical --relax
+ELAB_OPTS=--debug typical
 SIM_OPTS=
 
 # ----------------------------------------------------

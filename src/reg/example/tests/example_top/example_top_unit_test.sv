@@ -168,7 +168,6 @@ module example_top_unit_test;
         // Declare input/output signals as custom register types
         example_reg_pkg::reg_rw_example_t exp_data;
         example_reg_pkg::reg_rw_example_t got_data;
-        $display(comp_2_reg_blk_agent.get_name());
         // Read init value from register
         // -------------------------------------
         // Reg package includes init values:

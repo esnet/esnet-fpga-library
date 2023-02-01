@@ -24,7 +24,7 @@ waves ?= OFF
 # Top
 #   Specify top module(s) for elaboration
 # ----------------------------------------------------
-TOP = $(SVUNIT_TOP) fifo__tb.glbl
+TOP = $(SVUNIT_TOP)
 
 # ----------------------------------------------------
 # Sources
@@ -60,7 +60,7 @@ override DEFINES += SIMULATION
 # Options
 # ----------------------------------------------------
 COMPILE_OPTS=
-ELAB_OPTS=--debug typical --relax
+ELAB_OPTS=--debug typical
 SIM_OPTS=
 
 # ----------------------------------------------------

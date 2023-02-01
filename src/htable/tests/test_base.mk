@@ -24,7 +24,7 @@ waves ?= OFF
 # Top
 #   Specify top module(s) for elaboration
 # ----------------------------------------------------
-TOP = $(SVUNIT_TOP) htable__tb.glbl
+TOP = $(SVUNIT_TOP)
 
 # ----------------------------------------------------
 # Sources
@@ -43,7 +43,6 @@ SRC_LIST_FILES = $(SVUNIT_SRC_LIST_FILE)
 # ----------------------------------------------------
 COMPONENTS = htable.rtl \
              htable.verif \
-             htable.tb \
              std.rtl \
              axi4l.rtl \
              axi4l.verif \
@@ -64,7 +63,7 @@ override DEFINES += SIMULATION
 # Options
 # ----------------------------------------------------
 COMPILE_OPTS=
-ELAB_OPTS=--debug typical --relax
+ELAB_OPTS=--debug typical
 SIM_OPTS=
 
 # ----------------------------------------------------
