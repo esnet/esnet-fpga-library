@@ -17,7 +17,7 @@
 
 interface db_ctrl_intf #(
     parameter type KEY_T   = logic[7:0],
-    parameter type VALUE_T = logic [31:0]
+    parameter type VALUE_T = logic [7:0]
 ) (
     input logic clk
 );
@@ -207,10 +207,7 @@ endmodule : db_ctrl_intf_connector
 
 
 // Database control interface proxy stage
-module db_ctrl_intf_proxy #(
-    parameter type KEY_T = logic[7:0],
-    parameter type VALUE_T = logic[7:0]
-) (
+module db_ctrl_intf_proxy (
     input logic clk,
     input logic srst,
     db_ctrl_intf.peripheral ctrl_if_from_controller,
@@ -230,9 +227,9 @@ module db_ctrl_intf_proxy #(
 
     initial in_progress = 1'b0;
     always @(posedge clk) begin
-        if (srst)                                                        in_progress <= 1'b0;
-        else if (ctrl_if_to_peripheral.req && ctrl_if_to_peripheral.rdy) in_progress <= 1'b1;
-        else if (ctrl_if_to_peripheral.ack)                              in_progress <= 1'b0;
+        if (srst)                                      in_progress <= 1'b0;
+        else if (pending && ctrl_if_to_peripheral.rdy) in_progress <= 1'b1;
+        else if (ctrl_if_to_peripheral.ack)            in_progress <= 1'b0;
     end
 
     assign ctrl_if_to_peripheral.req = pending;
@@ -298,10 +295,6 @@ module db_ctrl_intf_mux #(
             VALUE_T   ctrl_if_from_controller_get_value [NUM_IFS];
             KEY_T     ctrl_if_from_controller_get_key   [NUM_IFS];
 
-            logic      ctrl_req;
-            logic      ctrl_rdy;
-            logic      req_pending;
-
             // Convert between array of signals and array of interfaces
             for (genvar g_if = 0; g_if < NUM_IFS; g_if++) begin : g__if
                 assign ctrl_if_from_controller[g_if].rdy       = ctrl_if_from_controller_rdy[g_if];
@@ -322,10 +315,7 @@ module db_ctrl_intf_mux #(
             always @(posedge clk) if (__ctrl_if_to_peripheral.req && __ctrl_if_to_peripheral.rdy) __mux_sel_reg <= __mux_sel;
 
             // Proxy requests
-            db_ctrl_intf_proxy #(
-                .KEY_T   ( KEY_T ),
-                .VALUE_T ( VALUE_T )
-            ) i_db_ctrl_intf_proxy (
+            db_ctrl_intf_proxy i_db_ctrl_intf_proxy (
                 .clk  ( clk ),
                 .srst ( srst ),
                 .ctrl_if_from_controller ( __ctrl_if_to_peripheral ),
@@ -339,9 +329,9 @@ module db_ctrl_intf_mux #(
                     else                ctrl_if_from_controller_rdy[i] = 1'b0;
                 end
             end
-            assign __ctrl_if_to_peripheral.req     = ctrl_if_from_controller_req        [__mux_sel];
-            assign __ctrl_if_to_peripheral.command = ctrl_if_from_controller_command    [__mux_sel];
-            assign __ctrl_if_to_peripheral.key     = ctrl_if_from_controller_key        [__mux_sel];
+            assign __ctrl_if_to_peripheral.req       = ctrl_if_from_controller_req       [__mux_sel];
+            assign __ctrl_if_to_peripheral.command   = ctrl_if_from_controller_command   [__mux_sel];
+            assign __ctrl_if_to_peripheral.key       = ctrl_if_from_controller_key       [__mux_sel];
             assign __ctrl_if_to_peripheral.set_value = ctrl_if_from_controller_set_value [__mux_sel];
 
             // Demux result
@@ -391,7 +381,7 @@ module db_ctrl_intf_2to1_mux #(
     db_ctrl_intf.controller ctrl_if_to_peripheral
 );
     // Interfaces
-    db_ctrl_intf #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) ctrl_if_from_controller [2] (.clk(ctrl_if_to_peripheral.clk));
+    db_ctrl_intf #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) ctrl_if_from_controller [2] (.clk(clk));
 
     db_ctrl_intf_connector i_db_ctrl_intf_connector_0 (
         .ctrl_if_from_controller ( ctrl_if_from_controller_0 ),
@@ -436,20 +426,14 @@ module db_ctrl_intf_prio_mux #(
     db_ctrl_intf #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) __ctrl_if_from_controller_lo_prio (.clk(clk));
 
     // Proxy requests
-    db_ctrl_intf_proxy #(
-        .KEY_T   ( KEY_T ),
-        .VALUE_T ( VALUE_T )
-    ) i_db_ctrl_intf_proxy__hi_prio (
+    db_ctrl_intf_proxy i_db_ctrl_intf_proxy__hi_prio (
         .clk  ( clk ),
         .srst ( srst ),
         .ctrl_if_from_controller ( ctrl_if_from_controller_hi_prio ),
         .ctrl_if_to_peripheral   ( __ctrl_if_from_controller_hi_prio )
     );
 
-    db_ctrl_intf_proxy #(
-        .KEY_T   ( KEY_T ),
-        .VALUE_T ( VALUE_T )
-    ) i_db_ctrl_intf_proxy__lo_prio (
+    db_ctrl_intf_proxy i_db_ctrl_intf_proxy__lo_prio (
         .clk  ( clk ),
         .srst ( srst ),
         .ctrl_if_from_controller ( ctrl_if_from_controller_lo_prio ),
@@ -592,10 +576,10 @@ module db_ctrl_intf_demux #(
             end
 
             always_ff @(posedge clk) begin
-                ctrl_if_from_controller.status    = ctrl_if_to_peripheral_status   [__demux_sel];
-                ctrl_if_from_controller.get_valid = ctrl_if_to_peripheral_get_valid[__demux_sel];
-                ctrl_if_from_controller.get_key   = ctrl_if_to_peripheral_get_key  [__demux_sel];
-                ctrl_if_from_controller.get_value = ctrl_if_to_peripheral_get_value[__demux_sel];
+                ctrl_if_from_controller.status    <= ctrl_if_to_peripheral_status   [__demux_sel];
+                ctrl_if_from_controller.get_valid <= ctrl_if_to_peripheral_get_valid[__demux_sel];
+                ctrl_if_from_controller.get_key   <= ctrl_if_to_peripheral_get_key  [__demux_sel];
+                ctrl_if_from_controller.get_value <= ctrl_if_to_peripheral_get_value[__demux_sel];
             end
 
         end : g__demux

@@ -752,8 +752,12 @@ endmodule : db_ctrl_mux_unit_test
 module db_ctrl_intf_2to1_mux_unit_test;
 
     localparam int  NUM_IFS = 2;
-    localparam type KEY_T = logic[11:0];
-    localparam type VALUE_T = logic[31:0];
+
+    localparam int  KEY_WID = 12;
+    localparam int  VALUE_WID = 32;
+
+    localparam type KEY_T = bit[KEY_WID-1:0];
+    localparam type VALUE_T = bit[VALUE_WID-1:0];
 
     import svunit_pkg::svunit_testcase;
     svunit_testcase svunit_ut;
@@ -773,8 +777,8 @@ module db_ctrl_intf_2to1_mux_unit_test;
     ) test (.*);
 
     db_ctrl_intf_2to1_mux #(
-        .KEY_T   ( KEY_T ),
-        .VALUE_T ( VALUE_T )
+        .KEY_T   ( logic[KEY_WID-1:0] ),
+        .VALUE_T ( logic[VALUE_WID-1:0] )
     ) DUT (
         .clk  ( clk ),
         .srst ( srst ),
@@ -803,8 +807,12 @@ endmodule : db_ctrl_intf_2to1_mux_unit_test
 module db_ctrl_intf_prio_mux_unit_test;
 
     localparam int  NUM_IFS = 2;
-    localparam type KEY_T = logic[11:0];
-    localparam type VALUE_T = logic[31:0];
+
+    localparam int  KEY_WID = 12;
+    localparam int  VALUE_WID = 32;
+
+    localparam type KEY_T = bit[KEY_WID-1:0];
+    localparam type VALUE_T = bit[VALUE_WID-1:0];
 
     import svunit_pkg::svunit_testcase;
     svunit_testcase svunit_ut;
@@ -822,8 +830,8 @@ module db_ctrl_intf_prio_mux_unit_test;
     ) test (.*);
 
     db_ctrl_intf_prio_mux #(
-        .KEY_T   ( KEY_T ),
-        .VALUE_T ( VALUE_T )
+        .KEY_T   ( logic[KEY_WID-1:0] ),
+        .VALUE_T ( logic[VALUE_WID-1:0] )
     ) DUT (
         .clk  ( clk ),
         .srst ( srst ),
@@ -847,8 +855,12 @@ endmodule : db_ctrl_intf_prio_mux_unit_test
 module db_ctrl_intf_prio_mux_hier_unit_test;
 
     localparam int  NUM_IFS = 2;
-    localparam type KEY_T = logic[11:0];
-    localparam type VALUE_T = logic[31:0];
+
+    localparam int  KEY_WID = 12;
+    localparam int  VALUE_WID = 32;
+
+    localparam type KEY_T = bit[KEY_WID-1:0];
+    localparam type VALUE_T = bit[VALUE_WID-1:0];
 
     import svunit_pkg::svunit_testcase;
     svunit_testcase svunit_ut;
@@ -868,8 +880,8 @@ module db_ctrl_intf_prio_mux_hier_unit_test;
     ) test (.*);
 
     db_ctrl_intf_prio_mux #(
-        .KEY_T   ( KEY_T ),
-        .VALUE_T ( VALUE_T )
+        .KEY_T   ( logic[KEY_WID-1:0] ),
+        .VALUE_T ( logic[VALUE_WID-1:0] )
     ) DUT_0 (
         .clk  ( clk ),
         .srst ( srst ),
@@ -879,8 +891,8 @@ module db_ctrl_intf_prio_mux_hier_unit_test;
     );
 
     db_ctrl_intf_prio_mux #(
-        .KEY_T   ( KEY_T ),
-        .VALUE_T ( VALUE_T )
+        .KEY_T   ( logic[KEY_WID-1:0] ),
+        .VALUE_T ( logic[VALUE_WID-1:0] )
     ) DUT_1 (
         .clk  ( clk ),
         .srst ( srst ),
