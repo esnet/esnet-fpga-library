@@ -2,8 +2,8 @@
 
 module db_ctrl_unit_test
 #(
-    parameter type KEY_T = logic[11:0],
-    parameter type VALUE_T = logic[31:0],
+    parameter type KEY_T = bit[7:0],
+    parameter type VALUE_T = bit[7:0],
     parameter string DUT_NAME = "db_ctrl_intf"
 ) (
     output logic clk,
@@ -23,7 +23,7 @@ module db_ctrl_unit_test
     //===================================
     localparam int TIMEOUT_CYCLES = 0;
     localparam int SIZE = 2**$bits(KEY_T);
-   
+
     //===================================
     // Testbench
     //===================================
@@ -226,8 +226,8 @@ endmodule : db_ctrl_unit_test
 // DUT: db_ctrl_intf
 module db_ctrl_intf_unit_test;
 
-    localparam type KEY_T = logic[11:0];
-    localparam type VALUE_T = logic[31:0];
+    localparam type KEY_T = bit[11:0];
+    localparam type VALUE_T = bit[31:0];
 
     import svunit_pkg::svunit_testcase;
     svunit_testcase svunit_ut;
@@ -260,8 +260,8 @@ endmodule : db_ctrl_intf_unit_test
 // DUT: db_ctrl_intf_connector
 module db_ctrl_intf_connector_unit_test;
 
-    localparam type KEY_T = logic[11:0];
-    localparam type VALUE_T = logic[31:0];
+    localparam type KEY_T = bit[11:0];
+    localparam type VALUE_T = bit[31:0];
 
     import svunit_pkg::svunit_testcase;
     svunit_testcase svunit_ut;

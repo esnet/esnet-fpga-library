@@ -367,9 +367,9 @@ module db_intf_mux #(
 
             // Convert between array of signals and array of interfaces
             for (genvar g_if = 0; g_if < NUM_IFS; g_if++) begin : g__if
-                assign db_if_from_requester[g_if].rdy      = db_if_from_requester_rdy[g_if];
-                assign db_if_from_requester[g_if].ack      = db_if_from_requester_ack[g_if];
-                assign db_if_from_requester[g_if].error    = db_if_from_requester_error[g_if];
+                assign db_if_from_requester[g_if].rdy   = db_if_from_requester_rdy[g_if];
+                assign db_if_from_requester[g_if].ack   = db_if_from_requester_ack[g_if];
+                assign db_if_from_requester[g_if].error = db_if_from_requester_error[g_if];
                 assign db_if_from_requester_req[g_if]  = db_if_from_requester[g_if].req;
                 assign db_if_from_requester_key[g_if]  = db_if_from_requester[g_if].key;
                 assign db_if_from_requester_next[g_if] = db_if_from_requester[g_if].next;
@@ -380,10 +380,10 @@ module db_intf_mux #(
             assign __mux_sel = mux_sel[MUX_SEL_WID-1:0] % NUM_IFS;
 
             always_comb begin
-                db_if_to_responder.req = db_if_from_requester_req[__mux_sel];
-                db_if_to_responder.key = db_if_from_requester_key[__mux_sel];
+                db_if_to_responder.req  = db_if_from_requester_req [__mux_sel];
+                db_if_to_responder.key  = db_if_from_requester_key [__mux_sel];
                 db_if_to_responder.next = db_if_from_requester_next[__mux_sel];
-                for (integer i = 0; i < NUM_IFS; i++) begin
+                for (int i = 0; i < NUM_IFS; i++) begin
                     if (i == __mux_sel) db_if_from_requester_rdy[i] = db_if_to_responder.rdy;
                     else                db_if_from_requester_rdy[i] = 1'b0;
                 end
@@ -669,7 +669,7 @@ module db_intf_demux #(
 
             always_comb begin
                 db_if_from_requester.rdy = db_if_to_responder_rdy[__demux_sel];
-                for (integer i = 0; i < NUM_IFS; i++) begin
+                for (int i = 0; i < NUM_IFS; i++) begin
                     if (i == __demux_sel) db_if_to_responder_req[i] = db_if_from_requester.req;
                     else                  db_if_to_responder_req[i] = 1'b0;
                 end

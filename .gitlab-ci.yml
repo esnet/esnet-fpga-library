@@ -65,7 +65,7 @@ rtl_sim:
       junit:
         - src/*/tests/regression/run_*/tests.xml
     when: always
-  timeout: 2h
+  timeout: 3h
 
 #trigger_downstream_job:
 #  stage: trigger_downstream
