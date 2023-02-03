@@ -24,7 +24,6 @@ package axi4s_pkg;
 
     typedef enum int {
         USER,
-        BUFFER_CONTEXT,
         PKT_ERROR
     } axi4s_tuser_mode_t;
 
@@ -45,9 +44,9 @@ package axi4s_pkg;
     } axi4s_sync_mode_t;
 
     typedef struct packed {
-        logic [15:0] wr_ptr;
+        logic [15:0] pid;
         logic        hdr_tlast;
-    } tuser_buffer_context_mode_t;
+    } tuser_split_join_t;
 
     typedef enum int {
         FULL,

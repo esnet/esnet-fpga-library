@@ -39,17 +39,19 @@ module axi4s_sync
    output logic     sop_mismatch
 );
 
+   localparam type TUSER_T = axi4s_in0.TUSER_T;
+
+   TUSER_T tuser_in0, tuser_in1;
+
    logic  sync_sop, match, mismatch;
    logic  sync, sync0, sync1;
    logic  sync_stretch0, sync_stretch1;
-
-   tuser_buffer_context_mode_t   tuser_in0, tuser_in1;
 
    assign tuser_in0 = axi4s_in0.tuser;
    assign tuser_in1 = axi4s_in1.tuser;
 
    assign sync_sop = axi4s_in0.sop && axi4s_in0.tvalid && axi4s_in1.sop && axi4s_in1.tvalid;
-   assign match = (tuser_in0.wr_ptr == tuser_in1.wr_ptr);
+   assign match = (tuser_in0.pid == tuser_in1.pid);
    assign mismatch = !match;
 
    assign sop_mismatch = sync_sop && mismatch;
