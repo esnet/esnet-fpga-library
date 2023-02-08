@@ -44,17 +44,41 @@ module axi4s_split_join_unit_test
     axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID)) axi4s_in  ();
     axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID)) axi4s_out ();
 
-    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TUSER_MODE(BUFFER_CONTEXT), .TUSER_T(tuser_buffer_context_mode_t)) axi4s_hdr_in();
-    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TUSER_MODE(BUFFER_CONTEXT), .TUSER_T(tuser_buffer_context_mode_t)) axi4s_hdr_out();
+    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TUSER_T(tuser_split_join_t)) __axi4s_in();
+    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TUSER_T(tuser_split_join_t)) __axi4s_out();
+    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TUSER_T(tuser_split_join_t)) axi4s_hdr_in();
+    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TUSER_T(tuser_split_join_t)) axi4s_hdr_out();
 
     axi4l_intf axil_if ();
+
+    assign __axi4s_in.aclk    = axi4s_in.aclk;
+    assign __axi4s_in.aresetn = axi4s_in.aresetn;
+    assign __axi4s_in.tvalid  = axi4s_in.tvalid;
+    assign __axi4s_in.tdata   = axi4s_in.tdata;
+    assign __axi4s_in.tkeep   = axi4s_in.tkeep;
+    assign __axi4s_in.tlast   = axi4s_in.tlast;
+    assign __axi4s_in.tid     = axi4s_in.tid;
+    assign __axi4s_in.tdest   = axi4s_in.tdest;
+    assign __axi4s_in.tuser   = '0;
+    assign axi4s_in.tready    = __axi4s_in.tready;
+
+    assign axi4s_out.aclk     = __axi4s_out.aclk;
+    assign axi4s_out.aresetn  = __axi4s_out.aresetn;
+    assign axi4s_out.tvalid   = __axi4s_out.tvalid;
+    assign axi4s_out.tdata    = __axi4s_out.tdata;
+    assign axi4s_out.tkeep    = __axi4s_out.tkeep;
+    assign axi4s_out.tlast    = __axi4s_out.tlast;
+    assign axi4s_out.tid      = __axi4s_out.tid;
+    assign axi4s_out.tdest    = __axi4s_out.tdest;
+    assign axi4s_out.tuser    = '0;
+    assign __axi4s_out.tready = axi4s_out.tready;
 
     // axi4s_split_join instantiation.
     axi4s_split_join #(
       .BIGENDIAN (BIGENDIAN)
     ) DUT (
-      .axi4s_in      (axi4s_in),
-      .axi4s_out     (axi4s_out),
+      .axi4s_in      (__axi4s_in),
+      .axi4s_out     (__axi4s_out),
       .axi4s_hdr_in  (axi4s_hdr_in),
       .axi4s_hdr_out (axi4s_hdr_out),
       .axil_if       (axil_if),
@@ -444,9 +468,9 @@ module axi4s_hdr_proc
 );
 
    // local axi4s interface instantiations
-   axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TUSER_MODE(BUFFER_CONTEXT), .TUSER_T(tuser_buffer_context_mode_t)) axi4s_to_prefix();
-   axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TUSER_MODE(BUFFER_CONTEXT), .TUSER_T(tuser_buffer_context_mode_t)) axi4s_to_trunc();
-   axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TUSER_MODE(BUFFER_CONTEXT), .TUSER_T(tuser_buffer_context_mode_t)) axi4s_to_fifo();
+   axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TUSER_T(tuser_split_join_t)) axi4s_to_prefix();
+   axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TUSER_T(tuser_split_join_t)) axi4s_to_trunc();
+   axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TUSER_T(tuser_split_join_t)) axi4s_to_fifo();
 
 
    assign axi4s_in.tready = axi4s_to_prefix.tready;

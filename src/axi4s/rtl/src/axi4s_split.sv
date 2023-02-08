@@ -22,7 +22,7 @@
 // propagates the ingress packet stream (untouched) to a separate egress axi4s 
 // interface.
 // Note: axi4s_split uses the tuser signal of the axis4s_hdr_out bus to carry
-// BUFFER_CONTEXT information.
+// packet id (pid) information.
 // -----------------------------------------------------------------------------
 
 module axi4s_split
@@ -42,20 +42,21 @@ module axi4s_split
    localparam int  DATA_BYTE_WID = axi4s_hdr_out.DATA_BYTE_WID;
    localparam type TID_T         = axi4s_hdr_out.TID_T;
    localparam type TDEST_T       = axi4s_hdr_out.TDEST_T;
+   localparam type TUSER_T       = axi4s_hdr_out.TUSER_T;
 
    // signals
    logic [PTR_LEN-1:0] wr_ptr; // wr pointer for pkt buffer addressing, or pkt_id.   
    logic [PTR_LEN-1:0] pid;    // wr_ptr of hdr_out sop.
 
    // internal axi4s interfaces.
-   axi4s_intf #(.TUSER_MODE(BUFFER_CONTEXT), .DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T), 
-                .TDEST_T(TDEST_T), .TUSER_T(tuser_buffer_context_mode_t)) axi4s_to_copy ();
+   axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T),
+                .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) axi4s_to_copy ();
 
-   axi4s_intf #(.TUSER_MODE(BUFFER_CONTEXT), .DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T), 
-                .TDEST_T(TDEST_T), .TUSER_T(tuser_buffer_context_mode_t)) axi4s_to_trunc ();
+   axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T),
+                .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) axi4s_to_trunc ();
 
-   axi4s_intf #(.TUSER_MODE(BUFFER_CONTEXT), .DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T),
-                .TDEST_T(TDEST_T), .TUSER_T(tuser_buffer_context_mode_t)) __axi4s_hdr_out ();
+   axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T),
+                .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) __axi4s_hdr_out ();
 
 
    // wr_ptr logic
@@ -73,7 +74,7 @@ module axi4s_split
    assign axi4s_to_copy.tdest            = axi4s_in.tdest;
    assign axi4s_to_copy.tid              = axi4s_in.tid;
    assign axi4s_to_copy.tlast            = axi4s_in.tlast;
-   assign axi4s_to_copy.tuser.wr_ptr     = wr_ptr;
+   assign axi4s_to_copy.tuser.pid        = wr_ptr;
    assign axi4s_to_copy.tuser.hdr_tlast  = axi4s_hdr_out.tvalid && axi4s_hdr_out.tlast;
 
    assign axi4s_in.tready                = axi4s_to_copy.tready;
@@ -95,7 +96,7 @@ module axi4s_split
       .length     (hdr_length)
    );
 
-   always @(posedge axi4s_in.aclk) pid <= (__axi4s_hdr_out.tvalid && __axi4s_hdr_out.sop) ? __axi4s_hdr_out.tuser.wr_ptr : pid;
+   always @(posedge axi4s_in.aclk) pid <= (__axi4s_hdr_out.tvalid && __axi4s_hdr_out.sop) ? __axi4s_hdr_out.tuser.pid : pid;
 
    // axi4s_hdr_out interface signalling. assigns pid (sop wr_ptr) to hdr pkt.
    assign axi4s_hdr_out.aclk             = __axi4s_hdr_out.aclk;
@@ -106,7 +107,7 @@ module axi4s_split
    assign axi4s_hdr_out.tdest            = __axi4s_hdr_out.tdest;
    assign axi4s_hdr_out.tid              = __axi4s_hdr_out.tid;
    assign axi4s_hdr_out.tlast            = __axi4s_hdr_out.tlast;
-   assign axi4s_hdr_out.tuser.wr_ptr     = (__axi4s_hdr_out.tvalid && __axi4s_hdr_out.sop) ? __axi4s_hdr_out.tuser.wr_ptr : pid;
+   assign axi4s_hdr_out.tuser.pid        = (__axi4s_hdr_out.tvalid && __axi4s_hdr_out.sop) ? __axi4s_hdr_out.tuser.pid : pid;
    assign axi4s_hdr_out.tuser.hdr_tlast  = '0;
 
    assign __axi4s_hdr_out.tready         = axi4s_hdr_out.tready;

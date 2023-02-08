@@ -29,7 +29,7 @@ module axi4s_ila
   (* mark_debug="true" *)  logic          tlast  [PIPE_STAGES+1];
   (* mark_debug="true" *)  logic [63:0]   tkeep  [PIPE_STAGES+1];
   (* mark_debug="true" *)  logic          tready [PIPE_STAGES+1];
-  (* mark_debug="true" *)  logic [16:0]   tuser  [PIPE_STAGES+1];
+  (* mark_debug="true" *)  logic [31:0]   tuser  [PIPE_STAGES+1];
 
   assign tdata  [PIPE_STAGES] = axis_in.tdata;
   assign tvalid [PIPE_STAGES] = axis_in.tvalid;

@@ -53,6 +53,7 @@ module axi4s_join
 
    TID_T    hdr_tid;
    TDEST_T  hdr_tdest;
+   TUSER_T  hdr_tuser;
 
    logic [COUNT_WID:0] hdr_shift;
    logic [COUNT_WID:0] hdr_shift_pipe[7];
@@ -65,37 +66,37 @@ module axi4s_join
 
 
    // internal axi4s interfaces.
-   axi4s_intf #(.TUSER_MODE(BUFFER_CONTEXT), .DATA_BYTE_WID(DATA_BYTE_WID),
+   axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID),
                 .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) sync_hdr[2] ();
 
-   axi4s_intf #(.TUSER_MODE(BUFFER_CONTEXT), .DATA_BYTE_WID(DATA_BYTE_WID),
+   axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID),
                 .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) sync_pyld[2] ();
 
-   axi4s_intf #(.TUSER_MODE(BUFFER_CONTEXT), .DATA_BYTE_WID(DATA_BYTE_WID),
+   axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID),
                 .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) drop[2] ();
 
-   axi4s_intf #(.TUSER_MODE(BUFFER_CONTEXT), .DATA_BYTE_WID(DATA_BYTE_WID), 
+   axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID),
                 .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) pipe_hdr[7] ();
 
-   axi4s_intf #(.TUSER_MODE(BUFFER_CONTEXT), .DATA_BYTE_WID(DATA_BYTE_WID),
+   axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID),
                 .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) pipe_pyld[7] ();
 
-   axi4s_intf #(.TUSER_MODE(BUFFER_CONTEXT), .DATA_BYTE_WID(DATA_BYTE_WID),
+   axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID),
                 .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) shifted_pyld ();
 
-   axi4s_intf #(.TUSER_MODE(BUFFER_CONTEXT), .DATA_BYTE_WID(DATA_BYTE_WID),
+   axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID),
                 .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) b2b_hdr ();
 
-   axi4s_intf #(.TUSER_MODE(BUFFER_CONTEXT), .DATA_BYTE_WID(DATA_BYTE_WID), 
+   axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID),
                 .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) joined ();
 
-   axi4s_intf #(.TUSER_MODE(BUFFER_CONTEXT), .DATA_BYTE_WID(DATA_BYTE_WID), 
+   axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID),
                 .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) joined_mux ();
 
-   axi4s_intf #(.TUSER_MODE(BUFFER_CONTEXT), .DATA_BYTE_WID(DATA_BYTE_WID),
+   axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID),
                 .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) joined_pipe ();
 
-   axi4s_intf #(.TUSER_MODE(BUFFER_CONTEXT), .DATA_BYTE_WID(DATA_BYTE_WID),
+   axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID),
                 .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) axi4s_to_fifo ();
 
 
@@ -249,9 +250,11 @@ module axi4s_join
       if ((state_nxt == B2B_HEADER) && pipe_hdr[5].tvalid && pipe_hdr[5].tready && pipe_hdr[5].sop) begin
          hdr_tid   <= pipe_hdr[5].tid;
          hdr_tdest <= pipe_hdr[5].tdest;
+         hdr_tuser <= pipe_hdr[5].tuser;
       end else if ((state_nxt == HEADER) && pipe_hdr[4].tvalid && pipe_hdr[4].tready && pipe_hdr[4].sop) begin
          hdr_tid   <= pipe_hdr[4].tid;
          hdr_tdest <= pipe_hdr[4].tdest;
+         hdr_tuser <= pipe_hdr[4].tuser;
       end
 
       // --- adv_tlast logic ---
@@ -307,7 +310,7 @@ module axi4s_join
    assign joined.tlast   = adv_tlast || (!adv_tlast_p && pipe_pyld[5].tlast && pipe_pyld[5].tvalid);
    assign joined.tid     = hdr_tid;
    assign joined.tdest   = hdr_tdest;
-   assign joined.tuser   = '0;
+   assign joined.tuser   = hdr_tuser;
 
    always_comb begin
       case (state)
@@ -351,7 +354,7 @@ module axi4s_join
    assign b2b_hdr.tlast   = pipe_hdr[6].tlast;
    assign b2b_hdr.tid     = hdr_tid;
    assign b2b_hdr.tdest   = hdr_tdest;
-   assign b2b_hdr.tuser   = '0;
+   assign b2b_hdr.tuser   = hdr_tuser;
 
    // stall pipeline for one cycle (B2B_HEADER state) when next header is detected to be concurrent with last pkt byte.
    assign stall_pipe = (state == B2B_HEADER);   
