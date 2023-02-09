@@ -100,7 +100,7 @@ _compile: _compile_components $(SIM_LIB)
 .PHONY: _compile
 
 # Compile sim library from source
-$(SIM_LIB): $(SRCS) $(HDRS) | $(OBJ_DIR)
+$(SIM_LIB): $(SRCS) $(HDRS) $(COMPONENT_OBJS) | $(OBJ_DIR)
 	@echo -----------------------------------------------------
 	@echo Compiling simulation library '$(COMPONENT_NAME)'...
 	@rm -rf $(SIM_LIB)
