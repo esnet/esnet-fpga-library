@@ -46,6 +46,8 @@ IP_XCI_FILES = $(foreach ip,$(IP_LIST),$(COMPONENT_OUT_PATH)/$(ip)/$(ip).xci)
 
 IP_OUTPUT_PRODUCTS   = $(addprefix $(COMPONENT_OUT_PATH)/.ip__,$(IP_LIST))
 IP_GENERATE_PRODUCTS = $(addsuffix __generated, $(IP_OUTPUT_PRODUCTS))
+IP_EXDES_PRODUCTS    = $(addsuffix __exdes, $(IP_OUTPUT_PRODUCTS))
+IP_DRV_DPI_PRODUCTS  = $(addsuffix __drv_dpi, $(IP_OUTPUT_PRODUCTS))
 IP_SYNTH_PRODUCTS    = $(addsuffix __synth, $(IP_OUTPUT_PRODUCTS))
 
 # -----------------------------------------------
@@ -97,6 +99,16 @@ _ip: _ip_generate
 $(COMPONENT_OUT_PATH)/.ip__%: $(abspath $(IP_SRC_DIR)/%.tcl) | $(COMPONENT_OUT_PATH)
 	@rm -f $@*
 	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_IP_CMD) -tclargs create $<
+	@touch $@
+
+$(COMPONENT_OUT_PATH)/.ip__%__exdes: $(COMPONENT_OUT_PATH)/.ip__%
+	@rm -f $@
+	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_IP_CMD) -tclargs exdes $*/$*.xci
+	@touch $@
+
+$(COMPONENT_OUT_PATH)/.ip__%__drv_dpi: $(COMPONENT_OUT_PATH)/.ip__%
+	@rm -f $@
+	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_IP_CMD) -tclargs drv_dpi $*/$*.xci
 	@touch $@
 
 $(COMPONENT_OUT_PATH)/.ip__%__generated: $(IP_OUTPUT_PRODUCTS)

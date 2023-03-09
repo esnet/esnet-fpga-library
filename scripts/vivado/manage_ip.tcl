@@ -62,6 +62,9 @@ if {$phase == "proj"} {
                 generate_target all [get_ips]
                 export_ip_user_files -of_objects [get_ips]
             }
+            reset {
+                reset_target -quiet all [get_ips]
+            }
             synth {
                 foreach ip [get_ips *] {
                     if {[get_property GENERATE_SYNTH_CHECKPOINT ${ip}]} {
@@ -69,8 +72,15 @@ if {$phase == "proj"} {
                     }
                 }
             }
-            reset {
-                reset_target -quiet all [get_ips]
+            exdes {
+                open_example_project -force -dir . [get_ips] -in_process -quiet
+            }
+            drv_dpi {
+                foreach ip [get_ips] {
+                    generate_target example [get_ips $ip]
+                    exec cp [glob -directory [file join $ip bin] *.so] $ip/
+                    reset_target example [get_ips $ip]
+                }
             }
             status {
                 report_ip_status
@@ -79,7 +89,7 @@ if {$phase == "proj"} {
                 upgrade_ip [get_ips]
             }
             default {
-                puts "INVALID IP job: $phase (create/proj/generate/synth/reset/status/upgrade)"
+                puts "INVALID IP job: $phase (create/proj/generate/reset/synth/exdes/drv_dpi/status/upgrade)"
             }
         }
     }
