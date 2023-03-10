@@ -7,9 +7,9 @@
 #        - IP_PROJ_DIR: path to managed IP project (optional, default: ./ip_proj)
 #        - IP_PROJ_NAME: name of managed IP project (optional, default: ip_proj)
 #        - SCRIPTS_ROOT: path to project scripts directory
-#        - IP_LIST: list of IP to be included in project; each IP in IP_LIST represents
-#                   the name of an IP directory, where the IP directory contains an
-#                   .xci file describing the IP
+#        - IP_SRC_DIR: path to IP specifications, in Tcl script format (optional, default: .)
+#        - IP_LIST: list of IP to be included in project; each IP in IP_LIST corresponds
+#                   to an IP specification Tcl file, available at: $(IP_SRC_DIR)/$(ip_name).tcl
 
 # -----------------------------------------------
 # Include base Vivado build Make instructions
@@ -20,6 +20,11 @@ include $(SCRIPTS_ROOT)/Makefiles/vivado_build_base.mk
 # Include component config
 # -----------------------------------------------
 include $(SCRIPTS_ROOT)/Makefiles/component_base.mk
+
+# -----------------------------------------------
+# Paths
+# -----------------------------------------------
+IP_SRC_DIR ?= .
 
 # -----------------------------------------------
 # Configure managed IP project properties
@@ -35,56 +40,35 @@ VIVADO_MANAGE_IP_CMD = $(VIVADO_CMD_BASE) -source $(VIVADO_SCRIPTS_ROOT)/manage_
 VIVADO_LOG_DIR = $(COMPONENT_OUT_PATH)
 
 # -----------------------------------------------
-# IP Sources
-# -----------------------------------------------
-IP_SRC_DIR ?= .
-XCI_FILES = $(join $(addsuffix /,$(IP_LIST)),$(addsuffix .xci,$(IP_LIST)))
-
-# -----------------------------------------------
 # Output products
 # -----------------------------------------------
-IP_OUTPUT_PRODUCTS = $(addprefix $(COMPONENT_OUT_PATH)/.ip__,$(IP_LIST))
-SYNTH_OUTPUT_PRODUCTS = $(addprefix $(COMPONENT_OUT_PATH)/.synth__,$(IP_LIST))
+IP_XCI_FILES = $(foreach ip,$(IP_LIST),$(COMPONENT_OUT_PATH)/$(ip)/$(ip).xci)
+
+IP_OUTPUT_PRODUCTS   = $(addprefix $(COMPONENT_OUT_PATH)/.ip__,$(IP_LIST))
+IP_GENERATE_PRODUCTS = $(addsuffix __generated, $(IP_OUTPUT_PRODUCTS))
+IP_EXDES_PRODUCTS    = $(addsuffix __exdes, $(IP_OUTPUT_PRODUCTS))
+IP_DRV_DPI_PRODUCTS  = $(addsuffix __drv_dpi, $(IP_OUTPUT_PRODUCTS))
+IP_SYNTH_PRODUCTS    = $(addsuffix __synth, $(IP_OUTPUT_PRODUCTS))
 
 # -----------------------------------------------
 # IP project targets
 # -----------------------------------------------
 #  IP project
 #
-#  - creates IP project in current directory
-#  - can be used to create and edit IP
+#  - creates IP project in current directory to
+#    facilitate creating/updating IP
+#  - IP must be described as a 'create_ip' Tcl script, but
+#    required Tcl commands for creating/modifying IP can
+#    be copied from the 'Tcl Console' in the GUI
 _ip_proj: _ip_proj_clean
-	@$(VIVADO_MANAGE_IP_CMD) -tclargs create "{$(addprefix $(IP_SRC_DIR)/,$(XCI_FILES))}"
-	@echo "# Ignore everything in IP directories except xci files" > .gitignore
-	@echo ".gitignore" >> .gitignore
-	@echo "*/*" >> .gitignore
-	@echo "!*/*.xci" >> .gitignore
-
-_ip_status:
-	@$(VIVADO_MANAGE_IP_CMD) -tclargs status "{$(addprefix $(IP_SRC_DIR)/,$(XCI_FILES))}"
-	@rm -rf .Xil
-
-_ip_upgrade:
-	@$(VIVADO_MANAGE_IP_CMD) -tclargs upgrade "{$(addprefix $(IP_SRC_DIR)/,$(XCI_FILES))}"
-	@rm -rf .Xil
+	@$(VIVADO_MANAGE_IP_CMD) -tclargs proj "{$(IP_XCI_FILES)}"
 
 # Clean IP project
-# - in addition to removing project directory need to also 'clean' individual IP
-#   directories; this is somewhat challenging due to the default Vivado behaviour
-#   where the output products are generated in the same directory as the source
-#   (i.e. xci). Assume (for now at least) that all non-XCI files are generated
-#   files and should be deleted.
 _ip_proj_clean: _clean_logs
-	@rm -rf $(IP_PROJ_DIR)
-	@rm -rf ip_user_files
-	@rm -rf hbs
-	@rm -rf .gitignore
-	@-for ip in $(IP_LIST); do \
-		find ./$$ip -type f -not -name "*.xci" -delete 2>/dev/null; \
-		find ./$$ip -type d -empty -delete 2>/dev/null; \
-	done
+	@-rm -rf $(IP_PROJ_DIR)
+	@-rm -rf ip_user_files
 
-.PHONY: _ip_proj _ip_status _ip_upgrade _ip_proj_clean
+.PHONY: _ip_proj _ip_proj_clean
 
 # -----------------------------------------------
 # IP management targets
@@ -96,7 +80,8 @@ $(COMPONENT_OUT_PATH):
 	@ln -s $(shell pwd) $(COMPONENT_OUT_PATH)/source
 
 # Generate IP output products
-_ip: $(IP_OUTPUT_PRODUCTS)
+_ip: _ip_generate
+
 .PHONY: _ip
 
 # Create dot-files per IP as proxy for generated output products
@@ -111,28 +96,54 @@ _ip: $(IP_OUTPUT_PRODUCTS)
 #         but because it is created in the IP sub-directory (1) applies. Creating
 #         proxy files (in the same directory) provides a convenient and consistent
 #         way to reflect output product generation status.
-# NOTE: invoke SECONDEXPANSION here to allow dependencies to reflect that source IP
-#       are located in separate directories. See (1) above. SECONDEXPANSION allows
-#       the dependency to be specified using the pattern matching results from the
-#       first expansion, to support dependencies in the form ip_name/ip_name.xci.
-.SECONDEXPANSION:
-$(COMPONENT_OUT_PATH)/.ip__%: $(IP_SRC_DIR)/$$*/$$*.xci
-	@rm -f $@
-	@mkdir -p $(COMPONENT_OUT_PATH)/$*
-ifneq ($(COMPONENT_OUT_PATH),$(IP_SRC_DIR))
-	@-cp $< $(COMPONENT_OUT_PATH)/$*/$*.xci
-endif
-	@cd $(COMPONENT_OUT_PATH)/$* && $(VIVADO_MANAGE_IP_CMD) -tclargs generate $*.xci
+$(COMPONENT_OUT_PATH)/.ip__%: $(abspath $(IP_SRC_DIR)/%.tcl) | $(COMPONENT_OUT_PATH)
+	@rm -f $@*
+	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_IP_CMD) -tclargs create $<
 	@touch $@
+
+$(COMPONENT_OUT_PATH)/.ip__%__exdes: $(COMPONENT_OUT_PATH)/.ip__%
+	@rm -f $@
+	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_IP_CMD) -tclargs exdes $*/$*.xci
+	@touch $@
+
+$(COMPONENT_OUT_PATH)/.ip__%__drv_dpi: $(COMPONENT_OUT_PATH)/.ip__%
+	@rm -f $@
+	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_IP_CMD) -tclargs drv_dpi $*/$*.xci
+	@touch $@
+
+$(COMPONENT_OUT_PATH)/.ip__%__generated: $(IP_OUTPUT_PRODUCTS)
+	@rm -f $@
+	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_IP_CMD) -tclargs generate $*/$*.xci
+	@touch $@
+
+$(COMPONENT_OUT_PATH)/.ip__%__synth : $(COMPONENT_OUT_PATH)/.ip__%
+	@rm -f $@
+	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_IP_CMD) -tclargs synth $*/$*.xci
+	@touch $@
+
+# Create IP
+_ip_create: $(IP_OUTPUT_PRODUCTS)
+
+# Generate IP output products
+_ip_generate: $(IP_GENERATE_PRODUCTS)
+
+# Reset IP output products
+_ip_reset: _ip_create
+	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_IP_CMD) -tclargs reset "{$(IP_XCI_FILES)}"
+	@rm $(COMPONENT_OUT_PATH)/.ip__*__generated
+
+# Report on IP status (version, upgrade availability, etc)
+_ip_status: _ip_create
+	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_IP_CMD) -tclargs status "{$(IP_XCI_FILES)}"
+
+# Upgrade IP
+_ip_upgrade: _ip_create
+	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_IP_CMD) -tclargs upgrade "{$(IP_XCI_FILES)}"
 
 # Synthesize IP
-_ip_synth: $(SYNTH_OUTPUT_PRODUCTS)
-.PHONY: _ip_synth
+_ip_synth: $(IP_SYNTH_PRODUCTS)
 
-$(COMPONENT_OUT_PATH)/.synth__% : $(COMPONENT_OUT_PATH)/.ip__%
-	@rm -f $@
-	@cd $(COMPONENT_OUT_PATH)/$* && $(VIVADO_MANAGE_IP_CMD) -tclargs synth $*.xci
-	@touch $@
+.PHONY: _ip_create _ip_generate _ip_status _ip_upgrade _ip_synth
 
 # Clean
 #   - remove all output products

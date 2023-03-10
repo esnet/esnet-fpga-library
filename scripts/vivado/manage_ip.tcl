@@ -1,7 +1,7 @@
 # -------------------------------
 # COMMAND-LINE ARGUMENTS
 # -------------------------------
-# phase (argument 0) [design phase to execute, i.e. create/import/clean]
+# phase (argument 0) [design phase to execute, i.e. proj/create/generate/reset/status/upgrade/synth]
 set phase [lindex $argv 0]
 
 # -------------------------------
@@ -34,7 +34,7 @@ set PROJ_FILE [file join $PROJ_DIR $PROJ_NAME.xpr]
 # -------------------------------
 # Select/execute design phase
 # -------------------------------
-if {$phase == "create"} {
+if {$phase == "proj"} {
     puts "Creating IP project $PROJ_FILE..."
     vivadoProcs::create_ip_proj $PART $PROJ_NAME $PROJ_DIR
     if {[info exists BOARD_PART]} {
@@ -49,34 +49,48 @@ if {$phase == "create"} {
     if {[info exists BOARD_PART]} {
         vivadoProcs::set_board_part $BOARD_PART
     }
-    set xci_files [lindex $argv 1]
-    foreach xci_file $xci_files {
-        puts "Adding $xci_file..."
-        read_ip $xci_file
-    }
-    switch $phase {
-        generate {
-            generate_target all [get_ips]
-            export_ip_user_files -of_objects [get_ips]
+    if {$phase == "create"} {
+        set tcl_files [lindex $argv 1]
+        foreach tcl_file $tcl_files {
+            source $tcl_file
         }
-        synth {
-            foreach ip [get_ips *] {
-                if {[get_property GENERATE_SYNTH_CHECKPOINT ${ip}]} {
-                    synth_ip $ip
+    } else {
+        set xci_files [lindex $argv 1]
+        add_files $xci_files
+        switch $phase {
+            generate {
+                generate_target all [get_ips]
+                export_ip_user_files -of_objects [get_ips]
+            }
+            reset {
+                reset_target -quiet all [get_ips]
+            }
+            synth {
+                foreach ip [get_ips *] {
+                    if {[get_property GENERATE_SYNTH_CHECKPOINT ${ip}]} {
+                        synth_ip $ip
+                    }
                 }
             }
-        }
-        reset {
-            reset_target -quiet all [get_ips]
-        }
-        status {
-            report_ip_status
-        }
-        upgrade {
-            upgrade_ip [get_ips]
-        }
-        default {
-            puts "INVALID IP job: $phase (create/generate/synth/reset/status/upgrade)"
+            exdes {
+                open_example_project -force -dir . [get_ips] -in_process -quiet
+            }
+            drv_dpi {
+                foreach ip [get_ips] {
+                    generate_target example [get_ips $ip]
+                    exec cp [glob -directory [file join $ip bin] *.so] $ip/
+                    reset_target example [get_ips $ip]
+                }
+            }
+            status {
+                report_ip_status
+            }
+            upgrade {
+                upgrade_ip [get_ips]
+            }
+            default {
+                puts "INVALID IP job: $phase (create/proj/generate/reset/synth/exdes/drv_dpi/status/upgrade)"
+            }
         }
     }
     vivadoProcs::close_proj

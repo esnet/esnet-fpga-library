@@ -23,12 +23,10 @@ include $(IP_ROOT)/config.mk
 #         files for compilation.
 # ----------------------------------------------------
 IP_LIST = \
-    axis_data_fifo \
     ila_axi4s \
     ila_axi4s_lite
 
 SRC_FILES = \
-    $(COMPONENT_OUT_PATH)/axis_data_fifo/sim/axis_data_fifo.v \
     $(COMPONENT_OUT_PATH)/ila_axi4s/sim/ila_axi4s.v \
     $(COMPONENT_OUT_PATH)/ila_axi4s_lite/sim/ila_axi4s_lite.v
 INC_DIRS =
@@ -40,10 +38,7 @@ SRC_LIST_FILES =
 #   (see $SCRIPTS_ROOT/Makefiles/dependencies.mk)
 # ----------------------------------------------------
 COMPONENTS =
-EXT_LIBS = axis_infrastructure_v1_1_0 \
-           axis_data_fifo_v2_0_8 \
-           fifo_generator_v13_2_7 \
-           xpm
+EXT_LIBS = axis_infrastructure_v1_1_0
 
 # ----------------------------------------------------
 # Defines
