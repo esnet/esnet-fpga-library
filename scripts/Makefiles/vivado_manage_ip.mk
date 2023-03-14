@@ -98,6 +98,7 @@ _ip: _ip_generate
 #         way to reflect output product generation status.
 $(COMPONENT_OUT_PATH)/.ip__%: $(abspath $(IP_SRC_DIR)/%.tcl) | $(COMPONENT_OUT_PATH)
 	@rm -f $@*
+	@rm -rf $(COMPONENT_OUT_PATH)/$*
 	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_IP_CMD) -tclargs create $<
 	@touch $@
 
@@ -113,6 +114,7 @@ $(COMPONENT_OUT_PATH)/.ip__%__drv_dpi: $(COMPONENT_OUT_PATH)/.ip__%
 
 $(COMPONENT_OUT_PATH)/.ip__%__generated: $(IP_OUTPUT_PRODUCTS)
 	@rm -f $@
+	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_IP_CMD) -tclargs reset $*/$*.xci
 	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_IP_CMD) -tclargs generate $*/$*.xci
 	@touch $@
 
@@ -130,7 +132,7 @@ _ip_generate: $(IP_GENERATE_PRODUCTS)
 # Reset IP output products
 _ip_reset: _ip_create
 	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_IP_CMD) -tclargs reset "{$(IP_XCI_FILES)}"
-	@rm $(COMPONENT_OUT_PATH)/.ip__*__generated
+	@-rm $(COMPONENT_OUT_PATH)/.ip__*__generated
 
 # Report on IP status (version, upgrade availability, etc)
 _ip_status: _ip_create
