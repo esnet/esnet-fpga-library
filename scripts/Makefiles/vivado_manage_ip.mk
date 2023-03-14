@@ -60,7 +60,7 @@ IP_SYNTH_PRODUCTS    = $(addsuffix __synth, $(IP_OUTPUT_PRODUCTS))
 #  - IP must be described as a 'create_ip' Tcl script, but
 #    required Tcl commands for creating/modifying IP can
 #    be copied from the 'Tcl Console' in the GUI
-_ip_proj: _ip_proj_clean
+_ip_proj: _ip_proj_clean $(IP_OUTPUT_PRODUCTS)
 	@$(VIVADO_MANAGE_IP_CMD) -tclargs proj "{$(IP_XCI_FILES)}"
 
 # Clean IP project
