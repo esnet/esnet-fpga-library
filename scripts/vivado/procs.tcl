@@ -117,6 +117,9 @@ namespace eval vivadoProcs {
             set_property HD.PARTITION 1 [current_design]
         }
 
+        # Remove all 'macro' placement contraints (in order avoid conflicts with downstream pblock constraints).
+        if {[llength [get_macros]]} {delete_macros [get_macros]}
+
         # Write DCP
         write_checkpoint -force $out_dir/$top.$phase.dcp
 
