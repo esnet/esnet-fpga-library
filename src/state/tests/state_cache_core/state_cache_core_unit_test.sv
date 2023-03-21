@@ -392,6 +392,62 @@ module state_cache_core_unit_test;
 
     //===================================
     // Test:
+    //   Auto-insertion and then delete
+    //
+    // Description:
+    //   Perform lookup in data plane and
+    //   check that entry is inserted;
+    //   Delete entry via delete interface
+    //   and check.
+    //===================================
+    `SVTEST(insert_delete)
+        KEY_T key;
+        KEY_T got_key;
+        ID_T got_id;
+        ID_T exp_id;
+        logic tracked;
+        logic _new;
+        logic got_valid;
+        logic error;
+        logic timeout;
+
+        // Allow ID allocator to queue up a 'max burst' number of IDs
+        lookup_if._wait(100);
+
+        // Randomize
+        void'(std::randomize(key));
+        // Perform lookup in data plane (expect miss resulting in auto-insertion)
+        lookup(key, tracked, exp_id, _new);
+        `FAIL_UNLESS(tracked);
+        `FAIL_UNLESS(_new);
+        // Perform another lookup in data plane (expect hit)
+        lookup(key, tracked, got_id, _new);
+        `FAIL_UNLESS(tracked);
+        `FAIL_IF(_new);
+        `FAIL_UNLESS_EQUAL(got_id, exp_id);
+        // Read entry from control plane
+        agent.db_agent.get(key, got_valid, got_id, error, timeout);
+        `FAIL_IF(error);
+        `FAIL_IF(timeout);
+        `FAIL_UNLESS(got_valid);
+        `FAIL_UNLESS_EQUAL(got_id, exp_id);
+        // Delete entry
+        delete(exp_id, got_key);
+        `FAIL_UNLESS_EQUAL(got_key, key);
+        // Perform lookup in data plane (expect miss resulting in auto-insertion)
+        lookup(key, tracked, exp_id, _new);
+        `FAIL_UNLESS(tracked);
+        `FAIL_UNLESS(_new);
+        // Read entry from control plane
+        agent.db_agent.get(key, got_valid, got_id, error, timeout);
+        `FAIL_IF(error);
+        `FAIL_IF(timeout);
+        `FAIL_UNLESS(got_valid);
+        `FAIL_UNLESS_EQUAL(got_id, exp_id);
+    `SVTEST_END
+
+    //===================================
+    // Test:
     //   Auto-insert (random) burst
     //
     // Description:
@@ -612,7 +668,9 @@ module state_cache_core_unit_test;
         localparam int NUM_ENTRIES = NUM_IDS;
         KEY_T __key;
         ID_T entries [KEY_T];
+        KEY_T entries_rev [ID_T];
         ID_T __id;
+        ID_T __id_recycled;
         bit __tracked;
         bit __new;
 
@@ -628,6 +686,7 @@ module state_cache_core_unit_test;
             `FAIL_UNLESS(__tracked);
             `FAIL_UNLESS(__new);
             entries[__key] = __id;
+            entries_rev[__id] = __key;
             // Pace insertions to stay within sustained insertion capability
             lookup_if._wait(100);
             // Perform another lookup in data plane (expect hit)
@@ -658,63 +717,135 @@ module state_cache_core_unit_test;
             `FAIL_UNLESS(__tracked);
             `FAIL_UNLESS_EQUAL(__id, entries[key]);
         end
+        // Delete one entry
+        __id_recycled = $urandom % NUM_IDS;
+        delete(__id_recycled, __key);
+        `FAIL_UNLESS_EQUAL(__key, entries_rev[__id_recycled]);
+        entries.delete(__key);
+        entries_rev.delete(__id_recycled);
+        // Allow sufficient time for ID to be reallocated
+        lookup_if._wait(NUM_IDS);
+        // Insert one entry
+        do begin
+            void'(std::randomize(__key));
+        end while (entries.exists(__key));
+        lookup(__key, __tracked, __id, __new);
+        `FAIL_UNLESS(__tracked);
+        `FAIL_UNLESS(__new);
+        `FAIL_UNLESS_EQUAL(__id, __id_recycled);
+        // Check
+        lookup(__key, __tracked, __id, __new);
+        `FAIL_UNLESS(__tracked);
+        `FAIL_IF(__new);
+        `FAIL_UNLESS_EQUAL(__id, __id_recycled);
+        
     `SVTEST_END
 
 
     //===================================
     // Test:
-    //   Auto-insertion and then delete
+    //   Insert to full, then attempt to insert
+    //   entries beyond max capacity.
     //
     // Description:
-    //   Perform lookup in data plane and
-    //   check that entry is inserted;
-    //   Delete entry via delete interface
-    //   and check.
+    //   Perform auto-insertion of a significant
+    //   number of entries (such that full
+    //   cuckoo insertion is exercised).
+    //   Check via control-plane and data-plane
+    //   queries.
+    //
+    //   Then attempt to insert additional entries,
+    //   (at least enough to fill the update FIFO).
+    //   These insertions should all fail.
+    //
+    //   Then attempt to delete some number of entries,
+    //   and re-insert the same number.
     //===================================
-    `SVTEST(insert_delete)
-        KEY_T key;
-        KEY_T got_key;
-        ID_T got_id;
-        ID_T exp_id;
-        logic tracked;
-        logic _new;
-        logic got_valid;
-        logic error;
-        logic timeout;
+    `SVTEST(over_capacity)
+        localparam int NUM_ENTRIES = NUM_IDS;
+        localparam int NUM_RECYCLED = BURST_SIZE + 1;
+        KEY_T __key;
+        ID_T entries [KEY_T];
+        KEY_T entries_rev [ID_T];
+        ID_T __id;
+        ID_T __id_recycled;
+        ID_T __ids_recycled [NUM_RECYCLED];
+        bit __tracked;
+        bit __new;
 
         // Allow ID allocator to queue up a 'max burst' number of IDs
         lookup_if._wait(100);
 
-        // Randomize
-        void'(std::randomize(key));
-        // Perform lookup in data plane (expect miss resulting in auto-insertion)
-        lookup(key, tracked, exp_id, _new);
-        `FAIL_UNLESS(tracked);
-        `FAIL_UNLESS(_new);
-        // Perform another lookup in data plane (expect hit)
-        lookup(key, tracked, got_id, _new);
-        `FAIL_UNLESS(tracked);
-        `FAIL_IF(_new);
-        `FAIL_UNLESS_EQUAL(got_id, exp_id);
-        // Read entry from control plane
-        agent.db_agent.get(key, got_valid, got_id, error, timeout);
-        `FAIL_IF(error);
-        `FAIL_IF(timeout);
-        `FAIL_UNLESS(got_valid);
-        `FAIL_UNLESS_EQUAL(got_id, exp_id);
-        // Delete entry
-        delete(exp_id, got_key);
-        `FAIL_UNLESS_EQUAL(got_key, key);
-        // Perform lookup in data plane (expect miss resulting in auto-insertion)
-        lookup(key, tracked, exp_id, _new);
-        `FAIL_UNLESS(tracked);
-        `FAIL_UNLESS(_new);
-        // Read entry from control plane
-        agent.db_agent.get(key, got_valid, got_id, error, timeout);
-        `FAIL_IF(error);
-        `FAIL_IF(timeout);
-        `FAIL_UNLESS(got_valid);
-        `FAIL_UNLESS_EQUAL(got_id, exp_id);
+        do begin
+            // Generate random (unique) key
+            void'(std::randomize(__key));
+            if (entries.exists(__key)) continue;
+            // Perform lookup in data plane (expect miss resulting in auto-insertion)
+            lookup(__key, __tracked, __id, __new);
+            `FAIL_UNLESS(__tracked);
+            `FAIL_UNLESS(__new);
+            entries[__key] = __id;
+            entries_rev[__id] = __key;
+            // Pace insertions to stay within sustained insertion capability
+            lookup_if._wait(100);
+            // Perform another lookup in data plane (expect hit)
+            lookup(__key, __tracked, __id, __new);
+            `FAIL_UNLESS(__tracked);
+            `FAIL_IF(__new);
+            `FAIL_UNLESS_EQUAL(__id, entries[__key]);
+        end while (entries.size() < NUM_ENTRIES);
+        // Try to insert additional entries (expect failure)
+        for (int i = 0; i < NUM_RECYCLED; i++) begin
+            do begin
+                void'(std::randomize(__key));
+            end while (entries.exists(__key));
+            lookup(__key, __tracked, __id, __new);
+            `FAIL_IF(__tracked);
+        end
+        // Delete entries
+        for (int i = 0; i < NUM_RECYCLED; i++) begin
+            do begin
+                __id_recycled = $urandom % NUM_IDS;
+            end while (__id_recycled inside {entries_rev});
+            delete(__id_recycled, __key);
+            `FAIL_UNLESS_EQUAL(__key, entries_rev[__id_recycled]);
+            entries.delete(__key);
+            entries_rev.delete(__id_recycled);
+            __ids_recycled[i] = __id_recycled;
+        end
+        // Allow sufficient time for ID to be reallocated
+        lookup_if._wait(NUM_IDS);
+        // Insert entries
+        for (int i = 0; i < NUM_RECYCLED; i++) begin
+            // Choose unique key
+            do begin
+                void'(std::randomize(__key));
+            end while (entries.exists(__key));
+            lookup(__key, __tracked, __id, __new);
+            `FAIL_UNLESS(__tracked);
+            `FAIL_UNLESS(__new);
+            `FAIL_UNLESS(__id inside {__ids_recycled});
+            entries[__key] = __id;
+            entries_rev[__id] = __key;
+        end
+        // Check
+        `FAIL_UNLESS(entries.size() == NUM_IDS);
+        foreach (entries[key]) begin
+            bit error;
+            bit timeout;
+            // Perform another lookup in data plane (expect hit)
+            lookup(key, __tracked, __id, __new);
+            `FAIL_UNLESS(__tracked);
+            `FAIL_IF(__new);
+            `FAIL_UNLESS_EQUAL(__id, entries[key]);
+            // Read entry from control plane
+            agent.db_agent.get(key, __tracked, __id, error, timeout);
+            `FAIL_IF(error);
+            `FAIL_IF(timeout);
+            `FAIL_UNLESS(__tracked);
+            `FAIL_UNLESS_EQUAL(__id, entries[key]);
+        end
+
     `SVTEST_END
 
     `SVUNIT_TESTS_END
