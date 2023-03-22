@@ -313,7 +313,7 @@ module state_cache_core
     state_allocator_bv #(
         .ID_T           ( ID_T ),
         .NUM_IDS        ( NUM_IDS ),
-        .ALLOC_FC       ( 1 ),
+        .ALLOC_FC       ( 0 ),
         .DEALLOC_FC     ( 1 ),
         .SIM__FAST_INIT ( SIM__FAST_INIT )
     ) i_state_allocator_bv (
@@ -333,7 +333,7 @@ module state_cache_core
         .axil_if        ( allocator_axil_if )
     );
 
-    assign alloc_req = insert_req && insert_rdy;
+    assign alloc_req = insert_req && htable_update_if.rdy;
 
     assign dealloc_id = delete_id;
 
@@ -432,7 +432,7 @@ module state_cache_core
     // ----------------------------------
     assign delete_rdy = htable_update_if.rdy && !insert_req;
 
-    assign htable_update_if.req = delete_req || insert_req;
+    assign htable_update_if.req = delete_req || (insert_req && alloc_rdy);
     assign htable_update_if.key = insert_req ?  insert_key : delete_key;
     assign htable_update_if.next  = 1'b0;
     assign htable_update_if.valid = insert_req;
