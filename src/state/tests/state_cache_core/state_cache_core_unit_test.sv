@@ -738,7 +738,7 @@ module state_cache_core_unit_test;
         `FAIL_UNLESS(__tracked);
         `FAIL_IF(__new);
         `FAIL_UNLESS_EQUAL(__id, __id_recycled);
-        
+
     `SVTEST_END
 
 
@@ -844,6 +844,12 @@ module state_cache_core_unit_test;
             `FAIL_IF(timeout);
             `FAIL_UNLESS(__tracked);
             `FAIL_UNLESS_EQUAL(__id, entries[key]);
+        end
+
+        // Delete all entries
+        foreach (entries_rev[id]) begin
+            delete(id, __key);
+            `FAIL_UNLESS_EQUAL(__key, entries_rev[id]);
         end
 
     `SVTEST_END
