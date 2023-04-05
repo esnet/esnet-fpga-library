@@ -1,4 +1,4 @@
-module htable_cuckoo_controller 
+module htable_cuckoo_controller
     import htable_pkg::*;
 #(
     parameter type KEY_T = logic[15:0],
@@ -114,8 +114,8 @@ module htable_cuckoo_controller
     logic     stash_active;
 
     tbl_idx_t tbl_idx;
-    logic tbl_idx_reset;
-    logic tbl_idx_inc;
+    logic     tbl_idx_reset;
+    logic     tbl_idx_inc;
 
     // Control (upstream)
     logic     ctrl_rdy;
@@ -280,9 +280,9 @@ module htable_cuckoo_controller
             end
             CHECK_PENDING : begin
                 if (__ctrl_if.ack) begin
-                    if (__ctrl_if.status != STATUS_OK)                            nxt_state = TBL_ERROR;
-                    else if (__ctrl_if.get_valid && (__ctrl_if.get_key == __key)) nxt_state = CHECK_FOUND;
-                    else                                                          nxt_state = CHECK_NEXT;
+                    if (__ctrl_if.status != STATUS_OK)                                  nxt_state = TBL_ERROR;
+                    else if (__ctrl_if.get_valid && (__ctrl_if_get_entry.key == __key)) nxt_state = CHECK_FOUND;
+                    else                                                                nxt_state = CHECK_NEXT;
                 end
             end
             CHECK_NEXT : begin
@@ -310,9 +310,9 @@ module htable_cuckoo_controller
             end
             DELETE_PENDING : begin
                 if (__ctrl_if.ack) begin
-                    if (__ctrl_if.status != STATUS_OK)                                     nxt_state = TBL_ERROR;
-                    else if (__ctrl_if.get_valid && (__ctrl_if_get_entry.key == prev_key)) nxt_state = DONE;
-                    else                                                                   nxt_state = ERROR;
+                    if (__ctrl_if.status != STATUS_OK)                                  nxt_state = TBL_ERROR;
+                    else if (__ctrl_if.get_valid && (__ctrl_if_get_entry.key == __key)) nxt_state = DONE;
+                    else                                                                nxt_state = ERROR;
                 end
             end
             INSERT_GET : begin
@@ -460,7 +460,7 @@ module htable_cuckoo_controller
     assign stash_ctrl_if.command   = stash_command;
     assign stash_ctrl_if.key       = prev_key;
     assign stash_ctrl_if.set_value = prev_value;
-    
+
     // ----------------------------------
     // Table index control
     // ----------------------------------
@@ -492,12 +492,10 @@ module htable_cuckoo_controller
         for (genvar g_tbl = 0; g_tbl < NUM_TABLES; g_tbl++) begin : g__tbl
             // (Local) signals
             TBL_ENTRY_T set_entry;
-            TBL_ENTRY_T get_entry;
 
             // Map to/from htable entry format
             assign set_entry.key = __tbl_ctrl_if[g_tbl].key;
             assign set_entry.value = __tbl_ctrl_if[g_tbl].set_value;
-            assign get_entry = tbl_ctrl_if[g_tbl].get_value;
 
             // Drive hash interface
             assign key[g_tbl] = __tbl_ctrl_if[g_tbl].key;
@@ -531,7 +529,7 @@ module htable_cuckoo_controller
 
                 assign tbl_ctrl_if[g_tbl].req       = req_ctxt_out.req;
                 assign tbl_ctrl_if[g_tbl].command   = req_ctxt_out.command;
-                assign tbl_ctrl_if[g_tbl].set_value = req_ctxt_out.entry; 
+                assign tbl_ctrl_if[g_tbl].set_value = req_ctxt_out.entry;
             end : g__hash_latency
             else begin : g__hash_no_latency
                 assign tbl_ctrl_if[g_tbl].req       = __tbl_ctrl_if[g_tbl].req;
@@ -544,8 +542,8 @@ module htable_cuckoo_controller
             assign __tbl_ctrl_if[g_tbl].ack       = tbl_ctrl_if[g_tbl].ack;
             assign __tbl_ctrl_if[g_tbl].status    = tbl_ctrl_if[g_tbl].status;
             assign __tbl_ctrl_if[g_tbl].get_valid = tbl_ctrl_if[g_tbl].get_valid;
-            assign __tbl_ctrl_if[g_tbl].get_value = get_entry;
-            assign __tbl_ctrl_if[g_tbl].get_key   = get_entry.key;
+            assign __tbl_ctrl_if[g_tbl].get_value = tbl_ctrl_if[g_tbl].get_value;
+            assign __tbl_ctrl_if[g_tbl].get_key   = '0;
         end : g__tbl
     endgenerate
 
@@ -645,8 +643,8 @@ module htable_cuckoo_controller
     // Active
     always_ff @(posedge clk) begin
         if (__srst) cnt_active <= 0;
-        else if (__insert_ok) cnt_active <= cnt_active + 1;
-        else if (__delete_ok) cnt_active <= cnt_active - 1;
+        else if (__insert_ok && !__delete_ok) cnt_active <= cnt_active + 1;
+        else if (__delete_ok && !__insert_ok) cnt_active <= cnt_active - 1;
     end
 
     assign reg_if.cnt_insert_ok_upper_nxt_v      = cnt_latch;
