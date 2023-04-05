@@ -206,7 +206,7 @@ module db_axil_ctrl #(
     // Standard block control/monitoring
     // ----------------------------------------
     std_block_control i_std_block_control (
-        .ctrl_clk       ( axil_if.aclk ),
+        .ctrl_clk       ( clk ),
         .ctrl_reset_in  ( reg_if.blk_control.reset ),
         .ctrl_enable_in ( reg_if.blk_control.enable ),
         .blk_clk        ( clk ),
@@ -220,7 +220,7 @@ module db_axil_ctrl #(
         .blk_enable_mon_in   ( en_mon ),
         .blk_ready_mon_in    ( ready_mon ),
         .blk_state_mon_in    ( state_mon_in ),
-        .ctrl_clk            ( axil_if.aclk ),
+        .ctrl_clk            ( clk ),
         .ctrl_reset_mon_out  ( reg_if.blk_monitor_nxt.reset_mon ),
         .ctrl_enable_mon_out ( reg_if.blk_monitor_nxt.enable_mon ),
         .ctrl_ready_mon_out  ( reg_if.blk_monitor_nxt.ready_mon ),
