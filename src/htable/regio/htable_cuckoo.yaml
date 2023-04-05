@@ -126,6 +126,26 @@ regs:
     desc: Count of failed table deletions (bits 31:0)
     width: 32
 
+  - name: cnt_insert_key_exists
+    access: ro
+    desc: Count of insertion failures due to duplicate key
+    width: 32
+
+  - name: cnt_delete_key_not_found
+    access: ro
+    desc: Count of deletion failures due to key not found
+    width: 32
+
+  - name: cnt_tbl_error
+    access: ro
+    desc: Count of hash table access errors
+    width: 32
+
+  - name: cnt_stash_error
+    access: ro
+    desc: Count of bubble stash access errors
+    width: 32
+
   - name: cnt_active
     access: ro
     desc: Count of currently active timers (latched)
