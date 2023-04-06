@@ -137,6 +137,11 @@ module htable_cuckoo_controller
     logic     tbl_error;
     logic     stash_error;
 
+    // Debug signals
+    logic        cuckoo_ops_reset;
+    logic        cuckoo_ops_inc;
+    logic [31:0] cuckoo_ops;
+
     // ----------------------------------
     // Interfaces
     // ----------------------------------
@@ -213,12 +218,15 @@ module htable_cuckoo_controller
         delete_key_not_found = 1'b0;
         tbl_error = 1'b0;
         stash_error = 1'b0;
+        cuckoo_ops_reset = 1'b0;
+        cuckoo_ops_inc = 1'b0;
         case (state)
             RESET : begin
                 if (init_done) nxt_state = IDLE;
             end
             IDLE : begin
                 tbl_idx_reset = 1'b1;
+                cuckoo_ops_reset = 1'b1;
                 ctrl_rdy = 1'b1;
                 if (ctrl_if.req) begin
                     case (ctrl_if.command)
@@ -363,6 +371,7 @@ module htable_cuckoo_controller
             end
             INSERT_NEXT : begin
                 tbl_idx_inc = 1'b1;
+                cuckoo_ops_inc = 1'b1;
                 if (prev_valid) nxt_state = INSERT_GET;
                 else            nxt_state = DONE;
             end
@@ -548,6 +557,14 @@ module htable_cuckoo_controller
     endgenerate
 
     // -----------------------------
+    // Cuckoo operations count
+    // -----------------------------
+    always_ff @(posedge clk) begin
+        if (cuckoo_ops_reset)    cuckoo_ops <= 0;
+        else if (cuckoo_ops_inc) cuckoo_ops <= cuckoo_ops + 1;
+    end
+
+    // -----------------------------
     // Counters
     // -----------------------------
     logic __insert_ok;
@@ -659,8 +676,7 @@ module htable_cuckoo_controller
     assign reg_if.cnt_delete_key_not_found_nxt_v = cnt_latch;
     assign reg_if.cnt_tbl_error_nxt_v            = cnt_latch;
     assign reg_if.cnt_stash_error_nxt_v          = cnt_latch;
-    assign reg_if.cnt_active_nxt_v = cnt_latch;
-    assign reg_if.dbg_cnt_active_nxt_v = 1'b1;
+    assign reg_if.cnt_active_nxt_v               = cnt_latch;
 
     assign {reg_if.cnt_insert_ok_upper_nxt,   reg_if.cnt_insert_ok_lower_nxt}   = cnt_insert_ok;
     assign {reg_if.cnt_insert_fail_upper_nxt, reg_if.cnt_insert_fail_lower_nxt} = cnt_insert_fail;
@@ -671,7 +687,42 @@ module htable_cuckoo_controller
     assign reg_if.cnt_tbl_error_nxt   = cnt_tbl_error;
     assign reg_if.cnt_stash_error_nxt = cnt_stash_error;
     assign reg_if.cnt_active_nxt      = cnt_active;
-    assign reg_if.dbg_cnt_active_nxt  = cnt_active;
+
+    // -----------------------------
+    // Debug Counters
+    // -----------------------------
+    logic        dbg_cnt_clear;
+    logic [31:0] dbg_cnt_cuckoo_ops_last;
+    logic [31:0] dbg_cnt_cuckoo_ops_max;
+
+    // Buffer clear signals from regmap
+    initial begin
+        dbg_cnt_clear = 1'b0;
+    end
+    always @(posedge clk) begin
+        if (__srst || (reg_if.dbg_cnt_control_wr_evt && reg_if.dbg_cnt_control._clear)) dbg_cnt_clear <= 1'b1;
+        else dbg_cnt_clear <= 1'b0;
+    end
+
+    // Cuckoo ops (last)
+    always_ff @(posedge clk) begin
+        if      (dbg_cnt_clear) dbg_cnt_cuckoo_ops_last <= 0;
+        else if (__insert_ok)   dbg_cnt_cuckoo_ops_last <= cuckoo_ops;
+    end
+    // Cuckoo ops (max)
+    initial dbg_cnt_cuckoo_ops_max = 0;
+    always @(posedge clk) begin
+        if      (dbg_cnt_clear)                                        dbg_cnt_cuckoo_ops_max <= 0;
+        else if (__insert_ok && (cuckoo_ops > dbg_cnt_cuckoo_ops_max)) dbg_cnt_cuckoo_ops_max <= cuckoo_ops;
+    end
+
+    assign reg_if.dbg_cnt_active_nxt_v          = 1'b1;
+    assign reg_if.dbg_cnt_cuckoo_ops_last_nxt_v = 1'b1;
+    assign reg_if.dbg_cnt_cuckoo_ops_max_nxt_v  = 1'b1;
+
+    assign reg_if.dbg_cnt_active_nxt          = cnt_active;
+    assign reg_if.dbg_cnt_cuckoo_ops_last_nxt = dbg_cnt_cuckoo_ops_last;
+    assign reg_if.dbg_cnt_cuckoo_ops_max_nxt  = dbg_cnt_cuckoo_ops_max;
 
     // -----------------------------
     // Assign status interface
