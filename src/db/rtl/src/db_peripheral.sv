@@ -192,8 +192,15 @@ module db_peripheral #(
     assign ctrl_if.status = ctrl_status;
 
     // Drive write/read requests
-    assign wr_if.req = wr_req;
-    assign rd_if.req = rd_req;
+    always_comb begin
+        if (state == RMW) begin
+            wr_if.req = rd_if.rdy;
+            rd_if.req = wr_if.rdy;
+        end else begin
+            wr_if.req = wr_req;
+            rd_if.req = rd_req;
+        end
+    end
 
     // Latch request data
     always_ff @(posedge clk) begin
