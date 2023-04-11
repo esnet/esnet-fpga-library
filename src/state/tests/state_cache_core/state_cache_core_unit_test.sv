@@ -3,7 +3,7 @@
 //===================================
 // (Failsafe) timeout (per-testcase)
 //===================================
-`define SVUNIT_TIMEOUT 10ms
+`define SVUNIT_TIMEOUT 20ms
 
 module state_cache_core_unit_test;
     import svunit_pkg::svunit_testcase;
@@ -21,7 +21,7 @@ module state_cache_core_unit_test;
     localparam int KEY_WID = 64;
     localparam int ID_WID = 16;
     localparam int HASH_WID = 12;
-    localparam int NUM_IDS = 4096;
+    localparam int NUM_IDS = 8192;
     localparam int NUM_TABLES = 3;
     localparam int TABLE_SIZE [NUM_TABLES] = '{default: 4096};
     localparam int BURST_SIZE = 8;
@@ -628,7 +628,7 @@ module state_cache_core_unit_test;
             `FAIL_UNLESS(__new);
             entries[__key] = __id;
             // Pace insertions to stay within sustained insertion capability
-            lookup_if._wait(64);
+            lookup_if._wait(100);
             // Perform another lookup in data plane (expect hit)
             lookup(__key, __tracked, __id, __new);
             `FAIL_UNLESS(__tracked);
@@ -663,96 +663,6 @@ module state_cache_core_unit_test;
     //   cuckoo insertion is exercised).
     //   Check via control-plane and data-plane
     //   queries.
-    //===================================
-    `SVTEST(all_entries)
-        localparam int NUM_ENTRIES = NUM_IDS;
-        KEY_T __key;
-        ID_T entries [KEY_T];
-        KEY_T entries_rev [ID_T];
-        ID_T __id;
-        ID_T __id_recycled;
-        bit __tracked;
-        bit __new;
-
-        // Allow ID allocator to queue up a 'max burst' number of IDs
-        lookup_if._wait(100);
-
-        do begin
-            // Generate random (unique) key
-            void'(std::randomize(__key));
-            if (entries.exists(__key)) continue;
-            // Perform lookup in data plane (expect miss resulting in auto-insertion)
-            lookup(__key, __tracked, __id, __new);
-            `FAIL_UNLESS(__tracked);
-            `FAIL_UNLESS(__new);
-            entries[__key] = __id;
-            entries_rev[__id] = __key;
-            // Pace insertions to stay within sustained insertion capability
-            lookup_if._wait(100);
-            // Perform another lookup in data plane (expect hit)
-            lookup(__key, __tracked, __id, __new);
-            `FAIL_UNLESS(__tracked);
-            `FAIL_IF(__new);
-            `FAIL_UNLESS_EQUAL(__id, entries[__key]);
-        end while (entries.size() < NUM_ENTRIES);
-        // Try to insert another entry (expect failure)
-        do begin
-            void'(std::randomize(__key));
-        end while (entries.exists(__key));
-        lookup(__key, __tracked, __id, __new);
-        `FAIL_IF(__tracked);
-        // Check
-        foreach (entries[key]) begin
-            bit error;
-            bit timeout;
-            // Perform another lookup in data plane (expect hit)
-            lookup(key, __tracked, __id, __new);
-            `FAIL_UNLESS(__tracked);
-            `FAIL_IF(__new);
-            `FAIL_UNLESS_EQUAL(__id, entries[key]);
-            // Read entry from control plane
-            agent.db_agent.get(key, __tracked, __id, error, timeout);
-            `FAIL_IF(error);
-            `FAIL_IF(timeout);
-            `FAIL_UNLESS(__tracked);
-            `FAIL_UNLESS_EQUAL(__id, entries[key]);
-        end
-        // Delete one entry
-        __id_recycled = $urandom % NUM_IDS;
-        delete(__id_recycled, __key);
-        `FAIL_UNLESS_EQUAL(__key, entries_rev[__id_recycled]);
-        entries.delete(__key);
-        entries_rev.delete(__id_recycled);
-        // Allow sufficient time for ID to be reallocated
-        lookup_if._wait(NUM_IDS);
-        // Insert one entry
-        do begin
-            void'(std::randomize(__key));
-        end while (entries.exists(__key));
-        lookup(__key, __tracked, __id, __new);
-        `FAIL_UNLESS(__tracked);
-        `FAIL_UNLESS(__new);
-        `FAIL_UNLESS_EQUAL(__id, __id_recycled);
-        // Check
-        lookup(__key, __tracked, __id, __new);
-        `FAIL_UNLESS(__tracked);
-        `FAIL_IF(__new);
-        `FAIL_UNLESS_EQUAL(__id, __id_recycled);
-        
-    `SVTEST_END
-
-
-    //===================================
-    // Test:
-    //   Insert to full, then attempt to insert
-    //   entries beyond max capacity.
-    //
-    // Description:
-    //   Perform auto-insertion of a significant
-    //   number of entries (such that full
-    //   cuckoo insertion is exercised).
-    //   Check via control-plane and data-plane
-    //   queries.
     //
     //   Then attempt to insert additional entries,
     //   (at least enough to fill the update FIFO).
@@ -761,7 +671,7 @@ module state_cache_core_unit_test;
     //   Then attempt to delete some number of entries,
     //   and re-insert the same number.
     //===================================
-    `SVTEST(over_capacity)
+    `SVTEST(all_entries)
         localparam int NUM_ENTRIES = NUM_IDS;
         localparam int NUM_RECYCLED = BURST_SIZE + 1;
         KEY_T __key;
@@ -787,7 +697,7 @@ module state_cache_core_unit_test;
             entries[__key] = __id;
             entries_rev[__id] = __key;
             // Pace insertions to stay within sustained insertion capability
-            lookup_if._wait(100);
+            lookup_if._wait(200);
             // Perform another lookup in data plane (expect hit)
             lookup(__key, __tracked, __id, __new);
             `FAIL_UNLESS(__tracked);
@@ -802,6 +712,8 @@ module state_cache_core_unit_test;
             lookup(__key, __tracked, __id, __new);
             `FAIL_IF(__tracked);
         end
+        // Allow all insertions to be processed
+        lookup_if._wait(1000);
         // Delete entries
         for (int i = 0; i < NUM_RECYCLED; i++) begin
             do begin
@@ -813,8 +725,6 @@ module state_cache_core_unit_test;
             entries_rev.delete(__id_recycled);
             __ids_recycled[i] = __id_recycled;
         end
-        // Allow sufficient time for ID to be reallocated
-        lookup_if._wait(NUM_IDS);
         // Insert entries
         for (int i = 0; i < NUM_RECYCLED; i++) begin
             // Choose unique key
@@ -822,12 +732,19 @@ module state_cache_core_unit_test;
                 void'(std::randomize(__key));
             end while (entries.exists(__key));
             lookup(__key, __tracked, __id, __new);
+            if (!__tracked) begin
+                // Allow sufficient time for ID to be reallocated or pending updates to be processed
+                lookup_if._wait(NUM_IDS);
+                lookup(__key, __tracked, __id, __new);
+            end
             `FAIL_UNLESS(__tracked);
             `FAIL_UNLESS(__new);
             `FAIL_UNLESS(__id inside {__ids_recycled});
             entries[__key] = __id;
             entries_rev[__id] = __key;
         end
+        // Allow sufficient time for pending updates to be processed
+        lookup_if._wait(NUM_IDS);
         // Check
         `FAIL_UNLESS(entries.size() == NUM_IDS);
         foreach (entries[key]) begin
@@ -845,7 +762,11 @@ module state_cache_core_unit_test;
             `FAIL_UNLESS(__tracked);
             `FAIL_UNLESS_EQUAL(__id, entries[key]);
         end
-
+        // Delete all entries
+        foreach (entries_rev[id]) begin
+            delete(id, __key);
+            `FAIL_UNLESS_EQUAL(__key, entries_rev[id]);
+        end
     `SVTEST_END
 
     `SVUNIT_TESTS_END

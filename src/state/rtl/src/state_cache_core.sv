@@ -128,6 +128,8 @@ module state_cache_core
     logic insert_error;
     ID_T  insert_id;
 
+    logic insert_sel;
+
     lookup_result_t lookup_result;
 
     delete_state_t delete_state;
@@ -430,13 +432,15 @@ module state_cache_core
     // ----------------------------------
     // Drive hash table update interface
     // ----------------------------------
-    assign delete_rdy = htable_update_if.rdy && !insert_req;
+    assign insert_sel = insert_req && alloc_rdy;
+
+    assign delete_rdy = insert_sel ? 1'b0 : htable_update_if.rdy;
 
     assign htable_update_if.req = delete_req || (insert_req && alloc_rdy);
-    assign htable_update_if.key = insert_req ?  insert_key : delete_key;
+    assign htable_update_if.key = insert_sel ? insert_key : delete_key;
     assign htable_update_if.next  = 1'b0;
-    assign htable_update_if.valid = insert_req;
-    assign htable_update_if.value = insert_req ?  insert_id : delete_id;
+    assign htable_update_if.valid = insert_sel;
+    assign htable_update_if.value = insert_sel? insert_id : delete_id;
 
     // ----------------------------------
     // Reverse (ID-to-key) mapping
