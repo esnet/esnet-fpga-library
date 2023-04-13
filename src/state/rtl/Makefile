@@ -26,6 +26,7 @@ SRC_LIST_FILES =
 #   (see $SCRIPTS_ROOT/Makefiles/dependencies.mk)
 # ----------------------------------------------------
 COMPONENTS = state.regio.rtl \
+             std.rtl \
              util.rtl \
              fifo.rtl \
              db.rtl \

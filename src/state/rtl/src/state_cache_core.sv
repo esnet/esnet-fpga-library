@@ -546,6 +546,7 @@ module state_cache_core
     assign delete_if.error = delete_error;
     assign delete_if.valid = 1'b1;
     assign delete_if.value = delete_key;
+    assign delete_if.next_key = '0; // Unused
 
     // -----------------------------
     // Counters
