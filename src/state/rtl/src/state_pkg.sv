@@ -13,6 +13,7 @@ package state_pkg;
         STATE_TYPE_COUNT,
         STATE_TYPE_HISTOGRAM,
         STATE_TYPE_TIMER,
+        STATE_TYPE_SEQ,
         STATE_TYPE_AGING,
         STATE_TYPE_CACHE
     } state_type_t;
