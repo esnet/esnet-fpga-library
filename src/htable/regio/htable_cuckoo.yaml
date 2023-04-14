@@ -44,6 +44,14 @@ regs:
           desc:  block ready monitor
           width: 1
 
+  - name: cuckoo_control
+    access: rw
+    fields:
+        - name: ops_limit
+          desc: maximum number of cuckoo operations before insertion is aborted (simplified cycle detection)
+          width: 32
+          init: 100
+
   - name: dbg_status
     desc: (Debug) status monitor.
     access: ro
@@ -68,15 +76,21 @@ regs:
               0D : DELETE_PENDING
               0E : INSERT_GET
               0F : INSERT_GET_PENDING
-              10 : INSERT_PUSH
-              11 : INSERT_PUSH_PENDING
-              12 : INSERT_SET
-              13 : INSERT_SET_PENDING
-              14 : INSERT_POP
-              15 : INSERT_POP_PENDING
-              16 : INSERT_NEXT
-              17 : DONE
-              18 : ERROR
+              10 : INSERT_LOOP_CHECK
+              11 : INSERT_LOOP
+              12 : INSERT_PUSH
+              13 : INSERT_PUSH_PENDING
+              14 : INSERT_SET
+              15 : INSERT_SET_PENDING
+              16 : INSERT_POP
+              17 : INSERT_POP_PENDING
+              18 : INSERT_NEXT
+              19 : DONE
+              1A : INSERT_KEY_EXISTS
+              1B : DELETE_KEY_NOT_FOUND
+              1C : TBL_ERROR
+              1D : STASH_ERROR
+              1E : ERROR
 
   - name: cnt_control
     access: wr_evt
@@ -129,6 +143,11 @@ regs:
   - name: cnt_insert_key_exists
     access: ro
     desc: Count of insertion failures due to duplicate key
+    width: 32
+
+  - name: cnt_insert_loop
+    access: ro
+    desc: Count of insertion failures due to insertion loop detected
     width: 32
 
   - name: cnt_delete_key_not_found

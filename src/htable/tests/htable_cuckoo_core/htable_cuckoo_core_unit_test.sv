@@ -19,12 +19,12 @@ module htable_cuckoo_core_unit_test;
     parameter int HASH_WID = 13;
     parameter int TIMEOUT_CYCLES = 0;
     parameter int HASH_LATENCY = 0;
-    
+
     parameter int NUM_TABLES = 3;
     parameter int TABLE_SIZE[NUM_TABLES] = '{default: 8192};
 
     const int SIZE = TABLE_SIZE.sum();
-    
+
     //===================================
     // Typedefs
     //===================================
@@ -53,7 +53,7 @@ module htable_cuckoo_core_unit_test;
 
     KEY_T   lookup_key;
     hash_t  lookup_hash [NUM_TABLES];
-    
+
     KEY_T   ctrl_key  [NUM_TABLES];
     hash_t  ctrl_hash [NUM_TABLES];
 
@@ -62,7 +62,7 @@ module htable_cuckoo_core_unit_test;
 
     db_intf #(.KEY_T(hash_t), .VALUE_T(ENTRY_T)) tbl_wr_if [NUM_TABLES] (.clk(clk));
     db_intf #(.KEY_T(hash_t), .VALUE_T(ENTRY_T)) tbl_rd_if [NUM_TABLES] (.clk(clk));
-    
+
     htable_cuckoo_core #(
         .KEY_T (KEY_T),
         .VALUE_T (VALUE_T),
@@ -98,7 +98,7 @@ module htable_cuckoo_core_unit_test;
             );
         end
     endgenerate
-    
+
     axi4l_reg_agent axil_reg_agent;
     htable_cuckoo_reg_agent reg_agent;
     db_ctrl_agent #(KEY_T, VALUE_T) agent;
@@ -131,7 +131,7 @@ module htable_cuckoo_core_unit_test;
         agent = new("db_ctrl_agent", SIZE);
         agent.attach(ctrl_if, status_if, info_if);
         agent.set_op_timeout(0);
- 
+
     endfunction
 
 
@@ -140,18 +140,18 @@ module htable_cuckoo_core_unit_test;
     //===================================
     task setup();
         svunit_ut.setup();
-        
+
         axil_reg_agent.idle();
         agent.idle();
         lookup_if.idle();
 
         reset();
-    
+
     endtask
 
 
     //===================================
-    // Here we deconstruct anything we 
+    // Here we deconstruct anything we
     // need after running the Unit Tests
     //===================================
     task teardown();
@@ -178,7 +178,7 @@ module htable_cuckoo_core_unit_test;
     //   `SVTEST_END
     //===================================
     `SVUNIT_TESTS_BEGIN
-    
+
     `SVTEST(reset)
     `SVTEST_END
 
@@ -343,7 +343,7 @@ module htable_cuckoo_core_unit_test;
         VALUE_T entries [KEY_T];
         bit error;
         bit timeout;
-        
+
         do begin
             KEY_T __key;
             VALUE_T __value;
@@ -378,7 +378,7 @@ module htable_cuckoo_core_unit_test;
         VALUE_T entries [KEY_T];
         bit error;
         bit timeout;
-        
+
         do begin
             KEY_T __key;
             VALUE_T __value;
@@ -413,7 +413,7 @@ module htable_cuckoo_core_unit_test;
         VALUE_T entries [KEY_T];
         bit error;
         bit timeout;
-        
+
         do begin
             KEY_T __key;
             VALUE_T __value;
@@ -430,6 +430,69 @@ module htable_cuckoo_core_unit_test;
             exp_stats.active += 1;
             entries[__key] = __value;
         end while (entries.size() < NUM_ENTRIES);
+        foreach(entries[key]) begin
+            bit got_valid;
+            VALUE_T got_value;
+            lookup_if.query(key, got_valid, got_value, error, timeout);
+            `FAIL_IF(error);
+            `FAIL_IF(timeout);
+            `FAIL_UNLESS(got_valid);
+            `FAIL_UNLESS_EQUAL(got_value, entries[key]);
+        end
+        // Check stats
+        check_stats();
+    `SVTEST_END
+
+    `SVTEST(insert_loop)
+        KEY_T keys [NUM_TABLES+1];
+        VALUE_T entries [KEY_T];
+        bit error;
+        bit timeout;
+
+        VALUE_T __value;
+        // Generate random (unique) key
+        void'(std::randomize(keys[0]));
+        void'(std::randomize(__value));
+        // Add key to hash table
+        agent.set(keys[0], __value, error, timeout);
+        `FAIL_IF(error);
+        `FAIL_IF(timeout);
+        exp_stats.insert_ok += 1;
+        exp_stats.active += 1;
+        entries[keys[0]] = __value;
+        // Generate and insert NUM_TABLES-1 additional keys:
+        // Each key is different than first but with same hash values
+        for (int i = 1; i < NUM_TABLES; i++) begin
+            void'(std::randomize(__value));
+            void'(std::randomize(keys[i]));
+            keys[i][NUM_TABLES*HASH_WID-1:0] = keys[0][NUM_TABLES*HASH_WID-1:0];
+            // Add key
+            agent.set(keys[i], __value, error, timeout);
+            `FAIL_IF(error);
+            `FAIL_IF(timeout);
+            exp_stats.insert_ok += 1;
+            exp_stats.active += 1;
+        end
+        // Check
+        foreach(entries[key]) begin
+            bit got_valid;
+            VALUE_T got_value;
+            lookup_if.query(key, got_valid, got_value, error, timeout);
+            `FAIL_IF(error);
+            `FAIL_IF(timeout);
+            `FAIL_UNLESS(got_valid);
+            `FAIL_UNLESS_EQUAL(got_value, entries[key]);
+        end
+        // Add another key that hashes to the same values
+        void'(std::randomize(__value));
+        void'(std::randomize(keys[NUM_TABLES]));
+        keys[NUM_TABLES][NUM_TABLES*HASH_WID-1:0] = keys[0][NUM_TABLES*HASH_WID-1:0];
+        agent.set(keys[NUM_TABLES], __value, error, timeout);
+        // Expect insertion failure due to cuckoo hashing insertion loop
+        `FAIL_UNLESS(error);
+        `FAIL_IF(timeout);
+        exp_stats.insert_fail += 1;
+        // Check again and ensure that the original NUM_TABLES keys remain in the table
         foreach(entries[key]) begin
             bit got_valid;
             VALUE_T got_value;
