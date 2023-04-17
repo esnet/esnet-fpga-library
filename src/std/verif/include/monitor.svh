@@ -1,8 +1,8 @@
 // Base monitor class for verification
-// - interface class (not to be implemented directly)
+// - abstract class (not to be implemented directly)
 // - describes interface for 'generic' monitor, where methods are to be
 //   implemented by derived class
-class monitor #(
+virtual class monitor #(
     parameter type TRANSACTION_T = transaction
 ) extends component;
 

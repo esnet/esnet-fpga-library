@@ -1,5 +1,5 @@
 // Base class for verif components
-class base;
+virtual class base;
 
     local static const string __CLASS_NAME = "std_verif_pkg::base";
 

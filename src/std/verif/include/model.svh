@@ -1,8 +1,8 @@
 // Reference model class for verification
-// - interface class (not to be implemented directly)
+// - abstract class (not to be implemented directly)
 // - describes interface for 'generic' reference models, where methods are to be
 //   implemented by extended class
-class model #(
+virtual class model #(
     parameter type TRANSACTION_IN_T = transaction,
     parameter type TRANSACTION_OUT_T = TRANSACTION_IN_T
 ) extends component;
