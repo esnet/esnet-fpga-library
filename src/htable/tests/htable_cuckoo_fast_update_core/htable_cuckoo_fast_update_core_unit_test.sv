@@ -524,7 +524,7 @@ module htable_cuckoo_fast_update_core_unit_test;
              update_if.update(__key, 1'b1, __value, error, timeout, 1000);
              `FAIL_IF(error);
              `FAIL_IF(timeout);
-             update_if._wait(100);
+             update_if._wait(200);
          end
          foreach (entries[key]) begin
              // Query database from app interface

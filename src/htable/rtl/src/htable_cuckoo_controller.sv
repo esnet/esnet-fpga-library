@@ -71,19 +71,21 @@ module htable_cuckoo_controller
         DELETE_PENDING       = 13,
         INSERT_GET           = 14,
         INSERT_GET_PENDING   = 15,
-        INSERT_PUSH          = 16,
-        INSERT_PUSH_PENDING  = 17,
-        INSERT_SET           = 18,
-        INSERT_SET_PENDING   = 19,
-        INSERT_POP           = 20,
-        INSERT_POP_PENDING   = 21,
-        INSERT_NEXT          = 22,
-        DONE                 = 23,
-        INSERT_KEY_EXISTS    = 24,
-        DELETE_KEY_NOT_FOUND = 25,
-        TBL_ERROR            = 26,
-        STASH_ERROR          = 27,
-        ERROR                = 28
+        INSERT_LOOP_CHECK    = 16,
+        INSERT_LOOP          = 17,
+        INSERT_PUSH          = 18,
+        INSERT_PUSH_PENDING  = 19,
+        INSERT_SET           = 20,
+        INSERT_SET_PENDING   = 21,
+        INSERT_POP           = 22,
+        INSERT_POP_PENDING   = 23,
+        INSERT_NEXT          = 24,
+        DONE                 = 25,
+        INSERT_KEY_EXISTS    = 26,
+        DELETE_KEY_NOT_FOUND = 27,
+        TBL_ERROR            = 28,
+        STASH_ERROR          = 29,
+        ERROR                = 30
     } state_t;
 
     typedef logic [TBL_IDX_WID-1:0] tbl_idx_t;
@@ -105,6 +107,9 @@ module htable_cuckoo_controller
     command_t __command;
     KEY_T     __key;
     VALUE_T   __value;
+
+    KEY_T       insert_key;
+    logic       insert_loop_detected;
 
     logic       prev_valid;
     TBL_ENTRY_T prev_entry;
@@ -133,6 +138,7 @@ module htable_cuckoo_controller
 
     // Error flags
     logic     insert_key_exists;
+    logic     insert_loop;
     logic     delete_key_not_found;
     logic     tbl_error;
     logic     stash_error;
@@ -215,6 +221,7 @@ module htable_cuckoo_controller
         tbl_idx_reset = 1'b0;
         tbl_idx_inc = 1'b0;
         insert_key_exists = 1'b0;
+        insert_loop = 1'b0;
         delete_key_not_found = 1'b0;
         tbl_error = 1'b0;
         stash_error = 1'b0;
@@ -331,9 +338,20 @@ module htable_cuckoo_controller
             INSERT_GET_PENDING : begin
                 if (__ctrl_if.ack) begin
                     if (__ctrl_if.status != STATUS_OK) nxt_state = TBL_ERROR;
-                    else if (__ctrl_if.get_valid)      nxt_state = INSERT_PUSH;
+                    else if (__ctrl_if.get_valid)      nxt_state = INSERT_LOOP_CHECK;
                     else                               nxt_state = INSERT_SET;
                 end
+            end
+            INSERT_LOOP_CHECK : begin
+                // Check for cuckoo operations exceeding configured limit (simplified cycle detection)
+                // Perform this check when the original inserted key is 'in-hand', so that it ends up
+                // being the key that 'fails' to insert
+                if ((prev_key == insert_key) && (cuckoo_ops > reg_if.cuckoo_control.ops_limit)) nxt_state = INSERT_LOOP;
+                else                                                                            nxt_state = INSERT_PUSH;
+            end
+            INSERT_LOOP: begin
+                insert_loop = 1'b1;
+                nxt_state = INSERT_SET;
             end
             INSERT_PUSH : begin
                 stash_req = 1'b1;
@@ -355,6 +373,7 @@ module htable_cuckoo_controller
                 if (__ctrl_if.ack) begin
                     if (__ctrl_if.status != STATUS_OK) nxt_state = TBL_ERROR;
                     else if (stash_active)             nxt_state = INSERT_POP;
+                    else if (insert_loop_detected)     nxt_state = ERROR;
                     else                               nxt_state = DONE;
                 end
             end
@@ -428,6 +447,18 @@ module htable_cuckoo_controller
     end
     assign prev_key = prev_entry.key;
     assign prev_value = prev_entry.value;
+
+    // Latch key to check for insertion loops
+    always_ff @(posedge clk) begin
+        if (ctrl_if.req && ctrl_if.rdy) begin
+            insert_key <= ctrl_if.key;
+        end
+    end
+
+    always_ff @(posedge clk) begin
+        if (state == IDLE) insert_loop_detected    <= 1'b0;
+        else if (insert_loop) insert_loop_detected <= 1'b1;
+    end
 
     // Maintain stash context
     initial stash_active = 1'b0;
@@ -581,6 +612,7 @@ module htable_cuckoo_controller
     logic [63:0] cnt_delete_ok;
     logic [63:0] cnt_delete_fail;
     logic [31:0] cnt_insert_key_exists;
+    logic [31:0] cnt_insert_loop;
     logic [31:0] cnt_delete_key_not_found;
     logic [31:0] cnt_tbl_error;
     logic [31:0] cnt_stash_error;
@@ -632,6 +664,11 @@ module htable_cuckoo_controller
         if (cnt_clear)              cnt_insert_key_exists <= 0;
         else if (insert_key_exists) cnt_insert_key_exists <= cnt_insert_key_exists + 1;
     end
+    // Insert : insertion loop detected
+    always_ff @(posedge clk) begin
+            if (cnt_clear)    cnt_insert_loop <= 0;
+        else if (insert_loop) cnt_insert_loop <= cnt_insert_loop + 1;
+    end
     // Delete OK
     always_ff @(posedge clk) begin
         if (cnt_clear)        cnt_delete_ok <= 0;
@@ -669,6 +706,7 @@ module htable_cuckoo_controller
     assign reg_if.cnt_insert_fail_upper_nxt_v    = cnt_latch;
     assign reg_if.cnt_insert_fail_lower_nxt_v    = cnt_latch;
     assign reg_if.cnt_insert_key_exists_nxt_v    = cnt_latch;
+    assign reg_if.cnt_insert_loop                = cnt_latch;
     assign reg_if.cnt_delete_ok_upper_nxt_v      = cnt_latch;
     assign reg_if.cnt_delete_ok_lower_nxt_v      = cnt_latch;
     assign reg_if.cnt_delete_fail_upper_nxt_v    = cnt_latch;
@@ -683,6 +721,7 @@ module htable_cuckoo_controller
     assign {reg_if.cnt_delete_ok_upper_nxt,   reg_if.cnt_delete_ok_lower_nxt}   = cnt_delete_ok;
     assign {reg_if.cnt_delete_fail_upper_nxt, reg_if.cnt_delete_fail_lower_nxt} = cnt_delete_fail;
     assign reg_if.cnt_insert_key_exists_nxt    = cnt_insert_key_exists;
+    assign reg_if.cnt_insert_loop_nxt          = cnt_insert_key_exists;
     assign reg_if.cnt_delete_key_not_found_nxt = cnt_delete_key_not_found;
     assign reg_if.cnt_tbl_error_nxt   = cnt_tbl_error;
     assign reg_if.cnt_stash_error_nxt = cnt_stash_error;
@@ -706,14 +745,14 @@ module htable_cuckoo_controller
 
     // Cuckoo ops (last)
     always_ff @(posedge clk) begin
-        if      (dbg_cnt_clear) dbg_cnt_cuckoo_ops_last <= 0;
-        else if (__insert_ok)   dbg_cnt_cuckoo_ops_last <= cuckoo_ops;
+        if      (dbg_cnt_clear)                dbg_cnt_cuckoo_ops_last <= 0;
+        else if (__insert_ok || __insert_fail) dbg_cnt_cuckoo_ops_last <= cuckoo_ops;
     end
     // Cuckoo ops (max)
     initial dbg_cnt_cuckoo_ops_max = 0;
     always @(posedge clk) begin
-        if      (dbg_cnt_clear)                                        dbg_cnt_cuckoo_ops_max <= 0;
-        else if (__insert_ok && (cuckoo_ops > dbg_cnt_cuckoo_ops_max)) dbg_cnt_cuckoo_ops_max <= cuckoo_ops;
+        if      (dbg_cnt_clear)                                                           dbg_cnt_cuckoo_ops_max <= 0;
+        else if ((__insert_ok || __insert_fail) && (cuckoo_ops > dbg_cnt_cuckoo_ops_max)) dbg_cnt_cuckoo_ops_max <= cuckoo_ops;
     end
 
     assign reg_if.dbg_cnt_active_nxt_v          = 1'b1;
