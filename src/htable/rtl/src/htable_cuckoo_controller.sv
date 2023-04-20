@@ -666,7 +666,7 @@ module htable_cuckoo_controller
     end
     // Insert : insertion loop detected
     always_ff @(posedge clk) begin
-            if (cnt_clear)    cnt_insert_loop <= 0;
+        if (cnt_clear)        cnt_insert_loop <= 0;
         else if (insert_loop) cnt_insert_loop <= cnt_insert_loop + 1;
     end
     // Delete OK
@@ -706,7 +706,7 @@ module htable_cuckoo_controller
     assign reg_if.cnt_insert_fail_upper_nxt_v    = cnt_latch;
     assign reg_if.cnt_insert_fail_lower_nxt_v    = cnt_latch;
     assign reg_if.cnt_insert_key_exists_nxt_v    = cnt_latch;
-    assign reg_if.cnt_insert_loop                = cnt_latch;
+    assign reg_if.cnt_insert_loop_nxt_v          = cnt_latch;
     assign reg_if.cnt_delete_ok_upper_nxt_v      = cnt_latch;
     assign reg_if.cnt_delete_ok_lower_nxt_v      = cnt_latch;
     assign reg_if.cnt_delete_fail_upper_nxt_v    = cnt_latch;
@@ -721,7 +721,7 @@ module htable_cuckoo_controller
     assign {reg_if.cnt_delete_ok_upper_nxt,   reg_if.cnt_delete_ok_lower_nxt}   = cnt_delete_ok;
     assign {reg_if.cnt_delete_fail_upper_nxt, reg_if.cnt_delete_fail_lower_nxt} = cnt_delete_fail;
     assign reg_if.cnt_insert_key_exists_nxt    = cnt_insert_key_exists;
-    assign reg_if.cnt_insert_loop_nxt          = cnt_insert_key_exists;
+    assign reg_if.cnt_insert_loop_nxt          = cnt_insert_loop;
     assign reg_if.cnt_delete_key_not_found_nxt = cnt_delete_key_not_found;
     assign reg_if.cnt_tbl_error_nxt   = cnt_tbl_error;
     assign reg_if.cnt_stash_error_nxt = cnt_stash_error;
