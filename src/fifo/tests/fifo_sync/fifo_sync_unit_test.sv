@@ -87,9 +87,14 @@ module fifo_sync_unit_test #(
     assign wr_data = wr_if.data;
     assign wr_if.ready = !full;
 
-    assign rd = rd_if.ready && !empty;
+    assign rd = rd_if.ready;
     assign rd_if.data = rd_data;
     assign rd_if.valid = rd_ack;
+
+    clocking cb @(posedge clk);
+        default input #1step output #1step;
+        input empty, full, uflow, oflow;
+    endclocking
 
     // Assign clock (100MHz)
     `SVUNIT_CLK_GEN(clk, 5ns);
@@ -177,8 +182,7 @@ module fifo_sync_unit_test #(
             exp_transaction = new("exp_transaction", exp_item);
             env.driver.send(exp_transaction);
 
-            // Allow write transaction to be registered by FIFO
-            env.driver._wait(MEM_WR_LATENCY);
+            @(cb);
 
             // Receive transaction
             env.monitor.receive(got_transaction);
@@ -208,7 +212,7 @@ module fifo_sync_unit_test #(
             std_verif_pkg::raw_transaction#(DATA_T) exp_transaction;
 
             // Empty should be asserted immediately following init
-            `FAIL_UNLESS(empty == 1);
+            `FAIL_UNLESS(cb.empty == 1);
 
             // Send transaction
             exp_transaction = new("exp_transaction", exp_item);
@@ -219,13 +223,15 @@ module fifo_sync_unit_test #(
             if (FWFT) env.monitor._wait(MEM_RD_LATENCY);
 
             // Check that empty is deasserted
-            `FAIL_UNLESS(empty == 0);
+            repeat (2) @(cb);
+            `FAIL_UNLESS(cb.empty == 0);
 
             // Receive transaction
             env.monitor.receive(got_transaction);
 
             // Check that empty is reasserted on next cycle
-            `FAIL_UNLESS(empty == 1);
+            @(cb);
+            `FAIL_UNLESS(cb.empty == 1);
 
         `SVTEST_END
 
@@ -248,29 +254,25 @@ module fifo_sync_unit_test #(
             exp_transaction = new("exp_transaction", exp_item);
 
             // Full should be deasserted immediately following init
-            `FAIL_UNLESS(full == 0);
+            `FAIL_UNLESS(cb.full == 0);
 
             // Send DEPTH transactions
             for (int i = 0; i < __DEPTH; i++) begin
+                if (FWFT && cb.full) repeat (MEM_RD_LATENCY) @(cb);
+                `FAIL_UNLESS(cb.full == 0);
                 env.driver.send(exp_transaction);
-                // Full should remain deasserted
-                `FAIL_UNLESS(full == 0);
             end
 
-            // Full should be asserted immediately (once write transaction is registered by FIFO)
-            env.driver._wait(1);
-            `FAIL_UNLESS(full == 1);
+            // Full should be asserted on next cycle
+            @(cb);
+            `FAIL_UNLESS(cb.full == 1);
 
-            // Receive MEM_WR_LATENCY+1 transactions (to drop below FULL_LEVEL).
-            for (int i = 0; i <= MEM_WR_LATENCY; i++) begin
-               env.monitor.receive(got_transaction);
-            end
-   
-            // Allow read transaction to be registered by FIFO
-            env.monitor._wait(1);
+            // Receive transaction
+            env.monitor.receive(got_transaction);
 
-            // Check that full is once again deasserted
-            `FAIL_UNLESS(full == 0);
+            // Check that full is once again deasserted (takes an extra cycle for read to take effect)
+            repeat (2) @(cb);
+            `FAIL_UNLESS(cb.full == 0);
 
         `SVTEST_END
 
@@ -294,38 +296,39 @@ module fifo_sync_unit_test #(
             bit match;
             string msg;
 
-            // Put driver in 'push' mode to allow overflow conditions
-            env.driver.set_tx_mode(std_verif_pkg::TX_MODE_PUSH);
-
             // Overflow should be deasserted immediately following init
-            `FAIL_UNLESS(full == 0);
-            `FAIL_UNLESS(oflow == 0);
+            `FAIL_UNLESS(cb.full == 0);
+            `FAIL_UNLESS(cb.oflow == 0);
 
             // Send DEPTH transactions
             for (int i = 0; i < __DEPTH; i++) begin
+                if (FWFT && cb.full) repeat (MEM_RD_LATENCY) @(cb);
                 // Full/overflow should be deasserted
-                `FAIL_UNLESS(full == 0);
-                `FAIL_UNLESS(oflow == 0);
+                `FAIL_UNLESS(cb.full == 0);
+                `FAIL_UNLESS(cb.oflow == 0);
                 exp_transaction = new($sformatf("exp_transaction_%d", i), i);
                 env.driver.send(exp_transaction);
             end
-            env.driver._wait(1);
 
             // After filling FIFO, full should be asserted (oflow should remain deasserted)
-            `FAIL_UNLESS(full == 1);
-            `FAIL_UNLESS(oflow == 0);
+            @(cb);
+            `FAIL_UNLESS(cb.full == 1);
+            `FAIL_UNLESS(cb.oflow == 0);
+
+            // Put driver in 'push' mode to allow overflow conditions
+            env.driver.set_tx_mode(std_verif_pkg::TX_MODE_PUSH);
 
             // Send one more transaction
             exp_transaction = new($sformatf("exp_transaction_%d", __DEPTH), __DEPTH);
             env.driver.send(exp_transaction);
 
             // This should trigger oflow on the same cycle
-            `FAIL_UNLESS(oflow == 1);
+            `FAIL_UNLESS(cb.oflow == 1);
 
             // Full should remain asserted, oflow should be deasserted on following cycle
-            env.driver._wait(1);
-            `FAIL_UNLESS(full == 1);
-            `FAIL_UNLESS(oflow == 0);
+            @(cb);
+            `FAIL_UNLESS(cb.full == 1);
+            `FAIL_UNLESS(cb.oflow == 0);
 
             // Empty FIFO
             for (int i = 0; i < __DEPTH; i++) begin
@@ -337,10 +340,13 @@ module fifo_sync_unit_test #(
                 );
             end
 
+            @(cb);
+
             // Send and receive one more transaction
             exp_transaction = new($sformatf("exp_transaction_%d", __DEPTH), __DEPTH);
             env.driver.send(exp_transaction);
-            `FAIL_UNLESS(oflow == 0);
+            `FAIL_UNLESS(cb.oflow == 0);
+
             env.driver._wait(1);
 
             env.monitor.receive(got_transaction);
