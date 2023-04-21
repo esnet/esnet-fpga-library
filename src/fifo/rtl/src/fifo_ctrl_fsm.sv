@@ -59,23 +59,23 @@ module fifo_ctrl_fsm #(
 
     // generate wr_ptr pipeline if MEM_WR_LATENCY > 0.
     generate
-       if (MEM_WR_LATENCY > 0) begin : g__wr_pipe
-          // (Local) signals
-          logic [CNT_WID-1:0] wr_ptr_p [MEM_WR_LATENCY];
+        if (MEM_WR_LATENCY > 0) begin : g__wr_pipe
+            // (Local) signals
+            logic [CNT_WID-1:0] wr_ptr_p [MEM_WR_LATENCY];
 
-          initial wr_ptr_p = '{MEM_WR_LATENCY{'0}};
-          always @(posedge wr_clk) begin
-             for (int i = 1; i < MEM_WR_LATENCY; i++) wr_ptr_p[i] <= wr_ptr_p[i-1];
-             wr_ptr_p[0] <= _wr_ptr;
-          end
+            initial wr_ptr_p = '{MEM_WR_LATENCY{'0}};
+            always @(posedge wr_clk) begin
+                for (int i = 1; i < MEM_WR_LATENCY; i++) wr_ptr_p[i] <= wr_ptr_p[i-1];
+                wr_ptr_p[0] <= _wr_ptr;
+            end
 
-          assign _wr_ptr_p = wr_ptr_p[MEM_WR_LATENCY-1];
+            assign _wr_ptr_p = wr_ptr_p[MEM_WR_LATENCY-1];
 
-       end : g__wr_pipe
-       else if (MEM_WR_LATENCY == 0) begin : g__no_wr_pipe
-          assign _wr_ptr_p = _wr_ptr;
+        end : g__wr_pipe
+        else if (MEM_WR_LATENCY == 0) begin : g__no_wr_pipe
+            assign _wr_ptr_p = _wr_ptr;
 
-       end : g__no_wr_pipe
+        end : g__no_wr_pipe
     endgenerate
 
     // -----------------------------
