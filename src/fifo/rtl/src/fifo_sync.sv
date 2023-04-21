@@ -32,6 +32,11 @@ module fifo_sync #(
 );
 
     // -----------------------------
+    // Signals
+    // -----------------------------
+    logic [31:0] __count;
+
+    // -----------------------------
     // Interfaces
     // -----------------------------
     axi4l_intf axil_if__unused ();
@@ -61,11 +66,13 @@ module fifo_sync #(
         .rd       ( rd ),
         .rd_ack   ( rd_ack ),
         .rd_data  ( rd_data ),
-        .rd_count ( count ),
+        .rd_count ( __count ),
         .rd_empty ( empty ),
         .rd_uflow ( uflow ),
         .axil_if  ( axil_if__unused )
     );
+
+    assign count = __count[CNT_WID-1:0];
 
     // Tie off (unused AXI-L interface)
     axi4l_intf_controller_term i_axi4l_intf_controller_term (.axi4l_if(axil_if__unused));
