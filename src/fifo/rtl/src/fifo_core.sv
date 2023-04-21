@@ -112,7 +112,6 @@ module fifo_core #(
     // -----------------------------
     fifo_ctrl_fsm  #(
         .DEPTH      ( DEPTH ),
-        .FULL_LEVEL ( MEM_WR_LATENCY ),  // assert 'wr_full' when MEM_WR_LATENCY spaces left in FIFO.
         .MEM_WR_LATENCY ( MEM_WR_LATENCY ),
         .ASYNC      ( ASYNC ),
         .OFLOW_PROT ( OFLOW_PROT ),
