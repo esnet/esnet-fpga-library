@@ -74,6 +74,8 @@ module db_stash #(
     // Export status
     // ----------------------------------
     assign status_if.fill = fill;
+    assign status_if.empty = (fill == 0);
+    assign status_if.full = (fill == SIZE);
     assign status_if.evt_activate = wr && !wr_match && db_wr_if.valid;
     assign status_if.evt_deactivate = wr && wr_match && !db_wr_if.valid;
 
@@ -184,7 +186,7 @@ module db_stash #(
     // ----------------------------------
     initial next_rd_idx = 0;
     always @(posedge clk) begin
-        if (srst) next_rd_idx <= 0;
+        if (srst || db_init) next_rd_idx <= 0;
         else if (db_rd_if.req && db_rd_if.rdy && db_rd_if.next) begin
             if (next_rd_idx == SIZE-1) next_rd_idx <= 0;
             else                       next_rd_idx <= next_rd_idx + 1;

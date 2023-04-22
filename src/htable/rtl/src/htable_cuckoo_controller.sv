@@ -767,6 +767,8 @@ module htable_cuckoo_controller
     // Assign status interface
     // -----------------------------
     assign status_if.fill = cnt_active;
+    assign status_if.empty = (cnt_active == 0);
+    assign status_if.full = 0; // Not implemented
     assign status_if.evt_activate = __insert_ok;
     assign status_if.evt_deactivate = __delete_ok;
 

@@ -170,7 +170,7 @@ module htable_fast_update_core #(
         .KEY_T     ( KEY_T ),
         .VALUE_T   ( UPDATE_ENTRY_T ),
         .SIZE      ( UPDATE_BURST_SIZE )
-    ) i_db_stash   (
+    ) i_db_stash_fifo (
         .clk       ( clk ),
         .srst      ( __srst ),
         .init_done ( stash_init_done ),
@@ -186,7 +186,7 @@ module htable_fast_update_core #(
     assign stash_lookup_if.key = lookup_if.key;
     assign stash_lookup_if.next = 1'b0;
 
-    assign stash_update_if.req = update_if.req && (stash_status_if.fill < UPDATE_BURST_SIZE);
+    assign stash_update_if.req = update_if.req && !stash_status_if.full;
     assign stash_update_if.key = update_if.key;
     assign stash_update_if.next = 1'b0;
     assign stash_update_if.valid = 1'b1;
@@ -194,7 +194,7 @@ module htable_fast_update_core #(
     assign update_entry.value = update_if.value;
     assign stash_update_if.value = update_entry;
 
-    assign update_if.rdy = stash_update_if.rdy && (stash_status_if.fill < UPDATE_BURST_SIZE);
+    assign update_if.rdy = stash_update_if.rdy && !stash_status_if.full;
     assign update_if.ack = stash_update_if.ack;
     assign update_if.error = stash_update_if.error;
     assign update_if.next_key = '0;
