@@ -345,20 +345,23 @@ module state_cache_core
     assign lookup_req_ctxt_in.key = lookup_if.key;
     assign lookup_req_ctxt_in.back_to_back = last_lookup_key_valid && (lookup_if.key == last_lookup_key);
 
-    fifo_small  #(
-        .DATA_T  ( lookup_req_ctxt_t ),
-        .DEPTH   ( NUM_RD_TRANSACTIONS )
-    ) i_fifo_small__lookup_req_ctxt (
-        .clk     ( clk ),
-        .srst    ( htable_srst ),
-        .wr      ( lookup_if.req && lookup_if.rdy ),
-        .wr_data ( lookup_req_ctxt_in ),
-        .full    ( ),
-        .oflow   ( ),
-        .rd      ( lookup_if.ack ),
-        .rd_data ( lookup_req_ctxt_out ),
-        .empty   ( ),
-        .uflow   ( )
+    fifo_sync    #(
+        .DATA_T   ( lookup_req_ctxt_t ),
+        .DEPTH    ( NUM_RD_TRANSACTIONS ),
+        .FWFT     ( 1 )
+    ) i_fifo_sync__lookup_req_ctxt (
+        .clk      ( clk ),
+        .srst     ( htable_srst ),
+        .wr       ( lookup_if.req && lookup_if.rdy ),
+        .wr_data  ( lookup_req_ctxt_in ),
+        .wr_count ( ),
+        .full     ( ),
+        .oflow    ( ),
+        .rd       ( lookup_if.ack ),
+        .rd_data  ( lookup_req_ctxt_out ),
+        .rd_count ( ),
+        .empty    ( ),
+        .uflow    ( )
     );
 
     // -----------------------------------------------------------
