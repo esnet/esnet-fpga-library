@@ -39,7 +39,7 @@ module db_store_array #(
         .DATA_WID  ( ENTRY_WID ),
         .RESET_FSM ( 1 ),
         .SIM__FAST_INIT ( SIM__FAST_INIT )
-    ) i_mem_ram_sdp_sync_timer (
+    ) i_mem_ram_sdp_sync__db (
         .clk       ( clk ),
         .srst      ( srst ),
         .mem_wr_if ( mem_wr_if ),
