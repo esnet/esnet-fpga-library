@@ -40,6 +40,8 @@ module htable_fast_update_core #(
     // ----------------------------------
     localparam type UPDATE_ENTRY_T = struct packed {logic ins_del_n; VALUE_T value;};
 
+    localparam int TIMER_WID = $clog2(NUM_RD_TRANSACTIONS + 1);
+
     // ----------------------------------
     // Typedefs
     // ----------------------------------
@@ -54,16 +56,21 @@ module htable_fast_update_core #(
         TBL_UPDATE_PENDING = 7,
         TBL_UPDATE_DONE    = 8,
         TBL_UPDATE_ERROR   = 9,
-        STASH_POP          = 10,
-        STASH_POP_PENDING  = 11,
-        ERROR              = 12
+        STASH_POP_WAIT     = 10,
+        STASH_POP          = 11,
+        STASH_POP_PENDING  = 12,
+        ERROR              = 13
     } state_t;
 
     typedef struct packed {
-        logic          valid;
-        logic          error;
-        UPDATE_ENTRY_T entry;
-    } stash_resp_t;
+        KEY_T key;
+    } req_ctxt_t;
+
+    typedef struct packed {
+        logic   valid;
+        logic   error;
+        VALUE_T value;
+    } resp_ctxt_t;
 
     typedef enum logic {
         INSERT = 0,
@@ -84,11 +91,19 @@ module htable_fast_update_core #(
     logic          stash_init_done;
     UPDATE_ENTRY_T update_entry;
 
-    stash_resp_t stash_resp_in;
-    stash_resp_t stash_resp_out;
+    req_ctxt_t  tbl_req_ctxt_in;
+    req_ctxt_t  tbl_req_ctxt_out;
+    resp_ctxt_t tbl_resp_ctxt_in;
+    resp_ctxt_t tbl_resp_ctxt_out;
+
+    UPDATE_ENTRY_T stash_lookup_resp;
 
     KEY_T   ctrl_key;
     VALUE_T ctrl_value;
+
+    logic                 timer_reset;
+    logic                 timer_inc;
+    logic [TIMER_WID-1:0] timer;
 
     // Stash control
     logic     stash_req;
@@ -164,6 +179,45 @@ module htable_fast_update_core #(
     assign init_done = tbl_init_done && stash_init_done;
 
     // ----------------------------------
+    // Drive table lookup interface
+    // ----------------------------------
+    assign tbl_lookup_if.req = lookup_if.req;
+    assign tbl_lookup_if.key = lookup_if.key;
+    assign tbl_lookup_if.next = 1'b0;
+
+    assign lookup_if.rdy = tbl_lookup_if.rdy;
+
+    // Store lookup request context
+    assign tbl_req_ctxt_in.key = tbl_lookup_if.key;
+
+    fifo_sync   #(
+        .DATA_T  ( req_ctxt_t ),
+        .DEPTH   ( NUM_RD_TRANSACTIONS ),
+        .FWFT    ( 1 )
+    ) i_fifo_sync__tbl_lookup_req_ctxt (
+        .clk     ( clk ),
+        .srst    ( __srst ),
+        .wr      ( tbl_lookup_if.req && tbl_lookup_if.rdy ),
+        .wr_data ( tbl_req_ctxt_in ),
+        .wr_count( ),
+        .full    ( ),
+        .oflow   ( ),
+        .rd      ( tbl_lookup_if.ack ),
+        .rd_data ( tbl_req_ctxt_out ),
+        .rd_ack  ( ),
+        .rd_count( ),
+        .empty   ( ),
+        .uflow   ( )
+    );
+
+    // Store lookup response context
+    assign tbl_resp_ctxt_in.valid = tbl_lookup_if.valid;
+    assign tbl_resp_ctxt_in.error = tbl_lookup_if.error;
+    assign tbl_resp_ctxt_in.value = tbl_lookup_if.value;
+
+    always_ff @(posedge clk) tbl_resp_ctxt_out <= tbl_resp_ctxt_in;
+
+    // ----------------------------------
     // Update stash
     // ----------------------------------
     db_stash_fifo #(
@@ -181,10 +235,12 @@ module htable_fast_update_core #(
         .app_rd_if ( stash_lookup_if )
     );
 
-    // Map from common lookup/update interfaces to stash-specific interfaces
-    assign stash_lookup_if.req = lookup_if.req && tbl_lookup_if.rdy;
-    assign stash_lookup_if.key = lookup_if.key;
+    // Drive stash lookup (follows table lookup)
+    assign stash_lookup_if.req = tbl_lookup_if.ack;
+    assign stash_lookup_if.key = tbl_req_ctxt_out.key;
     assign stash_lookup_if.next = 1'b0;
+
+    assign stash_lookup_resp = stash_lookup_if.value;
 
     assign stash_update_if.req = update_if.req && !stash_status_if.full;
     assign stash_update_if.key = update_if.key;
@@ -199,56 +255,28 @@ module htable_fast_update_core #(
     assign update_if.error = stash_update_if.error;
     assign update_if.next_key = '0;
 
-    // Store lookup context
-    assign stash_resp_in.error = stash_lookup_if.error;
-    assign stash_resp_in.valid = stash_lookup_if.valid;
-    assign stash_resp_in.entry = stash_lookup_if.value;
-
-    fifo_small  #(
-        .DATA_T  ( stash_resp_t ),
-        .DEPTH   ( NUM_RD_TRANSACTIONS )
-    ) i_fifo_small__stash_resp_ctxt (
-        .clk     ( clk ),
-        .srst    ( __srst ),
-        .wr      ( stash_lookup_if.ack ),
-        .wr_data ( stash_resp_in ),
-        .full    ( ),
-        .oflow   ( ),
-        .rd      ( tbl_lookup_if.ack ),
-        .rd_data ( stash_resp_out ),
-        .empty   ( ),
-        .uflow   ( )
-    );
-
     // ----------------------------------
-    // Drive table lookup interface
+    // Combine table/stash lookup results
     // ----------------------------------
-    assign tbl_lookup_if.req = lookup_if.req && stash_lookup_if.rdy;
-    assign tbl_lookup_if.key = lookup_if.key;
-    assign tbl_lookup_if.next = 1'b0;
-
-    // ----------------------------------
-    // Drive lookup response
-    // ----------------------------------
-    assign lookup_if.rdy = tbl_lookup_if.rdy && stash_lookup_if.rdy;
-    assign lookup_if.ack = tbl_lookup_if.ack;
+    assign lookup_if.ack = stash_lookup_if.ack;
 
     always_comb begin
         lookup_if.valid = 1'b0;
         lookup_if.value = '0;
-        if (stash_resp_out.valid) begin
-            if (stash_resp_out.entry.ins_del_n) begin
+        lookup_if.error = stash_lookup_if.error;
+        if (stash_lookup_if.valid) begin
+            if (stash_lookup_resp.ins_del_n) begin
                 lookup_if.valid = 1'b1;
-                lookup_if.value = stash_resp_out.entry.value;
+                lookup_if.value = stash_lookup_resp.value;
             end else begin
                 lookup_if.valid = 1'b0;
             end
         end else begin
-            lookup_if.valid = tbl_lookup_if.valid;
-            lookup_if.value = tbl_lookup_if.value;
+            lookup_if.valid = tbl_resp_ctxt_out.valid;
+            lookup_if.error = tbl_resp_ctxt_out.error;
+            lookup_if.value = tbl_resp_ctxt_out.value;
         end
     end
-    assign lookup_if.error = tbl_lookup_if.error || stash_resp_out.error;
     assign lookup_if.next_key = '0;
 
     // ----------------------------------
@@ -266,6 +294,8 @@ module htable_fast_update_core #(
         stash_command = COMMAND_NOP;
         tbl_req = 1'b0;
         tbl_command = COMMAND_NOP;
+        timer_reset = 1'b0;
+        timer_inc = 1'b0;
         case (state)
             RESET : begin
                 if (init_done) nxt_state = IDLE;
@@ -306,10 +336,19 @@ module htable_fast_update_core #(
                 end
             end
             TBL_UPDATE_DONE : begin
-                nxt_state = STASH_POP;
+                timer_reset = 1'b1;
+                nxt_state = STASH_POP_WAIT;
             end
             TBL_UPDATE_ERROR : begin
                 nxt_state = STASH_POP;
+            end
+            STASH_POP_WAIT : begin
+                timer_inc = 1'b1;
+                // Ensure make before break; leave entry in stash for
+                // enough time to ensure that any lookup transactions in
+                // flight are guaranteed to see the entry in either the
+                // hash table or the stash
+                if (timer == NUM_RD_TRANSACTIONS) nxt_state = STASH_POP;
             end
             STASH_POP : begin
                 stash_req = 1'b1;
@@ -330,6 +369,12 @@ module htable_fast_update_core #(
                 nxt_state = ERROR;
             end
         endcase
+    end
+
+    // Wait timer
+    always_ff @(posedge clk) begin
+        if (timer_reset)    timer <= '0;
+        else if (timer_inc) timer <= timer + 1;
     end
 
     // Latch update data
