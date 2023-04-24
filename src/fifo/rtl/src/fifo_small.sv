@@ -48,7 +48,9 @@ module fifo_small #(
         .DEPTH      ( DEPTH ),
         .ASYNC      ( 0 ),
         .OFLOW_PROT ( 1 ),
-        .UFLOW_PROT ( 1 )
+        .UFLOW_PROT ( 1 ),
+        .WR_OPT_MODE( fifo_pkg::OPT_MODE_LATENCY ),
+        .RD_OPT_MODE( fifo_pkg::OPT_MODE_LATENCY )
     ) i_fifo_ctrl_fsm (
         .wr_clk   ( clk ),
         .wr_srst  ( srst ),

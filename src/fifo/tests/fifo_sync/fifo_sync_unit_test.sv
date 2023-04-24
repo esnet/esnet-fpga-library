@@ -54,7 +54,8 @@ module fifo_sync_unit_test #(
 
     logic   full;
     logic   empty;
-    count_t count;
+    count_t wr_count;
+    count_t rd_count;
 
     logic   oflow;
     logic   uflow;

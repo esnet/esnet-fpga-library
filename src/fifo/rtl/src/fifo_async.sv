@@ -74,11 +74,7 @@ module fifo_async #(
         .axil_if  ( axil_if__unused )
     );
 
-    initial wr_count = 0;
-    always @(posedge wr_clk) begin
-        if (wr_srst) wr_count <= 0;
-        else         wr_count <= __wr_count[CNT_WID-1:0];
-    end
+    assign wr_count = __wr_count[CNT_WID-1:0];
    
     initial rd_count = 0;
     always @(posedge rd_clk) begin

@@ -1,10 +1,14 @@
-module fifo_core #(
+module fifo_core
+    import fifo_pkg::*;
+#(
     parameter type DATA_T = logic[15:0],
     parameter int DEPTH = 4,
     parameter bit ASYNC = 1,
     parameter bit FWFT = 1,
     parameter bit OFLOW_PROT = 1,
     parameter bit UFLOW_PROT = 1,
+    parameter opt_mode_t WR_OPT_MODE = fifo_pkg::OPT_MODE_TIMING,
+    parameter opt_mode_t RD_OPT_MODE = fifo_pkg::OPT_MODE_TIMING,
     // Debug parameters
     parameter bit AXIL_IF = 1'b0,
     parameter bit DEBUG_ILA = 1'b0
@@ -36,7 +40,6 @@ module fifo_core #(
     // Imports
     // -----------------------------
     import mem_pkg::*;
-    import fifo_pkg::*;
 
     // -----------------------------
     // Parameters
@@ -116,6 +119,8 @@ module fifo_core #(
         .ASYNC      ( ASYNC ),
         .OFLOW_PROT ( OFLOW_PROT ),
         .UFLOW_PROT ( __UFLOW_PROT ),
+        .WR_OPT_MODE( WR_OPT_MODE ),
+        .RD_OPT_MODE( RD_OPT_MODE ),
         .AXIL_IF    ( AXIL_IF ),
         .DEBUG_ILA  ( DEBUG_ILA )
     ) i_fifo_ctrl_fsm (
