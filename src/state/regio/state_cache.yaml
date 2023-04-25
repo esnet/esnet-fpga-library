@@ -112,6 +112,6 @@ regs:
 
   - name: dbg_cnt_active
     access: ro
-    desc: Count of currently active timers.
+    desc: Count of currently active cache entries.
     width: 32
 

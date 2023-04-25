@@ -617,6 +617,8 @@ module htable_cuckoo_controller
     logic [31:0] cnt_tbl_error;
     logic [31:0] cnt_stash_error;
     logic [31:0] cnt_active;
+    logic [31:0] cnt_active_min;
+    logic [31:0] cnt_active_max;
 
     // Synthesize (and buffer) counter update signals
     always_ff @(posedge clk) begin
@@ -697,8 +699,20 @@ module htable_cuckoo_controller
     // Active
     always_ff @(posedge clk) begin
         if (__srst) cnt_active <= 0;
-        else if (__insert_ok && !__delete_ok) cnt_active <= cnt_active + 1;
-        else if (__delete_ok && !__insert_ok) cnt_active <= cnt_active - 1;
+        else if (__insert_ok) cnt_active <= cnt_active + 1;
+        else if (__delete_ok) cnt_active <= cnt_active - 1;
+    end
+
+    // Active (min)
+    always_ff @(posedge clk) begin
+        if (cnt_clear) cnt_active_min <= cnt_active;
+        else if (cnt_active < cnt_active_min) cnt_active_min <= cnt_active;
+    end
+
+    // Active (max)
+    always_ff @(posedge clk) begin
+        if (cnt_clear) cnt_active_max <= cnt_active;
+        else if (cnt_active > cnt_active_max) cnt_active_max <= cnt_active;
     end
 
     assign reg_if.cnt_insert_ok_upper_nxt_v      = cnt_latch;
@@ -715,6 +729,8 @@ module htable_cuckoo_controller
     assign reg_if.cnt_tbl_error_nxt_v            = cnt_latch;
     assign reg_if.cnt_stash_error_nxt_v          = cnt_latch;
     assign reg_if.cnt_active_nxt_v               = cnt_latch;
+    assign reg_if.cnt_active_min_nxt_v           = cnt_latch;
+    assign reg_if.cnt_active_max_nxt_v           = cnt_latch;
 
     assign {reg_if.cnt_insert_ok_upper_nxt,   reg_if.cnt_insert_ok_lower_nxt}   = cnt_insert_ok;
     assign {reg_if.cnt_insert_fail_upper_nxt, reg_if.cnt_insert_fail_lower_nxt} = cnt_insert_fail;
@@ -726,6 +742,8 @@ module htable_cuckoo_controller
     assign reg_if.cnt_tbl_error_nxt   = cnt_tbl_error;
     assign reg_if.cnt_stash_error_nxt = cnt_stash_error;
     assign reg_if.cnt_active_nxt      = cnt_active;
+    assign reg_if.cnt_active_min_nxt  = cnt_active_min;
+    assign reg_if.cnt_active_max_nxt  = cnt_active_max;
 
     // -----------------------------
     // Debug Counters

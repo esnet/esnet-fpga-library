@@ -167,7 +167,17 @@ regs:
 
   - name: cnt_active
     access: ro
-    desc: Count of currently active timers (latched)
+    desc: Count of currently active table entries (latched)
+    width: 32
+
+  - name: cnt_active_min
+    access: ro
+    desc: Min number of active table entries (since last clear).
+    width: 32
+
+  - name: cnt_active_max
+    access: ro
+    desc: Max number of active table entries (since last clear).
     width: 32
 
   - name: dbg_cnt_control
