@@ -105,7 +105,8 @@ module htable_cuckoo_core
         .NUM_WR_TRANSACTIONS ( NUM_WR_TRANSACTIONS ),
         .NUM_RD_TRANSACTIONS ( NUM_RD_TRANSACTIONS ),
         .STASH_SIZE          ( 1 ), // Bubble stash (single-entry)
-        .INSERT_MODE         ( HTABLE_MULTI_INSERT_MODE_NONE )
+        .INSERT_MODE         ( HTABLE_MULTI_INSERT_MODE_NONE ),
+        .APP_CACHE_EN        ( 0 )
     ) i_htable_multi_stash_core (
         .clk              ( clk ),
         .srst             ( srst ),
