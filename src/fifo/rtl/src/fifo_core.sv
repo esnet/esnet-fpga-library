@@ -169,7 +169,7 @@ module fifo_core
     assign mem_wr_if.data = wr_data;
 
     assign mem_rd_if.rst = 1'b0;
-    assign mem_rd_if.en = 1'b1;
+    assign mem_rd_if.en = 1'b1; // Unused
     assign mem_rd_if.req = __rd;  // use __rd signal rather than rd_safe (to advance rd pipeline when memory is empty).
     assign mem_rd_if.addr = rd_ptr;
     assign __rd_data = mem_rd_if.data;

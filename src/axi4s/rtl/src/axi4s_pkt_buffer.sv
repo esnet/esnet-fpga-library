@@ -111,7 +111,7 @@ module axi4s_pkt_buffer
    );
 
    assign mem_rd_if.rst  = ~axi4s_in.aresetn;
-   assign mem_rd_if.en   = 1'b1;
+   assign mem_rd_if.en   = 1'b1; // Unused
    assign mem_rd_if.req  = rd_req;
    assign mem_rd_if.addr = rd_ptr[ADDR_WID-1:0];
 

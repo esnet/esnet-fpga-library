@@ -468,7 +468,7 @@ module state_cache_core
     assign revmap_wr_if.data = htable_update_if.key;
 
     assign revmap_rd_if.rst = 1'b0;
-    assign revmap_rd_if.en = 1'b1;
+    assign revmap_rd_if.en = 1'b1; // Unused
     assign revmap_rd_if.req = revmap_rd_req;
     assign revmap_rd_if.addr = delete_id;
 

@@ -60,7 +60,7 @@ module db_store_array #(
     assign db_wr_if.next_key = '0;
 
     assign mem_rd_if.rst  = 1'b0;
-    assign mem_rd_if.en   = 1'b1;
+    assign mem_rd_if.en   = 1'b1; // Unused
     assign mem_rd_if.req  = db_rd_if.req;
     assign mem_rd_if.addr = db_rd_if.key;
     assign db_rd_if.rdy = mem_rd_if.rdy;

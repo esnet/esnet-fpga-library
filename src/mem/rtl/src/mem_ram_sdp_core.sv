@@ -202,7 +202,7 @@ module mem_ram_sdp_core
         else                          rd_srst_local <= 1'b0;
     end
 
-    assign rd      = mem_rd_if.en && mem_rd_if.req;
+    assign rd      = mem_rd_if.req;
     assign rd_addr = mem_rd_if.addr;
 
     // Unless held in reset, memory is always ready to receive transactions

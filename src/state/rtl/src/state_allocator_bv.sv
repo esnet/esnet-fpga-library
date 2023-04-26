@@ -282,7 +282,7 @@ module state_allocator_bv #(
     assign mem_wr_if.data = wr_data;
 
     assign mem_rd_if.rst = 1'b0;
-    assign mem_rd_if.en = init_done;
+    assign mem_rd_if.en = 1'b1; // Unused
     assign mem_rd_if.req = rd || scan_rd;
     assign mem_rd_if.addr = rd ? id.row : scan_row;
 
