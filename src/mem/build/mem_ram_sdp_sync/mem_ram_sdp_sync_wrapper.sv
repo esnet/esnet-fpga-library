@@ -1,6 +1,6 @@
 module mem_ram_sdp_sync_wrapper #(
-    parameter int ADDR_WID = 16,
-    parameter int DATA_WID = 16,
+    parameter int ADDR_WID = 14,
+    parameter int DATA_WID = 113,
     parameter bit RESET_FSM = 1
 )(
     input  logic                 clk,
@@ -53,8 +53,8 @@ module mem_ram_sdp_sync_wrapper #(
             wr_ack <= mem_wr_if.ack;
             // Read control
             mem_rd_if.rst <= rd_rst;
-            mem_rd_if.en  <= rd_en;
             mem_rd_if.req <= rd_req;
+            mem_rd_if.en  <= rd_en;
             rd_rdy <= mem_rd_if.rdy;
             rd_ack <= mem_rd_if.ack;
         end
