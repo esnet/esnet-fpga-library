@@ -58,11 +58,15 @@ package mem_pkg;
     endfunction
 
     // Calculate additional (read) pipelining added to accommodate array of specified depth
-    function automatic int get_default_rd_pipeline_stages(input xilinx_ram_style_t ram_style);
+    function automatic int get_default_rd_pipeline_stages(input xilinx_ram_style_t ram_style, input int DEPTH);
         case (ram_style)
-            RAM_STYLE_DISTRIBUTED : return 0;
             RAM_STYLE_BLOCK       : return 1;
-            default               : return 2;
+            RAM_STYLE_ULTRA : begin
+                if (DEPTH > 32768) return 4;
+                if (DEPTH > 16384) return 3;
+                else               return 2;
+            end
+            default : return 0;
         endcase
     endfunction
 
@@ -73,7 +77,7 @@ package mem_pkg;
 
     // Calculate overall memory read latency given specified memory configuration
     function automatic int get_default_rd_latency(input int DEPTH, input int WIDTH, input bit ASYNC=0);
-        return __get_rd_latency(get_default_rd_pipeline_stages(get_default_ram_style(DEPTH, WIDTH, ASYNC)));
+        return __get_rd_latency(get_default_rd_pipeline_stages(get_default_ram_style(DEPTH, WIDTH, ASYNC), DEPTH));
     endfunction
 
 endpackage : mem_pkg

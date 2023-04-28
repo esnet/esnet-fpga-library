@@ -39,7 +39,7 @@ module mem_ram_sdp_core
                                                                       "ultra";
     // NOTE: Additional pipelining (write and/or read) may be required for large memory arrays
     localparam int WR_PIPELINE_STAGES = get_default_wr_pipeline_stages(__RAM_STYLE);
-    localparam int RD_PIPELINE_STAGES = get_default_rd_pipeline_stages(__RAM_STYLE);
+    localparam int RD_PIPELINE_STAGES = get_default_rd_pipeline_stages(__RAM_STYLE, DEPTH);
 
     // -----------------------------
     // TYPEDEFS

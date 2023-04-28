@@ -46,7 +46,7 @@ module axi4s_pkt_buffer
    // match pipeline stages to mem_ram_sdp_sync_0 pipelining.
    localparam xilinx_ram_style_t RAM_STYLE = get_default_ram_style(DEPTH, DATA_WID, ASYNC);
    localparam int WR_PIPELINE_STAGES       = get_default_wr_pipeline_stages(RAM_STYLE);
-   localparam int RD_PIPELINE_STAGES       = get_default_rd_pipeline_stages(RAM_STYLE);
+   localparam int RD_PIPELINE_STAGES       = get_default_rd_pipeline_stages(RAM_STYLE, DEPTH);
    //localparam xilinx_ram_style_t RAM_STYLE = mem_ram_sdp_sync_0.i_mem_sdp_sync_core.__RAM_STYLE;
    //localparam int WR_PIPELINE_STAGES       = mem_ram_sdp_sync_0.i_mem_sdp_sync_core.WR_PIPELINE_STAGES;
    //localparam int RD_PIPELINE_STAGES       = mem_ram_sdp_sync_0.i_mem_sdp_sync_core.RD_PIPELINE_STAGES;
