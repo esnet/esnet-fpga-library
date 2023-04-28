@@ -149,7 +149,8 @@ module htable_multi_stash_core
     db_stash    #(
         .KEY_T   ( KEY_T ),
         .VALUE_T ( VALUE_T ),
-        .SIZE    ( STASH_SIZE )
+        .SIZE    ( STASH_SIZE ),
+        .REG_REQ ( 1 )
     ) i_db_stash (
         .clk       ( clk ),
         .srst      ( srst ),

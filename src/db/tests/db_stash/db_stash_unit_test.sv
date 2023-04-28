@@ -42,7 +42,8 @@ module db_stash_unit_test;
     db_stash #(
         .KEY_T (KEY_T),
         .VALUE_T (VALUE_T),
-        .SIZE (SIZE)
+        .SIZE (SIZE),
+        .REG_REQ ( 1'b1 )
     ) DUT (.*);
 
     //===================================
