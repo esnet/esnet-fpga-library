@@ -170,7 +170,11 @@ module state_cache_core
     // ----------------------------------
     // Init done
     // ----------------------------------
-    assign init_done = htable_init_done && allocator_init_done && revmap_init_done;
+    always @(posedge clk) begin
+        if (srst) init_done <= 1'b0;
+        else if (htable_init_done && allocator_init_done && revmap_init_done) init_done <= 1'b1;
+        else init_done <= 1'b0;
+    end
 
     // ----------------------------------
     // AXI-L control
