@@ -71,21 +71,20 @@ module htable_cuckoo_controller
         DELETE_PENDING       = 13,
         INSERT_GET           = 14,
         INSERT_GET_PENDING   = 15,
-        INSERT_LOOP_CHECK    = 16,
-        INSERT_LOOP          = 17,
-        INSERT_PUSH          = 18,
-        INSERT_PUSH_PENDING  = 19,
-        INSERT_SET           = 20,
-        INSERT_SET_PENDING   = 21,
-        INSERT_POP           = 22,
-        INSERT_POP_PENDING   = 23,
-        INSERT_NEXT          = 24,
-        DONE                 = 25,
-        INSERT_KEY_EXISTS    = 26,
-        DELETE_KEY_NOT_FOUND = 27,
-        TBL_ERROR            = 28,
-        STASH_ERROR          = 29,
-        ERROR                = 30
+        INSERT_PUSH          = 16,
+        INSERT_PUSH_PENDING  = 17,
+        INSERT_SET           = 18,
+        INSERT_SET_PENDING   = 19,
+        INSERT_POP           = 20,
+        INSERT_POP_PENDING   = 21,
+        INSERT_NEXT          = 22,
+        DONE                 = 23,
+        INSERT_KEY_EXISTS    = 24,
+        INSERT_LOOP          = 25,
+        DELETE_KEY_NOT_FOUND = 26,
+        TBL_ERROR            = 27,
+        STASH_ERROR          = 28,
+        ERROR                = 29
     } state_t;
 
     typedef logic [TBL_IDX_WID-1:0] tbl_idx_t;
@@ -109,7 +108,6 @@ module htable_cuckoo_controller
     VALUE_T   __value;
 
     KEY_T       insert_key;
-    logic       insert_loop_detected;
 
     logic       prev_valid;
     TBL_ENTRY_T prev_entry;
@@ -338,20 +336,9 @@ module htable_cuckoo_controller
             INSERT_GET_PENDING : begin
                 if (__ctrl_if.ack) begin
                     if (__ctrl_if.status != STATUS_OK) nxt_state = TBL_ERROR;
-                    else if (__ctrl_if.get_valid)      nxt_state = INSERT_LOOP_CHECK;
+                    else if (__ctrl_if.get_valid)      nxt_state = INSERT_PUSH;
                     else                               nxt_state = INSERT_SET;
                 end
-            end
-            INSERT_LOOP_CHECK : begin
-                // Check for cuckoo operations exceeding configured limit (simplified cycle detection)
-                // Perform this check when the original inserted key is 'in-hand', so that it ends up
-                // being the key that 'fails' to insert
-                if ((prev_key == insert_key) && (cuckoo_ops > reg_if.cuckoo_control.ops_limit)) nxt_state = INSERT_LOOP;
-                else                                                                            nxt_state = INSERT_PUSH;
-            end
-            INSERT_LOOP: begin
-                insert_loop = 1'b1;
-                nxt_state = INSERT_SET;
             end
             INSERT_PUSH : begin
                 stash_req = 1'b1;
@@ -373,7 +360,6 @@ module htable_cuckoo_controller
                 if (__ctrl_if.ack) begin
                     if (__ctrl_if.status != STATUS_OK) nxt_state = TBL_ERROR;
                     else if (stash_active)             nxt_state = INSERT_POP;
-                    else if (insert_loop_detected)     nxt_state = ERROR;
                     else                               nxt_state = DONE;
                 end
             end
@@ -391,8 +377,13 @@ module htable_cuckoo_controller
             INSERT_NEXT : begin
                 tbl_idx_inc = 1'b1;
                 cuckoo_ops_inc = 1'b1;
-                if (prev_valid) nxt_state = INSERT_GET;
-                else            nxt_state = DONE;
+                if (prev_valid) begin
+                    // check for cuckoo operations exceeding configured limit (simplified cycle detection)
+                    // perform this check when the original inserted key is 'in-hand', so that it ends up
+                    // being the key that 'fails' to insert
+                    if ((prev_key == insert_key) && (cuckoo_ops > reg_if.cuckoo_control.ops_limit)) nxt_state = INSERT_LOOP;
+                    else nxt_state = INSERT_GET;
+                end else nxt_state = DONE;
             end
             DONE : begin
                 ctrl_ack = 1'b1;
@@ -401,6 +392,10 @@ module htable_cuckoo_controller
             end
             INSERT_KEY_EXISTS : begin
                 insert_key_exists = 1'b1;
+                nxt_state = ERROR;
+            end
+            INSERT_LOOP: begin
+                insert_loop = 1'b1;
                 nxt_state = ERROR;
             end
             DELETE_KEY_NOT_FOUND : begin
@@ -453,11 +448,6 @@ module htable_cuckoo_controller
         if (ctrl_if.req && ctrl_if.rdy) begin
             insert_key <= ctrl_if.key;
         end
-    end
-
-    always_ff @(posedge clk) begin
-        if (state == IDLE) insert_loop_detected    <= 1'b0;
-        else if (insert_loop) insert_loop_detected <= 1'b1;
     end
 
     // Maintain stash context
