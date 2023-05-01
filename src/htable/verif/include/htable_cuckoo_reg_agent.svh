@@ -47,6 +47,12 @@ class htable_cuckoo_reg_agent extends htable_cuckoo_reg_blk_agent;
         wait_ready();
     endtask
 
+    task set_cuckoo_ops_limit(input int ops_limit);
+        htable_cuckoo_reg_pkg::reg_cuckoo_control_t reg_cuckoo_control;
+        reg_cuckoo_control.ops_limit = ops_limit;
+        this.write_cuckoo_control(reg_cuckoo_control);
+    endtask
+
     task get_num_tables(output int num_tables);
         htable_cuckoo_reg_pkg::reg_info_t reg_info;
         this.read_info(reg_info);

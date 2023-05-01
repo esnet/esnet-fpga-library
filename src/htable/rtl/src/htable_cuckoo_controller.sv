@@ -55,36 +55,38 @@ module htable_cuckoo_controller
     // Typedefs
     // ----------------------------------
     typedef enum logic [4:0] {
-        RESET                = 0,
-        IDLE                 = 1,
-        CLEAR                = 2,
-        CLEAR_PENDING        = 3,
-        CLEAR_NEXT           = 4,
-        CLEAR_STASH          = 5,
-        CLEAR_STASH_PENDING  = 6,
-        CHECK                = 7,
-        CHECK_PENDING        = 8,
-        CHECK_NEXT           = 9,
-        CHECK_FOUND          = 10,
-        CHECK_NOT_FOUND      = 11,
-        DELETE               = 12,
-        DELETE_PENDING       = 13,
-        INSERT_GET           = 14,
-        INSERT_GET_PENDING   = 15,
-        INSERT_PUSH          = 16,
-        INSERT_PUSH_PENDING  = 17,
-        INSERT_SET           = 18,
-        INSERT_SET_PENDING   = 19,
-        INSERT_POP           = 20,
-        INSERT_POP_PENDING   = 21,
-        INSERT_NEXT          = 22,
-        DONE                 = 23,
-        INSERT_KEY_EXISTS    = 24,
-        INSERT_LOOP          = 25,
-        DELETE_KEY_NOT_FOUND = 26,
-        TBL_ERROR            = 27,
-        STASH_ERROR          = 28,
-        ERROR                = 29
+        RESET                    = 0,
+        IDLE                     = 1,
+        CLEAR                    = 2,
+        CLEAR_PENDING            = 3,
+        CLEAR_NEXT               = 4,
+        CLEAR_STASH              = 5,
+        CLEAR_STASH_PENDING      = 6,
+        CHECK                    = 7,
+        CHECK_PENDING            = 8,
+        CHECK_NEXT               = 9,
+        CHECK_FOUND              = 10,
+        CHECK_NOT_FOUND          = 11,
+        DELETE                   = 12,
+        DELETE_PENDING           = 13,
+        INSERT_PUSH_NEXT         = 14,
+        INSERT_PUSH_NEXT_PENDING = 15,
+        INSERT_GET_PREV          = 16,
+        INSERT_GET_PREV_PENDING  = 17,
+        INSERT_PUSH_PREV         = 18,
+        INSERT_PUSH_PREV_PENDING = 19,
+        INSERT_SET_NEXT          = 20,
+        INSERT_SET_NEXT_PENDING  = 21,
+        INSERT_POP_NEXT          = 22,
+        INSERT_POP_NEXT_PENDING  = 23,
+        INSERT_NEXT              = 24,
+        DONE                     = 25,
+        INSERT_KEY_EXISTS        = 26,
+        INSERT_LOOP              = 27,
+        DELETE_KEY_NOT_FOUND     = 28,
+        TBL_ERROR                = 29,
+        STASH_ERROR              = 30,
+        ERROR                    = 31
     } state_t;
 
     typedef logic [TBL_IDX_WID-1:0] tbl_idx_t;
@@ -115,6 +117,7 @@ module htable_cuckoo_controller
     VALUE_T     prev_value;
 
     logic     stash_active;
+    logic     insert_loop_detected;
 
     tbl_idx_t tbl_idx;
     logic     tbl_idx_reset;
@@ -306,13 +309,13 @@ module htable_cuckoo_controller
             CHECK_FOUND : begin
                 if      (__command == COMMAND_GET)     nxt_state = DONE;
                 else if (__command == COMMAND_UNSET)   nxt_state = DELETE;
-                else if (__command == COMMAND_REPLACE) nxt_state = INSERT_SET;
+                else if (__command == COMMAND_REPLACE) nxt_state = INSERT_SET_NEXT;
                 else if (__command == COMMAND_SET)     nxt_state = INSERT_KEY_EXISTS;
                 else                                   nxt_state = ERROR;
             end
             CHECK_NOT_FOUND : begin
                 if      (__command == COMMAND_GET)   nxt_state = DONE;
-                else if (__command == COMMAND_SET)   nxt_state = INSERT_GET;
+                else if (__command == COMMAND_SET)   nxt_state = INSERT_PUSH_NEXT;
                 else if (__command == COMMAND_UNSET) nxt_state = DELETE_KEY_NOT_FOUND;
                 else                                 nxt_state = ERROR;
             end
@@ -328,62 +331,72 @@ module htable_cuckoo_controller
                     else                                                                nxt_state = ERROR;
                 end
             end
-            INSERT_GET : begin
-                tbl_req = 1'b1;
-                tbl_command = COMMAND_GET;
-                if (__ctrl_if.rdy) nxt_state = INSERT_GET_PENDING;
-            end
-            INSERT_GET_PENDING : begin
-                if (__ctrl_if.ack) begin
-                    if (__ctrl_if.status != STATUS_OK) nxt_state = TBL_ERROR;
-                    else if (__ctrl_if.get_valid)      nxt_state = INSERT_PUSH;
-                    else                               nxt_state = INSERT_SET;
-                end
-            end
-            INSERT_PUSH : begin
+            INSERT_PUSH_NEXT : begin
                 stash_req = 1'b1;
                 stash_command = COMMAND_SET;
-                if (stash_ctrl_if.rdy) nxt_state = INSERT_PUSH_PENDING;
+                if (stash_ctrl_if.rdy) nxt_state = INSERT_PUSH_NEXT_PENDING;
             end
-            INSERT_PUSH_PENDING : begin
+            INSERT_PUSH_NEXT_PENDING : begin
                 if (stash_ctrl_if.ack) begin
                     if (stash_ctrl_if.status != STATUS_OK) nxt_state = STASH_ERROR;
-                    else                                   nxt_state = INSERT_SET;
+                    else                                   nxt_state = INSERT_GET_PREV;
                 end
             end
-            INSERT_SET : begin
+            INSERT_GET_PREV : begin
                 tbl_req = 1'b1;
-                tbl_command = COMMAND_SET;
-                if (__ctrl_if.rdy) nxt_state = INSERT_SET_PENDING;
+                tbl_command = COMMAND_GET;
+                if (__ctrl_if.rdy) nxt_state = INSERT_GET_PREV_PENDING;
             end
-            INSERT_SET_PENDING : begin
+            INSERT_GET_PREV_PENDING : begin
                 if (__ctrl_if.ack) begin
                     if (__ctrl_if.status != STATUS_OK) nxt_state = TBL_ERROR;
-                    else if (stash_active)             nxt_state = INSERT_POP;
-                    else                               nxt_state = DONE;
+                    else if (__ctrl_if.get_valid)      nxt_state = INSERT_PUSH_PREV;
+                    else                               nxt_state = INSERT_SET_NEXT;
                 end
             end
-            INSERT_POP : begin
+            INSERT_PUSH_PREV : begin
                 stash_req = 1'b1;
-                stash_command = COMMAND_UNSET;
-                if (stash_ctrl_if.rdy) nxt_state = INSERT_POP_PENDING;
+                stash_command = COMMAND_SET;
+                if (stash_ctrl_if.rdy) nxt_state = INSERT_PUSH_PREV_PENDING;
             end
-            INSERT_POP_PENDING : begin
+            INSERT_PUSH_PREV_PENDING : begin
                 if (stash_ctrl_if.ack) begin
                     if (stash_ctrl_if.status != STATUS_OK) nxt_state = STASH_ERROR;
-                    else                                   nxt_state = INSERT_NEXT;
+                    else                                   nxt_state = INSERT_SET_NEXT;
+                end
+            end
+            INSERT_SET_NEXT : begin
+                tbl_req = 1'b1;
+                tbl_command = COMMAND_SET;
+                if (__ctrl_if.rdy) nxt_state = INSERT_SET_NEXT_PENDING;
+            end
+            INSERT_SET_NEXT_PENDING : begin
+                if (__ctrl_if.ack) begin
+                    if (__ctrl_if.status != STATUS_OK) nxt_state = TBL_ERROR;
+                    else                               nxt_state = INSERT_POP_NEXT;
+                end
+            end
+            INSERT_POP_NEXT : begin
+                stash_req = 1'b1;
+                stash_command = COMMAND_UNSET;
+                if (stash_ctrl_if.rdy) nxt_state = INSERT_POP_NEXT_PENDING;
+            end
+            INSERT_POP_NEXT_PENDING : begin
+                if (stash_ctrl_if.ack) begin
+                    if (stash_ctrl_if.status != STATUS_OK) nxt_state = STASH_ERROR;
+                    else if (insert_loop_detected)         nxt_state = ERROR;
+                    else if (stash_active)                 nxt_state = INSERT_NEXT;
+                    else                                   nxt_state = DONE;
                 end
             end
             INSERT_NEXT : begin
                 tbl_idx_inc = 1'b1;
                 cuckoo_ops_inc = 1'b1;
-                if (prev_valid) begin
-                    // check for cuckoo operations exceeding configured limit (simplified cycle detection)
-                    // perform this check when the original inserted key is 'in-hand', so that it ends up
-                    // being the key that 'fails' to insert
-                    if ((prev_key == insert_key) && (cuckoo_ops > reg_if.cuckoo_control.ops_limit)) nxt_state = INSERT_LOOP;
-                    else nxt_state = INSERT_GET;
-                end else nxt_state = DONE;
+                // check for cuckoo operations exceeding configured limit (simplified cycle detection)
+                // perform this check when the original inserted key is 'in-hand', so that it ends up
+                // being the key that 'fails' to insert
+                if ((prev_key == insert_key) && (cuckoo_ops > reg_if.cuckoo_control.ops_limit)) nxt_state = INSERT_LOOP;
+                else nxt_state = INSERT_GET_PREV;
             end
             DONE : begin
                 ctrl_ack = 1'b1;
@@ -396,7 +409,7 @@ module htable_cuckoo_controller
             end
             INSERT_LOOP: begin
                 insert_loop = 1'b1;
-                nxt_state = ERROR;
+                nxt_state = INSERT_POP_NEXT;
             end
             DELETE_KEY_NOT_FOUND : begin
                 delete_key_not_found = 1'b1;
@@ -454,8 +467,14 @@ module htable_cuckoo_controller
     initial stash_active = 1'b0;
     always @(posedge clk) begin
         if (__srst) stash_active <= 1'b0;
-        else if (state == INSERT_PUSH) stash_active <= 1'b1;
-        else if (state == INSERT_POP)  stash_active <= 1'b0;
+        else if (state == INSERT_PUSH_PREV) stash_active <= 1'b1;
+        else if (state == INSERT_GET_PREV)  stash_active <= 1'b0;
+    end
+
+    // Maintain loop detection context
+    always_ff @(posedge clk) begin
+        if (state == IDLE) insert_loop_detected <= 1'b0;
+        else if (state == INSERT_LOOP) insert_loop_detected <= 1'b1;
     end
 
     // Drive upstream control interface
@@ -488,8 +507,15 @@ module htable_cuckoo_controller
     // Drive bubble stash interface
     assign stash_ctrl_if.req       = stash_req;
     assign stash_ctrl_if.command   = stash_command;
-    assign stash_ctrl_if.key       = prev_key;
-    assign stash_ctrl_if.set_value = prev_value;
+    always_comb begin
+        if (state == INSERT_PUSH_NEXT || state == INSERT_POP_NEXT) begin
+            stash_ctrl_if.key       = __key;
+            stash_ctrl_if.set_value = __value;
+        end else begin
+            stash_ctrl_if.key       = prev_key;
+            stash_ctrl_if.set_value = prev_value;
+        end
+    end
 
     // ----------------------------------
     // Table index control

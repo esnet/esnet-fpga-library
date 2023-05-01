@@ -68,7 +68,7 @@ module htable_cuckoo_core
     // ----------------------------------
     assign info_if._type = db_pkg::DB_TYPE_HTABLE;
     assign info_if.subtype = HTABLE_TYPE_CUCKOO;
-    assign info_if.size = tbl_info_if.size - 1; // Don't include single-entry 'bubble' stash
+    assign info_if.size = tbl_info_if.size - 2; // Don't include 'bubble' stash entries
 
     // ----------------------------------
     // Cuckoo controller
@@ -104,7 +104,7 @@ module htable_cuckoo_core
         .HASH_LATENCY        ( HASH_LATENCY ),
         .NUM_WR_TRANSACTIONS ( NUM_WR_TRANSACTIONS ),
         .NUM_RD_TRANSACTIONS ( NUM_RD_TRANSACTIONS ),
-        .STASH_SIZE          ( 1 ), // Bubble stash (single-entry)
+        .STASH_SIZE          ( 2 ), // Bubble stash (stores next/prev entries)
         .INSERT_MODE         ( HTABLE_MULTI_INSERT_MODE_NONE ),
         .APP_CACHE_EN        ( 0 )
     ) i_htable_multi_stash_core (
