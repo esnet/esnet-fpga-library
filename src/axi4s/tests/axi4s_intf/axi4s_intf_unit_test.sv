@@ -10,7 +10,10 @@ module axi4s_intf_unit_test #(
     localparam string dut_string = DUT_SELECT == 0 ? "axi4s_intf_connector" :
                                    DUT_SELECT == 1 ? "axi4s_int_pipe" :
                                    DUT_SELECT == 2 ? "axi4s_tready_pipe" :
-                                   DUT_SELECT == 3 ? "axi4s_full_pipe" : "undefined";
+                                   DUT_SELECT == 3 ? "axi4s_full_pipe" :
+                                   DUT_SELECT == 4 ? "axi4s_fifo_sync_32d" :
+                                   DUT_SELECT == 5 ? "axi4s_fifo_sync_512d" :
+                                   DUT_SELECT == 6 ? "axi4s_fifo_sync_8192d" : "undefined";
 
     string name = $sformatf("axi4s_intf_dut_%s_ut", dut_string);
     svunit_testcase svunit_ut;
@@ -40,6 +43,10 @@ module axi4s_intf_unit_test #(
          2: axi4s_tready_pipe DUT (.axi4s_if_from_tx(axis_in_if), .axi4s_if_to_rx(axis_out_if));
 
          3: axi4s_full_pipe DUT (.axi4s_if_from_tx(axis_in_if), .axi4s_if_to_rx(axis_out_if));
+
+         4: axi4s_fifo_sync #(.DEPTH(32))   DUT (.axi4s_in(axis_in_if), .axi4s_out(axis_out_if));
+         5: axi4s_fifo_sync #(.DEPTH(512))  DUT (.axi4s_in(axis_in_if), .axi4s_out(axis_out_if));
+         6: axi4s_fifo_sync #(.DEPTH(8192)) DUT (.axi4s_in(axis_in_if), .axi4s_out(axis_out_if));
       endcase
    endgenerate
 
@@ -271,3 +278,14 @@ module axi4s_full_pipe_unit_test;
 `AXI4S_UNIT_TEST(3)
 endmodule
 
+module axi4s_fifo_sync_32d_unit_test;
+`AXI4S_UNIT_TEST(4)
+endmodule
+
+module axi4s_fifo_sync_512d_unit_test;
+`AXI4S_UNIT_TEST(5)
+endmodule
+
+module axi4s_fifo_sync_8192d_unit_test;
+`AXI4S_UNIT_TEST(6)
+endmodule
