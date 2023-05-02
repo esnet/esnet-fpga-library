@@ -111,7 +111,7 @@ module axi4s_intf_unit_test #(
 
 
     //===================================
-    // Here we deconstruct anything we 
+    // Here we deconstruct anything we
     // need after running the Unit Tests
     //===================================
     task teardown();
@@ -140,17 +140,18 @@ module axi4s_intf_unit_test #(
     packet_raw packet;
 
     string msg;
+    int len;
 
-    task one_packet();
-       packet = new();
+    task one_packet(int id=0, int len=$urandom_range(64, 511));
+       packet = new($sformatf("pkt_%0d", id), len);
        packet.randomize();
-       axis_transaction = new("trans_0", packet);
+       axis_transaction = new($sformatf("trans_%0d",id), packet);
        env.inbox.put(axis_transaction);
     endtask
 
     task packet_stream();
        for (int i = 0; i < 100; i++) begin
-           one_packet();
+           one_packet(i);
        end
     endtask
 
@@ -160,51 +161,52 @@ module axi4s_intf_unit_test #(
         `SVTEST_END
 
         `SVTEST(one_packet_good)
+            len = $urandom_range(64, 511);
             one_packet();
-            #10us `FAIL_IF_LOG( scoreboard.report(msg), msg );
+            #10us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
         `SVTEST_END
 
         `SVTEST(one_packet_tpause_2)
             env.monitor.set_tpause(2);
             one_packet();
-            #10us `FAIL_IF_LOG( scoreboard.report(msg), msg );
+            #10us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
         `SVTEST_END
 
         `SVTEST(one_packet_twait_2)
             env.driver.set_twait(2);
             one_packet();
-            #10us `FAIL_IF_LOG( scoreboard.report(msg), msg );
+            #10us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
         `SVTEST_END
 
         `SVTEST(one_packet_tpause_2_twait_2)
             env.monitor.set_tpause(2);
             env.driver.set_twait(2);
             one_packet();
-            #10us `FAIL_IF_LOG( scoreboard.report(msg), msg );
+            #10us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
         `SVTEST_END
 
         `SVTEST(packet_stream_good)
             packet_stream();
-            #100us `FAIL_IF_LOG( scoreboard.report(msg), msg );
+            #100us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
         `SVTEST_END
 
         `SVTEST(packet_stream_tpause_2)
             env.monitor.set_tpause(2);
             packet_stream();
-            #100us `FAIL_IF_LOG( scoreboard.report(msg), msg );
+            #100us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
         `SVTEST_END
 
         `SVTEST(packet_stream_twait_2)
             env.driver.set_twait(2);
             packet_stream();
-            #100us `FAIL_IF_LOG( scoreboard.report(msg), msg );
+            #100us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
         `SVTEST_END
 
         `SVTEST(packet_stream_tpause_2_twait_2)
             env.monitor.set_tpause(2);
             env.driver.set_twait(2);
             packet_stream();
-            #100us `FAIL_IF_LOG( scoreboard.report(msg), msg );
+            #100us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
         `SVTEST_END
 
         `SVTEST(one_packet_bad)
