@@ -197,6 +197,7 @@ module htable_fast_update_core #(
     ) i_fifo_sync__tbl_lookup_req_ctxt (
         .clk     ( clk ),
         .srst    ( __srst ),
+        .wr_rdy  ( ),
         .wr      ( tbl_lookup_if.req && tbl_lookup_if.rdy ),
         .wr_data ( tbl_req_ctxt_in ),
         .wr_count( ),

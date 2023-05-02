@@ -153,6 +153,7 @@ module axi4s_pkt_fifo_async
    ) fifo_async_0 (
       .wr_clk    ( axi4s_to_fifo.aclk ),
       .wr_srst   (~axi4s_to_fifo.aresetn ),
+      .wr_rdy    ( ),
       .wr        ( wr ),
       .wr_data   ( wr_data ),
 

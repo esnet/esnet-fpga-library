@@ -44,6 +44,7 @@ module fifo_async_unit_test #(
 
     logic   wr_clk;
     logic   wr_srst;
+    logic   wr_rdy;
     logic   wr;
     DATA_T  wr_data;
 
@@ -89,7 +90,7 @@ module fifo_async_unit_test #(
     // Assign data interfaces
     assign wr = wr_if.valid;
     assign wr_data = wr_if.data;
-    assign wr_if.ready = !full;
+    assign wr_if.ready = wr_rdy;
 
     assign rd = rd_if.ready;
     assign rd_if.data = rd_data;

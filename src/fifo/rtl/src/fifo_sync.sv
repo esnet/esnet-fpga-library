@@ -14,6 +14,7 @@ module fifo_sync #(
     input  logic               srst,
 
     // Write interface
+    output logic               wr_rdy,
     input  logic               wr,
     input  DATA_T              wr_data,
     output logic [CNT_WID-1:0] wr_count,
@@ -55,6 +56,7 @@ module fifo_sync #(
     ) i_fifo_core (
         .wr_clk   ( clk ),
         .wr_srst  ( srst ),
+        .wr_rdy   ( wr_rdy ),
         .wr       ( wr ),
         .wr_data  ( wr_data ),
         .wr_count ( __wr_count ),

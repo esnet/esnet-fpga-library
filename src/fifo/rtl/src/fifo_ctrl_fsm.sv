@@ -16,6 +16,7 @@ module fifo_ctrl_fsm #(
     // Write side
     input  logic               wr_clk,
     input  logic               wr_srst,
+    output logic               wr_rdy,
     input  logic               wr,
     output logic               wr_safe,
     output logic [PTR_WID-1:0] wr_ptr,
@@ -32,6 +33,9 @@ module fifo_ctrl_fsm #(
     output logic [CNT_WID-1:0] rd_count,
     output logic               rd_empty,
     output logic               rd_uflow,
+
+    // Memory ready
+    input  logic               mem_rdy,
 
     // AXI-L control/monitoring interface
     axi4l_intf.peripheral      axil_if
@@ -50,7 +54,7 @@ module fifo_ctrl_fsm #(
     // -----------------------------
     // Write-side logic
     // -----------------------------
-    assign wr_safe = OFLOW_PROT ? (wr && !wr_full) : wr;
+    assign wr_safe = OFLOW_PROT ? (wr && wr_rdy) : wr;
 
     initial _wr_ptr = 0;
     always @(posedge wr_clk) begin
@@ -59,7 +63,7 @@ module fifo_ctrl_fsm #(
     end
 
     assign wr_ptr = _wr_ptr % DEPTH;
-    assign wr_oflow = wr && wr_full;
+    assign wr_oflow = wr && !wr_rdy;
 
     // generate wr_ptr pipeline if MEM_WR_LATENCY > 0.
     generate
@@ -151,11 +155,18 @@ module fifo_ctrl_fsm #(
                 else if (wr_safe) wr_full <= (_wr_count >= DEPTH - 1);
                 else              wr_full <= (_wr_count == DEPTH);
             end
+            initial wr_rdy = 1'b0;
+            always @(posedge wr_clk) begin
+                if (wr_srst || !mem_rdy) wr_rdy <= 1'b0;
+                else  if (wr_safe)       wr_rdy <= (_wr_count < DEPTH - 1);
+                else                     wr_rdy <= (_wr_count < DEPTH);
+            end
         end : g__wr_opt_timing
         else begin : g__wr_opt_latency
             // wr_count/full always updated immediately
             assign wr_count = _wr_count;
             assign wr_full = (wr_count == DEPTH);
+            assign wr_rdy = mem_rdy && (wr_count < DEPTH);
         end : g__wr_opt_latency
         if (RD_OPT_MODE == fifo_pkg::OPT_MODE_TIMING) begin : g__rd_opt_timing
             // rd_count/empty updates immediately on reads, one cycle delay on writes (read-safe)

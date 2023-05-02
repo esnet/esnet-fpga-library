@@ -356,6 +356,7 @@ module state_cache_core
     ) i_fifo_sync__lookup_req_ctxt (
         .clk      ( clk ),
         .srst     ( htable_srst ),
+        .wr_rdy   ( ),
         .wr       ( lookup_if.req && lookup_if.rdy ),
         .wr_data  ( lookup_req_ctxt_in ),
         .wr_count ( ),

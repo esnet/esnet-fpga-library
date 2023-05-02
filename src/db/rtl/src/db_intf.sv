@@ -662,7 +662,7 @@ module db_intf_demux #(
             fifo_small  #(
                 .DATA_T  ( mux_sel_t ),
                 .DEPTH   ( NUM_TRANSACTIONS )
-            ) i_fifo_sync__ctxt (
+            ) i_fifo_small__ctxt (
                 .clk     ( clk ),
                 .srst    ( srst ),
                 .wr      ( db_if_from_requester.req && db_if_from_requester.rdy ),

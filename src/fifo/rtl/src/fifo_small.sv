@@ -54,6 +54,7 @@ module fifo_small #(
     ) i_fifo_ctrl_fsm (
         .wr_clk   ( clk ),
         .wr_srst  ( srst ),
+        .wr_rdy   ( ),
         .wr       ( wr ),
         .wr_safe  ( wr_safe ),
         .wr_ptr   ( wr_ptr ),
@@ -68,6 +69,7 @@ module fifo_small #(
         .rd_count ( ),
         .rd_empty ( empty ),
         .rd_uflow ( uflow ),
+        .mem_rdy  ( 1'b1 ),
         .axil_if  ( axil_if__unused )
     );
 

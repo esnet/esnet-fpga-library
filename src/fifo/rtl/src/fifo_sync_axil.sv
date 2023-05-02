@@ -14,9 +14,9 @@ module fifo_sync_axil #(
     input  logic               srst,
 
     // Write interface
+    output logic               wr_rdy,
     input  logic               wr,
     input  DATA_T              wr_data,
-
     output logic [CNT_WID-1:0] wr_count,
     output logic               full,
     output logic               oflow,
@@ -25,7 +25,6 @@ module fifo_sync_axil #(
     input  logic               rd,
     output logic               rd_ack,
     output DATA_T              rd_data,
-
     output logic [CNT_WID-1:0] rd_count,
     output logic               empty,
     output logic               uflow,
@@ -55,6 +54,7 @@ module fifo_sync_axil #(
     ) i_fifo_core (
         .wr_clk   ( clk ),
         .wr_srst  ( srst ),
+        .wr_rdy   ( wr_rdy ),
         .wr       ( wr ),
         .wr_data  ( wr_data ),
         .wr_count ( __wr_count ),
