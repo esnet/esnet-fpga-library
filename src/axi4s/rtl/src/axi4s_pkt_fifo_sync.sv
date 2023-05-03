@@ -57,11 +57,12 @@ module axi4s_pkt_fifo_sync
 
    logic                wr;
    fifo_data_t          wr_data;
-   logic [CNT_WIDTH-1:0]  count;
+   logic [CNT_WIDTH-1:0] wr_count;
    logic                almost_full, full;
 
    logic                rd;
    fifo_data_t          rd_data;
+   logic [CNT_WIDTH-1:0] rd_count;
    logic                empty, __empty;
    logic                uflow;
 
@@ -135,7 +136,7 @@ module axi4s_pkt_fifo_sync
    assign wr_data.tkeep = axi4s_to_fifo.tkeep;
    assign wr_data.tdata = axi4s_to_fifo.tdata;
 
-   assign almost_full = count > (FIFO_SYNC_DEPTH - ALMOST_FULL_THRESH);
+   assign almost_full = wr_count > (FIFO_SYNC_DEPTH - ALMOST_FULL_THRESH);
 
    assign rd = !empty && axi4s_out.tready;
 
@@ -151,12 +152,13 @@ module axi4s_pkt_fifo_sync
       .srst      (~axi4s_to_fifo.aresetn || srst),
       .wr        ( wr ),
       .wr_data   ( wr_data ),
+      .wr_count  ( wr_count ),
+      .full      ( full ),
+      .oflow     ( oflow ),
       .rd        ( rd ),
       .rd_data   ( rd_data ),
-      .count     ( count ),
-      .full      ( full ),
+      .rd_count  ( rd_count ),
       .empty     ( __empty ),
-      .oflow     ( oflow ),
       .uflow     ( uflow ),
       .axil_if   ( axil_if )
    );
@@ -216,7 +218,7 @@ module axi4s_pkt_fifo_sync
                 .probe2 ( almost_full ),   // input wire [0:0]  probe2
                 .probe3 ( oflow ),         // input wire [0:0]  probe3
                 .probe4 ( '0 ),            // input wire [31:0] probe4
-                .probe5 ( {'0, count} )    // input wire [31:0] probe5
+                .probe5 ( {'0, wr_count} ) // input wire [31:0] probe5
             );
             fifo_xilinx_ila i_fifo_out_ila (
                 .clk (axi4s_out.aclk),
@@ -225,7 +227,7 @@ module axi4s_pkt_fifo_sync
                 .probe2 ( empty ),         // input wire [0:0]  probe2
                 .probe3 ( uflow ),         // input wire [0:0]  probe3
                 .probe4 ( '0 ),            // input wire [31:0] probe4
-                .probe5 ( {'0, count} )    // input wire [31:0] probe5
+                .probe5 ( {'0, rd_count} ) // input wire [31:0] probe5
             );
         end : g__ila
     endgenerate

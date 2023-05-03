@@ -84,6 +84,8 @@ module db_stash_fifo #(
     assign status_if.evt_activate = wr_safe;
     assign status_if.evt_deactivate = rd_safe;
     assign status_if.fill = count;
+    assign status_if.empty = empty;
+    assign status_if.full = full;
 
     // ----------------------------------
     // 'Standard' database core

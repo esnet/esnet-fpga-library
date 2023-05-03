@@ -170,7 +170,11 @@ module state_cache_core
     // ----------------------------------
     // Init done
     // ----------------------------------
-    assign init_done = htable_init_done && allocator_init_done && revmap_init_done;
+    always @(posedge clk) begin
+        if (srst) init_done <= 1'b0;
+        else if (htable_init_done && allocator_init_done && revmap_init_done) init_done <= 1'b1;
+        else init_done <= 1'b0;
+    end
 
     // ----------------------------------
     // AXI-L control
@@ -345,20 +349,23 @@ module state_cache_core
     assign lookup_req_ctxt_in.key = lookup_if.key;
     assign lookup_req_ctxt_in.back_to_back = last_lookup_key_valid && (lookup_if.key == last_lookup_key);
 
-    fifo_small  #(
-        .DATA_T  ( lookup_req_ctxt_t ),
-        .DEPTH   ( NUM_RD_TRANSACTIONS )
-    ) i_fifo_small__lookup_req_ctxt (
-        .clk     ( clk ),
-        .srst    ( htable_srst ),
-        .wr      ( lookup_if.req && lookup_if.rdy ),
-        .wr_data ( lookup_req_ctxt_in ),
-        .full    ( ),
-        .oflow   ( ),
-        .rd      ( lookup_if.ack ),
-        .rd_data ( lookup_req_ctxt_out ),
-        .empty   ( ),
-        .uflow   ( )
+    fifo_sync    #(
+        .DATA_T   ( lookup_req_ctxt_t ),
+        .DEPTH    ( NUM_RD_TRANSACTIONS ),
+        .FWFT     ( 1 )
+    ) i_fifo_sync__lookup_req_ctxt (
+        .clk      ( clk ),
+        .srst     ( htable_srst ),
+        .wr       ( lookup_if.req && lookup_if.rdy ),
+        .wr_data  ( lookup_req_ctxt_in ),
+        .wr_count ( ),
+        .full     ( ),
+        .oflow    ( ),
+        .rd       ( lookup_if.ack ),
+        .rd_data  ( lookup_req_ctxt_out ),
+        .rd_count ( ),
+        .empty    ( ),
+        .uflow    ( )
     );
 
     // -----------------------------------------------------------
@@ -465,7 +472,7 @@ module state_cache_core
     assign revmap_wr_if.data = htable_update_if.key;
 
     assign revmap_rd_if.rst = 1'b0;
-    assign revmap_rd_if.en = 1'b1;
+    assign revmap_rd_if.en = 1'b1; // Unused
     assign revmap_rd_if.req = revmap_rd_req;
     assign revmap_rd_if.addr = delete_id;
 

@@ -55,6 +55,8 @@ module db_stash_lru #(
     assign status_if.evt_activate = db_wr_if.req && db_wr_if.rdy;
     assign status_if.evt_deactivate = db_wr_if.req && db_wr_if.rdy && (count == SIZE);
     assign status_if.fill = count;
+    assign status_if.empty = (count == 0);
+    assign status_if.full = (count == SIZE);
 
     // ----------------------------------
     // Export info

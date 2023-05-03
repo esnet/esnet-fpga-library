@@ -63,8 +63,9 @@ regs:
               08 : TBL_UPDATE_DONE
               09 : TBL_UPDATE_ERROR
               0A : STASH_POP
-              0B : STASH_POP_PENDING
-              0C : ERROR
+              0B : STASH_POP_WAIT
+              0C : STASH_POP_PENDING
+              0D : ERROR
 
   - name: cnt_control
     access: wr_evt

@@ -1,12 +1,46 @@
+# -----------------------------------------------
+# (Global) Path setup
+# -----------------------------------------------
+IP_ROOT := ../..
+
+# -----------------------------------------------
+# IP config
+# -----------------------------------------------
+include $(IP_ROOT)/config.mk
+
+# -----------------------------------------------
+# Export parameters used in add_sources.tcl
+# -----------------------------------------------
+export LIB_ROOT
+
+# -----------------------------------------------
+# Specify top-level module
+# -----------------------------------------------
+TOP = mem_ram_sdp_sync_wrapper
+
 # ----------------------------------------------------
 # Targets
 # ----------------------------------------------------
-all: build
+all: opt
 
-build:
-	vivado -mode tcl -source build.tcl
+pre_synth:
+synth:     _synth
+opt:       _opt
+place:     _place
+phys_opt:  _phys_opt
+route:     _route
+.PHONY: pre_synth synth opt place phys_opt route
 
-clean:
-	@rm -rf out/
-	@rm -f *.jou
-	@rm -f *.log
+clean: _clean_build
+.PHONY: clean
+
+# -----------------------------------------------
+# Include Vivado definitions/targets
+# -----------------------------------------------
+include $(SCRIPTS_ROOT)/Makefiles/vivado_build_core.mk
+
+# -----------------------------------------------
+# Include regio targets
+# -----------------------------------------------
+include $(SCRIPTS_ROOT)/Makefiles/regio.mk
+

@@ -119,6 +119,7 @@ module htable_core
         .VALUE_T             ( entry_t ),
         .NUM_WR_TRANSACTIONS ( NUM_WR_TRANSACTIONS ),
         .NUM_RD_TRANSACTIONS ( NUM_RD_TRANSACTIONS ),
+        .DB_CACHE_EN         ( 1'b0 ),
         .APP_CACHE_EN        ( APP_CACHE_EN )
     ) i_db_core       (
         .clk          ( clk ),

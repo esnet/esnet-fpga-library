@@ -39,7 +39,7 @@ module mem_ram_sdp_core
                                                                       "ultra";
     // NOTE: Additional pipelining (write and/or read) may be required for large memory arrays
     localparam int WR_PIPELINE_STAGES = get_default_wr_pipeline_stages(__RAM_STYLE);
-    localparam int RD_PIPELINE_STAGES = get_default_rd_pipeline_stages(__RAM_STYLE);
+    localparam int RD_PIPELINE_STAGES = get_default_rd_pipeline_stages(__RAM_STYLE, DEPTH);
 
     // -----------------------------
     // TYPEDEFS
@@ -202,7 +202,7 @@ module mem_ram_sdp_core
         else                          rd_srst_local <= 1'b0;
     end
 
-    assign rd      = mem_rd_if.en && mem_rd_if.req;
+    assign rd      = mem_rd_if.req;
     assign rd_addr = mem_rd_if.addr;
 
     // Unless held in reset, memory is always ready to receive transactions

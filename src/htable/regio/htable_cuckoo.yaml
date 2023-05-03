@@ -76,21 +76,20 @@ regs:
               0D : DELETE_PENDING
               0E : INSERT_GET
               0F : INSERT_GET_PENDING
-              10 : INSERT_LOOP_CHECK
-              11 : INSERT_LOOP
-              12 : INSERT_PUSH
-              13 : INSERT_PUSH_PENDING
-              14 : INSERT_SET
-              15 : INSERT_SET_PENDING
-              16 : INSERT_POP
-              17 : INSERT_POP_PENDING
-              18 : INSERT_NEXT
-              19 : DONE
-              1A : INSERT_KEY_EXISTS
-              1B : DELETE_KEY_NOT_FOUND
-              1C : TBL_ERROR
-              1D : STASH_ERROR
-              1E : ERROR
+              10 : INSERT_PUSH
+              11 : INSERT_PUSH_PENDING
+              12 : INSERT_SET
+              13 : INSERT_SET_PENDING
+              14 : INSERT_POP
+              15 : INSERT_POP_PENDING
+              16 : INSERT_NEXT
+              17 : DONE
+              18 : INSERT_KEY_EXISTS
+              19 : INSERT_LOOP
+              1A : DELETE_KEY_NOT_FOUND
+              1B : TBL_ERROR
+              1C : STASH_ERROR
+              1D : ERROR
 
   - name: cnt_control
     access: wr_evt
@@ -167,7 +166,17 @@ regs:
 
   - name: cnt_active
     access: ro
-    desc: Count of currently active timers (latched)
+    desc: Count of currently active table entries (latched)
+    width: 32
+
+  - name: cnt_active_min
+    access: ro
+    desc: Min number of active table entries (since last clear).
+    width: 32
+
+  - name: cnt_active_max
+    access: ro
+    desc: Max number of active table entries (since last clear).
     width: 32
 
   - name: dbg_cnt_control

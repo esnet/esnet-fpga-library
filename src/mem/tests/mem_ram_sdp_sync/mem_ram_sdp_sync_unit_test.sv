@@ -6,16 +6,14 @@
 module mem_ram_sdp_sync_unit_test #(
     parameter int ADDR_WID = 8,
     parameter int DATA_WID = 32,
-    parameter bit REG_OUT = 1'b1,
     parameter bit RESET_FSM = 1'b0
 );
     import svunit_pkg::svunit_testcase;
 
-    string reg_str = REG_OUT ? "reg_" : "";
     string rst_str = RESET_FSM ? "rst_" : "";
 
     // Synthesize testcase name from parameters
-    string name = $sformatf("mem_ram_sdp_sync_a%0db_d%0db_%s%sut", ADDR_WID, DATA_WID, reg_str, rst_str);
+    string name = $sformatf("mem_ram_sdp_sync_a%0db_d%0db_%sut", ADDR_WID, DATA_WID, rst_str);
 
     svunit_testcase svunit_ut;
 
@@ -154,7 +152,7 @@ module mem_ram_sdp_sync_unit_test #(
 
     task rd_idle();
         mem_rd_if.rst <= 1'b0;
-        mem_rd_if.en  <= 1'b0;
+        mem_rd_if.en  <= 1'bx; // Unused
         mem_rd_if.req <= 1'b0;
         @(posedge clk);
     endtask
@@ -175,11 +173,9 @@ module mem_ram_sdp_sync_unit_test #(
 
     task read(input addr_t addr, output data_t data);
         wait(mem_rd_if.rdy);
-        mem_rd_if.en <= 1'b1;
         mem_rd_if.req <= 1'b1;
         mem_rd_if.addr <= addr;
         @(posedge clk);
-        mem_rd_if.en <= 1'b0;
         mem_rd_if.req <= 1'b0;
         mem_rd_if.addr <= 'x;
         wait(mem_rd_if.ack);

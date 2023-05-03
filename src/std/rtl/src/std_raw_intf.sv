@@ -73,7 +73,7 @@ interface std_raw_intf #(
     //   readiness to receive it
     // - transaction is completed on cycle that valid is asserted
     task push_when_ready(input DATA_T _data);
-        wait(cb.ready);
+        wait(ready);
         push(_data);
     endtask
 
@@ -108,7 +108,7 @@ interface std_raw_intf #(
     // - transaction is completed on cycle that ready is
     //   asserted
     task ack(output DATA_T _data);
-        wait(cb.valid);
+        wait(valid);
         pull(_data);
     endtask
 
@@ -143,7 +143,7 @@ interface std_raw_intf #(
     //   after data readiness is signaled via 'valid' signal
     // - data is considered valid on cycle following fetch request
     task ack_fetch(output DATA_T _data);
-        wait(cb.valid);
+        wait(valid);
         fetch(_data);
     endtask
 

@@ -282,7 +282,7 @@ module state_allocator_bv #(
     assign mem_wr_if.data = wr_data;
 
     assign mem_rd_if.rst = 1'b0;
-    assign mem_rd_if.en = init_done;
+    assign mem_rd_if.en = 1'b1; // Unused
     assign mem_rd_if.req = rd || scan_rd;
     assign mem_rd_if.addr = rd ? id.row : scan_row;
 
@@ -309,18 +309,22 @@ module state_allocator_bv #(
     // -----------------------------
     // Allocation queue
     // -----------------------------
-    fifo_small #(
+    fifo_sync #(
         .DATA_T  ( ID_T ),
-        .DEPTH   ( 32 )
+        .DEPTH   ( 32 ),
+        .FWFT    ( 1 )
     ) i_alloc_q  (
         .clk     ( clk ),
         .srst    ( local_srst ),
         .wr      ( alloc_q_wr ),
         .wr_data ( alloc_q_wr_data ),
+        .wr_count( ),
         .full    ( alloc_q_full ),
         .oflow   ( ),
         .rd      ( alloc ),
+        .rd_ack  ( ),
         .rd_data ( alloc_id ),
+        .rd_count( ),
         .empty   ( alloc_q_empty ),
         .uflow   ( alloc_q_uflow )
     );
@@ -333,18 +337,22 @@ module state_allocator_bv #(
     // -----------------------------
     // Deallocation queue
     // -----------------------------
-    fifo_small #(
+    fifo_sync #(
         .DATA_T   ( ID_T ),
-        .DEPTH    ( 32 )
+        .DEPTH    ( 32 ),
+        .FWFT     ( 1 )
     ) i_dealloc_q (
         .clk      ( clk ),
         .srst     ( local_srst ),
         .wr       ( dealloc_req && dealloc_rdy ),
         .wr_data  ( dealloc_id ),
+        .wr_count ( ),
         .full     ( dealloc_q_full ),
         .oflow    ( dealloc_q_oflow ),
         .rd       ( dealloc_q_rd ),
+        .rd_ack   ( ),
         .rd_data  ( dealloc_q_rd_data ),
+        .rd_count ( ),
         .empty    ( dealloc_q_empty ),
         .uflow    ( )
     );

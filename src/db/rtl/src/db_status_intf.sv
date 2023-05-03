@@ -5,6 +5,8 @@ interface db_status_intf (
 
     // Signals
     logic [31:0] fill;
+    logic        empty;
+    logic        full;
 
     // Events
     logic        evt_activate;
@@ -16,6 +18,8 @@ interface db_status_intf (
 
     modport controller(
         input  fill,
+        input  empty,
+        input  full,
         input  cnt_active,
         input  cnt_activate,
         input  cnt_deactivate
@@ -23,6 +27,8 @@ interface db_status_intf (
 
     modport peripheral(
         output fill,
+        output empty,
+        output full,
         output evt_activate,
         output evt_deactivate
     );

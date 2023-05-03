@@ -16,20 +16,24 @@ module fifo_sync #(
     // Write interface
     input  logic               wr,
     input  DATA_T              wr_data,
+    output logic [CNT_WID-1:0] wr_count,
+    output logic               full,
+    output logic               oflow,
 
     // Read interface
     input  logic               rd,
     output logic               rd_ack,
     output DATA_T              rd_data,
-
-    // Status
-    output logic [CNT_WID-1:0] count,
-    output logic               full,
+    output logic [CNT_WID-1:0] rd_count,
     output logic               empty,
-
-    output logic               oflow,
     output logic               uflow
 );
+
+    // -----------------------------
+    // Signals
+    // -----------------------------
+    logic [31:0] __wr_count;
+    logic [31:0] __rd_count;
 
     // -----------------------------
     // Interfaces
@@ -53,7 +57,7 @@ module fifo_sync #(
         .wr_srst  ( srst ),
         .wr       ( wr ),
         .wr_data  ( wr_data ),
-        .wr_count ( ),
+        .wr_count ( __wr_count ),
         .wr_full  ( full ),
         .wr_oflow ( oflow ),
         .rd_clk   ( clk ),
@@ -61,11 +65,14 @@ module fifo_sync #(
         .rd       ( rd ),
         .rd_ack   ( rd_ack ),
         .rd_data  ( rd_data ),
-        .rd_count ( count ),
+        .rd_count ( __rd_count ),
         .rd_empty ( empty ),
         .rd_uflow ( uflow ),
         .axil_if  ( axil_if__unused )
     );
+
+    assign wr_count = __wr_count[CNT_WID-1:0];
+    assign rd_count = __rd_count[CNT_WID-1:0];
 
     // Tie off (unused AXI-L interface)
     axi4l_intf_controller_term i_axi4l_intf_controller_term (.axi4l_if(axil_if__unused));

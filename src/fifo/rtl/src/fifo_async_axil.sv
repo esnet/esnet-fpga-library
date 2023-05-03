@@ -38,8 +38,8 @@ module fifo_async_axil #(
     // -----------------------------
     // Signals
     // -----------------------------
-    logic [CNT_WID-1:0] __wr_count;
-    logic [CNT_WID-1:0] __rd_count;
+    logic [31:0] __wr_count;
+    logic [31:0] __rd_count;
 
     // -----------------------------
     // Instantiate FIFO core
@@ -72,16 +72,12 @@ module fifo_async_axil #(
         .axil_if  ( axil_if )
     );
 
-    initial wr_count = 0;
-    always @(posedge wr_clk) begin
-        if (wr_srst) wr_count <= 0;
-        else         wr_count <= __wr_count;
-    end
+    assign wr_count = __wr_count[CNT_WID-1:0];
    
     initial rd_count = 0;
     always @(posedge rd_clk) begin
         if (rd_srst) rd_count <= 0;
-        else         rd_count <= __rd_count;
+        else         rd_count <= __rd_count[CNT_WID-1:0];
     end
    
 endmodule : fifo_async_axil
