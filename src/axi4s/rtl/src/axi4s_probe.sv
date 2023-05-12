@@ -38,18 +38,26 @@ module axi4s_probe
 
    // packet and byte counter logic    
    logic incr_en;
-   always_comb begin
-      incr_en = 1'b0;
+
+   initial incr_en = 1'b0;
+   always @(posedge axi4s_if.aclk) begin
       case (MODE)
-         GOOD:    incr_en = ( axi4s_if.tready && axi4s_if.tvalid);
-         OVFL:    incr_en = (!axi4s_if.tready && axi4s_if.tvalid);
-         ERRORS:  incr_en = ( axi4s_if.tready && axi4s_if.tvalid);  // see below for pkt_error handling.
-         default: incr_en = 1'b0;
+         GOOD:    incr_en <= ( axi4s_if.tready && axi4s_if.tvalid);
+         OVFL:    incr_en <= (!axi4s_if.tready && axi4s_if.tvalid);
+         ERRORS:  incr_en <= ( axi4s_if.tready && axi4s_if.tvalid);  // see below for pkt_error handling.
+         default: incr_en <= 1'b0;
       endcase
    end
 
    logic  pkt_error;
-   assign pkt_error = (axi4s_if.TUSER_MODE == PKT_ERROR) && axi4s_if.tuser;
+   always @(posedge axi4s_if.aclk) pkt_error <= (axi4s_if.TUSER_MODE == PKT_ERROR) && axi4s_if.tuser;
+
+   logic [DATA_BYTE_WID-1:0] axi4s_if_tkeep_p;
+   logic                     axi4s_if_tlast_p;
+   always @(posedge axi4s_if.aclk) begin
+       axi4s_if_tkeep_p <= axi4s_if.tkeep;
+       axi4s_if_tlast_p <= axi4s_if.tlast;
+    end
    
    logic        pkt_cnt_incr;
    logic        pkt_cnt_incr_p;
@@ -88,15 +96,15 @@ module axi4s_probe
          byte_cnt         <= 0;
 
       end else begin
-         pkt_cnt_incr    <= incr_en && axi4s_if.tlast;
+         pkt_cnt_incr    <= incr_en && axi4s_if_tlast_p;
          pkt_cnt_incr_p  <= pkt_cnt_incr;
 
-         byte_cnt_incr <= incr_en ? count_ones(axi4s_if.tkeep) : '0;
+         byte_cnt_incr <= incr_en ? count_ones(axi4s_if_tkeep_p) : '0;
 
          // if counting ERRORS, disable byte_cnt update if NO pkt_error is detected on tlast.
          // else (if counting GOOD pkts), disable byte_cnt update if PKT_ERROR is detected on tlast.
-         if (MODE == ERRORS) disable_update <= incr_en && axi4s_if.tlast && !pkt_error;
-         else                disable_update <= incr_en && axi4s_if.tlast &&  pkt_error;
+         if (MODE == ERRORS) disable_update <= incr_en && axi4s_if_tlast_p && !pkt_error;
+         else                disable_update <= incr_en && axi4s_if_tlast_p &&  pkt_error;
 
          disable_update_p <= disable_update;
 
