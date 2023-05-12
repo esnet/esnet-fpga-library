@@ -107,7 +107,8 @@ module axi4s_pkt_buffer
       .clk       ( axi4s_in.aclk ),
       .srst      ( ~axi4s_in.aresetn ),
       .mem_wr_if ( mem_wr_if ),
-      .mem_rd_if ( mem_rd_if )
+      .mem_rd_if ( mem_rd_if ),
+      .init_done ( )
    );
 
    assign mem_rd_if.rst  = ~axi4s_in.aresetn;
