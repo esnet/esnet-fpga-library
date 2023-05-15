@@ -78,7 +78,7 @@ if {$phase == "proj"} {
             drv_dpi {
                 foreach ip [get_ips] {
                     generate_target example [get_ips $ip]
-                    exec cp [glob -directory [file join $ip bin] *.so] $ip/
+                    file copy [glob -directory [file join $ip bin] *.so] $ip/
                     reset_target example [get_ips $ip]
                 }
             }
