@@ -16,6 +16,7 @@ module fifo_core
     // Write interface
     input  logic        wr_clk,
     input  logic        wr_srst,
+    output logic        wr_rdy,
     input  logic        wr,
     input  DATA_T       wr_data,
     output logic [31:0] wr_count,
@@ -78,6 +79,8 @@ module fifo_core
 
     logic [MEM_RD_LATENCY-1:0] rd_empty_p; // rd_empty pipeline.
 
+    logic mem_init_done;
+
     // -----------------------------
     // Interfaces
     // -----------------------------
@@ -126,6 +129,7 @@ module fifo_core
     ) i_fifo_ctrl_fsm (
         .wr_clk   ( wr_clk ),
         .wr_srst  ( local_wr_srst ),
+        .wr_rdy   ( wr_rdy ),
         .wr       ( wr ),
         .wr_safe  ( wr_safe ),
         .wr_ptr   ( wr_ptr ),
@@ -140,6 +144,7 @@ module fifo_core
         .rd_count ( __rd_count ),
         .rd_empty ( __rd_empty ),
         .rd_uflow ( __rd_uflow ),
+        .mem_rdy  ( mem_init_done ),
         .axil_if  ( ctrl_axil_if )
     );
 
@@ -159,7 +164,7 @@ module fifo_core
         .rd_clk    ( rd_clk ),
         .rd_srst   ( local_rd_srst ),
         .mem_rd_if ( mem_rd_if ),
-        .init_done ( )
+        .init_done ( mem_init_done )
     );
 
     assign mem_wr_if.rst = 1'b0;
@@ -231,7 +236,6 @@ module fifo_core
 
         end : g__std
     endgenerate
-
 
     // Write count
     assign wr_count = {'0, __wr_count};

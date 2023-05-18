@@ -50,7 +50,7 @@ class axi4s_transaction #(
 
     // Compare transaction to a reference transaction
     // [[ implements std_verif_pkg::transaction.compare() ]]
-    function bit compare(input axi4s_transaction t2, output string msg);
+    function bit compare(input axi4s_transaction#(TID_T,TDEST_T,TUSER_T) t2, output string msg);
         if (!get_packet().compare(t2.get_packet(), msg)) begin
             return 0;
         end else if (this.tid != t2.tid) begin

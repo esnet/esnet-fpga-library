@@ -316,6 +316,7 @@ module state_allocator_bv #(
     ) i_alloc_q  (
         .clk     ( clk ),
         .srst    ( local_srst ),
+        .wr_rdy  ( ),
         .wr      ( alloc_q_wr ),
         .wr_data ( alloc_q_wr_data ),
         .wr_count( ),
@@ -344,6 +345,7 @@ module state_allocator_bv #(
     ) i_dealloc_q (
         .clk      ( clk ),
         .srst     ( local_srst ),
+        .wr_rdy   ( ),
         .wr       ( dealloc_req && dealloc_rdy ),
         .wr_data  ( dealloc_id ),
         .wr_count ( ),

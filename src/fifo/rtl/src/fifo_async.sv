@@ -12,6 +12,7 @@ module fifo_async #(
     // Write interface
     input  logic               wr_clk,
     input  logic               wr_srst,
+    output logic               wr_rdy,
     input  logic               wr,
     input  DATA_T              wr_data,
 
@@ -58,6 +59,7 @@ module fifo_async #(
     ) i_fifo_core (
         .wr_clk   ( wr_clk ),
         .wr_srst  ( wr_srst ),
+        .wr_rdy   ( wr_rdy ),
         .wr       ( wr ),
         .wr_data  ( wr_data ),
         .wr_count ( __wr_count ),

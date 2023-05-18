@@ -150,6 +150,7 @@ module axi4s_pkt_fifo_sync
    ) fifo_sync_0 (
       .clk       ( axi4s_to_fifo.aclk ),
       .srst      (~axi4s_to_fifo.aresetn || srst),
+      .wr_rdy    ( ),
       .wr        ( wr ),
       .wr_data   ( wr_data ),
       .wr_count  ( wr_count ),

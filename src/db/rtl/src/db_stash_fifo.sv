@@ -130,6 +130,7 @@ module db_stash_fifo #(
     ) i_fifo_ctrl_fsm (
         .wr_clk   ( clk ),
         .wr_srst  ( __srst ),
+        .wr_rdy   ( ),
         .wr       ( db_wr_if.req && db_wr_if.rdy && !db_wr_if.next ),
         .wr_safe  ( wr_safe ),
         .wr_ptr   ( ),
@@ -144,6 +145,7 @@ module db_stash_fifo #(
         .rd_count ( ),
         .rd_empty ( empty ),
         .rd_uflow ( ),
+        .mem_rdy  ( db_init_done ),
         .axil_if  ( fifo_ctrl_fsm_axil_if__unused )
     );
 

@@ -55,6 +55,22 @@ interface axi4s_intf
         input  sop
     );
 
+    modport tx_async (
+        input  aclk,
+        input  aresetn,
+        output tvalid,
+        input  tready,
+        output tdata,
+        output tkeep,
+        output tlast,
+        output tid,
+        output tdest,
+        output tuser,
+        // Status
+        input  sop
+    );
+
+
     modport prb (
         input  aclk,
         input  aresetn,
