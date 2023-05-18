@@ -13,7 +13,13 @@ VIVADO_VERSION = 2022.2
 VITIS_NET_P4_FILES = $(VITIS_NET_P4_V1_2_FILES)
 VITIS_NET_P4_LIBS = -L vitis_net_p4_v1_2_0 -L cam_v2_4_0
 else
+ifeq ($(notdir $(XILINX_VIVADO)),2023.1)
+VIVADO_VERSION = 2023.1
+VITIS_NET_P4_FILES = $(VITIS_NET_P4_V1_2_FILES)
+VITIS_NET_P4_LIBS = -L vitis_net_p4_v1_3_0 -L cam_v2_5_0
+else
 $(error Vivado version not valid.)
+endif
 endif
 endif
 
