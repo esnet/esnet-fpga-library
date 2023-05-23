@@ -11,10 +11,9 @@ variables:
   RANDOMIZE_SEED: 0
 
 .common:
-  image: $CI_REGISTRY/ht/xilinx-tools-docker:26009-g26ccc4b6
+  image: $CI_REGISTRY/ht/xilinx-tools-docker:36639-g97523045
   before_script:
     - git clone https://gitlab.es.net/ht/open-nic-shell.git
-    - source /opt/Xilinx/Vivado/2022.1/settings64.sh
     - make config BOARD_REPO=$CI_PROJECT_DIR/open-nic-shell/board_files/Xilinx
     - if [ $RANDOMIZE_SEED -gt 0 ]; then export SEED=$RANDOM; fi
     - echo "Running pipeline with SEED $SEED..."
