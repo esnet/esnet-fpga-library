@@ -431,7 +431,7 @@ endmodule : state_allocator_bv_unit_test
   endtask
 
 // (Distributed RAM) 8-bit pointer allocator
-module state_tr_bv_allocator_8b_unit_test;
+module state_allocator_bv_8b_unit_test;
 `STATE_ALLOCATOR_BV_UNIT_TEST(8);
 endmodule
 
