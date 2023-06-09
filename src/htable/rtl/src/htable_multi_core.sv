@@ -227,6 +227,7 @@ module htable_multi_core
                 assign update_if__tbl[g_tbl].valid = 1'b0;
                 assign update_if__tbl[g_tbl].value = '0;
                 assign update_if.rdy = 1'b0;
+                assign update_if.ack = 1'b0;
                 assign update_if.error = 1'b0;
                 assign update_if.next_key = '0;
             end : g__tbl

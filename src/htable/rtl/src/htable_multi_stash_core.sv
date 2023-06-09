@@ -168,6 +168,7 @@ module htable_multi_stash_core
     assign stash_update_if.key = '0;
     assign stash_update_if.valid = 1'b0;
     assign stash_update_if.value = '0;
+    assign stash_update_if.next = 1'b0;
 
     // Store stash lookup responses to align with table lookup results
     assign stash_lookup_resp_in.error = stash_lookup_if.error;
@@ -219,5 +220,6 @@ module htable_multi_stash_core
             lookup_if.value = tbl_lookup_if.value;
         end
     end
+    assign lookup_if.next_key = '0;
 
 endmodule : htable_multi_stash_core

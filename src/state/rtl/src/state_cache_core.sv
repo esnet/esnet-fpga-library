@@ -89,6 +89,8 @@ module state_cache_core
     logic __srst;
     logic __en;
 
+    logic htable_ctrl_reset;
+    logic htable_ctrl_en;
     logic htable_init;
     logic htable_init_done;
     logic htable_srst;
@@ -363,6 +365,7 @@ module state_cache_core
         .full     ( ),
         .oflow    ( ),
         .rd       ( lookup_if.ack ),
+        .rd_ack   ( ),
         .rd_data  ( lookup_req_ctxt_out ),
         .rd_count ( ),
         .empty    ( ),
