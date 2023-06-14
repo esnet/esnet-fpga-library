@@ -12,13 +12,18 @@ module db_peripheral_unit_test;
     // Parameters
     //===================================
     parameter int SIZE = 8;
-    parameter int TIMEOUT_CYCLES = 0;
+    parameter int KEY_WID = 16;
+    parameter int VALUE_WID = 31;
+    parameter int TIMEOUT_CYCLES = 100;
+
+    parameter type_t DB_TYPE = DB_TYPE_UNSPECIFIED;
+    parameter subtype_t DB_SUBTYPE = 'hDB;
     
     //===================================
     // Typedefs
     //===================================
-    typedef logic [5:0]  key_t;
-    typedef logic [31:0] value_t;
+    parameter type KEY_T = bit[KEY_WID-1:0];
+    parameter type VALUE_T = bit[VALUE_WID-1:0];
 
     //===================================
     // DUT
@@ -26,10 +31,10 @@ module db_peripheral_unit_test;
     logic clk;
     logic srst;
 
-    db_ctrl_intf #(.KEY_T(key_t), .VALUE_T(value_t)) ctrl_if (.clk(clk));
+    db_ctrl_intf #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) ctrl_if (.clk(clk));
 
-    db_intf #(.KEY_T(key_t), .VALUE_T(value_t)) wr_if (.clk(clk));
-    db_intf #(.KEY_T(key_t), .VALUE_T(value_t)) rd_if (.clk(clk));
+    db_intf #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) wr_if (.clk(clk));
+    db_intf #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) rd_if (.clk(clk));
     
     logic init;
     logic init_done;
@@ -41,8 +46,23 @@ module db_peripheral_unit_test;
     //===================================
     // Testbench
     //===================================
-    db_ctrl_agent #(.KEY_T(key_t), .VALUE_T(value_t)) agent;
+    db_ctrl_agent #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) agent;
     std_reset_intf reset_if (.clk(clk));
+
+    db_info_intf #() info_if ();
+    assign info_if._type = DB_TYPE;
+    assign info_if.subtype = DB_SUBTYPE;
+    assign info_if.size = SIZE;
+
+    // Database store
+    db_store_array #(
+        .KEY_T ( KEY_T ),
+        .VALUE_T ( VALUE_T )
+    ) i_db_store_array (
+        .db_wr_if ( wr_if ),
+        .db_rd_if ( rd_if ),
+        .*
+    );
 
     // Assign clock (250MHz)
     `SVUNIT_CLK_GEN(clk, 2ns);
@@ -50,8 +70,6 @@ module db_peripheral_unit_test;
     // Assign reset interface
     assign srst = reset_if.reset;
     assign reset_if.ready = init_done;
-
-    always_ff @(posedge clk) init_done <= ~srst;
 
     //===================================
     // Build
@@ -61,6 +79,7 @@ module db_peripheral_unit_test;
 
         agent = new("db_agent", SIZE);
         agent.ctrl_vif = ctrl_if;
+        agent.info_vif = info_if;
  
     endfunction
 
@@ -73,7 +92,7 @@ module db_peripheral_unit_test;
         
         agent.idle();
 
-        reset_if.pulse(8);
+        reset();
     
     endtask
 
@@ -106,16 +125,19 @@ module db_peripheral_unit_test;
     //===================================
     `SVUNIT_TESTS_BEGIN
     
-    `SVTEST(compile)
-    `SVTEST_END
-
-    `SVTEST(reset)
-        bit error, timeout;
-        agent.clear_all(error, timeout);
-        `FAIL_UNLESS(error === 1'b0);
-        `FAIL_UNLESS(timeout === 1'b0);
-    `SVTEST_END
+    // Include common tests
+    `include "../common/tests.svh"
+    // Include control-specific tests
+    `include "../common/ctrl_tests.svh"
 
     `SVUNIT_TESTS_END
+
+    //===================================
+    // Tasks
+    //===================================
+    // Import common tasks
+    `include "../common/tasks.svh"
+    // Import control-specific tasks
+    `include "../common/ctrl_tasks.svh"
 
 endmodule

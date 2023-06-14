@@ -14,12 +14,15 @@ module db_stash_fifo_unit_test;
     parameter int SIZE = 16;
     parameter int KEY_WID = 96;
     parameter int VALUE_WID = 32;
+
+    parameter type_t DB_TYPE = DB_TYPE_STASH;
+    parameter subtype_t DB_SUBTYPE = DB_STASH_TYPE_FIFO;
     
     //===================================
     // Typedefs
     //===================================
-    parameter type KEY_T = logic [KEY_WID-1:0];
-    parameter type VALUE_T = logic [VALUE_WID-1:0];
+    parameter type KEY_T = bit [KEY_WID-1:0];
+    parameter type VALUE_T = bit [VALUE_WID-1:0];
 
     //===================================
     // DUT
@@ -110,53 +113,13 @@ module db_stash_fifo_unit_test;
     //   `SVTEST_END
     //===================================
     `SVUNIT_TESTS_BEGIN
-    
-    `SVTEST(reset)
-    `SVTEST_END
-
-    `SVTEST(ctrl_reset)
-        bit error, timeout;
-        agent.clear_all(error, timeout);
-        `FAIL_IF(error);
-        `FAIL_IF(timeout);
-    `SVTEST_END
-
-    `SVTEST(info)
-        db_pkg::type_t got_type;
-        db_pkg::subtype_t got_subtype;
-        int got_size;
-        // Get info and check against expected
-        agent.get_type(got_type);
-        `FAIL_UNLESS_EQUAL(got_type, db_pkg::DB_TYPE_STASH);
-
-        agent.get_subtype(got_subtype);
-        `FAIL_UNLESS_EQUAL(got_subtype, db_pkg::DB_STASH_TYPE_FIFO);
-
-        agent.get_size(got_size);
-        `FAIL_UNLESS_EQUAL(got_size, SIZE);
-    `SVTEST_END
-
-    `SVTEST(set_get)
-        KEY_T key;
-        VALUE_T exp_value;
-        VALUE_T got_value;
-        bit got_valid;
-        bit error;
-        bit timeout;
-        // Randomize key/value
-        void'(std::randomize(key));
-        void'(std::randomize(exp_value));
-        // Add entry
-        agent.set(key, exp_value, error, timeout);
-        `FAIL_IF(error);
-        `FAIL_IF(timeout);
-        // Read back and check
-        agent.get(key, got_valid, got_value, error, timeout);
-        `FAIL_IF(error);
-        `FAIL_IF(timeout);
-        `FAIL_UNLESS(got_valid);
-        `FAIL_UNLESS_EQUAL(got_value, exp_value);
-    `SVTEST_END
+     
+    // Include common tests
+    `include "../common/tests.svh"
+    // Include control-specific tests
+    `include "../common/ctrl_tests.svh"
+    // Include application-specific tests
+    `include "../common/app_tests.svh"
 
     `SVTEST(set_get_next)
         KEY_T exp_key;
@@ -164,26 +127,17 @@ module db_stash_fifo_unit_test;
         VALUE_T exp_value;
         VALUE_T got_value;
         bit got_valid;
-        bit error;
-        bit timeout;
-        int found_cnt;
         // Randomize key/value
         void'(std::randomize(exp_key));
         void'(std::randomize(exp_value));
         // Add entry
-        agent.set(exp_key, exp_value, error, timeout);
-        `FAIL_IF(error);
-        `FAIL_IF(timeout);
+        set(exp_key, exp_value);
         // Read back and check
-        agent.get(exp_key, got_valid, got_value, error, timeout);
-        `FAIL_IF(error);
-        `FAIL_IF(timeout);
+        get(exp_key, got_valid, got_value);
         `FAIL_UNLESS(got_valid);
         `FAIL_UNLESS_EQUAL(got_value, exp_value);
         // Read from head of 'FIFO'
-        agent.get_next(got_valid, got_key, got_value, error, timeout);
-        `FAIL_IF(error);
-        `FAIL_IF(timeout);
+        get_next(got_valid, got_key, got_value);
         `FAIL_UNLESS(got_valid);    
         `FAIL_UNLESS_EQUAL(got_key, exp_key);
         `FAIL_UNLESS_EQUAL(got_value, exp_value);
@@ -197,128 +151,24 @@ module db_stash_fifo_unit_test;
         bit got_valid;
         bit error;
         bit timeout;
-        int found_cnt;
         // Randomize key/value
         void'(std::randomize(exp_key));
         void'(std::randomize(exp_value));
         // Add entry
-        agent.set(exp_key, exp_value, error, timeout);
-        `FAIL_IF(error);
-        `FAIL_IF(timeout);
+        set(exp_key, exp_value);
         // Read back and check
-        agent.get(exp_key, got_valid, got_value, error, timeout);
-        `FAIL_IF(error);
-        `FAIL_IF(timeout);
+        get(exp_key, got_valid, got_value);
         `FAIL_UNLESS(got_valid);
         `FAIL_UNLESS_EQUAL(got_value, exp_value);
         // Read from head of 'FIFO'
-        agent.unset_next(got_valid, got_key, got_value, error, timeout);
-        `FAIL_IF(error);
-        `FAIL_IF(timeout);
+        unset_next(got_valid, got_key, got_value);
         `FAIL_UNLESS(got_valid);    
         `FAIL_UNLESS_EQUAL(got_key, exp_key);
         `FAIL_UNLESS_EQUAL(got_value, exp_value);
         // Read from head of 'FIFO' (should be empty
         agent.get_next(got_valid, got_key, got_value, error, timeout);
+        `FAIL_IF(timeout);
         `FAIL_UNLESS(error);
-        `FAIL_IF(timeout);
-    `SVTEST_END
-
-    `SVTEST(unset)
-        KEY_T key;
-        VALUE_T exp_value;
-        VALUE_T got_value;
-        bit got_valid;
-        bit error;
-        bit timeout;
-        // Randomize key/value
-        void'(std::randomize(key));
-        void'(std::randomize(exp_value));
-        // Add entry
-        agent.set(key, exp_value, error, timeout);
-        `FAIL_IF(error);
-        `FAIL_IF(timeout);
-        // Clear entry (and check previous value)
-        agent.unset(key, got_valid, got_value, error, timeout);
-        `FAIL_IF(error);
-        `FAIL_IF(timeout);
-        `FAIL_UNLESS(got_valid);
-        `FAIL_UNLESS_EQUAL(got_value, exp_value);
-        // Read back and check that entry is cleared
-        agent.get(key, got_valid, got_value, error, timeout);
-        `FAIL_IF(error);
-        `FAIL_IF(timeout);
-        `FAIL_IF(got_valid);
-        `FAIL_UNLESS_EQUAL(got_value, 0);
-
-    `SVTEST_END
- 
-    `SVTEST(set_query)
-        KEY_T key;
-        VALUE_T exp_value;
-        VALUE_T got_value;
-        bit got_valid;
-        bit error;
-        bit timeout;
-        // Randomize key/value
-        void'(std::randomize(key));
-        void'(std::randomize(exp_value));
-        // Add entry
-        agent.set(key, exp_value, error, timeout);
-        `FAIL_IF(error);
-        `FAIL_IF(timeout);
-        // Query database from app interface
-        app_rd_if.query(key, got_valid, got_value, error, timeout);
-        `FAIL_IF(error);
-        `FAIL_IF(timeout);
-        `FAIL_UNLESS_EQUAL(got_value, exp_value);
-    `SVTEST_END
- 
-    `SVTEST(update_query)
-        KEY_T key;
-        VALUE_T exp_value;
-        VALUE_T got_value;
-        bit got_valid;
-        bit error;
-        bit timeout;
-        // Randomize key/value
-        void'(std::randomize(key));
-        void'(std::randomize(exp_value));
-        // Add entry
-        app_wr_if.update(key, 1'b1, exp_value, error, timeout);
-        `FAIL_IF(error);
-        `FAIL_IF(timeout);
-        // Query database from app interface
-        app_rd_if.query(key, got_valid, got_value, error, timeout);
-        `FAIL_IF(error);
-        `FAIL_IF(timeout);
-        `FAIL_UNLESS_EQUAL(got_value, exp_value);
-    `SVTEST_END
- 
-    `SVTEST(burst_update)
-        localparam int BURST_CNT = 8;
-        KEY_T key;
-        VALUE_T exp_value;
-        VALUE_T got_value;
-        bit exp_valid;
-        bit got_valid;
-        bit error;
-        bit timeout;
-        // Randomize key
-        void'(std::randomize(key));
-        for (int i = 0; i < BURST_CNT; i++) begin
-            // Add new random entry (same key)
-            void'(std::randomize(exp_valid));
-            void'(std::randomize(exp_value));
-            app_wr_if.post_update(key, exp_valid, exp_value, timeout);
-            `FAIL_IF(timeout);
-        end
-        // Query database and check that most recently written value is returned
-        app_rd_if.query(key, got_valid, got_value, error, timeout);
-        `FAIL_IF(error);
-        `FAIL_IF(timeout);
-        `FAIL_UNLESS_EQUAL(got_valid, exp_valid);
-        `FAIL_UNLESS_EQUAL(got_value, exp_value);
     `SVTEST_END
  
     `SVTEST(set_to_full)
@@ -335,49 +185,37 @@ module db_stash_fifo_unit_test;
         // Add entries
         for (int i = 0; i < SIZE; i++) begin
             // Add new random entry
-            agent.set(key[i], exp_value[i], error, timeout);
-            `FAIL_IF(error);
-            `FAIL_IF(timeout);
+            set(key[i], exp_value[i]);
             `FAIL_UNLESS_EQUAL(status_if.fill, i+1);
         end
         // Read back and check
         for (int i = 0; i < SIZE; i++) begin
-            agent.get(key[i], got_valid, got_value, error, timeout);
-            `FAIL_IF(error);
-            `FAIL_IF(timeout);
+            get(key[i], got_valid, got_value);
             `FAIL_UNLESS(got_valid);
             `FAIL_UNLESS_EQUAL(got_value, exp_value[i]);
         end
         // Add last entry (expect failure due to full)
         agent.set(key[SIZE], exp_value[SIZE], error, timeout);
+        `FAIL_IF(timeout);
         `FAIL_UNLESS(error);
-        `FAIL_IF(timeout);
         // Read (and dequeue) first entry
-        agent.unset_next(got_valid, got_key, got_value, error, timeout);
-        `FAIL_IF(error);
-        `FAIL_IF(timeout);
+        unset_next(got_valid, got_key, got_value);
         `FAIL_UNLESS(got_valid);
         `FAIL_UNLESS_EQUAL(got_key, key[0]);
         `FAIL_UNLESS_EQUAL(got_value, exp_value[0]);
         // Check for not full
         `FAIL_UNLESS_EQUAL(status_if.fill, SIZE-1);
         // Try insertion again
-        agent.set(key[SIZE], exp_value[SIZE], error, timeout);
-        `FAIL_IF(error);
-        `FAIL_IF(timeout);
+        set(key[SIZE], exp_value[SIZE]);
         // Read back and check
-        agent.get(key[SIZE], got_valid, got_value, error, timeout);
-        `FAIL_IF(error);
-        `FAIL_IF(timeout);
+        get(key[SIZE], got_valid, got_value);
         `FAIL_UNLESS(got_valid);
         `FAIL_UNLESS_EQUAL(got_value, exp_value[SIZE]);
         // Should be full again
         `FAIL_UNLESS_EQUAL(status_if.fill, SIZE);
         // Read (and dequeue) remaining entries
         for (int i = 1; i < SIZE+1; i++) begin
-            agent.unset_next(got_valid, got_key, got_value, error, timeout);
-            `FAIL_IF(error);
-            `FAIL_IF(timeout);
+            unset_next(got_valid, got_key, got_value);
             `FAIL_UNLESS(got_valid);
             `FAIL_UNLESS_EQUAL(got_key, key[i]);
             `FAIL_UNLESS_EQUAL(got_value, exp_value[i]);
@@ -386,17 +224,21 @@ module db_stash_fifo_unit_test;
         `FAIL_UNLESS_EQUAL(status_if.fill, 0);
         // Try to dequeue additional entry (should fail due to empty)
         agent.unset_next(got_valid, got_key, got_value, error, timeout);
-        `FAIL_UNLESS(error);
         `FAIL_IF(timeout);
+        `FAIL_UNLESS(error);
         `FAIL_IF(got_valid);
     `SVTEST_END
 
     `SVUNIT_TESTS_END
 
-    task reset();
-        bit timeout;
-        reset_if.pulse(8);
-        reset_if.wait_ready(timeout, 0);
-    endtask
+    //===================================
+    // Tasks
+    //===================================
+    // Import common tasks
+    `include "../common/tasks.svh"
+    // Import control-specific tasks
+    `include "../common/ctrl_tasks.svh"
+    // Import application tasks
+    `include "../common/app_tasks.svh"
 
 endmodule
