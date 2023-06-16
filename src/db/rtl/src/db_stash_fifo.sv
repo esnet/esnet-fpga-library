@@ -187,8 +187,9 @@ module db_stash_fifo #(
     // Write response
     initial db_wr_if.ack = 1'b0;
     always @(posedge clk) begin
-        if (db_wr_if.req && db_wr_if.rdy) db_wr_if.ack <= 1'b1;
-        else                              db_wr_if.ack <= 1'b0;
+        if (__srst)                            db_wr_if.ack <= 1'b0;
+        else if (db_wr_if.req && db_wr_if.rdy) db_wr_if.ack <= 1'b1;
+        else                                   db_wr_if.ack <= 1'b0;
     end
     always_ff @(posedge clk) begin
         if (db_wr_if.next) db_wr_if.error <= empty;

@@ -48,24 +48,24 @@ module db_stash #(
 
     logic [FILL_WID-1:0] fill;
 
-    logic db_init;
-    logic db_init_done;
+    logic   db_init;
+    logic   db_init_done;
 
-    logic wr_req;
-    KEY_T wr_key;
-    logic wr_valid;
+    logic   wr_req;
+    KEY_T   wr_key;
+    logic   wr_valid;
     VALUE_T wr_value;
-    logic wr;
-    logic wr_match;
-    idx_t wr_match_idx;
-    idx_t insert_idx;
-    idx_t wr_idx;
+    logic   wr;
+    logic   wr_match;
+    idx_t   wr_match_idx;
+    idx_t   insert_idx;
+    idx_t   wr_idx;
 
-    logic rd_req;
-    KEY_T rd_key;
-    logic rd_next;
-    logic rd_match;
-    idx_t rd_idx;
+    logic   rd_req;
+    KEY_T   rd_key;
+    logic   rd_next;
+    logic   rd_match;
+    idx_t   rd_idx;
 
     idx_t next_rd_idx;
 
@@ -79,7 +79,7 @@ module db_stash #(
     // Export info
     // ----------------------------------
     assign info_if._type = db_pkg::DB_TYPE_STASH;
-    assign info_if.subtype = 0;
+    assign info_if.subtype = db_pkg::DB_STASH_TYPE_STANDARD;
     assign info_if.size = SIZE;
 
     // ----------------------------------
