@@ -1,0 +1,99 @@
+name: state_notify
+info: |
+  This register map describes a register block for
+  control and monitoring of the state notify fsm component.
+regs:
+  - default:
+      width: 32
+      access: rw
+      init: 0
+
+  - name: info_size
+    desc: Info (number of IDs tracked)
+    access: ro
+
+  - name: control
+    access: rw
+    fields:
+        - name:  reset
+          desc:  (soft) block reset
+          width: 1
+          init:  0
+        - name:  enable
+          desc:  (soft) block enable
+          width: 1
+          init:  1
+
+  - name: status
+    access: ro
+    fields:
+        - name:  reset_mon
+          desc:  block reset monitor
+          width: 1
+        - name:  enable_mon
+          desc:  block enable monitor
+          width: 1
+        - name:  ready_mon
+          desc:  block ready monitor
+          width: 1
+
+  - name : scan_control
+    access: wr_evt
+    fields:
+        - name:  reset
+          desc:  reset scan to ID 0
+          width: 1
+          init:  0
+        - name:  limit_en
+          desc:  limit scan to IDs within range 0:limit_max
+          width: 1
+          init:  0
+        - name:  limit_max
+          desc:  when limit_en == 1, sets maximum ID for scan range
+                 (ignored when limit_en == 0)
+          width: 24
+          init:  0
+
+  - name: dbg_status
+    desc: (Debug) status monitor.
+    access: ro
+    fields:
+        - name: state
+          desc: FSM state.
+          width: 8
+          enum_hex:
+              00 : RESET
+              01 : SCAN_START
+              02 : STATE_RD_REQ
+              03 : STATE_RD_WAIT
+              04 : CHECK_REQ
+              05 : CHECK_WAIT
+              05 : NOTIFY
+              06 : ERROR
+              07 : SCAN_NEXT
+              08 : SCAN_DONE
+
+  - name: dbg_control
+    access: rw
+    fields:
+        - name:  clear_counts
+          desc:  clear all debug counters.
+          width: 1
+          init:  0
+
+  - name: dbg_cnt_scan_done
+    access: ro
+    desc: Counts number of full scans completed.
+    width: 32
+
+  - name: dbg_cnt_active_last_scan
+    access: ro
+    desc: Approximate count of active entries. Based on number of state vectors that were reported as active in most recent polling cycle.
+    width: 32
+
+  - name: dbg_cnt_notify
+    access: ro
+    desc: Count of notification messages generated.
+    width: 32
+
+

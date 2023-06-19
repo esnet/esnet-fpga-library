@@ -70,6 +70,14 @@ package state_pkg;
         ELEMENTS: '{default: DEFAULT_STATE_ELEMENT}
     };
 
+    // Notifications
+    typedef enum logic [1:0] {
+        EXPIRY_NONE = 0,
+        EXPIRY_IDLE,
+        EXPIRY_ACTIVE,
+        EXPIRY_DONE
+    } expiry_msg_t;
+
     // -----------------------------
     // Functions
     // -----------------------------
