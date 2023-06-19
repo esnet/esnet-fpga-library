@@ -417,7 +417,7 @@ module state_aging_core #(
         reg_if.dbg_cnt_timer_nxt  = reg_if.dbg_cnt_timer;
         reg_if.dbg_cnt_active_nxt = reg_if.dbg_cnt_active;
         reg_if.dbg_cnt_notify_nxt = reg_if.dbg_cnt_notify;
-        reg_if.dbg_cnt_active_last_scan_nxt_v = reg_if.dbg_cnt_active_last_scan;
+        reg_if.dbg_cnt_active_last_scan_nxt = reg_if.dbg_cnt_active_last_scan;
         if (dbg_cnt_reset) begin
             // Update on reset/clear
             reg_if.dbg_cnt_timer_nxt_v  = 1'b1;
