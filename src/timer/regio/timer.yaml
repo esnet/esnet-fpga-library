@@ -1,0 +1,52 @@
+name: timer
+info: |
+  This register map describes a register block for
+  control and monitoring of the timer component
+regs:
+  - default:
+      width: 32
+      access: rw
+      init: 0
+
+  - name: info_timer_bits
+    desc: Info (timer width in bits)
+    access: ro
+
+  - name: control
+    access: rw
+    fields:
+        - name:  reset
+          desc:  (soft) block reset
+          width: 1
+          init:  0
+        - name:  enable
+          desc:  (soft) block enable
+          width: 1
+          init:  1
+        - name:  freeze
+          desc:  freeze timer
+          width: 1
+          init:  0
+
+  - name: status
+    access: ro
+    fields:
+        - name:  reset_mon
+          desc:  block reset monitor
+          width: 1
+        - name:  enable_mon
+          desc:  block enable monitor
+          width: 1
+        - name:  ready_mon
+          desc:  block ready monitor
+          width: 1
+
+  - name: dbg_timer_upper
+    access: ro
+    desc: Current timer value (bits [31:0])
+    width: 32
+
+  - name: dbg_timer_lower
+    access: ro
+    desc: Current timer value (bits [31:0])
+    width: 32
