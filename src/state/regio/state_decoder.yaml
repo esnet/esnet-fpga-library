@@ -1,0 +1,23 @@
+name: state
+
+blocks:
+  state: &state
+    !include src/state/regio/state.yaml
+  state_notify: &state_notify
+    !include src/state/regio/state_notify.yaml
+  state_db: &state_db
+    !include src/db/regio/db.yaml
+
+interfaces:
+  - block: *state
+    width: 9
+    address: 0x000
+    name: state
+  - block: *state_notify
+    address: 0x200
+    width: 9
+    name: state_notify
+  - block: *state_db
+    address: 0x0400
+    width: 10
+    name: state_db
