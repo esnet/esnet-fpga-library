@@ -10,6 +10,7 @@ package state_verif_pkg;
     `include "state_notify_reg_agent.svh"
     `include "state_allocator_reg_agent.svh"
     `include "state_cache_reg_agent.svh"
+    `include "state_reg_agent.svh"
 
     `include "state_req.svh"
     `include "state_resp.svh"
