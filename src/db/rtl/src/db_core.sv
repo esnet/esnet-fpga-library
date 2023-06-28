@@ -309,11 +309,11 @@ module db_core #(
                 .db_rd_if     ( cache_rd_if )
             );
 
-            assign cache_wr_if.req = db_wr_if.req && db_wr_if.rdy;
-            assign cache_wr_if.key = db_wr_if.key;
+            assign cache_wr_if.req = app_wr_if.req && app_wr_if.rdy;
+            assign cache_wr_if.key = app_wr_if.key;
             assign cache_wr_if.valid = 1'b1;
-            assign cache_wr_if.value.ins_del_n = db_wr_if.valid;
-            assign cache_wr_if.value.value = db_wr_if.value;
+            assign cache_wr_if.value.ins_del_n = app_wr_if.valid;
+            assign cache_wr_if.value.value = app_wr_if.value;
             assign cache_wr_if.next = 1'b0; // Unused
 
             // Read request context (wait for read to complete)
