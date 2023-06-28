@@ -298,7 +298,8 @@ module db_core #(
             db_store_lru #(
                 .KEY_T    ( KEY_T ),
                 .VALUE_T  ( cache_entry_t ),
-                .SIZE     ( NUM_RD_TRANSACTIONS )
+                .SIZE     ( NUM_RD_TRANSACTIONS ),
+                .WRITE_FLOW_THROUGH ( 1 )
             ) i_db_store_lru  (
                 .clk          ( clk ),
                 .srst         ( __srst ),
