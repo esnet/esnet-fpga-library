@@ -627,5 +627,11 @@ module state_cache_core
     assign {reg_if.cnt_tracked_new_upper_nxt,      reg_if.cnt_tracked_new_lower_nxt}      = cnt_tracked_new;
     assign {reg_if.cnt_not_tracked_upper_nxt,      reg_if.cnt_not_tracked_lower_nxt}      = cnt_not_tracked;
 
+    // -----------------------------
+    // Debug
+    // -----------------------------
+    assign reg_if.dbg_cnt_active_nxt_v = 1'b1;
+    assign reg_if.dbg_cnt_active_nxt = htable_status_if.fill;
+
 endmodule : state_cache_core
 

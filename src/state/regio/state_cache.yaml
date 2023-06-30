@@ -102,14 +102,6 @@ regs:
     desc: Count of cache misses with no entry added (untracked) (bits 31:0).
     width: 32
 
-  - name: dbg_control
-    access: rw
-    fields:
-        - name:  clear_counts
-          desc:  clear all debug counters.
-          width: 1
-          init:  0
-
   - name: dbg_cnt_active
     access: ro
     desc: Count of currently active cache entries.
