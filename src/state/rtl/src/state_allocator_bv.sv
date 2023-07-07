@@ -311,7 +311,7 @@ module state_allocator_bv #(
     // -----------------------------
     fifo_sync #(
         .DATA_T  ( ID_T ),
-        .DEPTH   ( 32 ),
+        .DEPTH   ( 64 ),
         .FWFT    ( 1 )
     ) i_alloc_q  (
         .clk     ( clk ),
