@@ -193,7 +193,7 @@ module state_timer_core_unit_test;
                 // Send first update to initialize counter
                 send(id, __update_unused);
                 // Inject delay
-                _wait(6);
+                _wait(8);
 
                 // Advance timer
                 _tick();
@@ -245,7 +245,7 @@ module state_timer_core_unit_test;
                 // Send first update to initialize counter
                 send(id, __update_unused);
                 // Inject delay
-                _wait(6);
+                _wait(8);
 
                 // Send second update
                 send(id, __update_unused);
@@ -291,12 +291,12 @@ module state_timer_core_unit_test;
                 // Send first update to initialize counter
                 send(id, __update_unused);
                 // Inject delay
-                _wait(6);
+                _wait(8);
 
                 // Send second update
                 send(id, __update_unused);
                 // Inject delay
-                _wait(6);
+                _wait(8);
 
                 // Advance timer
                 ticks(exp_timer_delta);
