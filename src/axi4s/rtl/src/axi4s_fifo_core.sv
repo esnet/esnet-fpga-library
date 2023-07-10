@@ -97,4 +97,7 @@ module axi4s_fifo_core
         .axil_if     ( axil_if__unused )
     );
 
+    // Terminate unused interface
+    axi4l_intf_controller_term i_axi4l_intf_controller_term (.axi4l_if(axil_if__unused));
+
 endmodule : axi4s_fifo_core

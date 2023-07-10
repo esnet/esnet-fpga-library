@@ -1,8 +1,8 @@
 // Base component class for verification
-// - interface class (not to be implemented directly)
+// - abstract class (not to be implemented directly)
 // - describes interface for 'generic' components, where methods are to be
 //   implemented by sublass
-class component extends base;
+virtual class component extends base;
 
     local static const string __CLASS_NAME = "std_verif_pkg::component";
 

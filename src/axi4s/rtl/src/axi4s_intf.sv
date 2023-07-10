@@ -242,14 +242,24 @@ module axi4s_intf_tx_term (
 endmodule : axi4s_intf_tx_term
 
 
-// AXI4-Stream receive termination helper module
-module axi4s_intf_rx_term (
+// AXI4-Stream (blocking) receive termination helper module
+module axi4s_intf_rx_block (
     axi4s_intf.rx axi4s_if
 );
     // Tie off receive outputs
     assign axi4s_if.tready = 1'b0;
 
-endmodule : axi4s_intf_rx_term
+endmodule : axi4s_intf_rx_block
+
+
+// AXI4-Stream (sink) receive termination helper module
+module axi4s_intf_rx_sink (
+    axi4s_intf.rx axi4s_if
+);
+    // Tie off receive outputs
+    assign axi4s_if.tready = 1'b1;
+
+endmodule : axi4s_intf_rx_sink
 
 
 // AXI4-Stream (back-to-back) connector helper module

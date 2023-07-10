@@ -1,8 +1,8 @@
 // Reference predictor class for verification
-// - interface class (not to be implemented directly)
+// - abstract class (not to be implemented directly)
 // - describes interface for model where each input transaction yields an
 //   output transaction
-class predictor #(
+virtual class predictor #(
     parameter type TRANSACTION_IN_T = transaction,
     parameter type TRANSACTION_OUT_T = TRANSACTION_IN_T
 ) extends model#(TRANSACTION_IN_T, TRANSACTION_OUT_T);

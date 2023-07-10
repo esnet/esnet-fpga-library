@@ -1,8 +1,8 @@
 // Base transaction class for verification
-// - interface class (not to be implemented directly)
+// - abstract class (not to be implemented directly)
 // - describes interface for 'generic' transactions, where methods are to be
 //   implemented by sublass
-class transaction extends base;
+virtual class transaction extends base;
 
     local static const string __CLASS_NAME = "std_verif_pkg::transaction";
 

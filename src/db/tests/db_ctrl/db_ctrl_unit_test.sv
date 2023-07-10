@@ -2,8 +2,8 @@
 
 module db_ctrl_unit_test
 #(
-    parameter type KEY_T = bit[7:0],
-    parameter type VALUE_T = bit[7:0],
+    parameter type KEY_T = logic[7:0],
+    parameter type VALUE_T = logic[7:0],
     parameter string DUT_NAME = "db_ctrl_intf"
 ) (
     output logic clk,
@@ -23,6 +23,9 @@ module db_ctrl_unit_test
     //===================================
     localparam int TIMEOUT_CYCLES = 0;
     localparam int SIZE = 2**$bits(KEY_T);
+
+    localparam type_t DB_TYPE = DB_TYPE_UNSPECIFIED;
+    localparam subtype_t DB_SUBTYPE = 'hDB;
 
     //===================================
     // Testbench
@@ -69,6 +72,12 @@ module db_ctrl_unit_test
         .db_rd_if  ( db_rd_if )
     );
 
+    // Info interface
+    db_info_intf #() info_if ();
+    assign info_if._type = DB_TYPE;
+    assign info_if.subtype = DB_SUBTYPE;
+    assign info_if.size = SIZE;
+
     // Assign clock (250MHz)
     `SVUNIT_CLK_GEN(clk, 2ns);
 
@@ -84,6 +93,7 @@ module db_ctrl_unit_test
 
         agent = new("db_agent", SIZE);
         agent.ctrl_vif = db_ctrl_if_to_DUT;
+        agent.info_vif = info_if;
         agent.set_op_timeout(64);
     endfunction
 
@@ -96,7 +106,7 @@ module db_ctrl_unit_test
     endtask
 
     //===================================
-    // Here we deconstruct anything we 
+    // Here we deconstruct anything we
     // need after running the Unit Tests
     //===================================
     task teardown();
@@ -121,113 +131,31 @@ module db_ctrl_unit_test
     //   `SVTEST_END
     //===================================
     `SVUNIT_TESTS_BEGIN
-    
-    `SVTEST(reset)
-    `SVTEST_END
 
-    `SVTEST(ctrl_reset)
-        bit error, timeout;
-        agent.clear_all(error, timeout);
-        `FAIL_IF(error);
-        `FAIL_IF(timeout);
-    `SVTEST_END
-
-    `SVTEST(set_get)
-        KEY_T key;
-        VALUE_T exp_value;
-        VALUE_T got_value;
-        bit got_valid;
-        bit error;
-        bit timeout;
-        // Randomize key/value
-        void'(std::randomize(key));
-        void'(std::randomize(exp_value));
-        // Add entry
-        agent.set(key, exp_value, error, timeout);
-        `FAIL_IF(error);
-        `FAIL_IF(timeout);
-        // Read back and check
-        agent.get(key, got_valid, got_value, error, timeout);
-        `FAIL_IF(error);
-        `FAIL_IF(timeout);
-        `FAIL_UNLESS(got_valid);
-        `FAIL_UNLESS_EQUAL(got_value, exp_value);
-    `SVTEST_END
-
-    `SVTEST(unset)
-        KEY_T key;
-        VALUE_T exp_value;
-        VALUE_T got_value;
-        bit got_valid;
-        bit error;
-        bit timeout;
-        // Randomize key/value
-        void'(std::randomize(key));
-        void'(std::randomize(exp_value));
-        // Add entry
-        agent.set(key, exp_value, error, timeout);
-        `FAIL_IF(error);
-        `FAIL_IF(timeout);
-        // Clear entry (and check previous value)
-        agent.unset(key, got_valid, got_value, error, timeout);
-        `FAIL_IF(error);
-        `FAIL_IF(timeout);
-        `FAIL_UNLESS(got_valid);
-        `FAIL_UNLESS_EQUAL(got_value, exp_value);
-        // Read back and check that entry is cleared
-        agent.get(key, got_valid, got_value, error, timeout);
-        `FAIL_IF(error);
-        `FAIL_IF(timeout);
-        `FAIL_IF(got_valid);
-        `FAIL_UNLESS_EQUAL(got_value, 0);
-
-    `SVTEST_END
-
-    `SVTEST(replace)
-        KEY_T key;
-        VALUE_T exp_value [2];
-        VALUE_T got_value;
-        bit got_valid;
-        bit error;
-        bit timeout;
-        // Randomize key/value
-        void'(std::randomize(key));
-        void'(std::randomize(exp_value[0]));
-        void'(std::randomize(exp_value[1]));
-        // Add entry
-        agent.set(key, exp_value[0], error, timeout);
-        `FAIL_IF(error);
-        `FAIL_IF(timeout);
-        // Replace entry (and check previous value)
-        agent.replace(key, exp_value[1], got_valid, got_value, error, timeout);
-        `FAIL_IF(error);
-        `FAIL_IF(timeout);
-        `FAIL_UNLESS(got_valid);
-        `FAIL_UNLESS_EQUAL(got_value, exp_value[0]);
-        // Read back and check that entry is cleared
-        agent.get(key, got_valid, got_value, error, timeout);
-        `FAIL_IF(error);
-        `FAIL_IF(timeout);
-        `FAIL_UNLESS(got_valid);
-        `FAIL_UNLESS_EQUAL(got_value, exp_value[1]);
-
-    `SVTEST_END
+    // Include common tests
+    `include "../common/tests.svh"
+    // Include control-specific tests
+    `include "../common/ctrl_tests.svh"
 
     `SVUNIT_TESTS_END
 
-    task reset();
-        bit timeout;
-        reset_if.pulse(8);
-        reset_if.wait_ready(timeout, 0);
-    endtask
+    // Import common tasks
+    `include "../common/tasks.svh"
+    // Import control-specific tasks
+    `include "../common/ctrl_tasks.svh"
 
 endmodule : db_ctrl_unit_test
 
 // DUT: db_ctrl_intf
 module db_ctrl_intf_unit_test;
 
-    localparam type KEY_T = bit[11:0];
-    localparam type VALUE_T = bit[31:0];
+    // NOTE: define KEY_T/VALUE_T here as 'logic' vectors and not 'bit' vectors
+    //       - works around apparent simulation bug where some direct
+    //         assignments fail (i.e. assign a = b results in a != b)
+    //       - bug occurs in regression run only, i.e. test suite passes
+    //         when run standalone
+    localparam type KEY_T = logic[11:0];
+    localparam type VALUE_T = logic[31:0];
 
     import svunit_pkg::svunit_testcase;
     svunit_testcase svunit_ut;
@@ -260,8 +188,13 @@ endmodule : db_ctrl_intf_unit_test
 // DUT: db_ctrl_intf_connector
 module db_ctrl_intf_connector_unit_test;
 
-    localparam type KEY_T = bit[11:0];
-    localparam type VALUE_T = bit[31:0];
+    // NOTE: define KEY_T/VALUE_T here as 'logic' vectors and not 'bit' vectors
+    //       - works around apparent simulation bug where some direct
+    //         assignments fail (i.e. assign a = b results in a != b)
+    //       - bug occurs in regression run only, i.e. test suite passes
+    //         when run standalone
+    localparam type KEY_T = logic[11:0];
+    localparam type VALUE_T = logic[31:0];
 
     import svunit_pkg::svunit_testcase;
     svunit_testcase svunit_ut;

@@ -1,5 +1,5 @@
 // Base environment class for verification
-// - interface class (not to be implemented directly)
+// - abstract class (not to be implemented directly)
 // - describes interface for 'generic' environments, where methods are to be
 //   implemented by derived class
 class env extends component;
@@ -69,10 +69,6 @@ class env extends component;
         else         debug_msg("wait_ready() Done.");
     endtask
 
-    //===================================
-    // Virtual Methods
-    // (to be implemented by derived class)
-    //===================================
     // Put all (driven) interfaces into quiescent state
     virtual task idle(); endtask
 

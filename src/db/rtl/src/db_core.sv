@@ -264,6 +264,11 @@ module db_core #(
     // -----------------------------
     // App cache
     // -----------------------------
+    // - accounts for in-flight write transactions to
+    //   the database at the time of receiving the read
+    //   acknowledgement
+    // - ensures consistent 'instantaneous' view of the
+    //   database contents for RMW consistency
     generate
         if (APP_CACHE_EN) begin : g__app_cache
             // (Local) typedefs
@@ -282,6 +287,9 @@ module db_core #(
             rd_req_ctxt_t  rd_req_ctxt_out;
             logic          rd_req_ctxt_q_empty;
 
+            logic   app_rd_if__valid;
+            VALUE_T app_rd_if__value;
+
             // (Local) interfaces
             db_intf #(.KEY_T(KEY_T), .VALUE_T(cache_entry_t)) cache_wr_if (.clk(clk));
             db_intf #(.KEY_T(KEY_T), .VALUE_T(cache_entry_t)) cache_rd_if (.clk(clk));
@@ -290,7 +298,8 @@ module db_core #(
             db_store_lru #(
                 .KEY_T    ( KEY_T ),
                 .VALUE_T  ( cache_entry_t ),
-                .SIZE     ( NUM_RD_TRANSACTIONS )
+                .SIZE     ( NUM_RD_TRANSACTIONS ),
+                .WRITE_FLOW_THROUGH ( 1 )
             ) i_db_store_lru  (
                 .clk          ( clk ),
                 .srst         ( __srst ),
@@ -327,7 +336,7 @@ module db_core #(
             assign rd_req_ctxt_in.key = app_rd_if.key;
             assign rd_req_ctxt_in.next = app_rd_if.next;
 
-            assign cache_rd_if.req = !rd_req_ctxt_q_empty;
+            assign cache_rd_if.req = __app_rd_if.ack;
             assign cache_rd_if.key = rd_req_ctxt_out.key;
             assign cache_rd_if.next = rd_req_ctxt_out.next;
 
@@ -337,13 +346,28 @@ module db_core #(
             assign __app_rd_if.next = app_rd_if.next;
 
             assign app_rd_if.rdy = __app_rd_if.rdy;
-            assign app_rd_if.ack = __app_rd_if.ack;
-            assign app_rd_if.error = __app_rd_if.error;
-            assign app_rd_if.next_key = __app_rd_if.next_key;
 
+            // Account for cache read
+            initial app_rd_if.ack = 1'b0;
+            always @(posedge clk) begin
+                if (__srst)                app_rd_if.ack <= 1'b0;
+                else if (__app_rd_if.ack)  app_rd_if.ack <= 1'b1;
+                else                       app_rd_if.ack <= 1'b0;
+            end
+
+            always_ff @(posedge clk) begin
+                app_rd_if.error <= __app_rd_if.error;
+                app_rd_if.next_key <= __app_rd_if.next_key;
+            end
+
+            // Response (incorporate cache result)
+            always_ff @(posedge clk) begin
+                app_rd_if__valid <= __app_rd_if.valid;
+                app_rd_if__value <= __app_rd_if.value;
+            end
             always_comb begin
-                app_rd_if.valid = __app_rd_if.valid;
-                app_rd_if.value = __app_rd_if.value;
+                app_rd_if.valid = app_rd_if__valid;
+                app_rd_if.value = app_rd_if__value;
                 if (cache_rd_if.ack && cache_rd_if.valid) begin
                     app_rd_if.valid = cache_rd_if.value.ins_del_n;
                     app_rd_if.value = cache_rd_if.value.value;

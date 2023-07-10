@@ -311,7 +311,7 @@ module state_allocator_bv #(
     // -----------------------------
     fifo_sync #(
         .DATA_T  ( ID_T ),
-        .DEPTH   ( 32 ),
+        .DEPTH   ( 64 ),
         .FWFT    ( 1 )
     ) i_alloc_q  (
         .clk     ( clk ),
@@ -333,7 +333,7 @@ module state_allocator_bv #(
     assign alloc_rdy = __en && !alloc_q_empty;
     assign alloc = alloc_req && alloc_rdy;
     assign alloc_fail = ALLOC_FC ? 1'b0 : alloc_req && !alloc_rdy;
-    assign alloc_q_wr_data = {0, __alloc_id};
+    assign alloc_q_wr_data = {'0, __alloc_id};
 
     // -----------------------------
     // Deallocation queue

@@ -65,6 +65,9 @@ module fifo_core
     logic                 soft_reset__aclk;
     logic                 rst__async;
 
+    logic                 local_wr_srst;
+    logic                 local_rd_srst;
+
     logic                 wr_safe;
     logic [PTR_WID-1:0]   wr_ptr;
     logic [__CNT_WID-1:0] __wr_count;

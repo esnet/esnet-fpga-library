@@ -1,7 +1,7 @@
 // Base agent class for verification
 // - interface class (not to be implemented directly)
 // - describes interface for 'generic' agents, where methods are to be implemented by derived class
-class agent extends component;
+virtual class agent extends component;
 
     local static const string __CLASS_NAME = "std_verif_pkg::agent";
 

@@ -20,7 +20,7 @@ module sync_bus_sampled #(
 
     // Parameter Checking
 `ifdef SIMULATION
-    initial assert(SAMPLE_PERIOD > 1) else $fatal("SAMPLE_PERIOD must be >= 2. (Got %0d).", SAMPLE_PERIOD);
+    initial assert(SAMPLE_PERIOD > 1) else $fatal(1, "SAMPLE_PERIOD must be >= 2. (Got %0d).", SAMPLE_PERIOD);
 `endif
 
     // Signals

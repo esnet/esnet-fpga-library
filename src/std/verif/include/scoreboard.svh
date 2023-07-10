@@ -1,7 +1,7 @@
 // Scoreboard class for verification
 // - represents abstract base class for scoreboard, where virtual methods are
 //   to be implemented by derived class
-class scoreboard #(parameter type TRANSACTION_T = transaction) extends component;
+virtual class scoreboard #(parameter type TRANSACTION_T = transaction) extends component;
 
     local static const string __CLASS_NAME = "std_verif_pkg::scoreboard";
 

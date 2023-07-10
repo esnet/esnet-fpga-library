@@ -86,6 +86,22 @@ class db_model #(
         );
         status_t status = get(key, valid, value);
         if (valid) __db.delete(key);
+        return status;
+    endfunction
+
+    function automatic status_t replace(
+            input KEY_T key,
+            input VALUE_T new_value,
+            output bit valid,
+            output VALUE_T prev_value
+        );
+        status_t status = get(key, valid, prev_value);
+        void'(set(key, new_value));
+        return status;
+    endfunction
+
+    function automatic status_t nop();
+        return STATUS_OK;
     endfunction
 
     protected function automatic TRANSACTION_OUT_T _set(
@@ -100,6 +116,13 @@ class db_model #(
             transaction_out = new(.key(key), .status(STATUS_ERROR));
         end
         return transaction_out;
+    endfunction
+
+    function automatic status_t clear_all();
+        trace_msg("clear_all()");
+        _reset();
+        trace_msg("clear_all() Done.");
+        return STATUS_OK;
     endfunction
 
     protected function automatic TRANSACTION_OUT_T _get(
@@ -132,9 +155,10 @@ class db_model #(
         VALUE_T value;
         status_t status;
         case (transaction.command)
-            COMMAND_GET:   status = get(transaction.key, valid, value);
-            COMMAND_SET:   status = set(transaction.key, transaction.value);
-            COMMAND_UNSET: status = unset(transaction.key, valid, value);
+            COMMAND_GET:     status = get(transaction.key, valid, value);
+            COMMAND_SET:     status = set(transaction.key, transaction.value);
+            COMMAND_UNSET:   status = unset(transaction.key, valid, value);
+            COMMAND_REPLACE: status = replace(transaction.key, transaction.value, valid, value);
             default: begin
                 status = STATUS_ERROR;
                 error_msg("Command not supported.");

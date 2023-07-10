@@ -89,6 +89,8 @@ module state_cache_core
     logic __srst;
     logic __en;
 
+    logic htable_ctrl_reset;
+    logic htable_ctrl_en;
     logic htable_init;
     logic htable_init_done;
     logic htable_srst;
@@ -363,6 +365,7 @@ module state_cache_core
         .full     ( ),
         .oflow    ( ),
         .rd       ( lookup_if.ack ),
+        .rd_ack   ( ),
         .rd_data  ( lookup_req_ctxt_out ),
         .rd_count ( ),
         .empty    ( ),
@@ -623,6 +626,12 @@ module state_cache_core
     assign {reg_if.cnt_tracked_existing_upper_nxt, reg_if.cnt_tracked_existing_lower_nxt} = cnt_tracked_existing;
     assign {reg_if.cnt_tracked_new_upper_nxt,      reg_if.cnt_tracked_new_lower_nxt}      = cnt_tracked_new;
     assign {reg_if.cnt_not_tracked_upper_nxt,      reg_if.cnt_not_tracked_lower_nxt}      = cnt_not_tracked;
+
+    // -----------------------------
+    // Debug
+    // -----------------------------
+    assign reg_if.dbg_cnt_active_nxt_v = 1'b1;
+    assign reg_if.dbg_cnt_active_nxt = htable_status_if.fill;
 
 endmodule : state_cache_core
 
