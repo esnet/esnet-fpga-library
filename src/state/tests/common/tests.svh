@@ -123,7 +123,34 @@
     `SVTEST_END
 
 
-    `SVTEST(update_once)
+    `SVTEST(update_once_zero_init)
+        ID_T id;
+        STATE_T got_state;
+        STATE_T exp_state;
+        UPDATE_T update;
+
+        // Randomize
+        void'(std::randomize(id));
+        void'(std::randomize(update));
+
+        // Initialize state
+        set(id, '0);
+
+        // Update
+        _update(id, update, got_state);
+        `FAIL_UNLESS_EQUAL(got_state, '0);
+
+        // Predict next state
+        exp_state = get_next_state('0, update);
+
+        // Check
+        get(id, got_state);
+        env.debug_msg($sformatf("GOT STATE: 0x%0x, EXP STATE: 0x%0x.", got_state, exp_state));
+        `FAIL_UNLESS_EQUAL(got_state, exp_state);
+    `SVTEST_END
+
+
+    `SVTEST(update_once_random_init)
         ID_T id;
         STATE_T got_state;
         STATE_T exp_state;

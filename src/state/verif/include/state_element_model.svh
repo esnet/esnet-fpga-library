@@ -47,6 +47,22 @@ class state_element_model #(
         case (__SPEC.TYPE)
             ELEMENT_TYPE_READ : __next_state = __prev_state;
             ELEMENT_TYPE_WRITE : __next_state = __update;
+            ELEMENT_TYPE_WRITE_IF_ZERO : begin
+                if (init)                    __next_state = __update;
+                else if (__prev_state == '0) __next_state = __update;
+                else                         __next_state = __prev_state;
+            end
+            ELEMENT_TYPE_WRITE_N_TIMES : begin
+                if (init) begin
+                    if ((__update & 4'hF) > 0) __next_state = __update;
+                    else                       __next_state = '0;
+                end else if ((__prev_state & 4'hF) < (__update & 4'hF)) __next_state = __update;
+                else __next_state = __prev_state;
+                __next_state = (__next_state >> 4) << 4;
+                if (init) __next_state |= 1;
+                else if ((__prev_state & 4'hF) < 4'd15) __next_state |= (__prev_state & 4'hF) + 1;
+                else __next_state |= 4'd15;
+            end
             ELEMENT_TYPE_FLAGS : begin
                 if (init) __next_state = __update;
                 else      __next_state = __prev_state | __update;
