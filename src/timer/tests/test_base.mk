@@ -41,15 +41,11 @@ SRC_LIST_FILES = $(SVUNIT_SRC_LIST_FILE)
 #   List IP component and external library dependencies
 #   (see $SCRIPTS_ROOT/Makefiles/dependencies.mk for details)
 # ----------------------------------------------------
-COMPONENTS = state.rtl \
-             state.verif \
-             state.tb \
-             std.rtl \
+COMPONENTS = timer.rtl \
+             timer.verif \
              axi4l.rtl \
-             htable.rtl \
-             axi4l.verif \
-             db.verif \
-             htable.verif
+             std.verif \
+             axi4l.verif
 EXT_LIBS =
 
 # ----------------------------------------------------

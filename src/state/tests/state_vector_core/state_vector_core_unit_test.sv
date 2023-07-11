@@ -5,7 +5,7 @@
 //===================================
 `define SVUNIT_TIMEOUT 2ms
 
-module state_core_unit_test
+module state_vector_core_unit_test
     import state_pkg::*;
 #(
     parameter string NAME = "unspecified",
@@ -15,17 +15,15 @@ module state_core_unit_test
     import svunit_pkg::svunit_testcase;
     import tb_pkg::*;
     import state_verif_pkg::*;
-    import axi4l_verif_pkg::*;
     import db_verif_pkg::*;
 
-    string name = $sformatf("state_core_%s_ut", NAME);
+    string name = $sformatf("state_vector_core_%s_ut", NAME);
     svunit_testcase svunit_ut;
 
     localparam block_type_t BLOCK_TYPE = BLOCK_TYPE_VECTOR;
 
     localparam type STATE_T = logic[getStateVectorSize(SPEC)-1:0];
     localparam type UPDATE_T = logic[getUpdateVectorSize(SPEC)-1:0];
-    localparam type NOTIFY_MSG_T = expiry_msg_t;
 
     //===================================
     // DUT
@@ -41,19 +39,17 @@ module state_core_unit_test
     logic    db_init_done;
 
     // Interfaces
-    axi4l_intf   #() axil_if ();
+    db_info_intf info_if ();
     state_intf   #(.ID_T(ID_T),  .STATE_T(STATE_T), .UPDATE_T(UPDATE_T)) update_if (.clk(clk));
     state_intf   #(.ID_T(ID_T),  .STATE_T(STATE_T), .UPDATE_T(UPDATE_T)) ctrl_if (.clk(clk));
-    state_check_intf #(.STATE_T(STATE_T), .MSG_T(NOTIFY_MSG_T)) check_if (.clk(clk));
-    state_event_intf #(.ID_T(ID_T), .MSG_T(NOTIFY_MSG_T)) notify_if (.clk(clk));
+    db_ctrl_intf #(.KEY_T(ID_T), .VALUE_T(STATE_T)) db_ctrl_if (.clk(clk));
     db_intf      #(.KEY_T(ID_T), .VALUE_T(STATE_T)) db_wr_if (.clk(clk));
     db_intf      #(.KEY_T(ID_T), .VALUE_T(STATE_T)) db_rd_if (.clk(clk));
 
     // Instantiation
-    state_core #(
+    state_vector_core #(
         .ID_T ( ID_T ),
         .SPEC ( SPEC ),
-        .NOTIFY_MSG_T ( NOTIFY_MSG_T ),
         .NUM_WR_TRANSACTIONS ( 4 ),
         .NUM_RD_TRANSACTIONS ( 8 )
     ) DUT (.*);
@@ -76,16 +72,12 @@ module state_core_unit_test
     // Common state testbench environment
     tb_env#(ID_T, STATE_T, UPDATE_T) env;
 
-    axi4l_reg_agent axil_reg_agent;
-    state_reg_agent #(ID_T, STATE_T) agent;
-
     state_vector_model#(ID_T, STATE_T, UPDATE_T) model;
+
+    db_ctrl_agent #(ID_T, STATE_T) db_agent;
 
     // Assign clock (200MHz)
     `SVUNIT_CLK_GEN(clk, 2.5ns);
-
-    // Assign AXI-L clock (100MHz)
-    `SVUNIT_CLK_GEN(axil_if.aclk, 5ns);
 
     // Interfaces
     std_reset_intf reset_if (.clk(clk));
@@ -93,8 +85,6 @@ module state_core_unit_test
     // Drive srst from reset interface
     assign srst = reset_if.reset;
     assign reset_if.ready = init_done;
-
-    assign axil_if.aresetn = !srst;
 
     //===================================
     // Build
@@ -106,9 +96,9 @@ module state_core_unit_test
         model = new($sformatf("state_vector_model[%s]", NAME), SPEC);
 
         // Database agent
-        axil_reg_agent = new();
-        axil_reg_agent.axil_vif = axil_if;
-        agent = new("state_reg_agent", axil_reg_agent);
+        db_agent = new("db_ctrl_agent", State#(ID_T)::numIDs());
+        db_agent.ctrl_vif = db_ctrl_if;
+        db_agent.info_vif = info_if;
 
         // Testbench environment
         env = new();
@@ -117,7 +107,7 @@ module state_core_unit_test
         env.ctrl_vif = ctrl_if;
 
         env.model = model;
-        env.db_agent = agent.db;
+        env.db_agent = db_agent;
 
         env.connect();
 
@@ -179,10 +169,10 @@ endmodule
 // 'Boilerplate' unit test wrapper code
 //  Builds unit test for a specific state vector configuration in a way
 //  that maintains SVUnit compatibility
-`define STATE_CORE_UNIT_TEST(_NAME,_ID_T,_SPEC)\
+`define STATE_VECTOR_UNIT_TEST(_NAME,_ID_T,_SPEC)\
   import svunit_pkg::svunit_testcase;\
   svunit_testcase svunit_ut;\
-  state_core_unit_test #(.NAME(_NAME), .ID_T(_ID_T), .SPEC(``_SPEC)) test();\
+  state_vector_core_unit_test #(.NAME(_NAME), .ID_T(_ID_T), .SPEC(``_SPEC)) test();\
   function void build();\
     test.build();\
     svunit_ut = test.svunit_ut;\
@@ -191,8 +181,8 @@ endmodule
     test.run();\
   endtask
 
-// READ
-module state_core_histogram_unit_test;
+// HISTOGRAM
+module state_vector_core_histogram_unit_test;
     import state_pkg::*;
     localparam element_t STATE_ELEMENT_HIST_BIN_64B = '{
         ELEMENT_TYPE_COUNTER_COND, 64, 1, RETURN_MODE_PREV_STATE, REAP_MODE_CLEAR
@@ -204,6 +194,6 @@ module state_core_histogram_unit_test;
             default: STATE_ELEMENT_HIST_BIN_64B
         }
     };
-`STATE_CORE_UNIT_TEST("histogram",logic[11:0],SPEC);
+`STATE_VECTOR_UNIT_TEST("histogram",logic[11:0],SPEC);
 endmodule
 

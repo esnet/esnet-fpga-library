@@ -25,12 +25,7 @@ SRC_LIST_FILES =
 #   List IP component and external library dependencies
 #   (see $SCRIPTS_ROOT/Makefiles/dependencies.mk)
 # ----------------------------------------------------
-COMPONENTS = state.regio.rtl \
-             std.rtl \
-             util.rtl \
-             fifo.rtl \
-             db.rtl \
-             htable.rtl
+COMPONENTS = axi4l.rtl
 EXT_LIBS =
 
 # ----------------------------------------------------

@@ -3,7 +3,6 @@ module db_store_array #(
     parameter type VALUE_T = logic[15:0],
     parameter bit  TRACK_VALID = 1,// When set, each record includes a valid bit
                                    // When unset, records do not include a valid bit (all records are considered valid)
-    parameter bit  DUMMY_VALUE = 0, // When set, records contain no value (i.e. valid tracking only)
     // Simulation-only
     parameter bit  SIM__FAST_INIT = 1 // Optimize sim time by performing fast memory init
 )(
@@ -22,7 +21,7 @@ module db_store_array #(
     // Parameters
     // ----------------------------------
     localparam int KEY_WID = $bits(KEY_T);
-    localparam int VALUE_WID = DUMMY_VALUE ? 0 : $bits(VALUE_T);
+    localparam int VALUE_WID = $bits(VALUE_T);
     localparam int ENTRY_WID = TRACK_VALID ? VALUE_WID + 1 : VALUE_WID;
 
     // ----------------------------------
@@ -70,15 +69,8 @@ module db_store_array #(
 
     generate
         if (TRACK_VALID) begin : g__valid_tracked
-            if (DUMMY_VALUE) begin : g__dummy_value
-                assign mem_wr_if.data = db_wr_if.valid;
-                assign db_rd_if.valid = mem_rd_if.data;
-                assign db_rd_if.value = '0;
-            end : g__dummy_value
-            else begin : g__value
-                assign mem_wr_if.data = {db_wr_if.valid, db_wr_if.value};
-                assign {db_rd_if.valid, db_rd_if.value} = mem_rd_if.data;
-            end : g__value
+            assign mem_wr_if.data = {db_wr_if.valid, db_wr_if.value};
+            assign {db_rd_if.valid, db_rd_if.value} = mem_rd_if.data;
         end : g__valid_tracked
         else begin : g__valid_untracked
             assign mem_wr_if.data = {db_wr_if.value};

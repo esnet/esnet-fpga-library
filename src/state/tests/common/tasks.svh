@@ -5,55 +5,45 @@
 // components.
 //
 // Can `include into _unit_test modules.
-//
-// This is a temporary measure to avoid unnecessary duplication of test code
-// until this functionality is fully supported in a common testbench environment.
 // ============================================================================
 
 task _wait(input int num_cycles);
-    update_if._wait(num_cycles);
+    env._wait(num_cycles);
 endtask
 
-task enable(input ID_T id);
-    DUMMY_T __state_unused = 0;
-    set(id, __state_unused);
-endtask
-
-task _disable(input ID_T id, output bit prev_valid);
-    DUMMY_T __prev_state_unused = 0;
-    bit error, timeout;
-    ctrl_agent.unset(id, prev_valid, __prev_state_unused, error, timeout);
-    `FAIL_IF_LOG(
-        error,
-        $sformatf(
-            "Error detected while disabling ID 0x%0x.",
-            id
-        )
-    );
-    `FAIL_IF_LOG(
-        timeout,
-        $sformatf(
-            "Timeout detected while disabling ID 0x%0x.",
-            id
-        )
-    );
-
-endtask
-
-task send(input ID_T id, input UPDATE_T update, input bit init=1'b0);
-    update_if.send(id, update, init);
+task update_req(input ID_T id, input UPDATE_T update, input bit init=1'b0);
+    env.update_vif.update_req(id, update, init);
 endtask
 
 task receive(output STATE_T state);
-    bit __timeout;
-    update_if.receive(state, __timeout);
+    bit timeout;
+    env.update_vif.receive_resp(state, timeout);
+    `FAIL_IF_LOG(timeout, "Timeout detected while waiting for update response.");
+endtask
+
+task _update(input ID_T id, input UPDATE_T update, output STATE_T state, input bit init=1'b0);
+    bit timeout;
+    env.update_vif._update(id, update, init, state, timeout);
+    `FAIL_IF_LOG(timeout, $sformatf("Timeout detected while updating state for ID 0x%0x.", id));
+endtask
+
+task control_update(input ID_T id, input UPDATE_T update, output STATE_T state, input bit init=1'b0);
+    bit timeout;
+    env.ctrl_vif.control(id, update, init, state, timeout);
+    `FAIL_IF_LOG(timeout, $sformatf("Timeout detected while performing control update for ID 0x%0x.", id));
+endtask
+
+task _reap(input ID_T id, output STATE_T state);
+    bit timeout;
+    env.ctrl_vif.reap(id, state, timeout);
+    `FAIL_IF_LOG(timeout, $sformatf("Timeout detected while reaping state for ID 0x%0x.", id));
 endtask
 
 task set(input ID_T id, input STATE_T state);
     automatic logic __dummy = 1'b0;
     bit error;
     bit timeout;
-    ctrl_agent.set(id, state, error, timeout);
+    env.db_agent.set(id, state, error, timeout);
     `FAIL_IF_LOG(
         error,
         $sformatf(
@@ -74,7 +64,7 @@ task clear(input ID_T id, output STATE_T prev_state);
     logic __dummy;
     bit error;
     bit timeout;
-    ctrl_agent.unset(id, __dummy, prev_state, error, timeout);
+    env.db_agent.unset(id, __dummy, prev_state, error, timeout);
     `FAIL_IF_LOG(
         error,
         $sformatf(
@@ -95,7 +85,7 @@ task get(input ID_T id, output STATE_T state);
     logic __dummy;
     bit error;
     bit timeout;
-    ctrl_agent.get(id, __dummy, state, error, timeout);
+    env.db_agent.get(id, __dummy, state, error, timeout);
     `FAIL_IF_LOG(
         error,
         $sformatf(
@@ -112,31 +102,10 @@ task get(input ID_T id, output STATE_T state);
     );
 endtask
 
-task get_valid(input ID_T id, output bit valid);
-    logic __dummy;
-    bit error;
-    bit timeout;
-    ctrl_agent.get(id, valid, __dummy, error, timeout);
-    `FAIL_IF_LOG(
-        error,
-        $sformatf(
-            "Error detected while retrieving valid for ID 0x%0x.",
-            id
-        )
-    );
-    `FAIL_IF_LOG(
-        timeout,
-        $sformatf(
-            "Timeout detected while retrieving valid for ID 0x%0x.",
-            id
-        )
-    );
-endtask
-
 task clear_all();
     bit error;
     bit timeout;
-    ctrl_agent.clear_all(error, timeout);
+    env.db_agent.clear_all(error, timeout);
     `FAIL_IF_LOG(
         error,
         "Error detected while performing RESET operation."
@@ -147,3 +116,18 @@ task clear_all();
     );
 endtask
 
+function automatic STATE_T get_next_state(input STATE_T prev_state, input UPDATE_T update, input bit init=1'b0);
+    return env.model.get_next_state(UPDATE_CTXT_DATAPATH, prev_state, update, init);
+endfunction
+
+function automatic STATE_T get_next_state_control(input STATE_T prev_state, input UPDATE_T update, input bit init=1'b0);
+    return env.model.get_next_state(UPDATE_CTXT_CONTROL, prev_state, update, init);
+endfunction
+
+function automatic STATE_T get_next_state_reap(input STATE_T prev_state, input UPDATE_T update, input bit init=1'b0);
+    return env.model.get_next_state(UPDATE_CTXT_REAP, prev_state, update, init);
+endfunction
+
+function automatic STATE_T get_return_state(input STATE_T prev_state, input STATE_T next_state);
+    return env.model.get_return_state(prev_state, next_state);
+endfunction

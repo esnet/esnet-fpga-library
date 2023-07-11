@@ -58,6 +58,8 @@ rtl_sim:
     - grep 'PASSED.*suites passing' src/htable/tests/regression/run_$SEED/sim.log
     - make -C src/state/tests/regression SEED=$SEED
     - grep 'PASSED.*suites passing' src/state/tests/regression/run_$SEED/sim.log
+    - make -C src/timer/tests/regression SEED=$SEED
+    - grep 'PASSED.*suites passing' src/timer/tests/regression/run_$SEED/sim.log
   artifacts:
     name: "artifacts.$CI_PROJECT_NAME.$CI_JOB_NAME.$CI_PIPELINE_ID"
     reports:
