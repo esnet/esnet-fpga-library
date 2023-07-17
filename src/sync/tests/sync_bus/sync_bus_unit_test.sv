@@ -1,26 +1,31 @@
 `include "svunit_defines.svh"
 
-module sync_level_unit_test;
+module sync_bus_unit_test;
     import svunit_pkg::svunit_testcase;
 
-    string name = "sync_level_ut";
+    string name = "sync_bus_ut";
     svunit_testcase svunit_ut;
 
-    localparam RST_VALUE = 1'bx;
+    localparam DATA_WID = 32;
+    localparam type DATA_T = logic[DATA_WID-1:0];
+    localparam int RST_VALUE = 32'h01234567;
 
     //===================================
     // DUT
     //===================================
-    logic clk_in;
-    logic rst_in;
-    logic lvl_in;
-    logic rdy_in;
+    logic  clk_in;
+    logic  rst_in;
+    logic  rdy_in;
+    logic  req_in;
+    DATA_T data_in;
 
-    logic clk_out;
-    logic rst_out;
-    logic lvl_out;
+    logic  clk_out;
+    logic  rst_out;
+    logic  ack_out;
+    DATA_T data_out;
 
-    sync_level #(
+    sync_bus #(
+        .DATA_T    ( DATA_T ),
         .RST_VALUE ( RST_VALUE )
     ) DUT (.*);
 
@@ -47,7 +52,7 @@ module sync_level_unit_test;
     task setup();
         svunit_ut.setup();
 
-        lvl_in = RST_VALUE;
+        req_in = 1'b0;
 
         reset();
 
@@ -55,7 +60,7 @@ module sync_level_unit_test;
 
 
     //===================================
-    // Here we deconstruct anything we
+    // Here we deconstruct anything we 
     // need after running the Unit Tests
     //===================================
     task teardown();
@@ -81,15 +86,16 @@ module sync_level_unit_test;
 
         `SVTEST(rst_in_value)
             rst_in = 1'b1;
-            lvl_in = 1'b1;
+            req_in = 1'b1;
             fork
                 begin
                     wait_for_sync();
                 end
                 begin
                     forever begin
+                        // No events should be forwarded, due to input reset assertion
                         @(posedge clk_out);
-                        `FAIL_UNLESS_EQUAL(lvl_out, RST_VALUE);
+                        `FAIL_IF(ack_out);
                     end
                 end
             join_any
@@ -97,46 +103,34 @@ module sync_level_unit_test;
 
         `SVTEST(rst_out_value)
             rst_out = 1'b1;
-            lvl_in = 1'b1;
+            req_in = 1'b1;
             fork
                 begin
                     wait_for_sync();
                 end
                 begin
                     forever begin
+                        // No events should be forwarded, due to output reset assertion
                         @(posedge clk_out);
-                        `FAIL_UNLESS_EQUAL(lvl_out, RST_VALUE);
+                        `FAIL_IF(ack_out);
                     end
                 end
             join_any
         `SVTEST_END
 
-        `SVTEST(pass_0)
-
-            @(posedge clk_in);
-            lvl_in = 1'b0;
-
-            wait_for_handshake();
-
-            fork
-                begin
-                    wait_for_sync();
-                    @(posedge clk_out);
-                    `FAIL_IF(1);
-                end
-                begin
-                    wait(lvl_out == 1'b0);
-                end
-            join_any
-
-        `SVTEST_END
-
-        `SVTEST(pass_1)
-
-            @(posedge clk_in);
-            lvl_in = 1'b1;
+        `SVTEST(pass_value)
+            DATA_T _data_in;
+            void'(std::randomize(_data_in));
             
-            wait_for_handshake();
+            // Send request
+            @(posedge clk_in);
+            req_in <= 1'b1;
+            data_in <= _data_in;
+
+            wait(rdy_in);
+            @(posedge clk_in);
+            req_in <= 1'b0;
+            data_in <= 'x;
 
             fork
                 begin
@@ -145,51 +139,47 @@ module sync_level_unit_test;
                     `FAIL_IF(1);
                 end
                 begin
-                    wait(lvl_out == 1'b1);
+                    wait(ack_out);
+                    @(posedge clk_out);
+                    `FAIL_UNLESS_EQUAL(data_out, _data_in);
                 end
             join_any
 
         `SVTEST_END
 
         `SVTEST(backpressure)
-            int exp_evt_cnt = 0;
-            int got_evt_cnt = 0;
-            logic _lvl_in;
-            logic _lvl_out;
+            DATA_T samples_in [$];
+            DATA_T samples_out [$];
 
             fork
                 begin
-                    lvl_in <= 1'b0;
-                    _lvl_in = 1'b0;
-                    wait_for_handshake();
+                    DATA_T _data_in;
+                    @(posedge clk_in);
+                    void'(std::randomize(_data_in));
+                    req_in <= 1'b1;
+                    data_in <= _data_in;
                     repeat (10000) begin
-                        lvl_in <= !lvl_in;
                         @(posedge clk_in);
-                        if (rdy_in) begin
-                            if (lvl_in !== _lvl_in) begin
-                                // Count expected number of input transitions
-                                exp_evt_cnt++;
-                                _lvl_in = lvl_in;
-                            end
-                        end
+                        if (rdy_in) samples_in.push_back(_data_in);
                     end
+                    req_in <= 1'b0;
                     wait_for_sync();
                     @(posedge clk_out);
                 end
                 begin
-                    wait_for_handshake();
-                    _lvl_out = lvl_out;
                     forever begin
                         @(posedge clk_out);
-                        if (lvl_out !== _lvl_out ) begin
-                            // Count actual number of output transitions
-                            got_evt_cnt++;
-                        end
-                        _lvl_out = lvl_out;
+                        if (ack_out) samples_out.push_back(data_out);
                     end
                 end
             join_any
-            `FAIL_UNLESS_EQUAL(got_evt_cnt, exp_evt_cnt);
+
+            // Check that list of output samples is identical
+            // (matching length and order) to list of input samples
+            `FAIL_UNLESS_EQUAL(samples_in.size(), samples_out.size());
+            foreach (samples_in[i]) begin
+                `FAIL_UNLESS_EQUAL(samples_in[i], samples_out[i]);
+            end
 
         `SVTEST_END
 
@@ -213,20 +203,10 @@ module sync_level_unit_test;
     endtask
 
     task wait_for_sync();
+        repeat (2) @(posedge clk_in);
         @(posedge clk_in);
         repeat (sync_pkg::RETIMING_STAGES+1) @(posedge clk_out);
         @(posedge clk_out);
-    endtask
-
-    task wait_for_ack();
-        @(posedge clk_out);
-        repeat (sync_pkg::RETIMING_STAGES+1) @(posedge clk_out);
-        @(posedge clk_out);
-    endtask
-
-    task wait_for_handshake();
-        wait_for_sync();
-        wait_for_ack();
     endtask
 
 endmodule

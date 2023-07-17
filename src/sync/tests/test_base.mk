@@ -16,7 +16,7 @@ include $(IP_ROOT)/config.mk
 #       make waves=ON
 #       make SEED=29 waves=ON
 # -----------------------------------------------
-REGRESSION = 1
+REGRESSION ?= 0
 SEED ?= 0
 waves ?= OFF
 

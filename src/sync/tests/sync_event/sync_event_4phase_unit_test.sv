@@ -1,27 +1,28 @@
 `include "svunit_defines.svh"
 
-module sync_level_unit_test;
+module sync_event_4phase_unit_test;
     import svunit_pkg::svunit_testcase;
 
-    string name = "sync_level_ut";
+    string name = "sync_event_4phase_ut";
     svunit_testcase svunit_ut;
 
     localparam RST_VALUE = 1'bx;
+    localparam sync_pkg::handshake_mode_t MODE = sync_pkg::HANDSHAKE_MODE_4PHASE;
 
     //===================================
     // DUT
     //===================================
     logic clk_in;
     logic rst_in;
-    logic lvl_in;
     logic rdy_in;
+    logic evt_in;
 
     logic clk_out;
     logic rst_out;
-    logic lvl_out;
+    logic evt_out;
 
-    sync_level #(
-        .RST_VALUE ( RST_VALUE )
+    sync_event #(
+        .MODE   ( sync_pkg::HANDSHAKE_MODE_4PHASE )
     ) DUT (.*);
 
     //===================================
@@ -47,7 +48,7 @@ module sync_level_unit_test;
     task setup();
         svunit_ut.setup();
 
-        lvl_in = RST_VALUE;
+        evt_in = 1'b0;
 
         reset();
 
@@ -81,15 +82,16 @@ module sync_level_unit_test;
 
         `SVTEST(rst_in_value)
             rst_in = 1'b1;
-            lvl_in = 1'b1;
+            evt_in = 1'b1;
             fork
                 begin
                     wait_for_sync();
                 end
                 begin
                     forever begin
+                        // No events should be forwarded, due to input reset assertion
                         @(posedge clk_out);
-                        `FAIL_UNLESS_EQUAL(lvl_out, RST_VALUE);
+                        `FAIL_IF(evt_out);
                     end
                 end
             join_any
@@ -97,26 +99,27 @@ module sync_level_unit_test;
 
         `SVTEST(rst_out_value)
             rst_out = 1'b1;
-            lvl_in = 1'b1;
+            evt_in = 1'b1;
             fork
                 begin
                     wait_for_sync();
                 end
                 begin
                     forever begin
+                        // No events should be forwarded, due to output reset assertion
                         @(posedge clk_out);
-                        `FAIL_UNLESS_EQUAL(lvl_out, RST_VALUE);
+                        `FAIL_IF(evt_out);
                     end
                 end
             join_any
         `SVTEST_END
 
-        `SVTEST(pass_0)
+        `SVTEST(pass_event)
 
             @(posedge clk_in);
-            lvl_in = 1'b0;
-
-            wait_for_handshake();
+            evt_in = 1'b1;
+            @(posedge clk_in);
+            evt_in = 1'b0;
 
             fork
                 begin
@@ -125,27 +128,7 @@ module sync_level_unit_test;
                     `FAIL_IF(1);
                 end
                 begin
-                    wait(lvl_out == 1'b0);
-                end
-            join_any
-
-        `SVTEST_END
-
-        `SVTEST(pass_1)
-
-            @(posedge clk_in);
-            lvl_in = 1'b1;
-            
-            wait_for_handshake();
-
-            fork
-                begin
-                    wait_for_sync();
-                    @(posedge clk_out);
-                    `FAIL_IF(1);
-                end
-                begin
-                    wait(lvl_out == 1'b1);
+                    wait(evt_out);
                 end
             join_any
 
@@ -154,41 +137,27 @@ module sync_level_unit_test;
         `SVTEST(backpressure)
             int exp_evt_cnt = 0;
             int got_evt_cnt = 0;
-            logic _lvl_in;
-            logic _lvl_out;
 
             fork
                 begin
-                    lvl_in <= 1'b0;
-                    _lvl_in = 1'b0;
-                    wait_for_handshake();
+                    @(posedge clk_in);
+                    evt_in <= 1'b1;
                     repeat (10000) begin
-                        lvl_in <= !lvl_in;
                         @(posedge clk_in);
-                        if (rdy_in) begin
-                            if (lvl_in !== _lvl_in) begin
-                                // Count expected number of input transitions
-                                exp_evt_cnt++;
-                                _lvl_in = lvl_in;
-                            end
-                        end
+                        if (rdy_in) exp_evt_cnt++;
                     end
+                    evt_in <= 1'b0;
                     wait_for_sync();
                     @(posedge clk_out);
                 end
                 begin
-                    wait_for_handshake();
-                    _lvl_out = lvl_out;
                     forever begin
                         @(posedge clk_out);
-                        if (lvl_out !== _lvl_out ) begin
-                            // Count actual number of output transitions
-                            got_evt_cnt++;
-                        end
-                        _lvl_out = lvl_out;
+                        if (evt_out) got_evt_cnt++;
                     end
                 end
             join_any
+
             `FAIL_UNLESS_EQUAL(got_evt_cnt, exp_evt_cnt);
 
         `SVTEST_END
@@ -214,19 +183,9 @@ module sync_level_unit_test;
 
     task wait_for_sync();
         @(posedge clk_in);
+        @(posedge clk_in);
         repeat (sync_pkg::RETIMING_STAGES+1) @(posedge clk_out);
         @(posedge clk_out);
-    endtask
-
-    task wait_for_ack();
-        @(posedge clk_out);
-        repeat (sync_pkg::RETIMING_STAGES+1) @(posedge clk_out);
-        @(posedge clk_out);
-    endtask
-
-    task wait_for_handshake();
-        wait_for_sync();
-        wait_for_ack();
     endtask
 
 endmodule
