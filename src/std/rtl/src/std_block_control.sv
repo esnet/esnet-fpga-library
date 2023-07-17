@@ -13,16 +13,21 @@ module std_block_control (
     output logic blk_reset_out,
     output logic blk_enable_out
 );
-    sync_reset #(
-        .INPUT_ACTIVE_HIGH ( 1'b1 )
-    ) i_sync_reset__reset (
-        .rst_in   ( ctrl_reset_in ),
-        .clk_out  ( blk_clk ),
-        .srst_out ( blk_reset_out )
+    sync_level i_sync_level__reset (
+        .clk_in  ( ctrl_clk ),
+        .rst_in  ( 1'b0 ),
+        .rdy_in  ( ),
+        .lvl_in  ( ctrl_reset_in ),
+        .clk_out ( blk_clk ),
+        .rst_out ( 1'b0 ),
+        .lvl_out ( blk_reset_out )
     );
 
     // Synchronize enable
     sync_level i_sync_level__enable (
+        .clk_in  ( ctrl_clk ),
+        .rst_in  ( 1'b0 ),
+        .rdy_in  ( ),
         .lvl_in  ( ctrl_enable_in ),
         .clk_out ( blk_clk ),
         .rst_out ( 1'b0 ),

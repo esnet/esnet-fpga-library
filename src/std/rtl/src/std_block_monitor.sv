@@ -19,6 +19,9 @@ module std_block_monitor (
 );
     // Synchronize monitor outputs to ctrl_clk
     sync_level i_sync_level__reset_mon (
+        .clk_in  ( blk_clk ),
+        .rst_in  ( 1'b0 ),
+        .rdy_in  ( ),
         .lvl_in  ( blk_reset_mon_in ),
         .clk_out ( ctrl_clk ),
         .rst_out ( 1'b0 ),
@@ -26,6 +29,9 @@ module std_block_monitor (
     );
 
     sync_level i_sync_level__enable_mon (
+        .clk_in  ( blk_clk ),
+        .rst_in  ( 1'b0 ),
+        .rdy_in  ( ),
         .lvl_in  ( blk_enable_mon_in ),
         .clk_out ( ctrl_clk ),
         .rst_out ( 1'b0 ),
@@ -33,6 +39,9 @@ module std_block_monitor (
     );
 
     sync_level i_sync_level__ready_mon (
+        .clk_in  ( blk_clk ),
+        .rst_in  ( 1'b0 ),
+        .rdy_in  ( ),
         .lvl_in  ( blk_ready_mon_in ),
         .clk_out ( ctrl_clk ),
         .rst_out ( 1'b0 ),
@@ -41,7 +50,7 @@ module std_block_monitor (
 
     sync_bus_sampled #(
         .DATA_T   ( logic[7:0] )
-    ) i_sync_bus__state_mon (
+    ) i_sync_bus_sampled__state_mon (
         .clk_in   ( blk_clk ),
         .rst_in   ( 1'b0 ),
         .data_in  ( blk_state_mon_in ),
