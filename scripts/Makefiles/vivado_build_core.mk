@@ -44,7 +44,7 @@ _clean_build: _clean_logs
 
 # pre_synth hook to be described in 'parent' Makefile
 # (can be used to trigger regmap or IP generation before launching synthesis)
-$(OUT_DIR)/$(TOP).synth.dcp: pre_synth
+$(OUT_DIR)/$(TOP).synth.dcp: $(OUT_DIR) pre_synth
 	$(VIVADO_CMD) -tclargs synth 0
 
 $(OUT_DIR)/$(TOP).opt.dcp: $(OUT_DIR)/$(TOP).synth.dcp
