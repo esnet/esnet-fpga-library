@@ -16,7 +16,7 @@ export LIB_ROOT
 # -----------------------------------------------
 # Specify top-level module
 # -----------------------------------------------
-TOP = sync_bus_sampled
+TOP = sync_ctr_wrapper
 
 # -----------------------------------------------
 # (Local) Paths
