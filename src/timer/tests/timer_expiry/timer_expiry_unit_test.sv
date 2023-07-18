@@ -423,10 +423,12 @@ module timer_expiry_unit_test;
         @(posedge clk);
         exp_threshold = timer - cfg_timeout;
         for (int i = 0; i < NUM_TRIALS; i++) begin
-            timer_in = $urandom_range(timer-2000, timer);
+            TIMER_T time_delta;
+            timer_in <= $urandom_range(timer-2000, timer);
             @(posedge clk);
-            if (timer - timer_in >= cfg_timeout) exp_expiry = 1'b1;
-            else                                 exp_expiry = 1'b0;
+            time_delta = timer - timer_in;
+            if (time_delta >= cfg_timeout) exp_expiry = 1'b1;
+            else                           exp_expiry = 1'b0;
             `FAIL_UNLESS_EQUAL(expired, exp_expiry);
         end
     `SVTEST_END
