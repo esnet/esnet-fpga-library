@@ -23,7 +23,7 @@ VIVADO_LOG_DIR = $(OUT_DIR)
 # -----------------------------------------------
 # Command
 # -----------------------------------------------
-VIVADO_CMD = $(VIVADO_CMD_BASE) -source $(VIVADO_SCRIPTS_ROOT)/build_ooc.tcl
+VIVADO_CMD = $(VIVADO_CMD_BASE_NO_LOG) -source $(VIVADO_SCRIPTS_ROOT)/build_ooc.tcl
 
 # -----------------------------------------------
 # Targets
@@ -45,18 +45,18 @@ _clean_build: _clean_logs
 # pre_synth hook to be described in 'parent' Makefile
 # (can be used to trigger regmap or IP generation before launching synthesis)
 $(OUT_DIR)/$(TOP).synth.dcp: $(OUT_DIR) pre_synth
-	$(VIVADO_CMD) -tclargs synth 0
+	$(VIVADO_CMD) -log $(OUT_DIR)/$(TOP).synth.log -tclargs synth 0
 
 $(OUT_DIR)/$(TOP).opt.dcp: $(OUT_DIR)/$(TOP).synth.dcp
-	$(VIVADO_CMD) -tclargs opt 1
+	$(VIVADO_CMD) -log $(OUT_DIR)/$(TOP).opt.log -tclargs opt 1
 
 $(OUT_DIR)/$(TOP).place.dcp: $(OUT_DIR)/$(TOP).opt.dcp
-	$(VIVADO_CMD) -tclargs place 1
+	$(VIVADO_CMD) -log $(OUT_DIR)/$(TOP).place.log -tclargs place 1
 
 $(OUT_DIR)/$(TOP).phys_opt.dcp: $(OUT_DIR)/$(TOP).place.dcp
-	$(VIVADO_CMD) -tclargs phys_opt 1
+	$(VIVADO_CMD) -log $(OUT_DIR)/$(TOP).phys_opt.log -tclargs phys_opt 1
 
 $(OUT_DIR)/$(TOP).route.dcp: $(OUT_DIR)/$(TOP).phys_opt.dcp
-	$(VIVADO_CMD) -tclargs route 1
+	$(VIVADO_CMD) -log $(OUT_DIR)/$(TOP).route.log -tclargs route 1
 
 
