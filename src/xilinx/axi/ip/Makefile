@@ -36,7 +36,10 @@ SRC_LIST_FILES =
 #   (see $SCRIPTS_ROOT/Makefiles/dependencies.mk)
 # ----------------------------------------------------
 COMPONENTS =
-EXT_LIBS = axi_register_slice_v2_1_28
+EXT_LIBS = \
+        axi_infrastructure_v1_1_0 \
+        axi_register_slice_v2_1_28 \
+        unisims_ver
 
 # ----------------------------------------------------
 # Defines

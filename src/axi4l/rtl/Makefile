@@ -25,8 +25,7 @@ SRC_LIST_FILES =
 #   List IP component and external library dependencies
 #   (see $SCRIPTS_ROOT/Makefiles/dependencies.mk)
 # ----------------------------------------------------
-COMPONENTS = axi4l.xilinx_ip \
-             xilinx.axi.rtl \
+COMPONENTS = xilinx.axi.rtl \
              sync.rtl \
              reg.rtl \
              mem.rtl \
