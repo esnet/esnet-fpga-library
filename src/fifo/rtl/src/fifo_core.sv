@@ -148,6 +148,22 @@ module fifo_core
                 if (rd_srst || wr_srst__rd_clk) local_rd_srst <= 1'b1;
                 else                            local_rd_srst <= 1'b0;
             end
+
+            // Asynchronous SDP RAM instance
+            mem_ram_sdp_async #(
+                .MEM_RD_MODE ( MEM_RD_MODE ),
+                .ADDR_WID  ( PTR_WID ),
+                .DATA_WID  ( DATA_WID ),
+                .RESET_FSM ( 0 )
+            ) i_mem_ram_sdp_async (
+                .wr_clk    ( wr_clk ),
+                .wr_srst   ( local_wr_srst ),
+                .mem_wr_if ( mem_wr_if ),
+                .rd_clk    ( rd_clk ),
+                .rd_srst   ( local_rd_srst ),
+                .mem_rd_if ( mem_rd_if ),
+                .init_done ( mem_init_done )
+            );
         end : g__async
         else begin : g__sync
             // Synthesize local reset (no synchronization necessary)
@@ -157,6 +173,20 @@ module fifo_core
                 else                                          local_wr_srst <= 1'b0;
             end
             assign local_rd_srst = local_wr_srst;
+
+            // Synchronous SDP RAM instance
+            mem_ram_sdp_sync #(
+                .MEM_RD_MODE ( MEM_RD_MODE ),
+                .ADDR_WID  ( PTR_WID ),
+                .DATA_WID  ( DATA_WID ),
+                .RESET_FSM ( 0 )
+            ) i_mem_ram_sdp_sync (
+                .clk       ( wr_clk ),
+                .srst      ( local_wr_srst ),
+                .init_done ( mem_init_done ),
+                .mem_wr_if ( mem_wr_if ),
+                .mem_rd_if ( mem_rd_if )
+            );
         end : g__sync
     endgenerate
 
@@ -196,24 +226,8 @@ module fifo_core
     );
 
     // -----------------------------
-    // Data memory
+    // Data memory interface
     // -----------------------------
-    mem_ram_sdp_core #(
-        .MEM_RD_MODE ( MEM_RD_MODE ),
-        .ADDR_WID  ( PTR_WID ),
-        .DATA_WID  ( DATA_WID ),
-        .ASYNC     ( ASYNC ),
-        .RESET_FSM ( 0 )
-    ) i_ram_data (
-        .wr_clk    ( wr_clk ),
-        .wr_srst   ( local_wr_srst ),
-        .mem_wr_if ( mem_wr_if ),
-        .rd_clk    ( rd_clk ),
-        .rd_srst   ( local_rd_srst ),
-        .mem_rd_if ( mem_rd_if ),
-        .init_done ( mem_init_done )
-    );
-
     assign mem_wr_if.rst = 1'b0;
     assign mem_wr_if.en = 1'b1;
     assign mem_wr_if.req = wr_safe;
@@ -225,7 +239,6 @@ module fifo_core
     assign mem_rd_if.req = __rd;  // use __rd signal rather than rd_safe (to advance rd pipeline when memory is empty).
     assign mem_rd_if.addr = rd_ptr;
     assign __rd_data = mem_rd_if.data;
-
 
     generate
         // First word flow-through FIFO mode
