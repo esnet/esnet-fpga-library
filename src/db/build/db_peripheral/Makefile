@@ -1,7 +1,7 @@
 # -----------------------------------------------
 # (Global) Path setup
 # -----------------------------------------------
-IP_ROOT := ..
+IP_ROOT := ../..
 
 # -----------------------------------------------
 # IP config
@@ -12,11 +12,12 @@ include $(IP_ROOT)/config.mk
 # Export parameters used in add_sources.tcl
 # -----------------------------------------------
 export LIB_ROOT
+export OUTPUT_ROOT
 
 # -----------------------------------------------
 # Specify top-level module
 # -----------------------------------------------
-TOP = db_ctrl_peripheral
+TOP = db_peripheral
 
 # -----------------------------------------------
 # (Local) Paths
@@ -26,7 +27,7 @@ OUT_DIR=out
 # -----------------------------------------------
 # Regmap YAML definitions
 # -----------------------------------------------
-REG_BLOCK_YAML = ../regio/db.yaml
+REG_BLOCK_YAML = ../../regio/db.yaml
 REG_DECODER_YAML :=
 
 # -----------------------------------------------

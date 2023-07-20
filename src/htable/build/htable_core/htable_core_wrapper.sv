@@ -5,12 +5,10 @@ module htable_core_wrapper
     parameter type VALUE_T = logic[15:0],
     parameter int  NUM_TABLES = 3,
     parameter int  TABLE_SIZE [NUM_TABLES] = '{default: 16384},
-    parameter bit  STASH = 1'b1,
-    parameter int  STASH_SIZE = 16,
     parameter int  HASH_LATENCY = 0,
     parameter int  NUM_WR_TRANSACTIONS = 2,
     parameter int  NUM_RD_TRANSACTIONS = 8,
-    parameter app_wr_mode_t APP_WR_MODE = APP_WR_MODE_NONE
+    parameter int  STASH_SIZE = 16
 )(
     input  logic            clk,
     input  logic            srst,
@@ -18,8 +16,9 @@ module htable_core_wrapper
     db_info_intf.peripheral info_if,
     db_ctrl_intf.peripheral ctrl_if,
     db_intf.responder       lookup_if,
-    db_intf.responder       insert_if,
+    db_intf.responder       update_if,
     db_ctrl_intf.peripheral stash_ctrl_if,
+    db_status_intf.peripheral stash_status_if,
     db_ctrl_intf.peripheral tbl_ctrl_if [NUM_TABLES]
 );
     // ----------------------------------
@@ -27,10 +26,10 @@ module htable_core_wrapper
     // ----------------------------------
     logic  init_done;
 
-    KEY_T  wr_key;
-    hash_t wr_hash [NUM_TABLES];
-    KEY_T  rd_key;
-    hash_t rd_hash [NUM_TABLES];
+    KEY_T  lookup_key;
+    hash_t lookup_hash [NUM_TABLES];
+    KEY_T  update_key;
+    hash_t update_hash [NUM_TABLES];
 
     logic tbl_init      [NUM_TABLES];
     logic tbl_init_done [NUM_TABLES];
@@ -44,17 +43,15 @@ module htable_core_wrapper
     // ----------------------------------
     // Base instantiation
     // ----------------------------------
-    htable_core             #(
+    htable_multi_stash_core #(
         .KEY_T               ( KEY_T ),
         .VALUE_T             ( VALUE_T ),
         .NUM_TABLES          ( NUM_TABLES ),
         .TABLE_SIZE          ( TABLE_SIZE ),
-        .STASH               ( STASH ),
         .STASH_SIZE          ( STASH_SIZE ),
         .HASH_LATENCY        ( HASH_LATENCY ),
         .NUM_WR_TRANSACTIONS ( NUM_WR_TRANSACTIONS ),
-        .NUM_RD_TRANSACTIONS ( NUM_RD_TRANSACTIONS ),
-        .APP_WR_MODE         ( APP_WR_MODE )
+        .NUM_RD_TRANSACTIONS ( NUM_RD_TRANSACTIONS )
     ) i_htable_core (
         .*
     );
@@ -86,12 +83,12 @@ module htable_core_wrapper
     // ----------------------------------
     // Hash implementation
     // ----------------------------------
-    assign wr_hash[0] = wr_key[95:64];
-    assign wr_hash[1] = wr_key[63:32];
-    assign wr_hash[2] = wr_key[31:0];
+    assign update_hash[0] = update_key[95:64];
+    assign update_hash[1] = update_key[63:32];
+    assign update_hash[2] = update_key[31:0];
 
-    assign rd_hash[0] = rd_key[95:64];
-    assign rd_hash[1] = rd_key[63:32];
-    assign rd_hash[2] = rd_key[31:0];
+    assign lookup_hash[0] = lookup_key[95:64];
+    assign lookup_hash[1] = lookup_key[63:32];
+    assign lookup_hash[2] = lookup_key[31:0];
 
 endmodule : htable_core_wrapper

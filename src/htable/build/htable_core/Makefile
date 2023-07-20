@@ -12,6 +12,7 @@ include $(IP_ROOT)/config.mk
 # Export parameters used in add_sources.tcl
 # -----------------------------------------------
 export LIB_ROOT
+export OUTPUT_ROOT
 
 # -----------------------------------------------
 # Specify top-level module
@@ -27,7 +28,9 @@ OUT_DIR=out
 # Regmap YAML definitions
 # -----------------------------------------------
 REG_BLOCK_YAML = ../../../db/regio/db.yaml
-REG_DECODER_YAML = ../../../fifo/regio/fifo_core_decoder.yaml
+REG_DECODER_YAML = \
+                 ../../../fifo/regio/fifo_core_decoder.yaml \
+                 ../../../htable/regio/htable_cuckoo_fast_update_decoder.yaml
 
 # -----------------------------------------------
 # regio options
