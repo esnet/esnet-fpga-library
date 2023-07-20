@@ -1,3 +1,7 @@
+// Simple Dual-Port RAM implementation
+// NOTE: This module represents a base component generally is not intended
+//       to be instantiated on its own. Instead, instantiate one of the
+//       mem_ram_sdp_sync/mem_ram_sdp_async wrapper modules.
 module mem_ram_sdp_core
     import mem_pkg::*;
 #(

@@ -1,5 +1,1 @@
-*.xpr
-*.lpr
-**/*.hw
-**/*.cache
-**/*.runs
+**/out
