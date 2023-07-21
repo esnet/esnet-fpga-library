@@ -53,7 +53,7 @@ package {{ blk.name_lower }}_reg_pkg;
 {%-       if field.enum_hex: %}
     typedef enum bit [{{ field.width - 1 }}:0] {
 {%-         for k, v in field.enum_hex.items() %}
-        {{ "{:32}".format(reg.name_upper ~ '_' ~ field.name_upper ~ '_' ~ v | upper()) }} = {{ field.width }}'h{{ k }}{{ ',' if not loop.last }}
+        {{ "{:35}".format(reg.name_upper ~ '_' ~ field.name_upper ~ '_' ~ v | upper()) }} = {{ field.width }}'h{{ k }}{{ ',' if not loop.last }}
 {%-         endfor %}
     } fld_{{ reg.name_lower }}_{{ field.name_lower }}_t;
 {%-       else: %}
