@@ -104,7 +104,6 @@ always @(posedge reg_if.clk) begin
     end else begin
         if (reg_if.wr) begin
             reg_if.wr_ack <= 1'b1;
-            reg_if.wr_error <= 1'b1;
             case (reg_if.wr_addr)
 {%-  for reg in blk.regs: %}
   {%- if reg.access == "none" %}
@@ -118,6 +117,7 @@ always @(posedge reg_if.clk) begin
                 OFFSET_{{ "{:35}".format(reg.name_upper ~ ':') }} reg_if.wr_error <= 1'b0;
   {%- endif %}
 {%- endfor %}
+                default{{ "{:35}".format(':') }} reg_if.wr_error <= 1'b1;
             endcase
         end else begin
             reg_if.wr_ack <= 1'b0;
@@ -127,22 +127,19 @@ always @(posedge reg_if.clk) begin
 end
 
 // -------------------------------------------------------------
-// Read address decode and data mux
+// Read address decode
 // -------------------------------------------------------------
 initial begin
-    reg_if.rd_data = 0;
     reg_if.rd_ack = 1'b0;
     reg_if.rd_error = 1'b0;
 end
 always @(posedge reg_if.clk) begin
     if (reg_if.srst) begin
-        reg_if.rd_data <= 0;
         reg_if.rd_ack <= 1'b0;
         reg_if.rd_error <= 1'b0;
     end else begin
         if (reg_if.rd) begin
             reg_if.rd_ack <= 1'b1;
-            reg_if.rd_error <= 1'b0;
             case (reg_if.rd_addr)
 {%-  for reg in blk.regs: %}
   {%- if reg.access == "none" %}
@@ -150,21 +147,40 @@ always @(posedge reg_if.clk) begin
   {%- endif %}
   {%- if reg.count > 1 %}
     {%- for i in range(reg.count) %}
-                OFFSET_{{ "{:35}".format("{}[{}]".format(reg.name_upper,i) ~ ':') }} reg_if.rd_data <= reg_blk_if.{{ reg.name_lower }}[{{ i }}];
+                OFFSET_{{ "{:35}".format("{}[{}]".format(reg.name_upper,i) ~ ':') }} reg_if.rd_error <= 1'b0;
     {%- endfor %}
   {%- else %}
-                OFFSET_{{ "{:35}".format(reg.name_upper ~ ':') }} reg_if.rd_data <= reg_blk_if.{{ reg.name_lower }};
+                OFFSET_{{ "{:35}".format(reg.name_upper ~ ':') }} reg_if.rd_error <= 1'b0;
   {%- endif %}
 {%- endfor %}
-                default: begin
-                    reg_if.rd_error <= 1'b1;
-                end
+                default{{ "{:35}".format(':') }} reg_if.rd_error <= 1'b1;
             endcase
         end else begin
             reg_if.rd_ack <= 1'b0;
             reg_if.rd_error <= 1'b0;
         end
     end
+end
+
+// -------------------------------------------------------------
+// Read data mux
+// -------------------------------------------------------------
+always_ff @(posedge reg_if.clk) begin
+    case (reg_if.rd_addr)
+{%-  for reg in blk.regs: %}
+  {%- if reg.access == "none" %}
+    {%- continue %}
+  {%- endif %}
+  {%- if reg.count > 1 %}
+    {%- for i in range(reg.count) %}
+        OFFSET_{{ "{:35}".format("{}[{}]".format(reg.name_upper,i) ~ ':') }} reg_if.rd_data <= reg_blk_if.{{ reg.name_lower }}[{{ i }}];
+    {%- endfor %}
+  {%- else %}
+        OFFSET_{{ "{:35}".format(reg.name_upper ~ ':') }} reg_if.rd_data <= reg_blk_if.{{ reg.name_lower }};
+  {%- endif %}
+{%- endfor %}
+        default{{ "{:35}".format(':') }} reg_if.rd_data <= reg_pkg::BAD_ACCESS_DATA;
+    endcase
 end
 
 endmodule : {{ blk.name_lower }}_reg_blk
