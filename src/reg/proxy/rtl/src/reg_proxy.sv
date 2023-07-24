@@ -47,11 +47,11 @@ module reg_proxy (
     // -------------------------
     assign reg_if.clk = axil_if.aclk;
 
-    sync_reset i_sync_reset (
-        .rst_in   ( axil_if.aresetn ),
-        .clk_out  ( reg_if.clk ),
-        .srst_out ( reg_if.srst )
-    );
+    initial reg_if.srst = 1'b1;
+    always @(posedge reg_if.clk) begin
+        if (!axil_if.aresetn) reg_if.srst <= 1'b1;
+        else                  reg_if.srst <= 1'b0;
+    end
 
     // -------------------------
     // Transaction FSM
