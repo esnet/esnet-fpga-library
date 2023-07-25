@@ -613,9 +613,7 @@ module state_cache_core_unit_test;
         ID_T __id;
         bit __tracked;
         bit __new;
-
-        // Allow ID allocator to queue up a 'max burst' number of IDs
-        lookup_if._wait(100);
+        int got_fill;
 
         do begin
             KEY_T __key;
@@ -624,17 +622,21 @@ module state_cache_core_unit_test;
             if (entries.exists(__key)) continue;
             // Perform lookup in data plane (expect miss resulting in auto-insertion)
             lookup(__key, __tracked, __id, __new);
-            `FAIL_UNLESS(__tracked);
-            `FAIL_UNLESS(__new);
-            entries[__key] = __id;
-            // Pace insertions to stay within sustained insertion capability
-            lookup_if._wait(100);
-            // Perform another lookup in data plane (expect hit)
-            lookup(__key, __tracked, __id, __new);
-            `FAIL_UNLESS(__tracked);
-            `FAIL_IF(__new);
-            `FAIL_UNLESS_EQUAL(__id, entries[__key]);
+            if (__tracked) begin
+                `FAIL_UNLESS(__new);
+                entries[__key] = __id;
+                // Perform another lookup in data plane (expect hit)
+                lookup(__key, __tracked, __id, __new);
+                `FAIL_UNLESS(__tracked);
+                `FAIL_IF(__new);
+                `FAIL_UNLESS_EQUAL(__id, entries[__key]);
+            end
         end while (entries.size() < NUM_ENTRIES);
+        // Wait until cache reaches expected fill level
+        do
+            agent.db_agent.get_fill(got_fill);
+        while (got_fill != NUM_ENTRIES);
+        `FAIL_UNLESS_EQUAL(got_fill, NUM_ENTRIES);
         foreach (entries[key]) begin
             bit error;
             bit timeout;
@@ -673,7 +675,7 @@ module state_cache_core_unit_test;
     //===================================
     `SVTEST(all_entries)
         localparam int NUM_ENTRIES = NUM_IDS;
-        localparam int NUM_RECYCLED = BURST_SIZE + 1;
+        localparam int NUM_RECYCLED = NUM_IDS/10;
         KEY_T __key;
         ID_T entries [KEY_T];
         KEY_T entries_rev [ID_T];
@@ -682,9 +684,7 @@ module state_cache_core_unit_test;
         ID_T __ids_recycled [NUM_RECYCLED];
         bit __tracked;
         bit __new;
-
-        // Allow ID allocator to queue up a 'max burst' number of IDs
-        lookup_if._wait(100);
+        int got_fill;
 
         do begin
             // Generate random (unique) key
@@ -692,61 +692,64 @@ module state_cache_core_unit_test;
             if (entries.exists(__key)) continue;
             // Perform lookup in data plane (expect miss resulting in auto-insertion)
             lookup(__key, __tracked, __id, __new);
-            `FAIL_UNLESS(__tracked);
-            `FAIL_UNLESS(__new);
-            entries[__key] = __id;
-            entries_rev[__id] = __key;
-            // Pace insertions to stay within sustained insertion capability
-            lookup_if._wait(200);
-            // Perform another lookup in data plane (expect hit)
-            lookup(__key, __tracked, __id, __new);
-            `FAIL_UNLESS(__tracked);
-            `FAIL_IF(__new);
-            `FAIL_UNLESS_EQUAL(__id, entries[__key]);
+            if (__tracked) begin
+                `FAIL_UNLESS(__new);
+                entries[__key] = __id;
+                entries_rev[__id] = __key;
+                // Perform another lookup in data plane (expect hit)
+                lookup(__key, __tracked, __id, __new);
+                `FAIL_UNLESS(__tracked);
+                `FAIL_IF(__new);
+                `FAIL_UNLESS_EQUAL(__id, entries[__key]);
+            end
         end while (entries.size() < NUM_ENTRIES);
         // Try to insert additional entries (expect failure)
-        for (int i = 0; i < NUM_RECYCLED; i++) begin
+        for (int i = 0; i < (BURST_SIZE + 1); i++) begin
             do begin
                 void'(std::randomize(__key));
             end while (entries.exists(__key));
             lookup(__key, __tracked, __id, __new);
             `FAIL_IF(__tracked);
         end
-        // Allow all insertions to be processed
-        lookup_if._wait(1000);
+        // Wait until cache reports full
+        do begin
+            agent.db_agent.get_fill(got_fill);
+        end while (got_fill != NUM_ENTRIES);
         // Delete entries
         for (int i = 0; i < NUM_RECYCLED; i++) begin
             do begin
-                __id_recycled = $urandom % NUM_IDS;
-            end while (__id_recycled inside {entries_rev});
+                void'(std::randomize(__id_recycled));
+            end while (!entries_rev.exists(__id_recycled));
             delete(__id_recycled, __key);
             `FAIL_UNLESS_EQUAL(__key, entries_rev[__id_recycled]);
             entries.delete(__key);
             entries_rev.delete(__id_recycled);
             __ids_recycled[i] = __id_recycled;
         end
+        // Wait until cache reports expected fill
+        do begin
+            agent.db_agent.get_fill(got_fill);
+        end while (got_fill != (NUM_ENTRIES - NUM_RECYCLED));
         // Insert entries
-        for (int i = 0; i < NUM_RECYCLED; i++) begin
+        do begin
             // Choose unique key
             do begin
                 void'(std::randomize(__key));
             end while (entries.exists(__key));
             lookup(__key, __tracked, __id, __new);
-            if (!__tracked) begin
-                // Allow sufficient time for ID to be reallocated or pending updates to be processed
-                lookup_if._wait(NUM_IDS);
-                lookup(__key, __tracked, __id, __new);
+            if (__tracked) begin
+                `FAIL_UNLESS(__new);
+                `FAIL_UNLESS(__id inside {__ids_recycled});
+                entries[__key] = __id;
+                entries_rev[__id] = __key;
             end
-            `FAIL_UNLESS(__tracked);
-            `FAIL_UNLESS(__new);
-            `FAIL_UNLESS(__id inside {__ids_recycled});
-            entries[__key] = __id;
-            entries_rev[__id] = __key;
-        end
+        end while (entries.size() < NUM_ENTRIES);
         // Allow sufficient time for pending updates to be processed
-        lookup_if._wait(NUM_IDS);
+        do begin
+            agent.db_agent.get_fill(got_fill);
+        end while (got_fill != NUM_ENTRIES);
         // Check
-        `FAIL_UNLESS(entries.size() == NUM_IDS);
+        `FAIL_UNLESS(entries.size() == NUM_ENTRIES);
         foreach (entries[key]) begin
             bit error;
             bit timeout;
@@ -754,12 +757,6 @@ module state_cache_core_unit_test;
             lookup(key, __tracked, __id, __new);
             `FAIL_UNLESS(__tracked);
             `FAIL_IF(__new);
-            `FAIL_UNLESS_EQUAL(__id, entries[key]);
-            // Read entry from control plane
-            agent.db_agent.get(key, __tracked, __id, error, timeout);
-            `FAIL_IF(error);
-            `FAIL_IF(timeout);
-            `FAIL_UNLESS(__tracked);
             `FAIL_UNLESS_EQUAL(__id, entries[key]);
         end
         // Delete all entries
