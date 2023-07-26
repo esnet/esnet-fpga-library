@@ -51,7 +51,7 @@
         // Set state
         set(id, exp_state);
         // Issue another (different) SET operation
-        set(^id, ^exp_state);
+        set(id^ID_T'('1), exp_state^STATE_T'('1));
         // Wait for write to happen
         _wait(8);
         // Check state
@@ -70,7 +70,7 @@
         // Set state
         set(id, exp_state);
         // Issue another (different) SET operation
-        set(^id, ^exp_state);
+        set(id^ID_T'('1), exp_state^STATE_T'('1));
         // Wait for writes to happen
         _wait(8);
         // Clear state
