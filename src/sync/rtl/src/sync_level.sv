@@ -1,33 +1,102 @@
-//
-// Basic synchronizer
-// - implements a pipeline of metastability FFs to synchronize a level
-//   (i.e. 'slow') signal
-//
-module sync_level #(
-    parameter int    STAGES = 3,
-    parameter type   DATA_T = logic,
-    parameter DATA_T RST_VALUE = {$bits(DATA_T){1'bx}}
+// Level synchronizer
+// - synchronizes level (slowly or infrequently-changing signal)
+//   from input clock domain to output using two-way handshake
+// - converts level change (edge) into an event and passes to
+//   output using a two-way handshake. The output is guaranteed to
+//   see the edge, but the input level is not sampled again until
+//   the synchronization process is complete, so it is possible for
+//   closely-spaced transitions to be missed.
+// - the rdy_in output in the input clock domain can be used to
+//   monitor readiness and detect possible missed transitions.
+module sync_level
+    import sync_pkg::*;
+#(
+    parameter logic RST_VALUE = 1'bx
 ) (
-    // Source clock domain
-    input  DATA_T lvl_in,
-    // Destination clock domain
-    input  logic  clk_out,
-    input  logic  rst_out,
-    output DATA_T lvl_out
+    // Input clock domain
+    input  logic clk_in,
+    input  logic rst_in,
+    output logic rdy_in,
+    input  logic lvl_in,
+    // Output clock domain
+    input  logic clk_out,
+    input  logic rst_out,
+    output logic lvl_out
 );
+    // Typedefs
+    typedef enum logic [1:0] {
+        RESET,
+        READY,
+        WAIT
+    } state_t;
 
-    (* ASYNC_REG = "TRUE" *) DATA_T __sync_level_ff_meta [STAGES];
+    // Signals
+    state_t state;
+    state_t nxt_state;
 
-    initial __sync_level_ff_meta = '{STAGES{RST_VALUE}};
-    always @(posedge clk_out) begin
-        if (rst_out) __sync_level_ff_meta <= '{STAGES{RST_VALUE}};
-        else begin
-            for (int i = 1; i < STAGES; i++) begin
-                __sync_level_ff_meta[i] <= __sync_level_ff_meta[i-1];
-            end
-            __sync_level_ff_meta[0] <= lvl_in;
-        end
+    logic _lvl_in;
+    logic _ack_in;
+
+    // 2-phase handshaking FSM
+    initial state = RESET;
+    always @(posedge clk_in) begin
+        if (rst_in) state <= RESET;
+        else        state <= nxt_state;
     end
-    assign lvl_out = __sync_level_ff_meta[STAGES-1];
+    
+    always_comb begin
+        nxt_state = state;
+        rdy_in = 1'b0;
+        case (state)
+            RESET : begin
+                nxt_state = READY;
+            end
+            READY : begin
+                rdy_in = 1'b1;
+                // Detect input transitions
+                if (lvl_in != _lvl_in) nxt_state = WAIT;
+            end
+            WAIT : begin
+                // Wait for output level to match input level
+                if (_ack_in == _lvl_in) nxt_state = READY;
+            end
+            default : begin
+                nxt_state = RESET;
+            end
+        endcase
+    end
 
-endmodule
+    // State register (last synchronized level)
+    initial _lvl_in = RST_VALUE;
+    always @(posedge clk_in) begin
+        if (rst_in) _lvl_in <= RST_VALUE;
+        else if (rdy_in) _lvl_in <= lvl_in;
+    end
+
+    // Synchronize input level to output
+    sync_meta     #(
+        .DATA_T    ( logic ),
+        .RST_VALUE ( RST_VALUE )
+    ) i_sync_meta__lvl_in (
+        .clk_in    ( clk_in ),
+        .rst_in    ( rst_in ),
+        .sig_in    ( _lvl_in ),
+        .clk_out   ( clk_out ),
+        .rst_out   ( rst_out ),
+        .sig_out   ( lvl_out )
+    );
+
+    // Synchronize output level to input
+    sync_meta     #(
+        .DATA_T    ( logic ),
+        .RST_VALUE ( RST_VALUE )
+    ) i_sync_meta__lvl_out (
+        .clk_in    ( clk_out ),
+        .rst_in    ( rst_out ),
+        .sig_in    ( lvl_out ),
+        .clk_out   ( clk_in ),
+        .rst_out   ( rst_in ),
+        .sig_out   ( _ack_in )
+    );
+
+endmodule : sync_level

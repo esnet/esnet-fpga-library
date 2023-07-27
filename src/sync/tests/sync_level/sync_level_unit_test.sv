@@ -6,49 +6,32 @@ module sync_level_unit_test;
     string name = "sync_level_ut";
     svunit_testcase svunit_ut;
 
+    localparam RST_VALUE = 1'bx;
+
     //===================================
-    // DUTs (multiple instantiations present to test various parameterizations)
+    // DUT
     //===================================
+    logic clk_in;
+    logic rst_in;
+    logic lvl_in;
+    logic rdy_in;
+
     logic clk_out;
     logic rst_out;
-
-    // 'Bit' sync_level
-    localparam RST_VALUE = 1'bx;
-    logic lvl_in;
     logic lvl_out;
 
-    sync_level    #(
-        .STAGES    ( 2 ),
-        .DATA_T    ( logic ),
+    sync_level #(
         .RST_VALUE ( RST_VALUE )
-    ) dut_sync_level (
-        .lvl_in   ( lvl_in ),
-        .clk_out  ( clk_out ),
-        .rst_out  ( rst_out ),
-        .lvl_out  ( lvl_out )
-    );
+    ) DUT (.*);
 
-    // 'Vector' sync_level
-    typedef struct packed {
-        logic field1;
-        logic[2:0] field2;
-        logic[7:0] field3;
-    } vector_t;
-    localparam vector_t RST_VALUE_VEC = '{field1: 1'b0, field2: 3'd6, field3: 8'haa};
-    vector_t lvl_in_vec;
-    vector_t lvl_out_vec;
+    //===================================
+    // Testbench
+    //===================================
+    time clk_in_period = $urandom_range(3,12)*1ns;
+    time clk_out_period = $urandom_range(3,12)*1ns;
 
-    sync_level    #(
-        .STAGES    ( 3 ),
-        .DATA_T    ( vector_t ),
-        .RST_VALUE ( RST_VALUE_VEC )
-    ) dut_sync_level_vec (
-        .lvl_in   ( lvl_in_vec ),
-        .clk_out  ( clk_out ),
-        .rst_out  ( rst_out ),
-        .lvl_out  ( lvl_out_vec )
-    );
-
+    `SVUNIT_CLK_GEN(clk_in, clk_in_period);
+    `SVUNIT_CLK_GEN(clk_out, clk_out_period);
 
     //===================================
     // Build
@@ -63,7 +46,8 @@ module sync_level_unit_test;
     //===================================
     task setup();
         svunit_ut.setup();
-        /* Place Setup Code Here */
+
+        lvl_in = RST_VALUE;
 
         reset();
 
@@ -71,12 +55,11 @@ module sync_level_unit_test;
 
 
     //===================================
-    // Here we deconstruct anything we 
+    // Here we deconstruct anything we
     // need after running the Unit Tests
     //===================================
     task teardown();
         svunit_ut.teardown();
-        /* Place Teardown Code Here */
 
     endtask
 
@@ -96,80 +79,154 @@ module sync_level_unit_test;
     //===================================
     `SVUNIT_TESTS_BEGIN
 
-        `SVTEST(rst_value)
-            `FAIL_UNLESS_LOG (
-                lvl_out === RST_VALUE,
-                $sformatf("Reset value mismatch. Exp: %0b, Got: %0b.", RST_VALUE, lvl_out)
-            );
-        `SVTEST_END
-
-        `SVTEST(pass_0_to_1)
-            lvl_in = 1'b0;
-            repeat (8) @(posedge clk_out);
-            `FAIL_UNLESS_LOG(
-                lvl_out === 1'b0,
-                $sformatf("Output value mismatch. Exp: %0b, Got: %0b.", 1'b0, lvl_out)
-            );
-            #1ns;
+        `SVTEST(rst_in_value)
+            rst_in = 1'b1;
             lvl_in = 1'b1;
-            repeat (8) @(posedge clk_out);
-            `FAIL_UNLESS_LOG(
-                lvl_out === 1'b1,
-                $sformatf("Output value mismatch. Exp: %0b, Got: %0b.", 1'b1, lvl_out)
-            );
+            fork
+                begin
+                    wait_for_sync();
+                end
+                begin
+                    forever begin
+                        @(posedge clk_out);
+                        `FAIL_UNLESS_EQUAL(lvl_out, RST_VALUE);
+                    end
+                end
+            join_any
         `SVTEST_END
 
-        `SVTEST(pass_1_to_0)
+        `SVTEST(rst_out_value)
+            rst_out = 1'b1;
             lvl_in = 1'b1;
-            repeat (8) @(posedge clk_out);
-            `FAIL_UNLESS_LOG(
-                lvl_out === 1'b1,
-                $sformatf("Output value mismatch. Exp: %0b, Got: %0b.", 1'b1, lvl_out)
-            );
-            #1ns;
+            fork
+                begin
+                    wait_for_sync();
+                end
+                begin
+                    forever begin
+                        @(posedge clk_out);
+                        `FAIL_UNLESS_EQUAL(lvl_out, RST_VALUE);
+                    end
+                end
+            join_any
+        `SVTEST_END
+
+        `SVTEST(pass_0)
+
+            @(posedge clk_in);
             lvl_in = 1'b0;
-            repeat (8) @(posedge clk_out);
-            `FAIL_UNLESS_LOG(
-                lvl_out === 1'b0,
-                $sformatf("Output value mismatch. Exp: %0b, Got: %0b.", 1'b0, lvl_out)
-            );
+
+            wait_for_handshake();
+
+            fork
+                begin
+                    wait_for_sync();
+                    @(posedge clk_out);
+                    `FAIL_IF(1);
+                end
+                begin
+                    wait(lvl_out == 1'b0);
+                end
+            join_any
+
         `SVTEST_END
 
-        `SVTEST(rst_value_vector)
-            `FAIL_UNLESS_LOG (
-                lvl_out_vec === RST_VALUE_VEC,
-                $sformatf("Reset value mismatch. Exp: %0b, Got: %0b.", RST_VALUE_VEC, lvl_out_vec)
-            );
+        `SVTEST(pass_1)
+
+            @(posedge clk_in);
+            lvl_in = 1'b1;
+            
+            wait_for_handshake();
+
+            fork
+                begin
+                    wait_for_sync();
+                    @(posedge clk_out);
+                    `FAIL_IF(1);
+                end
+                begin
+                    wait(lvl_out == 1'b1);
+                end
+            join_any
+
         `SVTEST_END
 
-        `SVTEST(pass_vector)
-            vector_t start_vec = '{field1: 1'b1, field2: 3'd3, field3: 8'hf2};
-            vector_t end_vec   = '{field1: 1'b0, field2: 3'd5, field3: 8'h4d};
-            lvl_in_vec = start_vec;
-            repeat (8) @(posedge clk_out);
-            `FAIL_UNLESS_LOG(
-                lvl_out_vec === start_vec,
-                $sformatf("Output value mismatch. Exp: %0x, Got: %0x.", start_vec, lvl_out_vec)
-            );
-            #1ns;
-            lvl_in_vec = end_vec;
-            repeat (8) @(posedge clk_out);
-            `FAIL_UNLESS_LOG(
-                lvl_out_vec === end_vec,
-                $sformatf("Output value mismatch. Exp: %0b, Got: %0b.", end_vec, lvl_out_vec)
-            );
-        `SVTEST_END
+        `SVTEST(backpressure)
+            int exp_evt_cnt = 0;
+            int got_evt_cnt = 0;
+            logic _lvl_in;
+            logic _lvl_out;
 
+            fork
+                begin
+                    lvl_in <= 1'b0;
+                    _lvl_in = 1'b0;
+                    wait_for_handshake();
+                    repeat (10000) begin
+                        lvl_in <= !lvl_in;
+                        @(posedge clk_in);
+                        if (rdy_in) begin
+                            if (lvl_in !== _lvl_in) begin
+                                // Count expected number of input transitions
+                                exp_evt_cnt++;
+                                _lvl_in = lvl_in;
+                            end
+                        end
+                    end
+                    wait_for_sync();
+                    @(posedge clk_out);
+                end
+                begin
+                    wait_for_handshake();
+                    _lvl_out = lvl_out;
+                    forever begin
+                        @(posedge clk_out);
+                        if (lvl_out !== _lvl_out ) begin
+                            // Count actual number of output transitions
+                            got_evt_cnt++;
+                        end
+                        _lvl_out = lvl_out;
+                    end
+                end
+            join_any
+            `FAIL_UNLESS_EQUAL(got_evt_cnt, exp_evt_cnt);
+
+        `SVTEST_END
 
     `SVUNIT_TESTS_END
 
     task reset();
-        rst_out <= 1'b1;
-        repeat (8) @(posedge clk_out);
-        rst_out <= 1'b0;
+        fork
+            begin
+                rst_in <= 1'b1;
+                repeat (8) @(posedge clk_in);
+                rst_in <= 1'b0;
+                @(posedge clk_in);
+            end
+            begin
+                rst_out <= 1'b1;
+                repeat (8) @(posedge clk_out);
+                rst_out <= 1'b0;
+                @(posedge clk_out);
+            end
+        join
     endtask
 
-    initial clk_out = 1'b0;
-    always #10ns clk_out = ~clk_out;
+    task wait_for_sync();
+        @(posedge clk_in);
+        repeat (sync_pkg::RETIMING_STAGES+1) @(posedge clk_out);
+        @(posedge clk_out);
+    endtask
+
+    task wait_for_ack();
+        @(posedge clk_out);
+        repeat (sync_pkg::RETIMING_STAGES+1) @(posedge clk_out);
+        @(posedge clk_out);
+    endtask
+
+    task wait_for_handshake();
+        wait_for_sync();
+        wait_for_ack();
+    endtask
 
 endmodule

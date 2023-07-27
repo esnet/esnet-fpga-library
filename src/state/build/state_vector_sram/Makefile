@@ -20,10 +20,17 @@ export OUTPUT_ROOT
 TOP = state_vector_sram_wrapper
 
 # -----------------------------------------------
+# (Local) Paths
+# -----------------------------------------------
+OUT_DIR=out
+
+# -----------------------------------------------
 # Regmap YAML definitions
 # -----------------------------------------------
 REG_BLOCK_YAML = 
-REG_DECODER_YAML :=
+REG_DECODER_YAML = ../../../fifo/regio/fifo_core_decoder.yaml \
+                   ../../../state/regio/state_cache_decoder.yaml \
+                   ../../../state/regio/state_decoder.yaml
 
 # -----------------------------------------------
 # regio options
@@ -36,8 +43,7 @@ REGIO_GENERATE_OPTS := --recursive
 # ----------------------------------------------------
 all: opt
 
-pre_synth:
-	echo $(OUT_ROOT)
+pre_synth: _reg_rtl
 synth:     _synth
 opt:       _opt
 place:     _place

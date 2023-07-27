@@ -3,8 +3,8 @@ package crc_pkg;
     // ========================================================
     // (Global) Parameters
     // ========================================================
-    parameter string CHECK_STRING = "123456789";
-    parameter int CHECK_STRING_CHARS = 9;
+    localparam string CHECK_STRING = "123456789";
+    localparam int CHECK_STRING_CHARS = 9;
 
     // ========================================================
     // Typedefs

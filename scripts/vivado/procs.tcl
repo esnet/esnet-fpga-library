@@ -86,6 +86,10 @@ namespace eval vivadoProcs {
         report_utilization -file $out_dir/$top.utilization.rpt
         report_utilization -hierarchical -file $out_dir/$top.utilization.hier.rpt
         report_design_analysis -logic_level_distribution -file $out_dir/$top.logic_levels.rpt
+        report_cdc -details -file $out_dir/$top.cdc.rpt
+        report_clock_interaction -file $out_dir/$top.clock_interaction.rpt
+        report_qor_assessment -file $out_dir/$top.qor_assessment.rpt
+        report_qor_suggestions -file $out_dir/$top.qor_suggestions.rpt
     }
 
     proc __run_phase {phase top ooc out_dir} {

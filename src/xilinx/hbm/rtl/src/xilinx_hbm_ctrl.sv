@@ -77,13 +77,11 @@ module xilinx_hbm_ctrl
     );
 
     // Block-level reset control
-    sync_reset #(
-        .INPUT_ACTIVE_HIGH ( 1 )
-    ) i_sync_reset (
-        .rst_in   ( srst || reg_if.control.reset ),
-        .clk_out  ( clk ),
-        .srst_out ( local_srst )
-    );
+    initial local_srst = 1'b1;
+    always @(posedge clk) begin
+        if (srst || reg_if.control.reset) local_srst <= 1'b1;
+        else                              local_srst <= 1'b0;
+    end
 
     // CDC (cross status signals from APB to clk clock domain)
     assign dram_status__apb_clk.init_done = init_done;

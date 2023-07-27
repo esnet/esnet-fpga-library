@@ -1,5 +1,4 @@
 module sync_ctr #(
-    parameter int      STAGES = 3,
     parameter type     DATA_T = logic,
     parameter DATA_T   RST_VALUE = {$bits(DATA_T){1'bx}},
     parameter bit      DECODE_OUT = 1'b1  // Set to 1'b1 to decode output i.e. gray2bin.
@@ -33,21 +32,19 @@ module sync_ctr #(
     endfunction
 
     // bin2gray encode cnt_in.
-    always @(posedge clk_in) begin
-        if (rst_in) cnt_in_gray <= bin2gray(RST_VALUE);
-        else        cnt_in_gray <= bin2gray(cnt_in);
-    end
+    always_comb cnt_in_gray = bin2gray(cnt_in);
 
-    // sync_level_0 instance.
-    sync_level    #(
-        .STAGES    ( STAGES ),
+    // basic synchronizer
+    sync_meta #(
         .DATA_T    ( DATA_T ),
         .RST_VALUE ( bin2gray(RST_VALUE) )
-    ) sync_level_0 (
-        .lvl_in    ( cnt_in_gray ),
+    ) sync_meta_0  (
+        .clk_in    ( clk_in ),
+        .rst_in    ( rst_in ),
+        .sig_in    ( cnt_in_gray ),
         .clk_out   ( clk_out ),
         .rst_out   ( rst_out ),
-        .lvl_out   ( cnt_out_gray )
+        .sig_out   ( cnt_out_gray )
     );
 
     // gray2bin decoding (if enabled).
@@ -59,8 +56,8 @@ module sync_ctr #(
                 else         cnt_out <= gray2bin(cnt_out_gray);
         end : g_decode
         else begin : g_no_decode
-                assign cnt_out = cnt_out_gray;
+            assign cnt_out = cnt_out_gray;
         end : g_no_decode
     endgenerate
 
-endmodule
+endmodule : sync_ctr

@@ -209,4 +209,8 @@ module axi4l_controller
         else            rd_data <= axi4l_if.rdata;
     end
 
+    // Tie off awprot/arprot outputs
+    assign axi4l_if.awprot = '0;
+    assign axi4l_if.arprot = '0;
+
 endmodule : axi4l_controller

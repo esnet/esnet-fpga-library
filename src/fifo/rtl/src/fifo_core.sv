@@ -62,9 +62,7 @@ module fifo_core
     // -----------------------------
     // Signals
     // -----------------------------
-    logic                 soft_reset__aclk;
-    logic                 rst__async;
-
+    logic                 soft_reset__wr_clk;
     logic                 local_wr_srst;
     logic                 local_rd_srst;
 
@@ -95,26 +93,102 @@ module fifo_core
     // -----------------------------
     // Resets
     // -----------------------------
-    // Combine resets
-    assign rst__async = wr_srst || rd_srst || soft_reset__aclk;
+    // Combine wr/rd and soft resets to avoid inconsistent state between write and read sides
+    generate
+        if (ASYNC) begin : g__async
+            // (Local) signals
+            logic __wr_srst;
+            logic __rd_srst;
+            logic wr_srst__rd_clk;
+            logic rd_srst__wr_clk;
 
-    // Synchronize combined reset to write and read clock domains
-    sync_level #(
-        .RST_VALUE ( 1'b1 )
-    ) i_sync_level__local_wr_srst (
-        .lvl_in  ( rst__async ),
-        .clk_out ( wr_clk ),
-        .rst_out ( wr_srst ),
-        .lvl_out ( local_wr_srst )
-    );
-    sync_level #(
-        .RST_VALUE ( 1'b1 )
-    ) i_sync_level__local_rd_srst (
-        .lvl_in  ( rst__async ),
-        .clk_out ( rd_clk ),
-        .rst_out ( rd_srst ),
-        .lvl_out ( local_rd_srst )
-    );
+            // Combine wr_clk resets (register to eliminate fanout on synchronizer input)
+            initial __wr_srst = 1'b1;
+            always @(posedge wr_clk) begin
+                if (wr_srst || soft_reset__wr_clk) __wr_srst <= 1'b1;
+                else                               __wr_srst <= 1'b0;
+            end
+
+            // Synchronize write reset to read domain
+            sync_reset #(
+                .INPUT_ACTIVE_HIGH (1)
+            ) i_sync_reset__wr_srst__rd_clk (
+                .clk_in  ( wr_clk ),
+                .rst_in  ( __wr_srst ),
+                .clk_out ( rd_clk ),
+                .rst_out ( wr_srst__rd_clk )
+            );
+
+            // Register to eliminate fanout on synchronizer input
+            initial __rd_srst = 1'b0;
+            always @(posedge rd_clk) begin
+                if (rd_srst) __rd_srst <= 1'b1;
+                else         __rd_srst <= 1'b0;
+            end
+
+            // Synchronize read reset to write domain
+            sync_reset #(
+                .INPUT_ACTIVE_HIGH (1)
+            ) i_sync_reset__rd_srst__wr_clk (
+                .clk_in  ( rd_clk ),
+                .rst_in  ( __rd_srst ),
+                .clk_out ( wr_clk ),
+                .rst_out ( rd_srst__wr_clk )
+            );
+
+            // Synthesize local resets
+            initial local_wr_srst = 1'b1;
+            always @(posedge wr_clk) begin
+                if (wr_srst || rd_srst__wr_clk || soft_reset__wr_clk) local_wr_srst <= 1'b1;
+                else                                                  local_wr_srst <= 1'b0;
+            end
+
+            initial local_rd_srst = 1'b1;
+            always @(posedge rd_clk) begin
+                if (rd_srst || wr_srst__rd_clk) local_rd_srst <= 1'b1;
+                else                            local_rd_srst <= 1'b0;
+            end
+
+            // Asynchronous SDP RAM instance
+            mem_ram_sdp_async #(
+                .MEM_RD_MODE ( MEM_RD_MODE ),
+                .ADDR_WID  ( PTR_WID ),
+                .DATA_WID  ( DATA_WID ),
+                .RESET_FSM ( 0 )
+            ) i_mem_ram_sdp_async (
+                .wr_clk    ( wr_clk ),
+                .wr_srst   ( local_wr_srst ),
+                .mem_wr_if ( mem_wr_if ),
+                .rd_clk    ( rd_clk ),
+                .rd_srst   ( local_rd_srst ),
+                .mem_rd_if ( mem_rd_if ),
+                .init_done ( mem_init_done )
+            );
+        end : g__async
+        else begin : g__sync
+            // Synthesize local reset (no synchronization necessary)
+            initial local_wr_srst = 1'b1;
+            always @(posedge wr_clk) begin
+                if (wr_srst || rd_srst || soft_reset__wr_clk) local_wr_srst <= 1'b1;
+                else                                          local_wr_srst <= 1'b0;
+            end
+            assign local_rd_srst = local_wr_srst;
+
+            // Synchronous SDP RAM instance
+            mem_ram_sdp_sync #(
+                .MEM_RD_MODE ( MEM_RD_MODE ),
+                .ADDR_WID  ( PTR_WID ),
+                .DATA_WID  ( DATA_WID ),
+                .RESET_FSM ( 0 )
+            ) i_mem_ram_sdp_sync (
+                .clk       ( wr_clk ),
+                .srst      ( local_wr_srst ),
+                .init_done ( mem_init_done ),
+                .mem_wr_if ( mem_wr_if ),
+                .mem_rd_if ( mem_rd_if )
+            );
+        end : g__sync
+    endgenerate
 
     // -----------------------------
     // Control FSM
@@ -152,24 +226,8 @@ module fifo_core
     );
 
     // -----------------------------
-    // Data memory
+    // Data memory interface
     // -----------------------------
-    mem_ram_sdp_core #(
-        .MEM_RD_MODE ( MEM_RD_MODE ),
-        .ADDR_WID  ( PTR_WID ),
-        .DATA_WID  ( DATA_WID ),
-        .ASYNC     ( ASYNC ),
-        .RESET_FSM ( 0 )
-    ) i_ram_data (
-        .wr_clk    ( wr_clk ),
-        .wr_srst   ( local_wr_srst ),
-        .mem_wr_if ( mem_wr_if ),
-        .rd_clk    ( rd_clk ),
-        .rd_srst   ( local_rd_srst ),
-        .mem_rd_if ( mem_rd_if ),
-        .init_done ( mem_init_done )
-    );
-
     assign mem_wr_if.rst = 1'b0;
     assign mem_wr_if.en = 1'b1;
     assign mem_wr_if.req = wr_safe;
@@ -181,7 +239,6 @@ module fifo_core
     assign mem_rd_if.req = __rd;  // use __rd signal rather than rd_safe (to advance rd pipeline when memory is empty).
     assign mem_rd_if.addr = rd_ptr;
     assign __rd_data = mem_rd_if.data;
-
 
     generate
         // First word flow-through FIFO mode
@@ -282,8 +339,19 @@ module fifo_core
             assign core_reg_if.info_depth_nxt_v = 1'b1;
             assign core_reg_if.info_depth_nxt = DEPTH;
 
-            // Soft reset
-            assign soft_reset__aclk = core_reg_if.control.reset;
+            // Soft reset (retime to write domain)
+            sync_level #(
+                .RST_VALUE ( 1'b0 )
+            ) i_sync_level__soft_reset_wr_clk (
+                .clk_in   ( axil_if.aclk ),
+                .rst_in   ( !axil_if.aresetn ),
+                .rdy_in   ( ),
+                .lvl_in   ( core_reg_if.control.reset ),
+                .clk_out  ( wr_clk ),
+                .rst_out  ( 1'b0 ),
+                .lvl_out  ( soft_reset__wr_clk )
+            );
+
         end : g__axil
         else begin : g__no_axil
             // Terminate unused AXI-L interfaces
@@ -291,7 +359,7 @@ module fifo_core
             axi4l_intf_controller_term i_axi4l_intf_controller_term (.axi4l_if (ctrl_axil_if));
 
             // No soft reset
-            assign soft_reset__aclk = 1'b0;
+            assign soft_reset__wr_clk = 1'b0;
         end
     endgenerate
 

@@ -180,9 +180,10 @@ module axi4s_pkt_fifo_async
    sync_reset #(
        .OUTPUT_ACTIVE_LOW ( 1 )
    ) i_sync_reset (
-       .rst_in   ( axi4s_in.aresetn ),
-       .clk_out  ( clk_out ),
-       .srst_out ( axi4s_out.aresetn )
+       .clk_in  ( axi4s_in.aclk ),
+       .rst_in  ( axi4s_in.aresetn ),
+       .clk_out ( clk_out ),
+       .rst_out ( axi4s_out.aresetn )
    );
 
    // --- axi4s output signaling ---

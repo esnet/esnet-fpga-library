@@ -1,9 +1,18 @@
-module sync_bus_sampled #(
-    parameter int      STAGES = 3,
+// Bus synchronizer (sampled)
+// - synchronizes sampled value of bus from input
+//   clock domain to output clock domain using two-way handshake
+// - sampling rate is as fast as possible, given two-way
+//   synchronizer delay
+// - NOTE: the sampling rate will be much lower than the clock
+//   rate, so only suitable for instances where it is acceptable
+//   for the bus to be sampled infrequently.
+//   In many cases, an async FIFO is a better choice.
+module sync_bus_sampled
+    import sync_pkg::*;
+#(
     parameter type     DATA_T = logic,
-    parameter int      SAMPLE_PERIOD = 8, // Input bus is sampled once every SAMPLE_PERIOD clk_in cycles
-    parameter bit      LATCH_DATA_IN = 1'b1,
-    parameter DATA_T   RST_VALUE = {$bits(DATA_T){1'bx}}
+    parameter DATA_T   RST_VALUE = {$bits(DATA_T){1'bx}},
+    parameter handshake_mode_t HANDSHAKE_MODE = HANDSHAKE_MODE_4PHASE
 ) (
     // Input clock domain
     input  logic  clk_in,
@@ -14,42 +23,25 @@ module sync_bus_sampled #(
     input  logic  rst_out,
     output DATA_T data_out
 );
-
-    // Parameters
-    localparam int CNT_WID = $clog2(SAMPLE_PERIOD);
-
-    // Parameter Checking
-`ifdef SIMULATION
-    initial assert(SAMPLE_PERIOD > 1) else $fatal(1, "SAMPLE_PERIOD must be >= 2. (Got %0d).", SAMPLE_PERIOD);
-`endif
-
-    // Signals
-    logic [CNT_WID-1:0] cnt;
-    logic               req_in;
-
-    // Sample counter
-    initial cnt = '0;
-    always @(posedge clk_in) begin
-        if (rst_in) cnt <= '0;
-        else        cnt <= (cnt < SAMPLE_PERIOD-1) ? cnt + 1 : '0;
-    end
-
-    assign req_in = (cnt == 1);
-
-    // Bus synchronizer
+    // Bus synchronizer (two-way handshake)
+    // - request is processed only when synchronizer is ready
+    //   i.e. when no synchronization process is in progress
+    // - setting req_in = 1'b1 ensures that sampling/synchronizing
+    //   happens as fast as possible given the two-way
+    //   synchronizer delays
     sync_bus #(
-        .STAGES        ( STAGES ),
-        .DATA_T        ( DATA_T ),
-        .LATCH_DATA_IN ( LATCH_DATA_IN ),
-        .RST_VALUE     ( RST_VALUE )
+        .DATA_T         ( DATA_T ),
+        .RST_VALUE      ( RST_VALUE ),
+        .HANDSHAKE_MODE ( HANDSHAKE_MODE )
     ) i_sync_bus  (
         .clk_in   ( clk_in ),
         .rst_in   ( rst_in ),
-        .req_in   ( req_in ),
+        .rdy_in   ( ),
+        .req_in   ( 1'b1 ),
         .data_in  ( data_in ),
         .clk_out  ( clk_out ),
         .rst_out  ( rst_out ),
-        .req_out  ( ),
+        .ack_out  ( ),
         .data_out ( data_out )
     );
 

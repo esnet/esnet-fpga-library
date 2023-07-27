@@ -11,7 +11,6 @@ module sync_ctr_unit_test;
     //===================================
 
     localparam DATA_WID = 8;
-    localparam STAGES   = 3;
 
     typedef logic [DATA_WID-1:0] cnt_t;
     localparam cnt_t RST_VALUE = { DATA_WID/8 {8'h5c} };
@@ -36,7 +35,6 @@ module sync_ctr_unit_test;
 
     // sync_ctr - decoded output (binary)
     sync_ctr #(
-        .STAGES       ( STAGES ),
         .DATA_T       ( cnt_t ),
         .RST_VALUE    ( RST_VALUE ),
         .DECODE_OUT   ( 1 )
@@ -51,7 +49,6 @@ module sync_ctr_unit_test;
 
     // sync_ctr - undecoded output (gray)
     sync_ctr #(
-        .STAGES       ( STAGES ),
         .DATA_T       ( cnt_t ),
         .RST_VALUE    ( RST_VALUE ),
         .DECODE_OUT   ( 0 )
@@ -133,17 +130,28 @@ module sync_ctr_unit_test;
     //===================================
     `SVUNIT_TESTS_BEGIN
 
-        `SVTEST(rst_value)
-            force cnt_in = RST_VALUE;
+        `SVTEST(rst_in_value)
+            rst_in = 1'b1;
 
-            repeat (STAGES+3) @(posedge clk_in) begin
+            repeat (sync_pkg::RETIMING_STAGES+3) @(posedge clk_in) begin
+                `FAIL_UNLESS_LOG (
+                     cnt_out_bin == RST_VALUE,
+                     $sformatf("Reset value mismatch. Exp: %0b, Got: %0b.", RST_VALUE, cnt_out_bin)
+                );
+            end
+
+        `SVTEST_END
+
+        `SVTEST(rst_out_value)
+            rst_out = 1'b1;
+
+            repeat (sync_pkg::RETIMING_STAGES+3) @(posedge clk_in) begin
                 `FAIL_UNLESS_LOG (
                      cnt_out_bin == RST_VALUE,
                      $sformatf("Reset value mismatch. Exp: %0b, Got: %0b.", RST_VALUE, cnt_out_bin)
                 );
             end
    
-            release cnt_in;
         `SVTEST_END
 
  
@@ -176,6 +184,7 @@ module sync_ctr_unit_test;
 
         `SVTEST(slow_to_fast)
              clk_ratio = 3; clk_in_period = clk_ratio * clk_out_period;
+             reset(); // Reset after clock frequency adjustment
 
              cnt_out_bin_exp = 0; wait (cnt_out_bin == 0);
 
@@ -190,6 +199,7 @@ module sync_ctr_unit_test;
 
         `SVTEST(fast_to_slow)
              clk_ratio = 3; clk_out_period = clk_ratio * clk_in_period;
+             reset(); // Reset after clock frequency adjustment
 
              cnt_out_bin_exp = 0; wait (cnt_out_bin == 0);
 

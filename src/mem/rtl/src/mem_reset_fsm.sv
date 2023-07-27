@@ -83,9 +83,6 @@ module mem_reset_fsm #(
             INIT_DONE : begin
                 addr_reset = 1'b1;
             end
-            default : begin
-                state_nxt = RESET;
-            end
         endcase
     end
 
