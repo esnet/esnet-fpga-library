@@ -11,4 +11,4 @@
 #         needs to make sure that this asynchronous crossing is handled properly.
 #         The typical case here would be an asynchronous FIFO, which due to pointer synchronization
 #         guarantees that the output data has settled when it is registered into the read clock domain.
-set_false_path -quiet -from [get_clocks -quiet -of_objects [get_ports wr_clk]] -to [get_cells -quiet i_mem_ram_sdp_core/rd_data_reg[*]]
+set_false_path -quiet -from [get_clocks -quiet -of_objects [get_ports wr_clk]] -to [get_cells -quiet i_mem_ram_sdp_core/i_mem_ram_sdp/rd_data_reg[*]]
