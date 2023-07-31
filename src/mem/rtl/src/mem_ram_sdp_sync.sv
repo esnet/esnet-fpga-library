@@ -34,7 +34,7 @@ module mem_ram_sdp_sync
         .RESET_VAL      ( RESET_VAL ),
         ._RAM_STYLE     ( _RAM_STYLE ),
         .SIM__FAST_INIT ( SIM__FAST_INIT )
-    ) i_mem_sdp_sync_core (
+    ) i_mem_ram_sdp_core (
         // Write interface
         .wr_clk    ( clk ),
         .wr_srst   ( srst ),

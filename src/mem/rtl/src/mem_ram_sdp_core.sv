@@ -1,7 +1,9 @@
 // Simple Dual-Port RAM implementation
-// NOTE: This module represents a base component generally is not intended
-//       to be instantiated on its own. Instead, instantiate one of the
-//       mem_ram_sdp_sync/mem_ram_sdp_async wrapper modules.
+// NOTE: This module provides a simple dual-port (SDP) RAM implementation
+//       with standard interfaces and built-in reset FSM.
+//       In general, it should not be instantiated directly. Instead,
+//       instantiate one of the mem_ram_sdp_sync/mem_ram_sdp_async wrapper
+//       modules depending on the intended application.
 module mem_ram_sdp_core
     import mem_pkg::*;
 #(
@@ -12,7 +14,8 @@ module mem_ram_sdp_core
     parameter bit RESET_FSM = 0,
     parameter bit [DATA_WID-1:0] RESET_VAL = '0,
     parameter xilinx_ram_style_t _RAM_STYLE = RAM_STYLE_AUTO,
-    parameter bit SIM__FAST_INIT = 0 // Optimize sim time
+    parameter bit SIM__FAST_INIT = 0, // Fast init in simulations
+    parameter bit SIM__RAM_MODEL = 1  // Use model for RAM (associative array) in sims
 ) (
     // Write interface
     input logic            wr_clk,
@@ -37,10 +40,7 @@ module mem_ram_sdp_core
     // Method below is workaround for lack of Vivado support for 'string' datatype.
     // Return RAM style as enumerated type and then convert to (untyped) 'string' representation:
     localparam xilinx_ram_style_t __RAM_STYLE = _RAM_STYLE == RAM_STYLE_AUTO ? get_default_ram_style(DEPTH, DATA_WID, ASYNC) : _RAM_STYLE;
-    localparam RAM_STYLE_STR = __RAM_STYLE == RAM_STYLE_DISTRIBUTED ? "distributed" :
-                               __RAM_STYLE == RAM_STYLE_BLOCK       ? "block" :
-                               __RAM_STYLE == RAM_STYLE_REGISTERS   ? "registers" :
-                                                                      "ultra";
+
     // NOTE: Additional pipelining (write and/or read) may be required for large memory arrays
     localparam int WR_PIPELINE_STAGES = get_default_wr_pipeline_stages(__RAM_STYLE);
     localparam int RD_PIPELINE_STAGES = get_default_rd_pipeline_stages(__RAM_STYLE, DEPTH);
@@ -69,8 +69,6 @@ module mem_ram_sdp_core
     logic  rd;
     addr_t rd_addr;
     data_t rd_data;
-
-    (* ram_style = RAM_STYLE_STR *) data_t mem [DEPTH];
 
     // -----------------------------
     // Reset FSM (optional)
@@ -105,25 +103,79 @@ module mem_ram_sdp_core
         end : g__no_reset_fsm
     endgenerate
 
+`ifdef SYNTHESIS
     // -----------------------------
-    // RAM (infers simple dual-port)
+    // RAM declaration (actual)
     // -----------------------------
-    initial mem = '{DEPTH{{DATA_WID{1'b0}}}};
-    always @(posedge wr_clk) begin
-`ifdef SIMULATION
-        if (SIM__FAST_INIT && RESET_FSM && mem_wr_if__int.rst) begin
-            for (int i = 0; i < DEPTH; i++) begin
-                mem[i] <= RESET_VAL;
-            end
-        end else
-`endif
-        if (wr_en) begin
-            if (wr_req) mem[wr_addr] <= wr_data;
-        end
-    end
-    always @(posedge rd_clk) begin
-        if (rd) rd_data <= mem[rd_addr];
-    end
+    mem_ram_sdp    #(
+        .ADDR_WID   ( ADDR_WID ),
+        .DATA_WID   ( DATA_WID ),
+        ._RAM_STYLE ( __RAM_STYLE )
+    ) i_mem_ram_sdp ( .* );
+
+`else // ifdef SYNTHESIS
+ 
+    // For sims, optionally use RAM model
+    generate
+        if (SIM__RAM_MODEL) begin : g__sim_model
+            //
+            // -------------- RAM model for simulations only ------------------
+            //
+            // -----------------------------
+            // RAM declaration
+            // -----------------------------
+            // 
+            data_t mem [addr_t];
+
+            // -----------------------------
+            // SDP RAM logic
+            // -----------------------------
+            if (ASYNC) begin : g__async
+                always @(posedge wr_clk) begin
+                    if (RESET_FSM && SIM__FAST_INIT && mem_wr_if__int.rst) mem.delete();
+                    else if (wr_en) begin
+                        if (wr_req) mem[wr_addr] = wr_data;
+                    end
+                end
+                always @(posedge rd_clk) begin
+                    if (rd) begin
+                        if (mem.exists(rd_addr))              rd_data <= mem[rd_addr];
+                        else if (RESET_FSM && SIM__FAST_INIT) rd_data <= RESET_VAL;
+                        else                                  rd_data <= 'x;
+                    end
+                end
+            end : g__async
+            else begin : g__sync
+                always @(posedge wr_clk) begin
+                    if (rd) begin
+                        if (mem.exists(rd_addr))              rd_data <= mem[rd_addr];
+                        else if (RESET_FSM && SIM__FAST_INIT) rd_data <= RESET_VAL;
+                        else                                  rd_data <= 'x;
+                    end
+                    if (RESET_FSM && SIM__FAST_INIT && mem_wr_if__int.rst) mem.delete();
+                    else if (wr_en) begin
+                        if (wr_req) mem[wr_addr] = wr_data;
+                    end
+                end
+            end : g__sync
+            //
+            // -------------- RAM model for simulations only ------------------
+            //
+        end : g__sim_model
+        else begin : g__no_sim_model
+
+            // -----------------------------
+            // RAM declaration (actual)
+            // -----------------------------
+            mem_ram_sdp #(
+                .ADDR_WID       ( ADDR_WID ),
+                .DATA_WID       ( DATA_WID ),
+                ._RAM_STYLE     ( __RAM_STYLE )
+            ) i_mem_ram_sdp ( .* );
+
+        end : g__no_sim_model
+    endgenerate
+`endif // ifndef SYNTHESIS
 
     // -----------------------------
     // Write-side logic
