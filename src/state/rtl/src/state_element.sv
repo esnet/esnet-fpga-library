@@ -31,10 +31,16 @@ module state_element
     // -----------------------------
     initial begin
         case (SPEC.TYPE)
-            ELEMENT_TYPE_FLAGS        : std_pkg::param_check(SPEC.UPDATE_WID, SPEC.STATE_WID, "UPDATE_WID", "Flags state and update widths must be equal.");
+            ELEMENT_TYPE_FLAGS,
+            ELEMENT_TYPE_WRITE,
+            ELEMENT_TYPE_WRITE_IF_ZERO,
+            ELEMENT_TYPE_SEQ : std_pkg::param_check(SPEC.UPDATE_WID, SPEC.STATE_WID, "UPDATE_WID", $sformatf("State and update widths must be equal for element type '%s'.", getElementTypeString(SPEC.TYPE)));
+            ELEMENT_TYPE_WRITE_N_TIMES : begin
+                std_pkg::param_check(SPEC.UPDATE_WID, SPEC.STATE_WID, "UPDATE_WID", $sformatf("State and update widths must be equal for element type '%s'.", getElementTypeString(SPEC.TYPE)));
+                std_pkg::param_check_gt(SPEC.STATE_WID, 5, "STATE_WID", $sformatf("State width must be at least 5 bits for element type '%s'.", getElementTypeString(SPEC.TYPE)));
+            end
             ELEMENT_TYPE_COUNTER      : std_pkg::param_check(SPEC.UPDATE_WID, 0,              "UPDATE_WID", "Counter has no update vector, i.e. UPDATE_WID must be zero.");
             ELEMENT_TYPE_COUNTER_COND : std_pkg::param_check(SPEC.UPDATE_WID, 1,              "UPDATE_WID", "Conditional counter requires 1-bit update vector.");
-            ELEMENT_TYPE_SEQ          : std_pkg::param_check(SPEC.UPDATE_WID, SPEC.STATE_WID, "UPDATE_WID", "Seq stand and update widths must be equal.");
         endcase
     end
 
@@ -54,6 +60,21 @@ module state_element
             case (SPEC.TYPE)
                 ELEMENT_TYPE_WRITE : begin
                     next_state__datapath = STATE_T'(update);
+                end
+                ELEMENT_TYPE_WRITE_IF_ZERO: begin
+                    if (init)                  next_state__datapath = STATE_T'(update);
+                    else if (prev_state == '0) next_state__datapath = STATE_T'(update);
+                end
+                ELEMENT_TYPE_WRITE_N_TIMES: begin
+                    if (init) begin
+                        if ((update & 4'hF) > 0)                        next_state__datapath = update;
+                        else                                            next_state__datapath = '0;
+                    end else if ((prev_state & 4'hF) < (update & 4'hF)) next_state__datapath = update;
+                    else                                                next_state__datapath = prev_state;
+                    next_state__datapath = (next_state__datapath >> 4) << 4;
+                    if (init)                             next_state__datapath |= 1;
+                    else if ((prev_state & 4'hF) < 4'd15) next_state__datapath |= (prev_state & 4'hF) + 1;
+                    else                                  next_state__datapath |= 4'd15;
                 end
                 ELEMENT_TYPE_FLAGS : begin
                     if (init) next_state__datapath = STATE_T'(update);

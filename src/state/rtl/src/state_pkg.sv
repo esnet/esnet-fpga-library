@@ -15,6 +15,8 @@ package state_pkg;
         ELEMENT_TYPE_UNSPECIFIED = 0,
         ELEMENT_TYPE_READ,
         ELEMENT_TYPE_WRITE,
+        ELEMENT_TYPE_WRITE_IF_ZERO,
+        ELEMENT_TYPE_WRITE_N_TIMES,
         ELEMENT_TYPE_FLAGS,
         ELEMENT_TYPE_COUNTER,
         ELEMENT_TYPE_COUNTER_COND,
@@ -58,7 +60,7 @@ package state_pkg;
     };
 
     // State vector
-    localparam int STATE_VECTOR_MAX_ELEMENTS = 16;
+    localparam int STATE_VECTOR_MAX_ELEMENTS = 24;
 
     typedef struct {
         int NUM_ELEMENTS;
@@ -85,6 +87,8 @@ package state_pkg;
         case (TYPE)
             ELEMENT_TYPE_READ         : return "read";
             ELEMENT_TYPE_WRITE        : return "write";
+            ELEMENT_TYPE_WRITE_IF_ZERO: return "write_if_zero";
+            ELEMENT_TYPE_WRITE_N_TIMES: return "write_N_times";
             ELEMENT_TYPE_FLAGS        : return "flags";
             ELEMENT_TYPE_COUNTER      : return "counter";
             ELEMENT_TYPE_COUNTER_COND : return "counter_cond";

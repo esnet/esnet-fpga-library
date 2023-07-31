@@ -5,26 +5,31 @@
 //===================================
 `define SVUNIT_TIMEOUT 2ms
 
-module state_element_core_unit_test
-    import state_pkg::*;
-#(
-    parameter type ID_T = logic,
-    parameter element_t SPEC = DEFAULT_STATE_ELEMENT
-);
+module state_element_core_write_n_times_unit_test;
     //===================================
     // Imports
     //===================================
     import svunit_pkg::svunit_testcase;
     import tb_pkg::*;
+    import state_pkg::*;
     import state_verif_pkg::*;
     import db_verif_pkg::*;
 
     //===================================
     // Parameters
     //===================================
+    localparam element_t SPEC = '{
+        TYPE: ELEMENT_TYPE_WRITE_N_TIMES,
+        STATE_WID: 36,
+        UPDATE_WID: 36,
+        RETURN_MODE: RETURN_MODE_PREV_STATE,
+        REAP_MODE: REAP_MODE_CLEAR
+    };
+
     // NOTE: define ID_T/STATE_T here as 'logic' vectors and not 'bit' vectors
     //       - works around apparent simulation bug where some direct
     //         assignments fail (i.e. assign a = b results in a != b)
+    localparam type ID_T = logic[11:0];
     localparam type STATE_T = logic[SPEC.STATE_WID-1:0];
     localparam int UPDATE_WID = SPEC.UPDATE_WID > 0 ? SPEC.UPDATE_WID : 1;
     localparam type UPDATE_T = logic[UPDATE_WID-1:0];
@@ -170,6 +175,39 @@ module state_element_core_unit_test
     // Run common tests
     `include "../common/tests.svh"
 
+    `SVTEST(write_n_times__set_update)
+        ID_T id;
+        int N;
+        UPDATE_T update;
+        STATE_T exp_state;
+        STATE_T got_state;
+        
+        // Randomize
+        void'(std::randomize(id));
+        N = $urandom % 16;
+
+        // Set initial state
+        set(id, '0);
+        exp_state = '0;
+
+        for (int i = 0; i < 16; i++) begin
+            // Randomize update
+            void'(std::randomize(update));
+            // Set 'N' field in update (choose randomly, then keep static)
+            update[3:0] = N;
+            _update(id, update, got_state);
+
+            `FAIL_UNLESS_EQUAL(got_state, exp_state);
+            if (i < N) exp_state = update;
+            if (i < 15) exp_state[3:0] = got_state[3:0] + 1;
+        end
+
+        // Check
+        get(id, got_state);
+        `FAIL_UNLESS_EQUAL(got_state, exp_state);
+
+    `SVTEST_END
+
     `SVUNIT_TESTS_END
 
     //===================================
@@ -178,75 +216,4 @@ module state_element_core_unit_test
     // Import common tasks
     `include "../common/tasks.svh"
 
-endmodule
-
-// 'Boilerplate' unit test wrapper code
-//  Builds unit test for a specific state element configuration in a way
-//  that maintains SVUnit compatibility
-`define STATE_ELEMENT_UNIT_TEST(_ID_T,_SPEC)\
-  import svunit_pkg::svunit_testcase;\
-  svunit_testcase svunit_ut;\
-  state_element_core_unit_test #(.ID_T(_ID_T), .SPEC(_SPEC)) test();\
-  function void build();\
-    test.build();\
-    svunit_ut = test.svunit_ut;\
-  endfunction\
-  task run();\
-    test.run();\
-  endtask
-
-// READ
-module state_element_core_read_unit_test;
-    localparam type ID_T = logic[11:0];
-    localparam state_pkg::element_t SPEC = '{state_pkg::ELEMENT_TYPE_READ,24,24,state_pkg::RETURN_MODE_PREV_STATE,state_pkg::REAP_MODE_PERSIST};
-    `STATE_ELEMENT_UNIT_TEST(ID_T,SPEC);
-endmodule
-
-// WRITE
-module state_element_core_write_unit_test;
-    localparam type ID_T = logic[11:0];
-    localparam state_pkg::element_t SPEC = '{state_pkg::ELEMENT_TYPE_WRITE,32,32,state_pkg::RETURN_MODE_PREV_STATE,state_pkg::REAP_MODE_PERSIST};
-    `STATE_ELEMENT_UNIT_TEST(ID_T,SPEC);
-endmodule
-
-// WRITE_IF_ZERO
-module state_element_core_write_if_zero_unit_test;
-    localparam type ID_T = logic[11:0];
-    localparam state_pkg::element_t SPEC = '{state_pkg::ELEMENT_TYPE_WRITE_IF_ZERO,20,20,state_pkg::RETURN_MODE_PREV_STATE,state_pkg::REAP_MODE_CLEAR};
-    `STATE_ELEMENT_UNIT_TEST(ID_T,SPEC);
-endmodule
-
-// FLAGS
-module state_element_core_flags_unit_test;
-    localparam type ID_T = logic[11:0];
-    localparam state_pkg::element_t SPEC = '{state_pkg::ELEMENT_TYPE_FLAGS,10,10,state_pkg::RETURN_MODE_PREV_STATE,state_pkg::REAP_MODE_CLEAR};
-    `STATE_ELEMENT_UNIT_TEST(ID_T,SPEC);
-endmodule
-
-// COUNTER
-module state_element_core_counter_unit_test;
-    localparam type ID_T = logic[11:0];
-    localparam state_pkg::element_t SPEC = '{state_pkg::ELEMENT_TYPE_COUNTER,32,0,state_pkg::RETURN_MODE_PREV_STATE,state_pkg::REAP_MODE_CLEAR};
-    `STATE_ELEMENT_UNIT_TEST(ID_T,SPEC);
-endmodule
-
-// COUNTER_COND
-module state_element_core_counter_cond_unit_test;
-    localparam type ID_T = logic[11:0];
-    localparam state_pkg::element_t SPEC = '{state_pkg::ELEMENT_TYPE_COUNTER_COND,32,1,state_pkg::RETURN_MODE_PREV_STATE,state_pkg::REAP_MODE_CLEAR};
-    `STATE_ELEMENT_UNIT_TEST(ID_T,SPEC);
-endmodule
-
-// COUNT
-module state_element_core_count_unit_test;
-    localparam type ID_T = logic[11:0];
-    localparam state_pkg::element_t SPEC = '{state_pkg::ELEMENT_TYPE_COUNT,64,16,state_pkg::RETURN_MODE_PREV_STATE,state_pkg::REAP_MODE_CLEAR};
-    `STATE_ELEMENT_UNIT_TEST(ID_T,SPEC);
-endmodule
-
-// SEQ
-module state_element_core_seq_unit_test;
-    localparam type ID_T = logic[11:0];
-    localparam state_pkg::element_t SPEC = '{state_pkg::ELEMENT_TYPE_SEQ,32,32,state_pkg::RETURN_MODE_PREV_STATE,state_pkg::REAP_MODE_PERSIST};
-    `STATE_ELEMENT_UNIT_TEST(ID_T,SPEC);
 endmodule
