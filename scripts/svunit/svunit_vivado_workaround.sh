@@ -41,6 +41,12 @@ echo +incdir+${TARGET_DIR} >> ${TARGET_DIR}/.svunit.f
 
 # ISSUE 1 Resolution
 # ------------------------
+# Create ephemeral copy of svunit_pkg.sv in run directory
+cp ${SVUNIT_INSTALL}/svunit_base/svunit_pkg.sv ${TARGET_DIR}/svunit_pkg.sv
+
+# Modify file list to refer to modified svunit_pkg
+sed -i "s:^.*svunit_pkg.sv:${TARGET_DIR}/svunit_pkg.sv:g" ${TARGET_DIR}/.svunit.f
+
 # Create ephemeral copy of XmlElement.svh in run directory.
 cp ${SVUNIT_INSTALL}/svunit_base/junit-xml/XmlElement.svh ${TARGET_DIR}/XmlElement__vivado.svh
 
