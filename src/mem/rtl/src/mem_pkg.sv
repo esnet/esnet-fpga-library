@@ -3,81 +3,69 @@ package mem_pkg;
     // -----------------------------
     // Typedefs
     // -----------------------------
-    typedef enum {
-        RAM_STYLE_AUTO,
-        RAM_STYLE_BLOCK,
-        RAM_STYLE_DISTRIBUTED,
-        RAM_STYLE_REGISTER,
-        RAM_STYLE_REGISTERS,
-        RAM_STYLE_MIXED,
-        RAM_STYLE_ULTRA
-    } xilinx_ram_style_t;
 
     typedef enum {
-        STD,
-        FWFT
-    } mem_rd_mode_t;
+        OPT_MODE_DEFAULT, // Balanced
+        OPT_MODE_TIMING,  // Optimize for performance (more pipelining)
+        OPT_MODE_LATENCY  // Optimize for latency     (less pipelining)
+    } opt_mode_t;
+
+    typedef struct {
+        int ADDR_WID;
+        int DATA_WID;
+        bit ASYNC;
+        bit RESET_FSM;
+        opt_mode_t OPT_MODE;
+    } spec_t;
+
+    localparam spec_t DEFAULT_MEM_SPEC = '{
+        ADDR_WID: 8,
+        DATA_WID: 32,
+        ASYNC: 0,
+        RESET_FSM: 0,
+        OPT_MODE: OPT_MODE_DEFAULT
+    };
 
     // -----------------------------
     // Functions
     // -----------------------------
-    function automatic xilinx_ram_style_t get_default_ram_style_sync(input int DEPTH, input int WIDTH);
-        if (DEPTH <= 256)                return RAM_STYLE_DISTRIBUTED;
-        else if (DEPTH <= 512)           return RAM_STYLE_BLOCK;
-        else if (WIDTH <= 16)            return RAM_STYLE_BLOCK;
-        else if (DEPTH * WIDTH <= 65536) return RAM_STYLE_BLOCK;
-        else                             return RAM_STYLE_ULTRA;
-    endfunction
-    
-    function automatic xilinx_ram_style_t get_default_ram_style_async(input int DEPTH, input int WIDTH);
-        if (DEPTH <= 256) return RAM_STYLE_DISTRIBUTED;
-        else              return RAM_STYLE_BLOCK;
-    endfunction
-
-    function automatic xilinx_ram_style_t get_default_ram_style(input int DEPTH, input int WIDTH, input bit ASYNC=0);
-        if (ASYNC) return get_default_ram_style_async(DEPTH, WIDTH);
-        else       return get_default_ram_style_sync(DEPTH, WIDTH);
-    endfunction
-
-    // Calculate additional (write) pipelining added to accommodate array of specified size
-    function automatic int get_default_wr_pipeline_stages(input xilinx_ram_style_t ram_style);
-        case (ram_style)
-            RAM_STYLE_ULTRA : return 1;
-            default         : return 0;
+    // Convert optization mode to Xilinx RAM library type
+    function automatic xilinx_ram_pkg::opt_mode_t translate_opt_mode(input opt_mode_t mem_opt_mode);
+        case (mem_opt_mode)
+            OPT_MODE_DEFAULT,
+            OPT_MODE_TIMING  : return xilinx_ram_pkg::OPT_MODE_TIMING;
+            OPT_MODE_LATENCY : return xilinx_ram_pkg::OPT_MODE_LATENCY;
         endcase
     endfunction
 
-    // Calculate overall memory write latency given number of pipeline stages
-    function automatic int __get_wr_latency(input int WR_PIPELINE_STAGES);
-        return WR_PIPELINE_STAGES;
+    // Calculate RAM write latency given specified memory configuration
+    function automatic int get_ram_wr_latency(input spec_t SPEC);
+        return xilinx_ram_pkg::get_wr_latency(SPEC.ADDR_WID, SPEC.DATA_WID, SPEC.ASYNC, translate_opt_mode(SPEC.OPT_MODE));
+    endfunction
+
+    // Calculate RAM read latency given specified memory configuration
+    function automatic int get_ram_rd_latency(input spec_t SPEC);
+        return xilinx_ram_pkg::get_rd_latency(SPEC.ADDR_WID, SPEC.DATA_WID, SPEC.ASYNC, translate_opt_mode(SPEC.OPT_MODE));
     endfunction
 
     // Calculate overall memory write latency given specified memory configuration
-    function automatic int get_default_wr_latency(input int DEPTH, input int WIDTH, input bit ASYNC=0);
-        return __get_wr_latency(get_default_wr_pipeline_stages(get_default_ram_style(DEPTH, WIDTH, ASYNC)));
-    endfunction
-
-    // Calculate additional (read) pipelining added to accommodate array of specified depth
-    function automatic int get_default_rd_pipeline_stages(input xilinx_ram_style_t ram_style, input int DEPTH);
-        case (ram_style)
-            RAM_STYLE_BLOCK       : return 1;
-            RAM_STYLE_ULTRA : begin
-                if (DEPTH > 32768) return 4;
-                if (DEPTH > 16384) return 3;
-                else               return 2;
-            end
-            default : return 0;
-        endcase
-    endfunction
-
-    // Calculate overall memory read latency given number of pipeline stages
-    function automatic int __get_rd_latency(input int RD_PIPELINE_STAGES);
-        return RD_PIPELINE_STAGES + 1;
+    function automatic int get_wr_latency(input spec_t SPEC);
+        if (SPEC.RESET_FSM) begin
+            case (SPEC.OPT_MODE)
+                OPT_MODE_TIMING : return get_ram_wr_latency(SPEC) + 1;
+                default         : return get_ram_wr_latency(SPEC);
+            endcase
+        end else return get_ram_wr_latency(SPEC);
     endfunction
 
     // Calculate overall memory read latency given specified memory configuration
-    function automatic int get_default_rd_latency(input int DEPTH, input int WIDTH, input bit ASYNC=0);
-        return __get_rd_latency(get_default_rd_pipeline_stages(get_default_ram_style(DEPTH, WIDTH, ASYNC), DEPTH));
+    function automatic int get_rd_latency(input spec_t SPEC);
+        if (SPEC.RESET_FSM) begin
+            case (SPEC.OPT_MODE)
+                OPT_MODE_TIMING : return get_ram_rd_latency(SPEC) + 1;
+                default         : return get_ram_rd_latency(SPEC);
+            endcase
+        end else return get_ram_rd_latency(SPEC);
     endfunction
 
 endpackage : mem_pkg
