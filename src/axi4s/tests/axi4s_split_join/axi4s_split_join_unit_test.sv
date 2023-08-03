@@ -540,7 +540,8 @@ module axi4s_hdr_proc
       .axi4s_out      (axi4s_out),
       .axil_to_probe  (axil_to_probe),
       .axil_to_ovfl   (axil_to_ovfl),
-      .axil_if        (axil_to_fifo)
+      .axil_if        (axil_to_fifo),
+      .oflow          ()
     );
 
 endmodule 

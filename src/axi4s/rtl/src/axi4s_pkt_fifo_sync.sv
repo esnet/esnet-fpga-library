@@ -159,6 +159,7 @@ module axi4s_pkt_fifo_sync
       .rd        ( rd ),
       .rd_data   ( rd_data ),
       .rd_count  ( rd_count ),
+      .rd_ack    ( ),
       .empty     ( __empty ),
       .uflow     ( uflow ),
       .axil_if   ( axil_if )

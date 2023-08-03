@@ -193,7 +193,8 @@ module axi4s_split_join
        .axi4s_out      (axi4s_from_pyld_fifo),
        .axil_to_probe  (axil_to_probe),
        .axil_to_ovfl   (axil_to_ovfl),
-       .axil_if        (axil_to_fifo)
+       .axil_if        (axil_to_fifo),
+       .oflow          ()
     );
 
    axi4s_full_pipe from_pyld_fifo_pipe_0 (.axi4s_if_from_tx(axi4s_from_pyld_fifo), .axi4s_if_to_rx(axi4s_from_pyld_fifo_p));
