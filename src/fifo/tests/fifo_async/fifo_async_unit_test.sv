@@ -542,6 +542,7 @@ module fifo_async_unit_test #(
             env.driver.send(exp_transaction);
             `FAIL_UNLESS(cb_wr.oflow == 0);
 
+            if (!FWFT) wait (!empty);
             env.monitor.receive(got_transaction);
             match = exp_transaction.compare(got_transaction, msg);
             `FAIL_UNLESS_LOG(
