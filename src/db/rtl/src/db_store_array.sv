@@ -27,29 +27,37 @@ module db_store_array #(
     // ----------------------------------
     // Interfaces
     // ----------------------------------
-    mem_intf #(.ADDR_WID(KEY_WID), .DATA_WID(ENTRY_WID)) mem_wr_if (.clk(clk));
-    mem_intf #(.ADDR_WID(KEY_WID), .DATA_WID(ENTRY_WID)) mem_rd_if (.clk(clk));
+    mem_wr_intf #(.ADDR_WID(KEY_WID), .DATA_WID(ENTRY_WID)) mem_wr_if (.clk(clk));
+    mem_rd_intf #(.ADDR_WID(KEY_WID), .DATA_WID(ENTRY_WID)) mem_rd_if (.clk(clk));
+
+    // ----------------------------------
+    // Init done
+    // ----------------------------------
+    assign init_done = mem_wr_if.rdy;
 
     // ----------------------------------
     // Database memory
     // ----------------------------------
-    mem_ram_sdp_sync #(
-        .ADDR_WID  ( KEY_WID ),
-        .DATA_WID  ( ENTRY_WID ),
-        .RESET_FSM ( 1 ),
+    localparam mem_pkg::spec_t MEM_SPEC = '{
+        ADDR_WID: KEY_WID,
+        DATA_WID: ENTRY_WID,
+        ASYNC: 0,
+        RESET_FSM: 1,
+        OPT_MODE: mem_pkg::OPT_MODE_TIMING
+    };
+
+    mem_ram_sdp        #(
+        .SPEC           ( MEM_SPEC ),
         .SIM__FAST_INIT ( SIM__FAST_INIT )
-    ) i_mem_ram_sdp_sync__db (
-        .clk       ( clk ),
-        .srst      ( srst ),
+    ) i_mem_ram_sdp__db (
         .mem_wr_if ( mem_wr_if ),
-        .mem_rd_if ( mem_rd_if ),
-        .init_done ( init_done )
+        .mem_rd_if ( mem_rd_if )
     );
 
     // ----------------------------------
     // Drive memory write interface
     // ----------------------------------
-    assign mem_wr_if.rst  = init;
+    assign mem_wr_if.rst  = srst | init;
     assign mem_wr_if.en   = 1'b1;
     assign mem_wr_if.req  = db_wr_if.req;
     assign mem_wr_if.addr = db_wr_if.key;
@@ -59,7 +67,6 @@ module db_store_array #(
     assign db_wr_if.next_key = '0;
 
     assign mem_rd_if.rst  = 1'b0;
-    assign mem_rd_if.en   = 1'b1; // Unused
     assign mem_rd_if.req  = db_rd_if.req;
     assign mem_rd_if.addr = db_rd_if.key;
     assign db_rd_if.rdy = mem_rd_if.rdy;

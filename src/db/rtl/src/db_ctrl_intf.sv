@@ -350,7 +350,7 @@ endmodule
 
 
 // Database control interface static 2:1 mux component
-// (built using db_intf_mux as a basis but provides
+// (built using db_ctrl_intf_mux as a basis but provides
 //  simplified interface for most common mux configuration)
 module db_ctrl_intf_2to1_mux #(
     parameter type KEY_T = logic[7:0],
