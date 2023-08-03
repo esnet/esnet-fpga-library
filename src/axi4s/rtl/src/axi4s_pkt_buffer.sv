@@ -1,5 +1,5 @@
 // -----------------------------------------------------------------------------
-// axi4s_pkt_buffer is a pipelined memory instantiation (mem_ram_sdp_sync) for
+// axi4s_pkt_buffer is a pipelined memory instantiation (mem_ram_sdp) for
 // buffering packets.  It uses axi4s interfaces to carry the ingress and egress
 // packet data.  It takes a wr_ptr and rd_ptr as input, which are used as the 
 // memory address for wr and rd transactions respectively, and it initiates a rd
@@ -41,18 +41,26 @@ module axi4s_pkt_buffer
 
    localparam int DEPTH = 2**ADDR_WID;
    localparam int DATA_WID = $size(wr_data);
-   localparam bit ASYNC = 0;
 
-   // match pipeline stages to mem_ram_sdp_sync_0 pipelining.
-   localparam xilinx_ram_style_t _RAM_STYLE = get_default_ram_style(DEPTH, DATA_WID, ASYNC);
-   localparam int WR_PIPELINE_STAGES        = get_default_wr_pipeline_stages(_RAM_STYLE);
-   localparam int RD_PIPELINE_STAGES        = get_default_rd_pipeline_stages(_RAM_STYLE, DEPTH);
+   // Buffer memory spec
+   localparam mem_pkg::spec_t MEM_SPEC = '{
+       ADDR_WID: ADDR_WID,
+       DATA_WID: DATA_WID,
+       ASYNC: 0,
+       RESET_FSM: 1,
+       OPT_MODE: mem_pkg::OPT_MODE_DEFAULT
+   };
+
+   // match pipeline stages to memory pipelining.
+   // (subtract 1 to account for read/write cycle)
+   localparam int WR_PIPELINE_STAGES = mem_pkg::get_wr_latency(MEM_SPEC)-1;
+   localparam int RD_PIPELINE_STAGES = mem_pkg::get_rd_latency(MEM_SPEC)-1;
 
    logic rd_req_p [RD_PIPELINE_STAGES+1]; // pipelined rd_req.  one additional stage for memory latency.
 
 
-   mem_intf #(.ADDR_WID(ADDR_WID), .DATA_WID(DATA_WID)) mem_wr_if (.clk(axi4s_in.aclk));
-   mem_intf #(.ADDR_WID(ADDR_WID), .DATA_WID(DATA_WID)) mem_rd_if (.clk(axi4s_in.aclk));
+   mem_wr_intf #(.ADDR_WID(ADDR_WID), .DATA_WID(DATA_WID)) mem_wr_if (.clk(axi4s_in.aclk));
+   mem_rd_intf #(.ADDR_WID(ADDR_WID), .DATA_WID(DATA_WID)) mem_rd_if (.clk(axi4s_in.aclk));
 
 
    assign axi4s_in.tready =  mem_wr_if.rdy;
@@ -61,7 +69,7 @@ module axi4s_pkt_buffer
    // ---- write ptr pipeline logic ----
    generate
       if (WR_PIPELINE_STAGES > 0) begin : g__wr_ptr_pipe
-         logic [ADDR_WID:0] __wr_ptr_p [WR_PIPELINE_STAGES]; // ptr pipelined as per mem_ram_sdp_sync.
+         logic [ADDR_WID:0] __wr_ptr_p [WR_PIPELINE_STAGES]; // ptr pipelined as per memory.
 	 
          always @(posedge axi4s_in.aclk)
             if (!axi4s_in.aresetn) __wr_ptr_p <= '{WR_PIPELINE_STAGES{'0}};
@@ -95,21 +103,15 @@ module axi4s_pkt_buffer
    assign mem_wr_if.addr = wr_ptr[ADDR_WID-1:0];
    assign mem_wr_if.data = wr_data;
 
-   mem_ram_sdp_sync #(
-      .ADDR_WID  ( ADDR_WID ),
-      .DATA_WID  ( DATA_WID ),
-      .RESET_FSM ( 1 ),
+   mem_ram_sdp       #(
+      .SPEC           ( MEM_SPEC ),
       .SIM__FAST_INIT ( SIM__FAST_INIT )
-   ) mem_ram_sdp_sync_0 (
-      .clk       ( axi4s_in.aclk ),
-      .srst      ( ~axi4s_in.aresetn ),
+   ) mem_ram_sdp_0 (
       .mem_wr_if ( mem_wr_if ),
-      .mem_rd_if ( mem_rd_if ),
-      .init_done ( )
+      .mem_rd_if ( mem_rd_if )
    );
 
    assign mem_rd_if.rst  = ~axi4s_in.aresetn;
-   assign mem_rd_if.en   = 1'b1; // Unused
    assign mem_rd_if.req  = rd_req;
    assign mem_rd_if.addr = rd_ptr[ADDR_WID-1:0];
 
