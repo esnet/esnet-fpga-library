@@ -18,6 +18,11 @@ export LIB_ROOT
 # -----------------------------------------------
 TOP = mem_ram_sdp_sync_wrapper
 
+# -----------------------------------------------
+# (Local) Paths
+# -----------------------------------------------
+OUT_DIR=out
+
 # ----------------------------------------------------
 # Targets
 # ----------------------------------------------------
@@ -38,9 +43,4 @@ clean: _clean_build
 # Include Vivado definitions/targets
 # -----------------------------------------------
 include $(SCRIPTS_ROOT)/Makefiles/vivado_build_core.mk
-
-# -----------------------------------------------
-# Include regio targets
-# -----------------------------------------------
-include $(SCRIPTS_ROOT)/Makefiles/regio.mk
 
