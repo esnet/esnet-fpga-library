@@ -82,7 +82,15 @@ module state_allocator_bv #(
 
     localparam int ID_CNT_WID = $clog2(NUM_IDS + 1);
 
-    localparam int MEM_RD_LATENCY = mem_pkg::get_default_rd_latency(NUM_ROWS, NUM_COLS);
+    localparam mem_pkg::spec_t MEM_SPEC = '{
+        ADDR_WID: ROW_WID,
+        DATA_WID: NUM_COLS,
+        ASYNC: 0,
+        RESET_FSM: 1,
+        OPT_MODE: mem_pkg::OPT_MODE_TIMING
+    };
+
+    localparam int MEM_RD_LATENCY = mem_pkg::get_rd_latency(MEM_SPEC);
 
     // -----------------------------
     // Typedefs
@@ -125,8 +133,8 @@ module state_allocator_bv #(
     // -----------------------------
     // Interfaces
     // -----------------------------
-    mem_intf #(.ADDR_WID (ROW_WID), .DATA_WID(NUM_COLS)) mem_wr_if (.clk (clk));
-    mem_intf #(.ADDR_WID (ROW_WID), .DATA_WID(NUM_COLS)) mem_rd_if (.clk (clk));
+    mem_wr_intf #(.ADDR_WID (ROW_WID), .DATA_WID(NUM_COLS)) mem_wr_if (.clk (clk));
+    mem_rd_intf #(.ADDR_WID (ROW_WID), .DATA_WID(NUM_COLS)) mem_rd_if (.clk (clk));
 
     axi4l_intf #() axil_if__clk ();
 
@@ -261,28 +269,24 @@ module state_allocator_bv #(
     // -----------------------------
     // Memory
     // -----------------------------
-    mem_ram_sdp_sync #(
-        .ADDR_WID  ( ROW_WID ),
-        .DATA_WID  ( NUM_COLS ),
-        .RESET_FSM ( 1 ),
+    mem_ram_sdp   #(
+        .SPEC      ( MEM_SPEC ),
         .RESET_VAL ( {NUM_COLS{1'b1}} ),
         .SIM__FAST_INIT ( SIM__FAST_INIT )
-    ) i_mem_ram_sdp_sync (
-        .clk       ( clk ),
-        .srst      ( local_srst ),
-        .init_done ( init_done ),
+    ) i_mem_ram_sdp (
         .mem_wr_if ( mem_wr_if ),
         .mem_rd_if ( mem_rd_if )
     );
 
-    assign mem_wr_if.rst = 1'b0;
-    assign mem_wr_if.en  = init_done;
+    assign init_done = mem_wr_if.rdy;
+
+    assign mem_wr_if.rst = local_srst;
+    assign mem_wr_if.en  = 1'b1;
     assign mem_wr_if.req = wr;
     assign mem_wr_if.addr = id.row;
     assign mem_wr_if.data = wr_data;
 
     assign mem_rd_if.rst = 1'b0;
-    assign mem_rd_if.en = 1'b1; // Unused
     assign mem_rd_if.req = rd || scan_rd;
     assign mem_rd_if.addr = rd ? id.row : scan_row;
 

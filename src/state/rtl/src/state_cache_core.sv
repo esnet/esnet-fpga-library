@@ -7,7 +7,7 @@ module state_cache_core
     parameter int  NUM_TABLES = 3,
     parameter int  TABLE_SIZE [NUM_TABLES] = '{default: 4096},
     parameter int  HASH_LATENCY = 0,
-    parameter int  NUM_WR_TRANSACTIONS = 2,
+    parameter int  NUM_WR_TRANSACTIONS = 4,
     parameter int  NUM_RD_TRANSACTIONS = 8,
     parameter int  UPDATE_BURST_SIZE = 8,
     // Simulation-only
@@ -158,8 +158,8 @@ module state_cache_core
     db_intf #(.KEY_T(KEY_T), .VALUE_T(ID_T)) htable_lookup_if (.clk(clk));
     db_intf #(.KEY_T(KEY_T), .VALUE_T(ID_T)) htable_update_if (.clk(clk));
 
-    mem_intf #(.ADDR_WID(ID_WID), .DATA_WID(KEY_WID)) revmap_wr_if (.clk(clk));
-    mem_intf #(.ADDR_WID(ID_WID), .DATA_WID(KEY_WID)) revmap_rd_if (.clk(clk));
+    mem_wr_intf #(.ADDR_WID(ID_WID), .DATA_WID(KEY_WID)) revmap_wr_if (.clk(clk));
+    mem_rd_intf #(.ADDR_WID(ID_WID), .DATA_WID(KEY_WID)) revmap_rd_if (.clk(clk));
 
     axi4l_intf #() cache_axil_if ();
     axi4l_intf #() cache_axil_if__clk ();
@@ -456,29 +456,33 @@ module state_cache_core
     // ----------------------------------
     // Reverse (ID-to-key) mapping
     // ----------------------------------
-    mem_ram_sdp_sync   #(
-        .ADDR_WID       ( ID_WID ),
-        .DATA_WID       ( KEY_WID ),
-        .RESET_FSM      ( 1 ),
+    localparam mem_pkg::spec_t REV_MAP_MEM_SPEC = '{
+        ADDR_WID: ID_WID,
+        DATA_WID: KEY_WID,
+        ASYNC: 0,
+        RESET_FSM: 1,
+        OPT_MODE: mem_pkg::OPT_MODE_TIMING
+    };
+
+    mem_ram_sdp        #(
+        .SPEC           ( REV_MAP_MEM_SPEC ),
         .SIM__FAST_INIT ( SIM__FAST_INIT )
-    ) i_mem_ram_sdp_sync__rev_map (
-        .clk            ( clk ),
-        .srst           ( __srst ),
-        .init_done      ( revmap_init_done ),
+    ) i_mem_ram_sdp__rev_map (
         .mem_wr_if      ( revmap_wr_if ),
         .mem_rd_if      ( revmap_rd_if )
     );
 
-    assign revmap_wr_if.rst = 1'b0;
+    assign revmap_wr_if.rst = __srst;
     assign revmap_wr_if.en = 1'b1;
     assign revmap_wr_if.req = htable_update_if.req;
     assign revmap_wr_if.addr = htable_update_if.value;
     assign revmap_wr_if.data = htable_update_if.key;
 
     assign revmap_rd_if.rst = 1'b0;
-    assign revmap_rd_if.en = 1'b1; // Unused
     assign revmap_rd_if.req = revmap_rd_req;
     assign revmap_rd_if.addr = delete_id;
+
+    assign revmap_init_done = revmap_wr_if.rdy;
 
     // ----------------------------------
     // Deletion FSM
