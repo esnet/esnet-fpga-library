@@ -4,9 +4,10 @@ This is a library of components that can be used for synchronization and
 clock-domain crossing (CDC) functions. These components include:
 
 * sync_level
-* sync_pulse
-* sync_bus (future)
-* sync_reset (future)
+* sync_event
+* sync_ctr
+* sync_bus
+* sync_reset
 
 ## Unit Tests
 
