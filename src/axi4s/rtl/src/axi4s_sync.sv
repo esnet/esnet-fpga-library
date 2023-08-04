@@ -51,8 +51,8 @@ module axi4s_sync
         HDR_TLAST : begin
           // synchronize hdr tlast words (using payload buffer context).
           sync  = axi4s_in0.tvalid && axi4s_in0.tlast && axi4s_in1.tvalid && tuser_in1.hdr_tlast;
-          sync0 = sync || sync_stretch0 || !axi4s_in0.tlast;
-          sync1 = sync || sync_stretch1 || !tuser_in1.hdr_tlast;
+          sync0 = sync || sync_stretch0 || !(axi4s_in0.tvalid && axi4s_in0.tlast);
+          sync1 = sync || sync_stretch1 || !(axi4s_in1.tvalid && tuser_in1.hdr_tlast);
         end
 
         default : begin
