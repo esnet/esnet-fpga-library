@@ -432,7 +432,7 @@ module htable_cuckoo_fast_update_core_unit_test;
         exp_cuckoo_stats.delete_ok += 1;
         exp_cuckoo_stats.active -= 1;
         // Wait for delete to be processed
-        update_if._wait(50);
+        update_if._wait(100);
         // Query database from app interface
         lookup_if.query(key, got_valid, got_value, error, timeout);
         `FAIL_IF(error);

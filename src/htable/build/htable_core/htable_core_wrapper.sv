@@ -6,7 +6,7 @@ module htable_core_wrapper
     parameter int  NUM_TABLES = 3,
     parameter int  TABLE_SIZE [NUM_TABLES] = '{default: 16384},
     parameter int  HASH_LATENCY = 0,
-    parameter int  NUM_WR_TRANSACTIONS = 2,
+    parameter int  NUM_WR_TRANSACTIONS = 4,
     parameter int  NUM_RD_TRANSACTIONS = 8,
     parameter int  STASH_SIZE = 16
 )(
