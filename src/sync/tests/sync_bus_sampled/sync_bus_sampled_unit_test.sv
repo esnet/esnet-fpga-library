@@ -173,8 +173,8 @@ module sync_bus_sampled_unit_test;
                 DATA_T sample_out = samples_out.pop_front();
                 do begin
                     sample_in = samples_in.pop_front();
-                    if (samples_in.size() == 0) `FAIL_IF_LOG(1, "Sampled output values do not represent an ordered subset of the input samples.");
-                end while (sample_in != sample_out);
+                end while ((sample_in != sample_out) && (samples_in.size() > 0));
+                `FAIL_IF_LOG(sample_in != sample_out, "Sampled output values do not represent an ordered subset of the input samples.");
             end while (samples_out.size() > 0);
 
         `SVTEST_END
