@@ -47,7 +47,7 @@ module axi4s_pkt_buffer
        ADDR_WID: ADDR_WID,
        DATA_WID: DATA_WID,
        ASYNC: 0,
-       RESET_FSM: 1,
+       RESET_FSM: 0,
        OPT_MODE: mem_pkg::OPT_MODE_DEFAULT
    };
 
