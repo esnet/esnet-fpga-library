@@ -216,11 +216,13 @@ module sync_level_unit_test;
         @(posedge clk_in);
         repeat (sync_pkg::RETIMING_STAGES+1) @(posedge clk_out);
         @(posedge clk_out);
+        @(posedge clk_out);
     endtask
 
     task wait_for_ack();
         @(posedge clk_out);
         repeat (sync_pkg::RETIMING_STAGES+1) @(posedge clk_out);
+        @(posedge clk_out);
         @(posedge clk_out);
     endtask
 
