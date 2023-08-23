@@ -144,6 +144,7 @@ module sync_reset_unit_test;
     `SVUNIT_TESTS_END
 
     task wait_for_sync();
+        @(posedge clk_in);
         repeat (sync_pkg::RETIMING_STAGES+1) @(posedge clk_out);
         @(posedge clk_out);
         @(posedge clk_out);
