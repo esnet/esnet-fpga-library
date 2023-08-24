@@ -166,25 +166,20 @@ module sync_level_unit_test;
                         lvl_in <= !lvl_in;
                         @(posedge clk_in);
                         if (rdy_in) begin
-                            if (lvl_in !== _lvl_in) begin
-                                // Count expected number of input transitions
-                                exp_evt_cnt++;
-                                _lvl_in = lvl_in;
-                            end
+                            if (lvl_in !== _lvl_in) exp_evt_cnt++; // Count expected number of input transitions
+                            _lvl_in = lvl_in;
                         end
                     end
+                    lvl_in <= _lvl_in;
                     wait_for_sync();
                     @(posedge clk_out);
                 end
                 begin
-                    wait_for_handshake();
+                    wait_for_sync();
                     _lvl_out = lvl_out;
                     forever begin
                         @(posedge clk_out);
-                        if (lvl_out !== _lvl_out ) begin
-                            // Count actual number of output transitions
-                            got_evt_cnt++;
-                        end
+                        if (lvl_out !== _lvl_out ) got_evt_cnt++; // Count actual number of output transitions
                         _lvl_out = lvl_out;
                     end
                 end
@@ -221,9 +216,9 @@ module sync_level_unit_test;
 
     task wait_for_ack();
         @(posedge clk_out);
-        repeat (sync_pkg::RETIMING_STAGES+1) @(posedge clk_out);
-        @(posedge clk_out);
-        @(posedge clk_out);
+        repeat (sync_pkg::RETIMING_STAGES+1) @(posedge clk_in);
+        @(posedge clk_in);
+        @(posedge clk_in);
     endtask
 
     task wait_for_handshake();
