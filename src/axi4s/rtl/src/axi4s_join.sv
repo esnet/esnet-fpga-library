@@ -129,7 +129,8 @@ module axi4s_join
       .axi4s_in0   (drop[0]),
       .axi4s_in1   (drop[1]),
       .axi4s_out0  (sync_hdr[1]),
-      .axi4s_out1  (sync_pyld[1])
+      .axi4s_out1  (sync_pyld[1]),
+      .sop_mismatch()
    );
 
 
@@ -376,7 +377,8 @@ module axi4s_join
       .axi4s_out      (axi4s_out),
       .axil_to_probe  (axil_to_probe),
       .axil_to_ovfl   (axil_to_ovfl),
-      .axil_if        (axil_to_fifo)
+      .axil_if        (axil_to_fifo),
+      .oflow          ()
     );
 
 

@@ -53,11 +53,27 @@ module fifo_core
 
     localparam bit __UFLOW_PROT = FWFT ? 1 : UFLOW_PROT;
 
-    localparam int MEM_WR_LATENCY = mem_pkg::get_default_wr_latency(MEM_DEPTH, DATA_WID, ASYNC);
-    localparam int MEM_RD_LATENCY = mem_pkg::get_default_rd_latency(MEM_DEPTH, DATA_WID, ASYNC);
-    localparam int MEM_RD_LATENCY_CNT_WID = $clog2(MEM_RD_LATENCY+1);
+    // Select memory optimization mode
+    // - in FWFT mode, the code assumes that the memory instance includes no read pipelining,
+    //   i.e. the read data is available on the cycle following a read request; select a memory
+    //   implementation optimized for low-latency in FWFT mode.
+    localparam mem_pkg::opt_mode_t MEM_OPT_MODE = FWFT ? mem_pkg::OPT_MODE_LATENCY : mem_pkg::OPT_MODE_DEFAULT;
 
-    localparam mem_rd_mode_t MEM_RD_MODE = FWFT ? mem_pkg::FWFT : STD;
+    localparam mem_pkg::spec_t MEM_SPEC = '{
+        ADDR_WID: PTR_WID,
+        DATA_WID: DATA_WID,
+        ASYNC: ASYNC,
+        RESET_FSM: 0,
+        OPT_MODE: MEM_OPT_MODE
+    };
+    localparam int MEM_WR_LATENCY = mem_pkg::get_wr_latency(MEM_SPEC);
+    localparam int MEM_RD_LATENCY = mem_pkg::get_rd_latency(MEM_SPEC);
+
+    // Check parameters
+    initial begin
+        std_pkg::param_check(MEM_WR_LATENCY, 1, "MEM_WR_LATENCY", "fifo_core expects memory write latency == 1");
+        if (FWFT) std_pkg::param_check(MEM_RD_LATENCY, 1, "MEM_RD_LATENCY", "fifo_core expects memory read latency == 1 for FWFT mode");
+    end
 
     // -----------------------------
     // Signals
@@ -76,17 +92,14 @@ module fifo_core
     logic                 __rd_empty;
     logic [__CNT_WID-1:0] __rd_count;
     logic                 __rd_uflow;
-    DATA_T                __rd_data;
-
-    logic [MEM_RD_LATENCY-1:0] rd_empty_p; // rd_empty pipeline.
 
     logic mem_init_done;
 
     // -----------------------------
     // Interfaces
     // -----------------------------
-    mem_intf #(.ADDR_WID (PTR_WID), .DATA_WID(DATA_WID)) mem_wr_if (.clk(wr_clk));
-    mem_intf #(.ADDR_WID (PTR_WID), .DATA_WID(DATA_WID)) mem_rd_if (.clk(rd_clk));
+    mem_wr_intf #(.ADDR_WID (PTR_WID), .DATA_WID(DATA_WID)) mem_wr_if (.clk(wr_clk));
+    mem_rd_intf #(.ADDR_WID (PTR_WID), .DATA_WID(DATA_WID)) mem_rd_if (.clk(rd_clk));
 
     axi4l_intf ctrl_axil_if ();
 
@@ -148,22 +161,6 @@ module fifo_core
                 if (rd_srst || wr_srst__rd_clk) local_rd_srst <= 1'b1;
                 else                            local_rd_srst <= 1'b0;
             end
-
-            // Asynchronous SDP RAM instance
-            mem_ram_sdp_async #(
-                .MEM_RD_MODE ( MEM_RD_MODE ),
-                .ADDR_WID  ( PTR_WID ),
-                .DATA_WID  ( DATA_WID ),
-                .RESET_FSM ( 0 )
-            ) i_mem_ram_sdp_async (
-                .wr_clk    ( wr_clk ),
-                .wr_srst   ( local_wr_srst ),
-                .mem_wr_if ( mem_wr_if ),
-                .rd_clk    ( rd_clk ),
-                .rd_srst   ( local_rd_srst ),
-                .mem_rd_if ( mem_rd_if ),
-                .init_done ( mem_init_done )
-            );
         end : g__async
         else begin : g__sync
             // Synthesize local reset (no synchronization necessary)
@@ -173,29 +170,26 @@ module fifo_core
                 else                                          local_wr_srst <= 1'b0;
             end
             assign local_rd_srst = local_wr_srst;
-
-            // Synchronous SDP RAM instance
-            mem_ram_sdp_sync #(
-                .MEM_RD_MODE ( MEM_RD_MODE ),
-                .ADDR_WID  ( PTR_WID ),
-                .DATA_WID  ( DATA_WID ),
-                .RESET_FSM ( 0 )
-            ) i_mem_ram_sdp_sync (
-                .clk       ( wr_clk ),
-                .srst      ( local_wr_srst ),
-                .init_done ( mem_init_done ),
-                .mem_wr_if ( mem_wr_if ),
-                .mem_rd_if ( mem_rd_if )
-            );
         end : g__sync
     endgenerate
+
+    // -----------------------------
+    // SDP RAM Instance
+    // -----------------------------
+    mem_ram_sdp #(
+        .SPEC    ( MEM_SPEC )
+    ) i_mem_ram_sdp (
+        .mem_wr_if ( mem_wr_if ),
+        .mem_rd_if ( mem_rd_if )
+    );
+
+    assign mem_init_done = mem_wr_if.rdy;
 
     // -----------------------------
     // Control FSM
     // -----------------------------
     fifo_ctrl_fsm  #(
         .DEPTH      ( DEPTH ),
-        .MEM_WR_LATENCY ( MEM_WR_LATENCY ),
         .ASYNC      ( ASYNC ),
         .OFLOW_PROT ( OFLOW_PROT ),
         .UFLOW_PROT ( __UFLOW_PROT ),
@@ -235,50 +229,28 @@ module fifo_core
     assign mem_wr_if.data = wr_data;
 
     assign mem_rd_if.rst = 1'b0;
-    assign mem_rd_if.en = 1'b1; // Unused
-    assign mem_rd_if.req = __rd;  // use __rd signal rather than rd_safe (to advance rd pipeline when memory is empty).
+    assign mem_rd_if.req = rd_safe;
     assign mem_rd_if.addr = rd_ptr;
-    assign __rd_data = mem_rd_if.data;
+    assign rd_data = mem_rd_if.data;
 
     generate
         // First word flow-through FIFO mode
         if (FWFT) begin : g__fwft
-            // large FIFOs (more than one output stage)
-            if (MEM_RD_LATENCY > 1) begin : g__fwft_large
-                // track empty indication of each pipe stage through FWFT prefetch pipeline.
-                initial rd_empty_p = '0;
-                always @(posedge rd_clk) begin
-                    if (local_rd_srst) rd_empty_p <= '1;
-                    else if (__rd)     rd_empty_p <= {rd_empty_p[MEM_RD_LATENCY-2:0], __rd_empty};
-                end
+            // empty indication reflects presence/absence of data in output register
+            initial rd_empty = 1'b1;
+            always @(posedge rd_clk) begin
+                if (local_rd_srst)    rd_empty <= 1'b1;
+                else if (!__rd_empty) rd_empty <= 1'b0;
+                else if (rd)          rd_empty <= 1'b1;
+            end
 
-                // empty indication reflects presence/absence of data in LAST stage.
-                assign rd_empty = rd_empty_p[MEM_RD_LATENCY-1];
-
-                // Adjust count for entries in FWFT prefetch pipeline.
-                assign rd_count = {'0, __rd_count} + count_ones(~rd_empty_p[MEM_RD_LATENCY-1:0]);
-            end : g__fwft_large
-
-            // small FIFOs (single-stage output)
-            else if (MEM_RD_LATENCY == 1) begin : g__fwft_small
-                // empty indication reflects presence/absence of data in LAST stage.
-                initial rd_empty = 1'b1;
-                always @(posedge rd_clk) begin
-                    if (local_rd_srst)    rd_empty <= 1'b1;
-                    else if (!__rd_empty) rd_empty <= 1'b0;
-                    else if (rd)          rd_empty <= 1'b1;
-                end
-
-                // Adjust count for entry in FWFT buffer
-                assign rd_count = rd_empty ? {'0, __rd_count} : {'0, __rd_count} + 1;
-            end : g__fwft_small
-
+            // Adjust count for entry in FWFT buffer
+            assign rd_count = rd_empty ? {'0, __rd_count} : {'0, __rd_count} + 1;
 
             // Data prefetch
             assign __rd = rd_empty || rd;
 
             assign rd_ack  = !rd_empty;
-            assign rd_data = __rd_data;
 
             // Underflow
             assign rd_uflow = rd && rd_empty;
@@ -289,11 +261,9 @@ module fifo_core
         else begin : g__std
             assign __rd = rd;
             assign rd_ack   = mem_rd_if.ack;
-            assign rd_data  = __rd_data;
             assign rd_count = {'0, __rd_count};
             assign rd_empty = __rd_empty;
             assign rd_uflow = __rd_uflow;
-
         end : g__std
     endgenerate
 
@@ -362,12 +332,5 @@ module fifo_core
             assign soft_reset__wr_clk = 1'b0;
         end
     endgenerate
-
-   // count_ones function
-   function automatic logic[MEM_RD_LATENCY_CNT_WID-1:0] count_ones (input logic[MEM_RD_LATENCY-1:0] data);
-      automatic logic[MEM_RD_LATENCY_CNT_WID-1:0] count = 0;
-      for (int i=0; i < MEM_RD_LATENCY; i++) count = count + data[i];
-      return count;
-   endfunction
 
 endmodule : fifo_core

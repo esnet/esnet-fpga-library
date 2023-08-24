@@ -1,7 +1,7 @@
 # -----------------------------------------------
 # (Global) Path setup
 # -----------------------------------------------
-IP_ROOT := ../..
+IP_ROOT := ../../..
 
 # -----------------------------------------------
 # IP config
@@ -16,24 +16,12 @@ export LIB_ROOT
 # -----------------------------------------------
 # Specify top-level module
 # -----------------------------------------------
-TOP = mem_ram_sdp_async_wrapper
+TOP = xilinx_ram_sdp_wrapper
 
 # -----------------------------------------------
 # (Local) Paths
 # -----------------------------------------------
 OUT_DIR=out
-
-# -----------------------------------------------
-# Regmap YAML definitions
-# -----------------------------------------------
-REG_BLOCK_YAML =
-REG_DECODER_YAML :=
-
-# -----------------------------------------------
-# regio options
-# -----------------------------------------------
-REGIO_ELABORATE_OPTS :=
-REGIO_GENERATE_OPTS := --recursive
 
 # ----------------------------------------------------
 # Targets
@@ -48,7 +36,7 @@ phys_opt:  _phys_opt
 route:     _route
 .PHONY: pre_synth synth opt place phys_opt route
 
-clean: _clean_reg _clean_build
+clean: _clean_build
 .PHONY: clean
 
 # -----------------------------------------------

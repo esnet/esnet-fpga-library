@@ -25,7 +25,10 @@ SRC_LIST_FILES =
 #   List IP component and external library dependencies
 #   (see $SCRIPTS_ROOT/Makefiles/dependencies.mk)
 # ----------------------------------------------------
-COMPONENTS =
+COMPONENTS = \
+             xilinx.ram.rtl \
+             sync.rtl \
+             std.rtl
 EXT_LIBS =
 
 # ----------------------------------------------------

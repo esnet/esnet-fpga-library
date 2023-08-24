@@ -5,7 +5,7 @@ module htable_core
     parameter type VALUE_T = logic[15:0],
     parameter int  SIZE = 4096,          // Sets table depth/hash width (expect power of 2)
     parameter int  HASH_LATENCY = 0,
-    parameter int  NUM_WR_TRANSACTIONS = 2,
+    parameter int  NUM_WR_TRANSACTIONS = 4,
     parameter int  NUM_RD_TRANSACTIONS = 8,
     parameter bit  APP_CACHE_EN = 1'b0      // Enable caching of update/lookup interface transactions to ensure consistency
                                             // of underlying table data for cases where multiple transactions
@@ -97,8 +97,8 @@ module htable_core
     // ----------------------------------
     db_intf #(.KEY_T(__HASH_T), .VALUE_T(entry_t)) __update_if (.clk(clk));
     db_intf #(.KEY_T(__HASH_T), .VALUE_T(entry_t)) __lookup_if (.clk(clk));
-    db_intf #(.KEY_T(__HASH_T), .VALUE_T(entry_t)) __tbl_wr_if  (.clk(clk));
-    db_intf #(.KEY_T(__HASH_T), .VALUE_T(entry_t)) __tbl_rd_if  (.clk(clk));
+    db_intf #(.KEY_T(__HASH_T), .VALUE_T(entry_t)) __tbl_wr_if (.clk(clk));
+    db_intf #(.KEY_T(__HASH_T), .VALUE_T(entry_t)) __tbl_rd_if (.clk(clk));
 
     // ----------------------------------
     // Export info
