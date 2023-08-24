@@ -34,14 +34,16 @@ module state_element
         case (SPEC.TYPE)
             ELEMENT_TYPE_FLAGS,
             ELEMENT_TYPE_WRITE,
-            ELEMENT_TYPE_WRITE_IF_ZERO,
-            ELEMENT_TYPE_SEQ : std_pkg::param_check(SPEC.UPDATE_WID, SPEC.STATE_WID, "UPDATE_WID", $sformatf("State and update widths must be equal for element type '%s'.", getElementTypeString(SPEC.TYPE)));
+            ELEMENT_TYPE_WRITE_IF_ZERO : std_pkg::param_check(SPEC.UPDATE_WID, SPEC.STATE_WID, "UPDATE_WID", $sformatf("State and update widths must be equal for element type '%s'.", getElementTypeString(SPEC.TYPE)));
             ELEMENT_TYPE_WRITE_N_TIMES : begin
                 std_pkg::param_check(SPEC.UPDATE_WID, SPEC.STATE_WID, "UPDATE_WID", $sformatf("State and update widths must be equal for element type '%s'.", getElementTypeString(SPEC.TYPE)));
                 std_pkg::param_check_gt(SPEC.STATE_WID, 5, "STATE_WID", $sformatf("State width must be at least 5 bits for element type '%s'.", getElementTypeString(SPEC.TYPE)));
             end
             ELEMENT_TYPE_COUNTER      : std_pkg::param_check(SPEC.UPDATE_WID, 0, "UPDATE_WID", "Counter has no update vector, i.e. UPDATE_WID must be zero.");
             ELEMENT_TYPE_COUNTER_COND : std_pkg::param_check(SPEC.UPDATE_WID, 1, "UPDATE_WID", "Conditional counter requires 1-bit update vector.");
+            ELEMENT_TYPE_SEQ : begin
+                std_pkg::param_check_gt(SPEC.UPDATE_WID, SPEC.STATE_WID, "UPDATE_WID", $sformatf("Update width must be greater than state width (by size of increment) for element type '%s'.", getElementTypeString(SPEC.TYPE)));
+            end
         endcase
     end
 
@@ -84,7 +86,7 @@ module state_element
                 entry_t __update;
                 entry_t __prev_state;
                 entry_t __next_state;
-                // State update (datapath)
+                // State update logic
                 assign __update = update;
                 assign __prev_state = prev_state;
                 always_comb begin
@@ -125,15 +127,31 @@ module state_element
                 end
             end
             ELEMENT_TYPE_SEQ : begin
+                // Parameters
+                localparam int SEQ_WID = SPEC.STATE_WID;
+                localparam int INC_WID = SPEC.UPDATE_WID - SPEC.STATE_WID;
+                // Typedefs
+                typedef struct packed {
+                    logic [INC_WID-1:0] inc;
+                    logic [SEQ_WID-1:0] seq;
+                } __update_t;
+                // Signals
+                __update_t __update;
+                logic [SEQ_WID-1:0] exp_seq;
+                int signed __seq_delta;
+                // State update logic
+                assign __update = update;
+                assign exp_seq = prev_state;
+                assign __seq_delta = __update.seq - exp_seq;
                 always_comb begin
-                    if (init)                                   next_state__datapath = STATE_T'(update);
-                    else if (STATE_T'(update) - prev_state > 0) next_state__datapath = STATE_T'(update);
-                    else                                        next_state__datapath = prev_state;
+                    if (init)                  next_state__datapath = __update.seq + __update.inc;
+                    else if (__seq_delta >= 0) next_state__datapath = __update.seq + __update.inc;
+                    else                       next_state__datapath = prev_state;
                 end
             end
             default : begin
                 assign next_state__datapath = prev_state;
-            end : g__default
+            end
         endcase
     endgenerate
 
