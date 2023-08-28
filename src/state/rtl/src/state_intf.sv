@@ -215,7 +215,7 @@ module state_intf_source_term (
     state_intf.source state_if
 );
     assign state_if.req = 1'b0;
-    assign state_if.ctxt = '0;
+    assign state_if.ctxt = state_pkg::UPDATE_CTXT_NOP;
     assign state_if.id = '0;
     assign state_if.init = 1'b0;
     assign state_if.update = '0;
