@@ -80,9 +80,16 @@ class state_element_model #(
                 else      __next_state = __prev_state + __update;
             end
             ELEMENT_TYPE_SEQ : begin
-                if (init)                              __next_state = __update;
-                else if (__update - __prev_state > 0 ) __next_state = __update;
-                else                                   __next_state = __prev_state;
+                STATE_T exp_seq;
+                STATE_T new_seq;
+                STATE_T got_seq;
+                got_seq = __update & (2**__SPEC.STATE_WID-1);
+                new_seq = got_seq + (update >> __SPEC.STATE_WID);
+                exp_seq = __prev_state;
+                if (init) __next_state = new_seq;
+                else if ($signed(got_seq - exp_seq) > 0) __next_state = new_seq;
+                else if ($signed(got_seq - exp_seq) < 0) __next_state = exp_seq;
+                else                                     __next_state = new_seq;
             end
             default : __next_state = __prev_state;
         endcase

@@ -85,16 +85,16 @@ package state_pkg;
     // -----------------------------
     function automatic string getElementTypeString(input element_type_t TYPE);
         case (TYPE)
-            ELEMENT_TYPE_READ         : return "read";
-            ELEMENT_TYPE_WRITE        : return "write";
-            ELEMENT_TYPE_WRITE_IF_ZERO: return "write_if_zero";
-            ELEMENT_TYPE_WRITE_N_TIMES: return "write_N_times";
-            ELEMENT_TYPE_FLAGS        : return "flags";
-            ELEMENT_TYPE_COUNTER      : return "counter";
-            ELEMENT_TYPE_COUNTER_COND : return "counter_cond";
-            ELEMENT_TYPE_COUNT        : return "count";
-            ELEMENT_TYPE_SEQ          : return "seq";
-            default                   : return "unspecified";
+            ELEMENT_TYPE_READ          : return "read";
+            ELEMENT_TYPE_WRITE         : return "write";
+            ELEMENT_TYPE_WRITE_IF_ZERO : return "write_if_zero";
+            ELEMENT_TYPE_WRITE_N_TIMES : return "write_N_times";
+            ELEMENT_TYPE_FLAGS         : return "flags";
+            ELEMENT_TYPE_COUNTER       : return "counter";
+            ELEMENT_TYPE_COUNTER_COND  : return "counter_cond";
+            ELEMENT_TYPE_COUNT         : return "count";
+            ELEMENT_TYPE_SEQ           : return "seq";
+            default                    : return "unspecified";
         endcase
     endfunction
 
@@ -136,18 +136,18 @@ package state_pkg;
         return offset;
     endfunction
 
-    // -----------------------------
+    // -------------------------------------
     // Parameterized classes (functions)
-    // -----------------------------
+    // -------------------------------------
     virtual class State#(type ID_T=bit[7:0]);
         static function int numIDs();
             return 2**$bits(ID_T);
         endfunction
     endclass
 
-    // -----------------------------
+    // -------------------------------------
     // Standard state element definitions
-    // -----------------------------
+    // -------------------------------------
     localparam element_t ELEMENT_CONTROL_FLAG = '{
         TYPE : ELEMENT_TYPE_READ,
         STATE_WID : 1,

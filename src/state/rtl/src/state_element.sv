@@ -30,17 +30,20 @@ module state_element
     // Parameter checking
     // -----------------------------
     initial begin
+        std_pkg::param_check_gt(SPEC.STATE_WID, 0, "STATE_WID", $sformatf("State width must be greater than 0."));
         case (SPEC.TYPE)
             ELEMENT_TYPE_FLAGS,
             ELEMENT_TYPE_WRITE,
-            ELEMENT_TYPE_WRITE_IF_ZERO,
-            ELEMENT_TYPE_SEQ : std_pkg::param_check(SPEC.UPDATE_WID, SPEC.STATE_WID, "UPDATE_WID", $sformatf("State and update widths must be equal for element type '%s'.", getElementTypeString(SPEC.TYPE)));
+            ELEMENT_TYPE_WRITE_IF_ZERO : std_pkg::param_check(SPEC.UPDATE_WID, SPEC.STATE_WID, "UPDATE_WID", $sformatf("State and update widths must be equal for element type '%s'.", getElementTypeString(SPEC.TYPE)));
             ELEMENT_TYPE_WRITE_N_TIMES : begin
                 std_pkg::param_check(SPEC.UPDATE_WID, SPEC.STATE_WID, "UPDATE_WID", $sformatf("State and update widths must be equal for element type '%s'.", getElementTypeString(SPEC.TYPE)));
                 std_pkg::param_check_gt(SPEC.STATE_WID, 5, "STATE_WID", $sformatf("State width must be at least 5 bits for element type '%s'.", getElementTypeString(SPEC.TYPE)));
             end
-            ELEMENT_TYPE_COUNTER      : std_pkg::param_check(SPEC.UPDATE_WID, 0,              "UPDATE_WID", "Counter has no update vector, i.e. UPDATE_WID must be zero.");
-            ELEMENT_TYPE_COUNTER_COND : std_pkg::param_check(SPEC.UPDATE_WID, 1,              "UPDATE_WID", "Conditional counter requires 1-bit update vector.");
+            ELEMENT_TYPE_COUNTER      : std_pkg::param_check(SPEC.UPDATE_WID, 0, "UPDATE_WID", "Counter has no update vector, i.e. UPDATE_WID must be zero.");
+            ELEMENT_TYPE_COUNTER_COND : std_pkg::param_check(SPEC.UPDATE_WID, 1, "UPDATE_WID", "Conditional counter requires 1-bit update vector.");
+            ELEMENT_TYPE_SEQ : begin
+                std_pkg::param_check_gt(SPEC.UPDATE_WID, SPEC.STATE_WID, "UPDATE_WID", $sformatf("Update width must be greater than state width (by size of increment) for element type '%s'.", getElementTypeString(SPEC.TYPE)));
+            end
         endcase
     end
 
@@ -54,55 +57,103 @@ module state_element
     // -----------------------------
     // Datapath state update
     // -----------------------------
-    always_comb begin
-        next_state__datapath = prev_state;
-        if (en) begin
-            case (SPEC.TYPE)
-                ELEMENT_TYPE_WRITE : begin
+    generate
+        case (SPEC.TYPE)
+            ELEMENT_TYPE_READ : begin
+                assign next_state__datapath = prev_state;
+            end
+            ELEMENT_TYPE_WRITE : begin
+                always_comb begin
                     next_state__datapath = STATE_T'(update);
                 end
-                ELEMENT_TYPE_WRITE_IF_ZERO: begin
+            end
+            ELEMENT_TYPE_WRITE_IF_ZERO: begin
+                always_comb begin
+                    next_state__datapath = prev_state;
                     if (init)                  next_state__datapath = STATE_T'(update);
                     else if (prev_state == '0) next_state__datapath = STATE_T'(update);
                 end
-                ELEMENT_TYPE_WRITE_N_TIMES: begin
+            end
+            ELEMENT_TYPE_WRITE_N_TIMES: begin
+                // (Type-specific) parameters
+                localparam int VALUE_WID = SPEC.STATE_WID - 4;
+                // (Type-specific) typedefs
+                typedef struct packed {
+                    logic [VALUE_WID-1:0] value;
+                    logic [3:0]           cnt;
+                } entry_t;
+                // Signals
+                entry_t __update;
+                entry_t __prev_state;
+                entry_t __next_state;
+                // State update logic
+                assign __update = update;
+                assign __prev_state = prev_state;
+                always_comb begin
+                    __next_state = __prev_state;
                     if (init) begin
-                        if ((update & 4'hF) > 0)                        next_state__datapath = update;
-                        else                                            next_state__datapath = '0;
-                    end else if ((prev_state & 4'hF) < (update & 4'hF)) next_state__datapath = update;
-                    else                                                next_state__datapath = prev_state;
-                    next_state__datapath = (next_state__datapath >> 4) << 4;
-                    if (init)                             next_state__datapath |= 1;
-                    else if ((prev_state & 4'hF) < 4'd15) next_state__datapath |= (prev_state & 4'hF) + 1;
-                    else                                  next_state__datapath |= 4'd15;
+                        __next_state.cnt = 1;
+                        if (__update.cnt > 0)  __next_state.value = __update.value;
+                        else                   __next_state.value = '0;
+                    end else begin
+                        if (__prev_state.cnt < __update.cnt) __next_state.value = __update.value;
+                        if (__prev_state.cnt < 15) __next_state.cnt = __prev_state.cnt + 1;
+                    end
                 end
-                ELEMENT_TYPE_FLAGS : begin
+                assign next_state__datapath = __next_state;
+            end
+            ELEMENT_TYPE_FLAGS : begin
+                always_comb begin
                     if (init) next_state__datapath = STATE_T'(update);
                     else      next_state__datapath = prev_state | STATE_T'(update);
                 end
-                ELEMENT_TYPE_COUNTER : begin
+            end
+            ELEMENT_TYPE_COUNTER : begin
+                always_comb begin
                     if (init) next_state__datapath = 1;
                     else      next_state__datapath = prev_state + 1;
                 end
-                ELEMENT_TYPE_COUNTER_COND : begin
+            end
+            ELEMENT_TYPE_COUNTER_COND : begin
+                always_comb begin
                     if (init) next_state__datapath = {'0, update[0]};
                     else      next_state__datapath = update[0] ? prev_state + 1 : prev_state;
                 end
-                ELEMENT_TYPE_COUNT : begin
+            end
+            ELEMENT_TYPE_COUNT : begin
+                always_comb begin
                     if (init) next_state__datapath = {'0, update};
                     else      next_state__datapath = prev_state + update;
                 end
-                ELEMENT_TYPE_SEQ : begin
-                    if (init)                                   next_state__datapath = STATE_T'(update);
-                    else if (STATE_T'(update) - prev_state > 0) next_state__datapath = STATE_T'(update);
-                    else                                        next_state__datapath = prev_state;
+            end
+            ELEMENT_TYPE_SEQ : begin
+                // Parameters
+                localparam int SEQ_WID = SPEC.STATE_WID;
+                localparam int INC_WID = SPEC.UPDATE_WID - SPEC.STATE_WID;
+                // Typedefs
+                typedef struct packed {
+                    logic [INC_WID-1:0] inc;
+                    logic [SEQ_WID-1:0] seq;
+                } __update_t;
+                // Signals
+                __update_t __update;
+                logic [SEQ_WID-1:0] exp_seq;
+                int signed __seq_delta;
+                // State update logic
+                assign __update = update;
+                assign exp_seq = prev_state;
+                assign __seq_delta = __update.seq - exp_seq;
+                always_comb begin
+                    if (init)                  next_state__datapath = __update.seq + __update.inc;
+                    else if (__seq_delta >= 0) next_state__datapath = __update.seq + __update.inc;
+                    else                       next_state__datapath = prev_state;
                 end
-                default : begin
-                    next_state__datapath = prev_state;
-                end
-            endcase
-        end
-    end
+            end
+            default : begin
+                assign next_state__datapath = prev_state;
+            end
+        endcase
+    endgenerate
 
     // -----------------------------
     // Control state update
@@ -133,12 +184,14 @@ module state_element
     // -----------------------------
     always_comb begin
         next_state = prev_state;
-        case (ctxt)
-            UPDATE_CTXT_DATAPATH : next_state = next_state__datapath;
-            UPDATE_CTXT_CONTROL  : next_state = next_state__control;
-            UPDATE_CTXT_REAP     : next_state = next_state__reap;
-            default              : next_state = prev_state;
-        endcase
+        if (en) begin
+            case (ctxt)
+                UPDATE_CTXT_DATAPATH : next_state = next_state__datapath;
+                UPDATE_CTXT_CONTROL  : next_state = next_state__control;
+                UPDATE_CTXT_REAP     : next_state = next_state__reap;
+                default              : next_state = prev_state;
+            endcase
+        end
     end
    
     // -----------------------------

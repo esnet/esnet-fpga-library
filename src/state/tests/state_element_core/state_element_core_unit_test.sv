@@ -243,10 +243,3 @@ module state_element_core_count_unit_test;
     localparam state_pkg::element_t SPEC = '{state_pkg::ELEMENT_TYPE_COUNT,64,16,state_pkg::RETURN_MODE_PREV_STATE,state_pkg::REAP_MODE_CLEAR};
     `STATE_ELEMENT_UNIT_TEST(ID_T,SPEC);
 endmodule
-
-// SEQ
-module state_element_core_seq_unit_test;
-    localparam type ID_T = logic[11:0];
-    localparam state_pkg::element_t SPEC = '{state_pkg::ELEMENT_TYPE_SEQ,32,32,state_pkg::RETURN_MODE_PREV_STATE,state_pkg::REAP_MODE_PERSIST};
-    `STATE_ELEMENT_UNIT_TEST(ID_T,SPEC);
-endmodule
