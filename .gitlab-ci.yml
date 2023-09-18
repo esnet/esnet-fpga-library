@@ -34,6 +34,8 @@ rtl_sim:
     - grep 'PASSED.*suites passing' src/std/tests/regression/run_$SEED/sim.log
     - make -C src/sync/tests/regression SEED=$SEED
     - grep 'PASSED.*suites passing' src/sync/tests/regression/run_$SEED/sim.log
+    - make -C src/arb/tests/regression SEED=$SEED
+    - grep 'PASSED.*suites passing' src/arb/tests/regression/run_$SEED/sim.log
     - make -C src/mem/tests/regression SEED=$SEED
     - grep 'PASSED.*suites passing' src/mem/tests/regression/run_$SEED/sim.log
     - make -C src/reg/proxy/tests/regression SEED=$SEED
