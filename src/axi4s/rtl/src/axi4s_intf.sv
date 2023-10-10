@@ -86,6 +86,21 @@ interface axi4s_intf
         input  sop
     );
 
+    modport rx_async (
+        output aclk,
+        output aresetn,
+        input  tvalid,
+        output tready,
+        input  tdata,
+        input  tkeep,
+        input  tlast,
+        input  tid,
+        input  tdest,
+        input  tuser,
+        // Status
+        input  sop
+    );
+
     clocking cb_tx @(posedge aclk);
         default input #1step output #1step;
         output tdata, tkeep, tlast, tid, tdest, tuser;
