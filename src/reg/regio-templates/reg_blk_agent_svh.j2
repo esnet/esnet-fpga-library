@@ -29,7 +29,7 @@ class {{ blk.name_lower }}_reg_blk_agent #(
         reg_{{ reg.name_lower }} = {{ blk.name_lower }}_reg_pkg::reg_{{ reg.name_lower }}_t'(rd_data);
     endtask
   {% endif %}
-  {%- if reg.access in ["rw", "wr_evt"] %}
+  {%- if reg.access in ["rw", "wr_evt", "wo"] %}
     task write_{{ reg.name_lower }}({{ "input int array_idx, " if reg.count > 1}}input {{ blk.name_lower }}_reg_pkg::reg_{{ reg.name_lower }}_t reg_{{ reg.name_lower }});
         _write({{ blk.name_lower }}_reg_pkg::OFFSET_{{ reg.name_upper }}{{ "[array_idx]" if reg.count > 1}}, reg_{{ reg.name_lower }});
     endtask

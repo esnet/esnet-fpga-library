@@ -18,6 +18,15 @@ reg_rw #(reg_{{ reg.name_lower }}_t, INIT_{{ reg.name_upper }}) {{ reg.name_lowe
 );
 {%- endmacro -%}
 
+{#- Write-Only (wo) register instantiation -#}
+{%- macro reg_wo(reg) %}
+reg_wo #(reg_{{ reg.name_lower }}_t, INIT_{{ reg.name_upper }}) {{ reg.name_lower }}_reg (
+    .clk (reg_if.clk), .srst (reg_if.srst),
+    .wr (reg_if.wr), .wr_en (reg_if.wr_addr == OFFSET_{{ reg.name_upper }}{{ "[i]" if reg.count > 1 }}), .wr_data (reg_if.wr_data), .wr_byte_en (reg_if.wr_byte_en),
+    .wr_evt (reg_blk_if.{{ reg.name_lower }}_wr_evt{{ "[i]" if reg.count > 1 }})
+);
+{%- endmacro -%}
+
 {#- Write Event (wr_evt) register instantiation -#}
 {%- macro reg_wr_evt(reg) %}
 reg_wr_evt #(reg_{{ reg.name_lower }}_t, INIT_{{ reg.name_upper }}) {{ reg.name_lower }}_reg (
@@ -81,6 +90,7 @@ generate
   {%- endif -%}
   {%- if   reg.access == "ro"     -%} {{ reg_ro(reg)|indent(indent_width) }}
   {%- elif reg.access == "rw"     -%} {{ reg_rw(reg)|indent(indent_width) }}
+  {%- elif reg.access == "wo"     -%} {{ reg_wo(reg)|indent(indent_width) }}
   {%- elif reg.access == "wr_evt" -%} {{ reg_wr_evt(reg)|indent(indent_width) }}
   {%- elif reg.access == "rd_evt" -%} {{ reg_rd_evt(reg)|indent(indent_width) }}
   {%- endif -%}
@@ -168,7 +178,7 @@ end
 always_ff @(posedge reg_if.clk) begin
     case (reg_if.rd_addr)
 {%-  for reg in blk.regs: %}
-  {%- if reg.access == "none" %}
+  {%- if reg.access == "none" or reg.access == "wo" %}
     {%- continue %}
   {%- endif %}
   {%- if reg.count > 1 %}
