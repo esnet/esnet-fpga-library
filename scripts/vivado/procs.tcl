@@ -112,23 +112,34 @@ namespace eval vivadoProcs {
             set flattenArg ""
         }
 
-        # Run design phase
-        # -----------------------------------------------
-        eval ${phase}_design $topArg $modeArg $flattenArg
+        if {$phase == "bitstream"} {
+            write_bitstream -force $out_dir/$top.bit
+        } elseif {$phase == "mcs"} {
+            write_cfgmem -format mcs -size 128 -interface SPIx4 -loadbit "up 0x1002000 $out_dir/$top.bit" -file "$out_dir/$top.mcs"
+        } else {
+            # Run design phase
+            # -----------------------------------------------
+            if {$phase == "place_opt" || $phase == "route_opt"} {
+                set phase_name "phys_opt"
+            } else {
+                set phase_name $phase
+            }
+            eval ${phase_name}_design $topArg $modeArg $flattenArg
 
-        # Mark as OOC as appropriate
-        if ${ooc} {
-            set_property HD.PARTITION 1 [current_design]
+            # Mark as OOC as appropriate
+            if ${ooc} {
+                set_property HD.PARTITION 1 [current_design]
+            }
+
+            # Remove all 'macro' placement contraints (in order avoid conflicts with downstream pblock constraints).
+            if {[llength [get_macros]]} {delete_macros [get_macros]}
+
+            # Write DCP
+            write_checkpoint -force $out_dir/$top.$phase.dcp
+
+            # Write reports
+            run_reports $top.$phase $out_dir
         }
-
-        # Remove all 'macro' placement contraints (in order avoid conflicts with downstream pblock constraints).
-        if {[llength [get_macros]]} {delete_macros [get_macros]}
-
-        # Write DCP
-        write_checkpoint -force $out_dir/$top.$phase.dcp
-
-        # Write reports
-        run_reports $top.$phase $out_dir
     }
 
     proc __run_phase_incremental {phase top ooc out_dir} {
@@ -143,11 +154,17 @@ namespace eval vivadoProcs {
             place {
                 read_checkpoint $out_dir/$top.opt.dcp
             }
-            phys_opt {
+            place_opt {
                 read_checkpoint $out_dir/$top.place.dcp
             }
             route {
-                read_checkpoint $out_dir/$top.phys_opt.dcp
+                read_checkpoint $out_dir/$top.place_opt.dcp
+            }
+            route_opt {
+                read_checkpoint $out_dir/$top.route.dcp
+            }
+            bitstream {
+                read_checkpoint $out_dir/$top.route_opt.dcp
             }
         }
 
