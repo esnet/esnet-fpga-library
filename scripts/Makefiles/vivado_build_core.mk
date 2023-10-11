@@ -7,7 +7,7 @@
 #        - PROJ_ROOT: path to project root directory
 #        - SCRIPTS_ROOT: path to project scripts directory
 #        - TOP: name of top-level module to build
-#        - OUT_DIR: path to build output files
+#        - BUILD_OUTPUT_DIR: path to build output files
 
 # -----------------------------------------------
 # Include base Vivado build Make instructions
@@ -16,9 +16,9 @@ include $(SCRIPTS_ROOT)/Makefiles/vivado_build_base.mk
 
 # Export Make variables for use in Tcl scripts
 export TOP
-export OUT_DIR ?= $(COMPONENT_OUT_PATH)
+export BUILD_OUTPUT_DIR ?= $(COMPONENT_OUT_PATH)
 
-VIVADO_LOG_DIR = $(OUT_DIR)
+VIVADO_LOG_DIR = $(BUILD_OUTPUT_DIR)
 
 # -----------------------------------------------
 # Command
@@ -29,34 +29,34 @@ VIVADO_CMD = $(VIVADO_CMD_BASE_NO_LOG) -source $(VIVADO_SCRIPTS_ROOT)/build_ooc.
 # Targets
 # -----------------------------------------------
 
-_synth:    $(OUT_DIR)/$(TOP).synth.dcp
-_opt:      $(OUT_DIR)/$(TOP).opt.dcp
-_place:    $(OUT_DIR)/$(TOP).place.dcp
-_phys_opt: $(OUT_DIR)/$(TOP).phys_opt.dcp
-_route:    $(OUT_DIR)/$(TOP).route.dcp
+_synth:    $(BUILD_OUTPUT_DIR)/$(TOP).synth.dcp
+_opt:      $(BUILD_OUTPUT_DIR)/$(TOP).opt.dcp
+_place:    $(BUILD_OUTPUT_DIR)/$(TOP).place.dcp
+_phys_opt: $(BUILD_OUTPUT_DIR)/$(TOP).phys_opt.dcp
+_route:    $(BUILD_OUTPUT_DIR)/$(TOP).route.dcp
 .PHONY: _synth _opt _place _phys_opt _route
 
-$(OUT_DIR):
-	@mkdir $(OUT_DIR)
+$(BUILD_OUTPUT_DIR):
+	@mkdir $(BUILD_OUTPUT_DIR)
 
 _clean_build: _clean_logs
-	@rm -rf $(OUT_DIR)
+	@rm -rf $(BUILD_OUTPUT_DIR)
 
 # pre_synth hook to be described in 'parent' Makefile
 # (can be used to trigger regmap or IP generation before launching synthesis)
-$(OUT_DIR)/$(TOP).synth.dcp: $(OUT_DIR) pre_synth
-	$(VIVADO_CMD) -log $(OUT_DIR)/$(TOP).synth.log -tclargs synth 0
+$(BUILD_OUTPUT_DIR)/$(TOP).synth.dcp: $(BUILD_OUTPUT_DIR) pre_synth
+	$(VIVADO_CMD) -log $(BUILD_OUTPUT_DIR)/$(TOP).synth.log -tclargs synth 0
 
-$(OUT_DIR)/$(TOP).opt.dcp: $(OUT_DIR)/$(TOP).synth.dcp
-	$(VIVADO_CMD) -log $(OUT_DIR)/$(TOP).opt.log -tclargs opt 1
+$(BUILD_OUTPUT_DIR)/$(TOP).opt.dcp: $(BUILD_OUTPUT_DIR)/$(TOP).synth.dcp
+	$(VIVADO_CMD) -log $(BUILD_OUTPUT_DIR)/$(TOP).opt.log -tclargs opt 1
 
-$(OUT_DIR)/$(TOP).place.dcp: $(OUT_DIR)/$(TOP).opt.dcp
-	$(VIVADO_CMD) -log $(OUT_DIR)/$(TOP).place.log -tclargs place 1
+$(BUILD_OUTPUT_DIR)/$(TOP).place.dcp: $(BUILD_OUTPUT_DIR)/$(TOP).opt.dcp
+	$(VIVADO_CMD) -log $(BUILD_OUTPUT_DIR)/$(TOP).place.log -tclargs place 1
 
-$(OUT_DIR)/$(TOP).phys_opt.dcp: $(OUT_DIR)/$(TOP).place.dcp
-	$(VIVADO_CMD) -log $(OUT_DIR)/$(TOP).phys_opt.log -tclargs phys_opt 1
+$(BUILD_OUTPUT_DIR)/$(TOP).phys_opt.dcp: $(BUILD_OUTPUT_DIR)/$(TOP).place.dcp
+	$(VIVADO_CMD) -log $(BUILD_OUTPUT_DIR)/$(TOP).phys_opt.log -tclargs phys_opt 1
 
-$(OUT_DIR)/$(TOP).route.dcp: $(OUT_DIR)/$(TOP).phys_opt.dcp
-	$(VIVADO_CMD) -log $(OUT_DIR)/$(TOP).route.log -tclargs route 1
+$(BUILD_OUTPUT_DIR)/$(TOP).route.dcp: $(BUILD_OUTPUT_DIR)/$(TOP).phys_opt.dcp
+	$(VIVADO_CMD) -log $(BUILD_OUTPUT_DIR)/$(TOP).route.log -tclargs route 1
 
 

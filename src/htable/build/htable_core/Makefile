@@ -22,7 +22,7 @@ TOP = htable_core_wrapper
 # -----------------------------------------------
 # (Local) Paths
 # -----------------------------------------------
-OUT_DIR=out
+BUILD_OUTPUT_DIR=out
 
 # -----------------------------------------------
 # Regmap YAML definitions

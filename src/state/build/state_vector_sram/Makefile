@@ -22,7 +22,7 @@ TOP = state_vector_sram_wrapper
 # -----------------------------------------------
 # (Local) Paths
 # -----------------------------------------------
-OUT_DIR=out
+BUILD_OUTPUT_DIR=out
 
 # -----------------------------------------------
 # Regmap YAML definitions

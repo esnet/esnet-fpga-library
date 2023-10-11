@@ -19,8 +19,8 @@ if {$argc > 1} {
 set top $env(TOP)
 
 # Set output directory (if none is set, set to 'out')
-if {[info exists env(OUT_DIR)]} {
-    set out_dir $env(OUT_DIR)
+if {[info exists env(BUILD_OUTPUT_DIR)]} {
+    set out_dir $env(BUILD_OUTPUT_DIR)
 } else {
     set out_dir out
 }
