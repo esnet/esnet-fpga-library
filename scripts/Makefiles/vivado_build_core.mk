@@ -28,13 +28,9 @@ VIVADO_CMD = $(VIVADO_CMD_BASE_NO_LOG) -source $(VIVADO_SCRIPTS_ROOT)/build_ooc.
 # -----------------------------------------------
 # Targets
 # -----------------------------------------------
-
 _synth:    $(BUILD_OUTPUT_DIR)/$(TOP).synth.dcp
 _opt:      $(BUILD_OUTPUT_DIR)/$(TOP).opt.dcp
-_place:    $(BUILD_OUTPUT_DIR)/$(TOP).place.dcp
-_phys_opt: $(BUILD_OUTPUT_DIR)/$(TOP).phys_opt.dcp
-_route:    $(BUILD_OUTPUT_DIR)/$(TOP).route.dcp
-.PHONY: _synth _opt _place _phys_opt _route
+.PHONY: _synth _opt
 
 $(BUILD_OUTPUT_DIR):
 	@mkdir $(BUILD_OUTPUT_DIR)
@@ -52,11 +48,3 @@ $(BUILD_OUTPUT_DIR)/$(TOP).opt.dcp: $(BUILD_OUTPUT_DIR)/$(TOP).synth.dcp
 
 $(BUILD_OUTPUT_DIR)/$(TOP).place.dcp: $(BUILD_OUTPUT_DIR)/$(TOP).opt.dcp
 	$(VIVADO_CMD) -log $(BUILD_OUTPUT_DIR)/$(TOP).place.log -tclargs place 1
-
-$(BUILD_OUTPUT_DIR)/$(TOP).phys_opt.dcp: $(BUILD_OUTPUT_DIR)/$(TOP).place.dcp
-	$(VIVADO_CMD) -log $(BUILD_OUTPUT_DIR)/$(TOP).phys_opt.log -tclargs phys_opt 1
-
-$(BUILD_OUTPUT_DIR)/$(TOP).route.dcp: $(BUILD_OUTPUT_DIR)/$(TOP).phys_opt.dcp
-	$(VIVADO_CMD) -log $(BUILD_OUTPUT_DIR)/$(TOP).route.log -tclargs route 1
-
-
