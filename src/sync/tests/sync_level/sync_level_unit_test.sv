@@ -209,6 +209,7 @@ module sync_level_unit_test;
 
     task wait_for_sync();
         @(posedge clk_in);
+        @(posedge clk_in);
         repeat (sync_pkg::RETIMING_STAGES+1) @(posedge clk_out);
         @(posedge clk_out);
         @(posedge clk_out);
