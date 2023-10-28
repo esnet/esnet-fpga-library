@@ -43,6 +43,8 @@ REGIO_VERIF_INC_OUTPUT_DIR := $(REGIO_VERIF_OUTPUT_DIR)/include
 REGIO_VERIF_HEADERS_OUTPUT_DIR = $(REGIO_VERIF_INC_OUTPUT_DIR)
 REGIO_VERIF_PACKAGE_OUTPUT_DIR = $(REGIO_VERIF_SRC_OUTPUT_DIR)
 
+REGIO_IR_OUTPUT_DIR = $(COMPONENT_OUT_PATH)/ir
+
 # ----------------------------------------------------
 # Sim objects
 # ----------------------------------------------------
@@ -54,6 +56,7 @@ REGIO_VERIF_SIM_OBJ = $(REGIO_VERIF_OUTPUT_DIR)/$(SIMLIB_DIRNAME)/$(COMPONENT_NA
 # ----------------------------------------------------
 REG_BLOCK_YAML ?=
 REG_DECODER_YAML ?=
+REG_TOP_YAML ?=
 
 REG_BLOCK_OBJS = $(REG_BLOCK_YAML:%.yaml=$(REGIO_RTL_SRC_OUTPUT_DIR)/%_reg_blk.sv)
 REG_BLOCK_PKGS = $(REG_BLOCK_YAML:%.yaml=$(REGIO_RTL_SRC_OUTPUT_DIR)/%_reg_pkg.sv)
@@ -62,6 +65,10 @@ REG_DECODER_OBJS = $(REG_DECODER_YAML:%.yaml=$(REGIO_RTL_SRC_OUTPUT_DIR)/%.sv)
 REG_VERIF_HEADER_OBJS = $(REG_BLOCK_YAML:%.yaml=$(REGIO_VERIF_HEADERS_OUTPUT_DIR)/%_reg_blk_agent.svh)
 REG_VERIF_PACKAGE_OBJ = $(REGIO_VERIF_PACKAGE_OUTPUT_DIR)/$(__COMPONENT_BASE_NAME)_reg_verif_pkg.sv
 
+REG_BLOCK_IR_OBJS = $(REG_BLOCK_YAML:%.yaml=$(REGIO_IR_OUTPUT_DIR)/%-ir.yaml)
+REG_DECODER_IR_OBJS = $(REG_DECODER_YAML:%.yaml=$(REGIO_IR_OUTPUT_DIR)/%-ir.yaml)
+REG_TOP_IR_OBJS = $(REG_TOP_YAML:%.yaml=$(REGIO_IR_OUTPUT_DIR)/%-ir.yaml)
+
 # ----------------------------------------------------
 # Options
 # ----------------------------------------------------
@@ -69,6 +76,7 @@ REG_VERIF_PACKAGE_OBJ = $(REGIO_VERIF_PACKAGE_OUTPUT_DIR)/$(__COMPONENT_BASE_NAM
 REGIO_ELABORATE_DEFAULT_OPTS = -i $(REGIO_YAML_INC_DIR)
 REGIO_GENERATE_SRC_DEFAULT_OPTS =  -t $(REGIO_TEMPLATES_DIR) -o $(REGIO_RTL_SRC_OUTPUT_DIR) -g sv
 REGIO_GENERATE_HEADERS_DEFAULT_OPTS = -t $(REGIO_TEMPLATES_DIR) -o $(REGIO_VERIF_OUTPUT_DIR)/include -g svh -p $(__COMPONENT_BASE_NAME)_
+REGIO_FLATTEN_DEFAULT_OPTS = -i $(REGIO_YAML_INC_DIR)
 
 # (from parent Makefile)
 REGIO_ELABORATE_OPTS ?=
@@ -80,11 +88,14 @@ REGIO_GENERATE_OPTS ?=
 REGIO_ELABORATE_CMD := $(REGIO_ROOT)/regio-elaborate $(REGIO_ELABORATE_DEFAULT_OPTS) $(REGIO_ELABORATE_OPTS)
 REGIO_GENERATE_SRC_CMD := $(REGIO_ROOT)/regio-generate $(REGIO_GENERATE_SRC_DEFAULT_OPTS) $(REGIO_GENERATE_OPTS)
 REGIO_GENERATE_HEADERS_CMD := $(REGIO_ROOT)/regio-generate $(REGIO_GENERATE_HEADERS_DEFAULT_OPTS) $(REGIO_GENERATE_OPTS)
+REGIO_FLATTEN_CMD = $(REGIO_ROOT)/regio-flatten $(REGIO_FLATTEN_DEFAULT_OPTS)
 
 # ----------------------------------------------------
 # Targets
 # ----------------------------------------------------
-_reg: _reg_rtl _reg_verif
+_reg: _reg_ir _reg_rtl _reg_verif
+
+_reg_ir: $(REG_BLOCK_IR_OBJS) $(REG_DECODER_IR_OBJS) $(REG_TOP_IR_OBJS)
 
 _reg_rtl: $(REG_BLOCK_OBJS) $(REG_DECODER_OBJS)
 
@@ -124,7 +135,12 @@ $(REG_VERIF_PACKAGE_OBJ): $(REG_VERIF_HEADER_OBJS) | $(REGIO_VERIF_PACKAGE_OUTPU
 	@echo "endpackage : $(__COMPONENT_BASE_NAME)_reg_verif_pkg" >> $(REG_VERIF_PACKAGE_OBJ)
 	@echo "Done."
 
-.PHONY: _reg _reg_rtl _reg_verif _reg_clean
+$(REGIO_IR_OUTPUT_DIR)/%-ir.yaml: %.yaml | $(REGIO_IR_OUTPUT_DIR)
+	@echo -n "Generating (flattened) IR for: $< ... "
+	@$(REGIO_FLATTEN_CMD) -o $@ $<
+	@echo "Done."
+
+.PHONY: _reg _reg_rtl _reg_verif _reg_ir _reg_clean
 
 $(REGIO_IP_ROOT)/config.mk:
 	@mkdir -p $(REGIO_IP_ROOT)
@@ -155,6 +171,9 @@ $(REGIO_VERIF_HEADERS_OUTPUT_DIR): | $(REGIO_VERIF_OUTPUT_DIR)
 
 $(REGIO_VERIF_PACKAGE_OUTPUT_DIR): | $(REGIO_VERIF_OUTPUT_DIR)
 	@mkdir -p $(REGIO_VERIF_PACKAGE_OUTPUT_DIR)
+
+$(REGIO_IR_OUTPUT_DIR):
+	@mkdir -p $@
 
 _compile: $(REGIO_RTL_SIM_OBJ) $(REGIO_VERIF_SIM_OBJ)
 
