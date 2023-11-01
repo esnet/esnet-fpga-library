@@ -52,5 +52,5 @@ if {!$incremental} {
     }
 }
 puts "Executing ${phase}_design..."
-vivadoProcs::run_phase $phase $top $incremental 1 $out_dir
+vivadoProcs::run_phase $phase $top $incremental 0 $out_dir
 

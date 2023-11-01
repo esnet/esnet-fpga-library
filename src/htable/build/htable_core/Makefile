@@ -22,7 +22,7 @@ TOP = htable_core_wrapper
 # -----------------------------------------------
 # (Local) Paths
 # -----------------------------------------------
-OUT_DIR=out
+BUILD_OUTPUT_DIR=out
 
 # -----------------------------------------------
 # Regmap YAML definitions
@@ -46,10 +46,7 @@ all: opt
 pre_synth: _reg_rtl
 synth:     _synth
 opt:       _opt
-place:     _place
-phys_opt:  _phys_opt
-route:     _route
-.PHONY: pre_synth synth opt place phys_opt route
+.PHONY: pre_synth synth opt
 
 clean: _clean_reg _clean_build
 .PHONY: clean
