@@ -112,13 +112,13 @@ $(COMPONENT_OUT_PATH)/.ip__%__drv_dpi: $(COMPONENT_OUT_PATH)/.ip__%
 	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_IP_CMD) -tclargs drv_dpi $*/$*.xci
 	@touch $@
 
-$(COMPONENT_OUT_PATH)/.ip__%__generated: $(IP_OUTPUT_PRODUCTS)
+$(COMPONENT_OUT_PATH)/.ip__%__generated: $(COMPONENT_OUT_PATH)/.ip__%
 	@rm -f $@
 	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_IP_CMD) -tclargs reset $*/$*.xci
 	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_IP_CMD) -tclargs generate $*/$*.xci
 	@touch $@
 
-$(COMPONENT_OUT_PATH)/.ip__%__synth : $(COMPONENT_OUT_PATH)/.ip__%
+$(COMPONENT_OUT_PATH)/.ip__%__synth : $(COMPONENT_OUT_PATH)/.ip__%__generated
 	@rm -f $@
 	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_IP_CMD) -tclargs synth $*/$*.xci
 	@touch $@
@@ -145,7 +145,7 @@ _ip_upgrade: _ip_create
 # Synthesize IP
 _ip_synth: $(IP_SYNTH_PRODUCTS)
 
-.PHONY: _ip_create _ip_generate _ip_status _ip_upgrade _ip_synth
+.PHONY: _ip_create _ip_generate _ip_reset _ip_status _ip_upgrade _ip_synth
 
 # Clean
 #   - remove all output products
