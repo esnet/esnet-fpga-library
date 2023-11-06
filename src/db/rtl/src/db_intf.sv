@@ -317,7 +317,7 @@ endmodule
 // - can mux either read interfaces or write interfaces
 //   by setting WR_RD_N parameter appropriately
 module db_intf_mux #(
-    parameter int NUM_IFS = 2,
+    parameter int  NUM_IFS = 2,
     parameter type KEY_T = logic[7:0],
     parameter type VALUE_T = logic[7:0],
     parameter int  NUM_TRANSACTIONS = 32,
@@ -455,37 +455,114 @@ module db_intf_2to1_mux #(
     db_intf.responder db_if_from_requester_1,
     db_intf.requester db_if_to_responder
 );
+    // Parameters
+    localparam int NUM_IFS = 2;
+
+    // Typedefs
+    typedef logic mux_sel_t;
+
+    // Signals
+    mux_sel_t __mux_sel;
+    mux_sel_t __demux_sel;
+
+    logic   db_if_from_requester_rdy      [NUM_IFS];
+    logic   db_if_from_requester_req      [NUM_IFS];
+    KEY_T   db_if_from_requester_key      [NUM_IFS];
+    logic   db_if_from_requester_next     [NUM_IFS];
+    logic   db_if_from_requester_ack      [NUM_IFS];
+    logic   db_if_from_requester_error    [NUM_IFS];
+
     // Interfaces
     db_intf #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) db_if_from_requester [2] (.clk(clk));
 
     db_intf_connector #(
         .WR_RD_N ( WR_RD_N )
-    ) i_db_intf_connector__hi_prio (
+    ) i_db_intf_connector__0 (
         .db_if_from_requester ( db_if_from_requester_0 ),
         .db_if_to_responder   ( db_if_from_requester[0] )
     );
 
     db_intf_connector #(
         .WR_RD_N ( WR_RD_N )
-    ) i_db_intf_connector__lo_prio (
+    ) i_db_intf_connector__1 (
         .db_if_from_requester ( db_if_from_requester_1 ),
         .db_if_to_responder   ( db_if_from_requester[1] )
     );
+    // Convert between array of signals and array of interfaces
+    for (genvar g_if = 0; g_if < NUM_IFS; g_if++) begin : g__if
+        assign db_if_from_requester[g_if].rdy   = db_if_from_requester_rdy[g_if];
+        assign db_if_from_requester[g_if].ack   = db_if_from_requester_ack[g_if];
+        assign db_if_from_requester[g_if].error = db_if_from_requester_error[g_if];
+        assign db_if_from_requester_req[g_if]  = db_if_from_requester[g_if].req;
+        assign db_if_from_requester_key[g_if]  = db_if_from_requester[g_if].key;
+        assign db_if_from_requester_next[g_if] = db_if_from_requester[g_if].next;
+        assign db_if_from_requester[g_if].next_key = db_if_to_responder.next_key;
+    end : g__if
 
-    // Mux
-    db_intf_mux          #(
-        .KEY_T            ( KEY_T ),
-        .VALUE_T          ( VALUE_T ),
-        .NUM_IFS          ( 2 ),
-        .NUM_TRANSACTIONS ( NUM_TRANSACTIONS ),
-        .WR_RD_N          ( WR_RD_N )
-    ) i_db_intf_mux (
-        .clk ( clk ),
-        .srst ( srst ),
-        .mux_sel ( {31'b0, mux_sel} ),
-        .db_if_from_requester ( db_if_from_requester ),
-        .db_if_to_responder ( db_if_to_responder )
+    // Mux requests
+    assign __mux_sel = mux_sel;
+
+    always_comb begin
+        db_if_to_responder.req  = db_if_from_requester_req [__mux_sel];
+        db_if_to_responder.key  = db_if_from_requester_key [__mux_sel];
+        db_if_to_responder.next = db_if_from_requester_next[__mux_sel];
+        for (int i = 0; i < NUM_IFS; i++) begin
+            if (i == __mux_sel) db_if_from_requester_rdy[i] = db_if_to_responder.rdy;
+            else                db_if_from_requester_rdy[i] = 1'b0;
+        end
+    end
+
+    // Maintain context for open transactions
+    fifo_small   #(
+        .DATA_T  ( mux_sel_t ),
+        .DEPTH   ( NUM_TRANSACTIONS )
+    ) i_fifo_small__ctxt (
+        .clk     ( clk ),
+        .srst    ( srst ),
+        .wr      ( db_if_to_responder.req && db_if_to_responder.rdy ),
+        .wr_data ( __mux_sel ),
+        .full    ( ),
+        .oflow   ( ),
+        .rd      ( db_if_to_responder.ack ),
+        .rd_data ( __demux_sel ),
+        .empty   ( ),
+        .uflow   ( )
     );
+
+    // Demux responses
+    always_comb begin
+        for (int i = 0; i < NUM_IFS; i++) begin
+            if (i == __demux_sel) begin
+                db_if_from_requester_ack[i] = db_if_to_responder.ack;
+                db_if_from_requester_error[i] = db_if_to_responder.error;
+            end else begin
+                db_if_from_requester_ack[i] = 1'b0;
+                db_if_from_requester_error[i] = 1'b0;
+            end
+        end
+    end
+
+    // Connect valid/value inout ports according to specified direction
+    if (WR_RD_N) begin : g__wr
+        // (Local) signals
+        logic   db_if_from_requester_valid [NUM_IFS];
+        VALUE_T db_if_from_requester_value [NUM_IFS];
+        // Convert between array of signals and array of interfaces
+        for (genvar g_if = 0; g_if < NUM_IFS; g_if++) begin : g__if
+            assign db_if_from_requester_valid[g_if] = db_if_from_requester[g_if].valid;
+            assign db_if_from_requester_value[g_if] = db_if_from_requester[g_if].value;
+        end : g__if
+        always_comb begin
+            db_if_to_responder.valid = db_if_from_requester_valid[__mux_sel];
+            db_if_to_responder.value = db_if_from_requester_value[__mux_sel];
+        end
+    end : g__wr
+    else begin : g__rd
+        for (genvar g_if = 0; g_if < NUM_IFS; g_if++) begin : g__if
+            assign db_if_from_requester[g_if].valid = db_if_to_responder.valid;
+            assign db_if_from_requester[g_if].value = db_if_to_responder.value;
+        end : g__if
+    end : g__rd
 
 endmodule : db_intf_2to1_mux
 
