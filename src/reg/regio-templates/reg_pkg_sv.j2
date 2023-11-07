@@ -1,3 +1,6 @@
+{#- Enumeration of SystemVerilog reserved keywords; when a register or field uses one of these keywords, the RTL representation will include a preceding "_". -#}
+{%- set SV_RESERVED_KEYWORDS=('var','bit','byte','int','ref','type','input','output','inout','inout','module','interface') -%}
+
 //------------------------------------------------------------------------------
 // Definitions package for {{ blk.name }} register block.
 //
@@ -48,7 +51,7 @@ package {{ blk.name_lower }}_reg_pkg;
 {%-   if reg.access != "none": %}
 {%-     for field in reg.fields: %}
 
-    // field: {{ reg.name_lower }}.{{ field.name_lower }}
+    // field: {{ reg.name_lower }}.{{ "_" if field.name_lower in SV_RESERVED_KEYWORDS }}{{ field.name_lower }}
     // description: {{ field.desc }}
 {%-       if field.enum_hex: %}
     typedef enum bit [{{ field.width - 1 }}:0] {
@@ -68,7 +71,7 @@ package {{ blk.name_lower }}_reg_pkg;
 {%-     if reg.fields: %}
     typedef struct packed {
 {%-       for field in reg.fields|reverse:  %}
-        fld_{{ reg.name_lower }}_{{ field.name_lower }}_t {{ field.name_lower }};
+        fld_{{ reg.name_lower }}_{{ field.name_lower }}_t {{ "_" if field.name_lower in SV_RESERVED_KEYWORDS }}{{ field.name_lower }};
 {%-       endfor %}
     } reg_{{ reg.name_lower }}_t;
 {%-     else: %}
@@ -80,8 +83,8 @@ package {{ blk.name_lower }}_reg_pkg;
     // -------------------------------------------------------------
     // Register initialization values
     // -------------------------------------------------------------
-{% for reg in blk.regs: -%}
-{%-   if reg.access != "none": %}
+{%- for reg in blk.regs: -%}
+{%-   if reg.access != "none": -%}
 {%-     if not 'fields' in reg: %}
     localparam reg_{{ reg.name_lower }}_t INIT_{{ reg.name_upper }} = {{ reg.width }}'h{{ "{:X}".format(reg.init) }};
 {%-     else %}
@@ -90,11 +93,11 @@ package {{ blk.name_lower }}_reg_pkg;
 {%-       endfor %}
     localparam reg_{{ reg.name_lower }}_t INIT_{{ reg.name_upper }} = '{
 {%-       for field in reg.fields|reverse: %}
-        {{ "{:25}".format(field.name_lower) }} : INIT_{{ reg.name_upper }}_{{ field.name_upper }}{{ ',' if not loop.last }}
+        {{ "{:25}".format('_' ~ field.name_lower if field.name_lower in SV_RESERVED_KEYWORDS else field.name_lower) }} : INIT_{{ reg.name_upper }}_{{ field.name_upper }}{{ ',' if not loop.last }}
 {%-       endfor %}
     };
 {%-     endif %}
-{%-   endif %}
+{%-   endif -%}
 {% endfor %}
 
 endpackage : {{ blk.name_lower }}_reg_pkg
