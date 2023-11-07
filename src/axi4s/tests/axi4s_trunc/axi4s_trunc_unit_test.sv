@@ -43,6 +43,18 @@ module axi4s_trunc_unit_test;
       .length    (length)
     );
 
+    // monitor for tdata==0 when tkeep==0
+    always @(negedge axi4s_out.aclk)  if (axi4s_out.tvalid && axi4s_out.tready)
+       for (int i=0; i<DATA_BYTE_WID; i++)
+          `FAIL_IF_LOG( ((axi4s_out.tkeep[i] == 1'b0) && (axi4s_out.tdata[i] != '0)),
+                        $sformatf("FAIL!!! tkeep=0 but packet bytes NOT zeroed at byte_idx: 0x%0h (d:%0d)", i, i) )
+
+    // monitor for zeroed axi4s signals when tvalid==0
+    always @(negedge axi4s_out.aclk)  if (!axi4s_out.tvalid)
+          `FAIL_IF_LOG( ((axi4s_out.tdata != '0) && (axi4s_out.tkeep != '0) && (axi4s_out.tlast != 1'b0) &&
+                         (axi4s_out.tid   != '0) && (axi4s_out.tdest != '0) && (axi4s_out.tuser != '0) ),
+                        $sformatf("FAIL!!! tvalid=0 but axi4s signals NOT all zeroes.") )
+
     //===================================
     // Import common testcase tasks
     //=================================== 
