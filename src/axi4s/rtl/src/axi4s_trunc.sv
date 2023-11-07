@@ -74,11 +74,12 @@ module axi4s_trunc
    assign axi4s_out.aclk    = axi4s_in.aclk;
    assign axi4s_out.aresetn = axi4s_in.aresetn;
    assign axi4s_out.tvalid  = axi4s_in.tvalid && trunc_select;
-   assign axi4s_out.tdata   = axi4s_in.tdata;
-   assign axi4s_out.tkeep   = axi4s_out.tlast ? trunc_tkeep(axi4s_in.tkeep, tkeep_length) : axi4s_in.tkeep;
-   assign axi4s_out.tdest   = axi4s_in.tdest;
-   assign axi4s_out.tid     = axi4s_in.tid;
-   assign axi4s_out.tlast   = axi4s_in.tlast || trunc_tlast;
-   assign axi4s_out.tuser   = axi4s_in.tuser;
+   assign axi4s_out.tkeep   = trunc_tlast ? trunc_tkeep(axi4s_in.tkeep, tkeep_length) : (axi4s_out.tvalid ? axi4s_in.tkeep : '0);
+   assign axi4s_out.tlast   = trunc_tlast || (axi4s_out.tvalid ? axi4s_in.tlast : 1'b0);
+   assign axi4s_out.tdest   = axi4s_out.tvalid ? axi4s_in.tdest : '0;
+   assign axi4s_out.tid     = axi4s_out.tvalid ? axi4s_in.tid   : '0;
+   assign axi4s_out.tuser   = axi4s_out.tvalid ? axi4s_in.tuser : '0;
+
+   always_comb for (int i=0; i<DATA_BYTE_WID; i++) axi4s_out.tdata[i] = axi4s_out.tkeep[i] ? axi4s_in.tdata[i] : '0;
 
 endmodule // axi4s_trunc
