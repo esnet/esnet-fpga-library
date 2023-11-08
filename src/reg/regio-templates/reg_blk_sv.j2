@@ -1,5 +1,7 @@
-{#- DEFINE MACROS -#}
+{#- Enumeration of SystemVerilog reserved keywords; when a register or field uses one of these keywords, the RTL representation will include a preceding "_". -#}
+{%- set SV_RESERVED_KEYWORDS=('var','bit','byte','int','ref','type','input','output','inout','inout','module','interface') -%}
 
+{#- DEFINE MACROS -#}
 {#- Read-Only (ro) register instantiation -#}
 {%- macro reg_ro(reg) %}
 reg_ro #(reg_{{ reg.name_lower }}_t, INIT_{{ reg.name_upper }}) {{ reg.name_lower }}_reg (
@@ -183,10 +185,10 @@ always_ff @(posedge reg_if.clk) begin
   {%- endif %}
   {%- if reg.count > 1 %}
     {%- for i in range(reg.count) %}
-        OFFSET_{{ "{:35}".format("{}[{}]".format(reg.name_upper,i) ~ ':') }} reg_if.rd_data <= reg_blk_if.{{ reg.name_lower }}[{{ i }}];
+        OFFSET_{{ "{:35}".format("{}[{}]".format(reg.name_upper,i) ~ ':') }} reg_if.rd_data <= reg_blk_if.{{ "_" if reg.name_lower in SV_RESERVED_KEYWORDS }}{{ reg.name_lower }}[{{ i }}];
     {%- endfor %}
   {%- else %}
-        OFFSET_{{ "{:35}".format(reg.name_upper ~ ':') }} reg_if.rd_data <= reg_blk_if.{{ reg.name_lower }};
+        OFFSET_{{ "{:35}".format(reg.name_upper ~ ':') }} reg_if.rd_data <= reg_blk_if.{{ "_" if reg.name_lower in SV_RESERVED_KEYWORDS }}{{ reg.name_lower }};
   {%- endif %}
 {%- endfor %}
         default{{ "{:35}".format(':') }} reg_if.rd_data <= reg_pkg::BAD_ACCESS_DATA;

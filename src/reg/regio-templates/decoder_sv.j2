@@ -7,7 +7,7 @@
 module {{ dec.name_lower }}_decoder (
     axi4l_intf.peripheral axil_if,
 {%- for intf in dec.interfaces: %}
-    axi4l_intf.controller {{ intf.name_lower }}_axil_if{{ ',' if not loop.last }}
+    axi4l_intf.controller {{ intf.name_lower }}{{ intf.suffix }}_axil_if{{ ',' if not loop.last }}
 {%- endfor %}
 );
 
@@ -18,7 +18,7 @@ module {{ dec.name_lower }}_decoder (
         .axi4l_client_if (
             '{
 {%- for intf in dec.interfaces: %}
-                {{ intf.name_lower }}_axil_if{{ ',' if not loop.last }}
+                {{ intf.name_lower }}{{ intf.suffix }}_axil_if{{ ',' if not loop.last }}
 {%- endfor %}
             }
         )
