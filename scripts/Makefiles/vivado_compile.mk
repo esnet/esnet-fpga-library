@@ -41,11 +41,24 @@ V_HDR_FILES = $(foreach incdir,$(COMPILE_INC_DIRS),$(wildcard $(incdir)/*.vh))
 
 # SystemVerilog
 SV_FILES = $(filter %.sv,$(COMPILE_SRC_FILES))
-SV_PKG_FILES = $(sort $(filter %pkg.sv,$(SV_FILES)))
-SV_NON_PKG_FILES = $(filter-out %pkg.sv,$(SV_FILES))
+# Identify header files (*.svh)
 SV_HDR_FILES = $(foreach incdir,$(COMPILE_INC_DIRS),$(wildcard $(incdir)/*.svh))
+# Separate source files containing package definitions (i.e. *_pkg.sv) from
+# regular source files; this allows packages to be compiled first
+SV_PKG_FILES = $(filter %_pkg.sv,$(SV_FILES))
+SV_NON_PKG_FILES = $(filter-out %_pkg.sv,$(SV_FILES))
+# Sort package files by filename (without path)
+# This is somewhat arbitrary and done mostly to ensure consistency in results:
+
+# For cases where package B requires package A, this works because A_pkg.sv is compiled first.
+# For cases where package A requires package B, this doesn't work because B_pkg.sv is compiled last.
+#
+# Obviously more control over the compile order would be beneficial in some cases.
+# However, since the general design pattern is to maintain a single package file
+# per source library, this is almost always sufficient.
+SV_PKG_FILES__SORTED = $(foreach pkgfile,$(sort $(join $(notdir $(addsuffix :,$(SV_PKG_FILES))),$(SV_PKG_FILES))),$(lastword $(subst :, ,$(pkgfile))))
 # Compile packages before regular source files
-SV_SRC_FILES = $(SV_PKG_FILES) $(SV_NON_PKG_FILES)
+SV_SRC_FILES = $(SV_PKG_FILES__SORTED) $(SV_NON_PKG_FILES)
 
 # Source dependencies
 SRCS = $(SV_SRC_FILES) $(V_SRC_FILES)
