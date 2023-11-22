@@ -1,7 +1,8 @@
 // Round-robin arbiter
-// (not work-conserving)
 module arb_rr
+    import arb_pkg::*;
 #(
+    parameter arb_rr_mode_t MODE = RR, // RR = Round-Robin, WCRR = Work-Conserving Round-Robin.
     parameter int N = 2
 ) (
     input  logic clk,
@@ -67,19 +68,16 @@ module arb_rr
 
     // Round-robin arbitration
     // - maintain arb state
-    initial _idx = 0;
-    always @(posedge clk) begin
-        if (reset_idx) _idx <= 0;
-        else if (en && inc_idx) begin
-            if (_idx >= N-1) _idx <= 0;
-            else             _idx <= _idx + 1;
-        end
-    end
-    // - choose next input
     always_comb begin
-        if (state == HOLD) sel = sel_r;
-        else sel = _idx;
+       if (reset_idx) _idx = 0;
+       else if (en && inc_idx && (req != '0)) begin
+          _idx = (sel_r >= N-1) ? 0 : sel_r + 1;
+          if (MODE == WCRR)
+             for (int i = 0; i < N-1; i++) if (req[_idx] != 1) _idx = (_idx >= N-1) ? 0 : _idx + 1;
+       end else _idx = sel_r;
     end
+
+    assign sel = _idx;
 
     // Synthesize grant vector based on arb decision
     always_comb begin
