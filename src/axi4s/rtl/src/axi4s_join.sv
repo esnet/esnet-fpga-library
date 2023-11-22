@@ -344,7 +344,7 @@ module axi4s_join
    assign stall_pipe = (state == B2B_HEADER);   
 
    // joined_mux instantiation - selects captured back-to-back header when pipeline is stalled (in B2B_HEADER state).
-   axi4s_intf_2_to_1_mux join_mux (.axi4s_in_if_0(joined), .axi4s_in_if_1(b2b_hdr), .axi4s_out_if(joined_mux), .mux_sel(stall_pipe));
+   axi4s_intf_2to1_mux join_mux (.axi4s_in_if_0(joined), .axi4s_in_if_1(b2b_hdr), .axi4s_out_if(joined_mux), .mux_sel(stall_pipe));
 
    // joined output pipe stage.
    axi4s_full_pipe join_pipe (

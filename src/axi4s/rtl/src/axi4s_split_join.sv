@@ -117,7 +117,7 @@ module axi4s_split_join
     );
 
    always @(posedge axi4s_in.aclk) begin
-      enable       <= hdr_length != 0;  // disable joiner if hdr_length is zero.
+      enable       <= hdr_length != 0;  // disable and bypass if hdr_length is zero.
       hdr_length_p <= hdr_length;
    end
 

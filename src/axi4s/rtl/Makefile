@@ -26,8 +26,9 @@ SRC_LIST_FILES =
 #   (see $SCRIPTS_ROOT/Makefiles/dependencies.mk)
 # ----------------------------------------------------
 COMPONENTS = axi4s.regio.rtl \
-			 axi4s.xilinx_ip \
+             axi4s.xilinx_ip \
              xilinx.axis.rtl \
+             arb.rtl \
              reg.rtl \
              fifo.rtl \
              mem.rtl
