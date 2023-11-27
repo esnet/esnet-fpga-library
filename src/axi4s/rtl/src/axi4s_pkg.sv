@@ -27,7 +27,7 @@ package axi4s_pkg;
     } axi4s_sync_mode_t;
 
     typedef struct packed {
-        logic [15:0] pid;
+        logic [8:0]  pid;
         logic        hdr_tlast;
     } tuser_split_join_t;
 

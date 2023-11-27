@@ -9,6 +9,7 @@ module axi4s_split_join
    import axi4s_pkg::*;
 #(
    parameter logic BIGENDIAN    = 0,  // Little endian by default.
+   parameter int   FIFO_DEPTH   = 512,
    parameter logic IN_PIPE      = 1,
    parameter logic OUT_PIPE     = 1,
    parameter logic HDR_IN_PIPE  = 1,
@@ -26,6 +27,8 @@ module axi4s_split_join
 
    logic        enable;
    logic [15:0] hdr_length_p;
+
+   localparam int PTR_LEN = $clog2(FIFO_DEPTH);
 
    localparam int  DATA_BYTE_WID = axi4s_in.DATA_BYTE_WID;
    localparam type TID_T         = axi4s_in.TID_T;
@@ -123,7 +126,8 @@ module axi4s_split_join
 
    // header splitter instantiation
    axi4s_split #(
-      .BIGENDIAN (BIGENDIAN)
+      .BIGENDIAN (BIGENDIAN),
+      .PTR_LEN   (PTR_LEN)
    ) axi4s_split_0 (
       .axi4s_in      (__axi4s_in_p),
       .axi4s_out     (axi4s_to_pyld_fifo_p),
@@ -185,7 +189,7 @@ module axi4s_split_join
    axi4s_full_pipe to_pyld_fifo_pipe_0 (.axi4s_if_from_tx(axi4s_to_pyld_fifo_p), .axi4s_if_to_rx(axi4s_to_pyld_fifo));
 
    axi4s_pkt_fifo_sync #(
-       .FIFO_DEPTH(512),
+       .FIFO_DEPTH(FIFO_DEPTH),
        .STR_FWD_MODE(0) // FIFO needs to store-and-forward, but achieves this when axi4s_to_buffer i/f IGNORES_TREADY.
     ) pyld_fifo_0 (
        .srst           (!enable),
