@@ -114,6 +114,7 @@ namespace eval vivadoProcs {
 
         if {$phase == "bitstream"} {
             write_bitstream -force $out_dir/$top.bit
+            write_debug_probes -force $out_dir/$top.ltx
         } elseif {$phase == "mcs"} {
             write_cfgmem -force -format mcs -size 128 -interface SPIx4 -loadbit "up 0x1002000 $out_dir/$top.bit" -file "$out_dir/$top.mcs"
         } else {
