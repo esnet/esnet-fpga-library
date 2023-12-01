@@ -38,7 +38,7 @@ SRC_LIST_FILES =
 COMPONENTS =
 EXT_LIBS = \
         axi_infrastructure_v1_1_0 \
-        axi_register_slice_v2_1_28 \
+        axi_register_slice_v2_1_29 \
         unisims_ver
 
 # ----------------------------------------------------

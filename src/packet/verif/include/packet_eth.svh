@@ -3,11 +3,6 @@ class packet_eth extends packet;
     local static const string __CLASS_NAME = "packet_verif_pkg::packet_eth";
 
     //===================================
-    // Parameters
-    //===================================
-    localparam packet_pkg::protocol_t PROTOCOL = packet_pkg::PROTOCOL_ETHERNET;
-
-    //===================================
     // Properties
     //===================================
     packet_eth_pkg::hdr_t __hdr;
@@ -22,7 +17,7 @@ class packet_eth extends packet;
             input packet_eth_pkg::hdr_t hdr,
             input packet payload
         );
-        super.new(name, PROTOCOL);
+        super.new(name, packet_pkg::PROTOCOL_ETHERNET);
         this.__hdr = hdr;
         this.__payload = payload;
     endfunction

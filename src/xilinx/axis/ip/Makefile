@@ -36,7 +36,7 @@ SRC_LIST_FILES =
 #   (see $SCRIPTS_ROOT/Makefiles/dependencies.mk)
 # ----------------------------------------------------
 COMPONENTS =
-EXT_LIBS = axis_register_slice_v1_1_28
+EXT_LIBS = axis_register_slice_v1_1_29
 
 # ----------------------------------------------------
 # Defines

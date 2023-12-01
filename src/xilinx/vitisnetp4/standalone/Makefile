@@ -6,19 +6,36 @@ P4_FILE = pipeline.p4
 ifeq ($(notdir $(XILINX_VIVADO)),2022.1)
 VIVADO_VERSION = 2022.1
 VITIS_NET_P4_FILES = $(VITIS_NET_P4_V1_1_FILES)
+VITIS_NET_P4_INCLUDES = -i $(VITIS_NET_P4_IP_NAME)/src/hw/include
 VITIS_NET_P4_LIBS = -L vitis_net_p4_v1_1_0 -L cam_v2_3_0
 else
 ifeq ($(notdir $(XILINX_VIVADO)),2022.2)
 VIVADO_VERSION = 2022.2
 VITIS_NET_P4_FILES = $(VITIS_NET_P4_V1_2_FILES)
+VITIS_NET_P4_INCLUDES = $(VITIS_NET_P4_IP_NAME)/src/hw/include
 VITIS_NET_P4_LIBS = -L vitis_net_p4_v1_2_0 -L cam_v2_4_0
 else
 ifeq ($(notdir $(XILINX_VIVADO)),2023.1)
 VIVADO_VERSION = 2023.1
 VITIS_NET_P4_FILES = $(VITIS_NET_P4_V1_2_FILES)
+VITIS_NET_P4_INCLUDES = $(VITIS_NET_P4_IP_NAME)/src/hw/include
 VITIS_NET_P4_LIBS = -L vitis_net_p4_v1_3_0 -L cam_v2_5_0
 else
+ifeq ($(notdir $(XILINX_VIVADO)),2023.2)
+VIVADO_VERSION = 2023.2
+VITIS_NET_P4_FILES = $(VITIS_NET_P4_V1_2_FILES)
+VITIS_NET_P4_INCLUDES = \
+    -i $(VITIS_NET_P4_IP_NAME)/hdl/fpga_asic_macros_v1_0/hdl/include/fpga \
+    -i $(VITIS_NET_P4_IP_NAME)/hdl/mcfh_v1_0/hdl/mcfh_include \
+    -i $(VITIS_NET_P4_IP_NAME)/hdl/cue_v1_0/hdl \
+    -i $(VITIS_NET_P4_IP_NAME)/hdl/infrastructure_v6_4/ic_infrastructure/libs/axi \
+    -i $(VITIS_NET_P4_IP_NAME)/hdl/axil_mil_v2_4/axil_mil/sv/axil_mil \
+    -i $(VITIS_NET_P4_IP_NAME)/src/hw/simulation \
+    -i $(VITIS_NET_P4_IP_NAME)/src/verilog
+VITIS_NET_P4_LIBS = -L vitis_net_p4_v2_0_0 -L cam_v2_6_0
+else
 $(error Vivado version not valid.)
+endif
 endif
 endif
 endif
@@ -73,10 +90,10 @@ xsim.dir/work/work.rlx : xsim.dir/vitisnetp4/vitisnetp4.rlx test.sv
 	@xvlog --sv -L vitisnetp4 test.sv $(XILINX_VIVADO)/data/verilog/src/glbl.v
 
 xsim.dir/vitisnetp4/vitisnetp4.rlx : ip
-	@xvlog --sv -i $(VITIS_NET_P4_IP_NAME)/src/hw/include -work vitisnetp4 $(VITIS_NET_P4_FILES)
+	@xvlog --sv $(VITIS_NET_P4_INCLUDES) -work vitisnetp4 $(VITIS_NET_P4_FILES)
 
 xsim.dir/snapshot/xsimk: compile
-	@xelab test glbl -debug typical -i $(VITIS_NET_P4_IP_NAME)/src/hw/include -L vitisnetp4 $(VITIS_NET_P4_LIBS) -L xpm -timescale 1ns/1ps -s snapshot
+	@xelab test glbl -debug typical $(VITIS_NET_P4_INCLUDES) -L vitisnetp4 $(VITIS_NET_P4_LIBS) -L xpm -timescale 1ns/1ps -s snapshot
 
 clean:
 	@rm -rf xsim.dir

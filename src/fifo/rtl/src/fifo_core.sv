@@ -283,10 +283,21 @@ module fifo_core
             fifo_core_reg_intf  core_reg_if ();
 
             // Main decoder
+            // TEMP: Workaround elaboration bug in Vivado 2023.2 where interface array port
+            //       (axil_client_if[1]) in axi4l_decoder submodule is reported as not present.
+            //       Instantiating the axi4l_decoder module here directly seems to avoid the issue.
+            /*
             fifo_core_decoder i_fifo_core_decoder (
                 .axil_if ( axil_if ),
                 .core_axil_if ( core_axil_if ),
                 .ctrl_axil_if ( ctrl_axil_if )
+            );
+            */
+            axi4l_decoder #(
+                .MEM_MAP   ( fifo_core_decoder_pkg::MEM_MAP)
+            ) i_axi4l_decoder (
+                .axi4l_if        ( axil_if ),
+                .axi4l_client_if ( '{core_axil_if, ctrl_axil_if} )
             );
 
             // FIFO core register block (AXI-L clock domain)
