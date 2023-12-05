@@ -15,6 +15,11 @@ module axi4s_mux
    axi4s_intf.tx    axi4s_out
 );
 
+   // -------------------------------------------------
+   // Parameter checking
+   // -------------------------------------------------
+   initial std_pkg::param_check(N, 2, "N");
+
    localparam int  DATA_BYTE_WID = axi4s_out.DATA_BYTE_WID;
    localparam type TID_T         = axi4s_out.TID_T;
    localparam type TDEST_T       = axi4s_out.TDEST_T;
