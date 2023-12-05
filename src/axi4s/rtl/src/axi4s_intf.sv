@@ -483,7 +483,7 @@ endmodule : axi4s_full_pipe
 
 
 // AXI-Stream interface 2:1 mux
-module axi4s_intf_2_to_1_mux (
+module axi4s_intf_2to1_mux (
     axi4s_intf.rx axi4s_in_if_0,
     axi4s_intf.rx axi4s_in_if_1,
     axi4s_intf.tx axi4s_out_if,
@@ -505,6 +505,42 @@ module axi4s_intf_2_to_1_mux (
     // Demux TREADY
     assign axi4s_in_if_0.tready = mux_sel ? 1'b0 : axi4s_out_if.tready;
     assign axi4s_in_if_1.tready = mux_sel ? axi4s_out_if.tready : 1'b0;
+
+endmodule
+
+
+// AXI-Stream interface 1:2 demux
+module axi4s_intf_1to2_demux (
+    axi4s_intf.rx       axi4s_in,
+    axi4s_intf.tx       axi4s_out0,
+    axi4s_intf.tx       axi4s_out1,
+    input logic         output_sel
+);
+
+    // axis4s input interface signalling.
+    assign axi4s_in.tready = output_sel ? axi4s_out1.tready : axi4s_out0.tready;
+
+    // axis4s output interface signalling.
+    assign axi4s_out0.aclk    = axi4s_in.aclk;
+    assign axi4s_out0.aresetn = axi4s_in.aresetn;
+    assign axi4s_out0.tvalid  = axi4s_in.tvalid && !output_sel;
+    assign axi4s_out0.tdata   = axi4s_in.tdata;
+    assign axi4s_out0.tkeep   = axi4s_in.tkeep;
+    assign axi4s_out0.tlast   = axi4s_in.tlast;
+    assign axi4s_out0.tid     = axi4s_in.tid;
+    assign axi4s_out0.tdest   = axi4s_in.tdest;
+    assign axi4s_out0.tuser   = axi4s_in.tuser;
+
+    // axis4s copy interface signalling.
+    assign axi4s_out1.aclk    = axi4s_in.aclk;
+    assign axi4s_out1.aresetn = axi4s_in.aresetn;
+    assign axi4s_out1.tvalid  = axi4s_in.tvalid && output_sel;
+    assign axi4s_out1.tdata   = axi4s_in.tdata;
+    assign axi4s_out1.tkeep   = axi4s_in.tkeep;
+    assign axi4s_out1.tlast   = axi4s_in.tlast;
+    assign axi4s_out1.tid     = axi4s_in.tid;
+    assign axi4s_out1.tdest   = axi4s_in.tdest;
+    assign axi4s_out1.tuser   = axi4s_in.tuser;
 
 endmodule
 
@@ -581,7 +617,7 @@ module axi4s_intf_bypass_mux #(
     endgenerate
 
     // output mux instantation
-    axi4s_intf_2_to_1_mux axi4s_intf_2_to_1_mux_0 (
+    axi4s_intf_2to1_mux axi4s_intf_2to1_mux_0 (
        .axi4s_in_if_0(axi4s_from_block), .axi4s_in_if_1(axi4s_from_pipe), .axi4s_out_if(axi4s_out), .mux_sel(bypass)
     );
 

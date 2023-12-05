@@ -182,12 +182,24 @@ module fifo_ctrl_fsm #(
             fifo_ctrl_wr_mon_reg_intf wr_mon_reg_if ();
             fifo_ctrl_rd_mon_reg_intf rd_mon_reg_if ();
 
+            // Main decoder
+            // TEMP: Workaround elaboration bug in Vivado 2023.2 where interface array port
+            //       (axil_client_if[2]) in axi4l_decoder submodule is reported as not present.
+            //       Instantiating the axi4l_decoder module here directly seems to avoid the issue.
+            /*
             // FIFO block-level decoder
             fifo_ctrl_decoder i_fifo_ctrl_decoder (
                 .axil_if        ( axil_if ),
                 .info_axil_if   ( info_axil_if ),
                 .wr_mon_axil_if ( wr_mon_axil_if ),
                 .rd_mon_axil_if ( rd_mon_axil_if )
+            );
+            */
+            axi4l_decoder #(
+                .MEM_MAP   ( fifo_ctrl_decoder_pkg::MEM_MAP)
+            ) i_axi4l_decoder (
+                .axi4l_if        ( axil_if ),
+                .axi4l_client_if ( '{info_axil_if, wr_mon_axil_if, rd_mon_axil_if} )
             );
 
             // Info block (static)

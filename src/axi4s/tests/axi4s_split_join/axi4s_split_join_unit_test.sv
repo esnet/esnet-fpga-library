@@ -75,7 +75,8 @@ module axi4s_split_join_unit_test
 
     // axi4s_split_join instantiation.
     axi4s_split_join #(
-      .BIGENDIAN (BIGENDIAN)
+      .BIGENDIAN  (BIGENDIAN),
+      .FIFO_DEPTH (512)
     ) DUT (
       .axi4s_in      (__axi4s_in),
       .axi4s_out     (__axi4s_out),
