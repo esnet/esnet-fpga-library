@@ -90,8 +90,7 @@ package xilinx_ram_pkg;
 
     // Calculate default memory read latency, given (generic) memory parameters
     function automatic int get_rd_latency(input int ADDR_WID, input int DATA_WID, input bit ASYNC=1'b0, input opt_mode_t OPT_MODE=OPT_MODE_TIMING);
-        automatic ram_style_t ram_style;
-        ram_style = get_default_ram_style(ADDR_WID, DATA_WID, ASYNC, OPT_MODE);
+        automatic ram_style_t ram_style = get_default_ram_style(ADDR_WID, DATA_WID, ASYNC, OPT_MODE);
         return _get_rd_latency(ram_style, ADDR_WID, OPT_MODE);
     endfunction
 
