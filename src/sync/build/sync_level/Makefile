@@ -21,39 +21,29 @@ TOP = sync_level
 # -----------------------------------------------
 # (Local) Paths
 # -----------------------------------------------
-BUILD_OUTPUT_DIR=out
-
-# -----------------------------------------------
-# Regmap YAML definitions
-# -----------------------------------------------
-REG_BLOCK_YAML =
-REG_DECODER_YAML :=
-
-# -----------------------------------------------
-# regio options
-# -----------------------------------------------
-REGIO_ELABORATE_OPTS :=
-REGIO_GENERATE_OPTS := --recursive
+# By default, the build products are generated in the output directory:
+# (e.g. $(OUTPUT_ROOT)/<path_to_ip>)
+# During development, it may be more convenient to produce the build outputs
+# in the source tree directly (e.g. ./out)
+# Set the build output directory can be changed to something other than
+# the default by uncommenting the following line:
+# BUILD_OUTPUT_DIR=out
 
 # ----------------------------------------------------
 # Targets
 # ----------------------------------------------------
-all: opt
+all: opt validate
+
 pre_synth:
 synth:     _synth
 opt:       _opt
-.PHONY: pre_synth synth opt
+validate:  _validate
+.PHONY: pre_synth synth opt validate
 
-clean: _clean_reg _clean_build
+clean: _clean_build
 .PHONY: clean
 
 # -----------------------------------------------
 # Include Vivado definitions/targets
 # -----------------------------------------------
 include $(SCRIPTS_ROOT)/Makefiles/vivado_build_core.mk
-
-# -----------------------------------------------
-# Include regio targets
-# -----------------------------------------------
-include $(SCRIPTS_ROOT)/Makefiles/regio.mk
-
