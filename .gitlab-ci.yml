@@ -3,7 +3,7 @@ include:
 
 stages:
   - rtl_sim
-#  - trigger_downstream
+  - synth
 
 variables:
   GIT_STRATEGY: clone
@@ -70,10 +70,28 @@ rtl_sim:
     when: always
   timeout: 3h
 
-#trigger_downstream_job:
-#  stage: trigger_downstream
-#  trigger:
-#    project: ht/esnet-smartnic-hw
-#    branch: main
-#  rules:
-#    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+.synth:
+  stage: synth
+  extends: .common
+  tags:
+    - ht-sim
+  script:
+    # Run all build jobs in specified IP library
+    - find src/$IP_LIB/build -mindepth 1 -maxdepth 1 -type d -name '[^\.]*' -exec make -C {} \;
+  artifacts:
+    when: always
+    paths: [.out/$IP_LIB/build]
+    reports:
+      junit:
+        - .out/$IP_LIB/build/**/*.summary.xml
+  needs: []
+
+fifo__synth:
+  extends: .synth
+  variables:
+    IP_LIB: fifo
+
+sync__synth:
+  extends: .synth
+  variables:
+    IP_LIB: sync

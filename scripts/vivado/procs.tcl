@@ -1,6 +1,6 @@
 namespace eval vivadoProcs {
 
-    proc __create_proj {part proj_name proj_dir {ip 0} {in_memory 0}} { 
+    proc __create_proj {part proj_name proj_dir {ip 0} {in_memory 0}} {
         if {$ip} {
             if {$in_memory} {
                 create_project $proj_name $proj_dir -part $part -force -ip -in_memory
@@ -80,16 +80,16 @@ namespace eval vivadoProcs {
         set_property board_part $board_part [current_project]
     }
 
-    proc run_reports {top out_dir} {
-        report_timing -max_paths 1000 -file $out_dir/$top.timing.rpt
-        report_timing_summary -file $out_dir/$top.timing.summary.rpt
-        report_utilization -file $out_dir/$top.utilization.rpt
-        report_utilization -hierarchical -file $out_dir/$top.utilization.hier.rpt
-        report_design_analysis -logic_level_distribution -file $out_dir/$top.logic_levels.rpt
-        report_cdc -details -file $out_dir/$top.cdc.rpt
-        report_clock_interaction -file $out_dir/$top.clock_interaction.rpt
-        report_qor_assessment -file $out_dir/$top.qor_assessment.rpt
-        report_qor_suggestions -file $out_dir/$top.qor_suggestions.rpt
+    proc run_reports {build_name out_dir} {
+        report_timing -max_paths 1000 -file $out_dir/$build_name.timing.rpt
+        report_timing_summary -file $out_dir/$build_name.timing.summary.rpt
+        report_utilization -file $out_dir/$build_name.utilization.rpt
+        report_utilization -hierarchical -file $out_dir/$build_name.utilization.hier.rpt
+        report_design_analysis -logic_level_distribution -file $out_dir/$build_name.logic_levels.rpt
+        report_cdc -details -file $out_dir/$build_name.cdc.rpt
+        report_clock_interaction -file $out_dir/$build_name.clock_interaction.rpt
+        report_qor_assessment -file $out_dir/$build_name.qor_assessment.rpt
+        report_qor_suggestions -file $out_dir/$build_name.qor_suggestions.rpt
     }
 
     proc __run_phase {phase top ooc out_dir} {
@@ -184,7 +184,7 @@ namespace eval vivadoProcs {
                     __run_phase_incremental $phase $top $ooc $out_dir
                 } else {
                     __run_phase $phase $top $ooc $out_dir
-                } 
+                }
             } msg options]
         } {
             puts stderr "unexpected script error: $msg"

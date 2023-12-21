@@ -14,12 +14,6 @@
 # -----------------------------------------------
 include $(SCRIPTS_ROOT)/Makefiles/vivado_build_base.mk
 
-# Export Make variables for use in Tcl scripts
-export TOP
-export BUILD_OUTPUT_DIR ?= $(COMPONENT_OUT_PATH)
-
-VIVADO_LOG_DIR = $(BUILD_OUTPUT_DIR)
-
 # -----------------------------------------------
 # Command
 # -----------------------------------------------
@@ -30,13 +24,9 @@ VIVADO_CMD = $(VIVADO_CMD_BASE_NO_LOG) -source $(VIVADO_SCRIPTS_ROOT)/build_ooc.
 # -----------------------------------------------
 _synth:    $(BUILD_OUTPUT_DIR)/$(TOP).synth.dcp
 _opt:      $(BUILD_OUTPUT_DIR)/$(TOP).opt.dcp
-.PHONY: _synth _opt
+_validate: $(BUILD_OUTPUT_DIR)/$(TOP).opt.summary.xml
 
-$(BUILD_OUTPUT_DIR):
-	@mkdir $(BUILD_OUTPUT_DIR)
-
-_clean_build: _clean_logs
-	@rm -rf $(BUILD_OUTPUT_DIR)
+.PHONY: _synth _opt _validate
 
 # pre_synth hook to be described in 'parent' Makefile
 # (can be used to trigger regmap or IP generation before launching synthesis)
