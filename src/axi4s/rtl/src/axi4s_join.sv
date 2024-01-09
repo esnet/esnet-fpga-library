@@ -56,7 +56,10 @@ module axi4s_join
                 .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) sync_pyld[2] ();
 
    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID),
-                .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) drop[2] ();
+                .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) drop_hdr[2] ();
+
+   axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID),
+                .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) drop_pyld[2] ();
 
    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID),
                 .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) pipe_hdr[7] ();
@@ -97,37 +100,39 @@ module axi4s_join
       .sop_mismatch (sop_mismatch)
    );
 
-   assign drop_pkt = sync_hdr[0].tvalid && sync_hdr[0].sop && sync_hdr[0].tlast && 
-                     sync_hdr[0].tkeep == '0;
+   axi4s_intf_pipe #(.MODE(PUSH)) sync_hdr_pipe  (.axi4s_if_from_tx (sync_hdr[0]),  .axi4s_if_to_rx   (drop_hdr[0]));
+   axi4s_intf_pipe #(.MODE(PUSH)) sync_pyld_pipe (.axi4s_if_from_tx (sync_pyld[0]), .axi4s_if_to_rx   (drop_pyld[0]));
+
+   always @(posedge clk) drop_pkt <= sync_hdr[0].tvalid && sync_hdr[0].sop && sync_hdr[0].tlast && sync_hdr[0].tkeep == '0;
 
    // axi4s header drop instantiation.
-   axi4l_intf axil_to_drop_0 ();
+   axi4l_intf axil_to_drop_hdr ();
 
-   axi4s_drop axi4s_drop_0 (
-      .axi4s_in    (sync_hdr[0]),
-      .axi4s_out   (drop[0]),
-      .axil_if     (axil_to_drop_0),
+   axi4s_drop #(.OUT_PIPE_MODE(PUSH)) axi4s_drop_hdr (
+      .axi4s_in    (drop_hdr[0]),
+      .axi4s_out   (drop_hdr[1]),
+      .axil_if     (axil_to_drop_hdr),
       .drop_pkt    (drop_pkt)
    );
 
-   axi4l_intf_controller_term axi4l_to_drop_0_term (.axi4l_if (axil_to_drop_0));
+   axi4l_intf_controller_term axi4l_to_drop_hdr_term (.axi4l_if (axil_to_drop_hdr));
 
    // axi4s payload drop instantiation.
-   axi4l_intf axil_to_drop_1 ();
+   axi4l_intf axil_to_drop_pyld ();
 
-   axi4s_drop axi4s_drop_1 (
-      .axi4s_in    (sync_pyld[0]),
-      .axi4s_out   (drop[1]),
-      .axil_if     (axil_to_drop_1),
+   axi4s_drop #(.OUT_PIPE_MODE(PUSH)) axi4s_drop_pyld (
+      .axi4s_in    (drop_pyld[0]),
+      .axi4s_out   (drop_pyld[1]),
+      .axil_if     (axil_to_drop_pyld),
       .drop_pkt    (drop_pkt)
    );
 
-   axi4l_intf_controller_term axi4l_to_drop_1_term (.axi4l_if (axil_to_drop_1));
+   axi4l_intf_controller_term axi4l_to_drop_pyld_term (.axi4l_if (axil_to_drop_pyld));
 
    // axi4s HDR_TLAST synchronizer instantiation.
    axi4s_sync #(.MODE(HDR_TLAST)) axi4s_sync_1 (
-      .axi4s_in0   (drop[0]),
-      .axi4s_in1   (drop[1]),
+      .axi4s_in0   (drop_hdr[1]),
+      .axi4s_in1   (drop_pyld[1]),
       .axi4s_out0  (sync_hdr[1]),
       .axi4s_out1  (sync_pyld[1]),
       .sop_mismatch()
