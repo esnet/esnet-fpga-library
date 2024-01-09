@@ -24,6 +24,7 @@ VIVADO_CMD = $(VIVADO_CMD_BASE_NO_LOG) -source $(VIVADO_SCRIPTS_ROOT)/build_ooc.
 # -----------------------------------------------
 _synth:    $(BUILD_OUTPUT_DIR)/$(TOP).synth.dcp
 _opt:      $(BUILD_OUTPUT_DIR)/$(TOP).opt.dcp
+_place:    $(BUILD_OUTPUT_DIR)/$(TOP).place.dcp
 _validate: $(BUILD_OUTPUT_DIR)/$(TOP).opt.summary.xml
 
 .PHONY: _synth _opt _validate
