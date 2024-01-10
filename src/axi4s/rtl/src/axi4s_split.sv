@@ -57,7 +57,7 @@ module axi4s_split
    assign axi4s_to_copy.tdest            = axi4s_in.tdest;
    assign axi4s_to_copy.tid              = axi4s_in.tid;
    assign axi4s_to_copy.tlast            = axi4s_in.tlast;
-   assign axi4s_to_copy.tuser.pid        = wr_ptr;
+   assign axi4s_to_copy.tuser.pid        = {'0, wr_ptr};
    assign axi4s_to_copy.tuser.hdr_tlast  = axi4s_hdr_out.tvalid && axi4s_hdr_out.tlast;
 
    assign axi4s_in.tready                = axi4s_to_copy.tready;
@@ -90,7 +90,7 @@ module axi4s_split
    assign axi4s_hdr_out.tdest            = __axi4s_hdr_out.tdest;
    assign axi4s_hdr_out.tid              = __axi4s_hdr_out.tid;
    assign axi4s_hdr_out.tlast            = __axi4s_hdr_out.tlast;
-   assign axi4s_hdr_out.tuser.pid        = (__axi4s_hdr_out.tvalid && __axi4s_hdr_out.sop) ? __axi4s_hdr_out.tuser.pid : pid;
+   assign axi4s_hdr_out.tuser.pid        = (__axi4s_hdr_out.tvalid && __axi4s_hdr_out.sop) ? __axi4s_hdr_out.tuser.pid : {'0, pid};
    assign axi4s_hdr_out.tuser.hdr_tlast  = '0;
 
    assign __axi4s_hdr_out.tready         = axi4s_hdr_out.tready;
