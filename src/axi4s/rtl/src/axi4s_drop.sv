@@ -7,7 +7,8 @@
 module axi4s_drop
    import axi4s_pkg::*;
 #(
-   parameter logic OUT_PIPE = 1
+   parameter logic OUT_PIPE = 1,
+   parameter axi4s_pipe_mode_t OUT_PIPE_MODE = PULL
  ) (
    axi4s_intf.rx    axi4s_in,
    axi4s_intf.tx    axi4s_out,
@@ -50,7 +51,7 @@ module axi4s_drop
 
    generate
       if (OUT_PIPE)
-         axi4s_full_pipe out_pipe_0 (.axi4s_if_from_tx(axi4s_out_p), .axi4s_if_to_rx(axi4s_out));
+         axi4s_full_pipe #(.MODE(OUT_PIPE_MODE)) out_pipe_0 (.axi4s_if_from_tx(axi4s_out_p), .axi4s_if_to_rx(axi4s_out));
       else
          axi4s_intf_connector out_intf_connector_0 (.axi4s_from_tx(axi4s_out_p), .axi4s_to_rx(axi4s_out));
    endgenerate

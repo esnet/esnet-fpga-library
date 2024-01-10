@@ -461,7 +461,11 @@ endmodule : axi4s_tready_pipe
 
 
 // axi4-stream full (bidirectional) pipeline helper module
-module axi4s_full_pipe (
+module axi4s_full_pipe
+    import axi4s_pkg::*;
+#(
+    parameter axi4s_pipe_mode_t MODE = PULL
+) (
     axi4s_intf.rx axi4s_if_from_tx,
     axi4s_intf.tx axi4s_if_to_rx
 );
@@ -475,7 +479,7 @@ module axi4s_full_pipe (
     axi4s_intf  #( .DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T) )
                 axi4s_if_from_tx_p ();
 
-    axi4s_intf_pipe   axi4s_intf_pipe_0   (.axi4s_if_from_tx(axi4s_if_from_tx),   .axi4s_if_to_rx(axi4s_if_from_tx_p));
+    axi4s_intf_pipe #(.MODE(MODE))  axi4s_intf_pipe_0   (.axi4s_if_from_tx(axi4s_if_from_tx),   .axi4s_if_to_rx(axi4s_if_from_tx_p));
 
     axi4s_tready_pipe axi4s_tready_pipe_0 (.axi4s_if_from_tx(axi4s_if_from_tx_p), .axi4s_if_to_rx(axi4s_if_to_rx));
 
