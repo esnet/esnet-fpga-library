@@ -26,7 +26,7 @@ SRC_LIST_FILES =
 #   (see $SCRIPTS_ROOT/Makefiles/dependencies.mk)
 # ----------------------------------------------------
 COMPONENTS = fifo.regio.rtl \
-             fifo.xilinx_ip \
+             fifo.ip \
              mem.rtl \
              sync.rtl \
              axi4l.rtl
