@@ -4,7 +4,6 @@
 # Usage: this Makefile is used by including it at the end of a 'parent' Makefile,
 #        where the parent can call the targets defined here after defining
 #        the following input 'arguments':
-#        - PROJ_ROOT: path to project root directory
 #        - SCRIPTS_ROOT: path to project scripts directory
 #        - TOP: name of top-level module to build
 #        - BUILD_OUTPUT_DIR: path to build output files

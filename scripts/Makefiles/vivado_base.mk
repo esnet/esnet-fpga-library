@@ -1,25 +1,60 @@
+# This Makefile provides generic definitions for executing
+# scripts in non-project mode using Vivado
+# (i.e. for managing IP, synthesizing and implementing designs, etc.)
+#
+# Usage: this Makefile is used by including it at the end of a 'parent' Makefile,
+#        where the parent can call the targets defined here after defining
+#        the following input 'arguments':
+#        - SCRIPTS_ROOT: path to project scripts directory
+#        - CFG_ROOT: path to the part configuration file(s)
 # -----------------------------------------------
-# Include generic compile configuration
+# Paths
 # -----------------------------------------------
-include $(SCRIPTS_ROOT)/Makefiles/compile_base.mk
+VIVADO_SCRIPTS_ROOT := $(SCRIPTS_ROOT)/vivado
 
 # -----------------------------------------------
-# Format component dependencies as Vivado libraries
+# Import part configuration
 # -----------------------------------------------
-# Vivado library references in form lib_name=lib_path
-COMPONENT_LIBS := $(join $(addsuffix =,$(COMPONENT_NAMES)),$(COMPONENT_PATHS))
+include $(CFG_ROOT)/part.mk
+
+# Export part variables for use in Tcl scripts
+export BOARD_REPO
+export PART
+export BOARD_PART
 
 # -----------------------------------------------
-# Unique list of all library dependencies
+# Options
 # -----------------------------------------------
-LIBS = $(sort $(SUBCOMPONENT_LIBS) $(COMPONENT_LIBS) $(EXT_LIBS))
+VIVADO_DEFAULT_OPTIONS = -mode batch -notrace -nojournal
+
+VIVADO_OPTIONS += $(VIVADO_DEFAULT_OPTIONS)
+
+VIVADO_LOG_DIR  ?= $(CURDIR)
+VIVADO_LOG_NAME ?= vivado.log
 
 # -----------------------------------------------
-# Synthesize library (-L) references
+# Commands
 # -----------------------------------------------
-LIB_REFS = $(LIBS:%=-L %)
+VIVADO_CMD_BASE_NO_LOG = vivado $(VIVADO_OPTIONS) -source $(VIVADO_SCRIPTS_ROOT)/part.tcl -source $(VIVADO_SCRIPTS_ROOT)/procs.tcl
+VIVADO_CMD_BASE = $(VIVADO_CMD_BASE_NO_LOG) -log $(VIVADO_LOG_DIR)/$(VIVADO_LOG_NAME)
 
 # -----------------------------------------------
-# Synthesize define (-d) references
+# Targets
 # -----------------------------------------------
-DEFINE_REFS = $(DEFINES:%=-d %)
+# Display (consolidated) info
+_vivado_info: _vivado_path_info _vivado_tool_info _vivado_part_info
+
+.PHONY: _vivado_path_info _vivado_tool_info _vivado_part_info _vivado_info
+
+# Remove any Vivado logs created in source directory
+VIVADO_FILES_TO_CLEAN = *.jou *.log *.str *.pb
+VIVADO_DIRS_TO_CLEAN = .Xil
+_vivado_clean_logs:
+	@for file in $(VIVADO_FILES_TO_CLEAN); do \
+		rm -f $$file;\
+	done
+	@for dir in $(VIVADO_DIRS_TO_CLEAN); do \
+		rm -rf $$dir;\
+	done
+
+.PHONY: _vivado_clean_logs

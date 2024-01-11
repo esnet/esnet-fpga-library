@@ -14,17 +14,17 @@
 # -----------------------------------------------
 # Include base Vivado build Make instructions
 # -----------------------------------------------
-include $(SCRIPTS_ROOT)/Makefiles/vivado_build_base.mk
+include $(SCRIPTS_ROOT)/Makefiles/vivado_base.mk
 
 # -----------------------------------------------
-# Include component config
+# Include compile targets
 # -----------------------------------------------
-include $(SCRIPTS_ROOT)/Makefiles/component_base.mk
+include $(SCRIPTS_ROOT)/Makefiles/vivado_compile.mk
 
 # -----------------------------------------------
 # Paths
 # -----------------------------------------------
-IP_SRC_DIR ?= .
+IP_SRC_DIR ?= $(CURDIR)
 
 # -----------------------------------------------
 # Configure managed IP project properties
@@ -36,8 +36,8 @@ export IP_PROJ_NAME ?= ip_proj
 # -----------------------------------------------
 # Command
 # -----------------------------------------------
-VIVADO_MANAGE_IP_CMD = $(VIVADO_CMD_BASE) -source $(VIVADO_SCRIPTS_ROOT)/manage_ip.tcl
 VIVADO_LOG_DIR = $(COMPONENT_OUT_PATH)
+VIVADO_MANAGE_IP_CMD = $(VIVADO_CMD_BASE) -source $(VIVADO_SCRIPTS_ROOT)/manage_ip.tcl
 
 # -----------------------------------------------
 # Output products
@@ -64,7 +64,7 @@ _ip_proj: _ip_proj_clean $(IP_OUTPUT_PRODUCTS)
 	@$(VIVADO_MANAGE_IP_CMD) -tclargs proj "{$(IP_XCI_FILES)}"
 
 # Clean IP project
-_ip_proj_clean: _clean_logs
+_ip_proj_clean: _vivado_clean_logs
 	@-rm -rf $(IP_PROJ_DIR)
 	@-rm -rf ip_user_files
 
@@ -73,16 +73,19 @@ _ip_proj_clean: _clean_logs
 # -----------------------------------------------
 # IP management targets
 # -----------------------------------------------
-
-# Create output directory; include back link to source directory
+# Create output directory as needed
 $(COMPONENT_OUT_PATH):
-	@mkdir -p $(COMPONENT_OUT_PATH)
-	@ln -s $(shell pwd) $(COMPONENT_OUT_PATH)/source
+	@mkdir -p $@
 
 # Generate IP output products
 _ip: _ip_generate
 
 .PHONY: _ip
+
+# Compile IP
+_ip_compile: _ip _compile
+
+.PHONY: _ip_compile
 
 # Create dot-files per IP as proxy for generated output products
 #   - this works around two challenges fitting the IP generation process
@@ -148,10 +151,7 @@ _ip_synth: $(IP_SYNTH_PRODUCTS)
 .PHONY: _ip_create _ip_generate _ip_reset _ip_status _ip_upgrade _ip_synth
 
 # Clean
-#   - remove all output products
-_ip_clean: _clean_logs
-	@rm -f $(COMPONENT_OUT_PATH)/source
+_ip_clean: _clean_compile _vivado_clean_logs
 	@rm -rf $(COMPONENT_OUT_PATH)
-	@-find $(IP_OUT_ROOT) -type d -empty -delete 2>/dev/null
 
 .PHONY: _ip_clean

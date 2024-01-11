@@ -4,8 +4,7 @@
 # Usage: this Makefile is used by including it at the end of a 'parent' Makefile,
 #        where the parent can call the targets defined here after defining
 #        the following input 'arguments':
-#        - SIMLIB_ROOT: path to simulation compilation output objects
-#        - LIB_NAME: name of source library to compile component into
+#        - SIMLIB_DIRNAME: path to simulation compilation output objects
 #        - COMPONENT_NAME: name of 'component' created/provided by this compilation
 #        - COMPONENT_PATH: path to library for 'component' created/provided by this compilation
 #        - COMPONENT_PATHS: paths to component library dependencies
@@ -20,12 +19,33 @@
 # -----------------------------------------------
 # Include generic compile configuration
 # -----------------------------------------------
-include $(SCRIPTS_ROOT)/Makefiles/vivado_base.mk
+include $(SCRIPTS_ROOT)/Makefiles/compile_base.mk
+
+# -----------------------------------------------
+# Format component dependencies as Vivado libraries
+# -----------------------------------------------
+# Vivado library references in form lib_name=lib_path
+COMPONENT_LIBS := $(join $(addsuffix =,$(COMPONENT_NAMES)),$(COMPONENT_PATHS))
+
+# -----------------------------------------------
+# Unique list of all library dependencies
+# -----------------------------------------------
+LIBS = $(sort $(SUBCOMPONENT_LIBS) $(COMPONENT_LIBS) $(EXT_LIBS))
+
+# -----------------------------------------------
+# Synthesize library (-L) references
+# -----------------------------------------------
+LIB_REFS = $(LIBS:%=-L %)
+
+# -----------------------------------------------
+# Synthesize define (-d) references
+# -----------------------------------------------
+DEFINE_REFS = $(DEFINES:%=-d %)
 
 # -----------------------------------------------
 # Compiled object destination directory
 # -----------------------------------------------
-OBJ_DIR = $(OUTPUT_ROOT)/$(COMPONENT_PATH)/$(SIMLIB_DIRNAME)
+OBJ_DIR = $(COMPONENT_OUT_PATH)/$(SIMLIB_DIRNAME)
 
 # -----------------------------------------------
 # Output library
