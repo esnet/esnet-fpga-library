@@ -15,7 +15,15 @@ include $(IP_ROOT)/config.mk
 #   Note: if no sources are explicitly listed, all
 #   source files from ./src are added automatically,
 #   with include directory ./include
+#
+#   NOTE: By default, IP output products are being generated at
+#         the path represented by $(COMPONENT_OUT_PATH). This
+#         path can be queried using 'make info',
+#         and $(COMPONENT_OUT_PATH) can be used to reference these
+#         files for compilation.
 # ----------------------------------------------------
+IP_LIST =
+
 SRC_FILES =
 INC_DIRS =
 SRC_LIST_FILES =
@@ -42,17 +50,44 @@ ELAB_OPTS=--debug typical
 SIM_OPTS=
 
 # ----------------------------------------------------
-# Targets
+# Compile Targets
 # ----------------------------------------------------
 all: compile
 
-compile: _compile
+ip: _ip
 
-clean: _clean_compile
+compile: _ip_compile
 
-.PHONY: all compile clean
+synth: _ip_synth
+
+clean: _ip_clean
+
+.PHONY: all ip compile synth clean
 
 # ----------------------------------------------------
-# Import Vivado compile targets
+# Info targets
 # ----------------------------------------------------
-include $(SCRIPTS_ROOT)/Makefiles/vivado_compile.mk
+info: _ip_info
+
+.PHONY: info
+
+# ----------------------------------------------------
+# IP management targets
+#
+#   These targets are used for managing IP, i.e. creating
+#   new IP, or modifying or upgrading existing IP.
+# ----------------------------------------------------
+ip_proj: _ip_proj
+
+ip_upgrade: _ip_upgrade
+
+ip_status: _ip_status
+
+ip_proj_clean: _ip_proj_clean
+
+.PHONY: ip_proj ip_upgrade ip_status ip_proj_clean
+
+# ----------------------------------------------------
+# Import Vivado IP management targets
+# ----------------------------------------------------
+include $(SCRIPTS_ROOT)/Makefiles/vivado_manage_ip.mk
