@@ -108,7 +108,7 @@ else
 # If component is in local library, check that it exists
 ifneq ($(wildcard $(COMPONENT_SRC_PATH)/Makefile),)
 # If so, run compile target for component
-	@$(MAKE) -s -C $(COMPONENT_SRC_PATH) compile
+	@$(MAKE) -s -C $(COMPONENT_SRC_PATH) compile CFG_ROOT=$(CFG_ROOT) OUTPUT_ROOT=$(OUTPUT_ROOT)
 else
 # If not, print helpful error message
 	$(error Component $(COMPONENT) could not be found)
@@ -126,12 +126,12 @@ _compile_clean:
 ifdef COMPONENT
 ifneq ($(SUBLIBRARY),)
 # If component is in sub-library, pass clean job to sub-library
-	@$(MAKE) -s -C $(SUBLIB_SRC_ROOT) compile_clean COMPONENT=$(SUBLIB_COMPONENT)
+	@$(MAKE) -s -C $(SUBLIB_SRC_ROOT) compile_clean COMPONENT=$(SUBLIB_COMPONENT) CFG_ROOT=$(CFG_ROOT) OUTPUT_ROOT=$(OUTPUT_ROOT)/$(SUBLIBRARY)
 else
 # If component is in local library, check that it exists
 ifneq ($(wildcard $(COMPONENT_SRC_PATH)/Makefile),)
 # If so, run compile clean target for component
-	@$(MAKE) -s -C $(COMPONENT_SRC_PATH) clean
+	@$(MAKE) -s -C $(COMPONENT_SRC_PATH) clean CFG_ROOT=$(CFG_ROOT) OUTPUT_ROOT=$(OUTPUT_ROOT)
 else
 # If not, print helpful error message
 	$(error Component $(COMPONENT) could not be found)
@@ -151,12 +151,12 @@ _reg: | $(OUTPUT_ROOT)
 ifdef COMPONENT
 ifneq ($(SUBLIBRARY),)
 # If component is in sub-library, pass compile job to sub-library
-	@$(MAKE) -s -C $(SUBLIB_SRC_ROOT) reg COMPONENT=$(SUBLIB_COMPONENT) OUTPUT_ROOT=$(OUTPUT_ROOT)/$(SUBLIBRARY)
+	@$(MAKE) -s -C $(SUBLIB_SRC_ROOT) reg COMPONENT=$(SUBLIB_COMPONENT) CFG_ROOT=$(CFG_ROOT) OUTPUT_ROOT=$(OUTPUT_ROOT)/$(SUBLIBRARY)
 else
 # If component is in local library, check that it exists
 ifneq ($(wildcard $(COMPONENT_SRC_PATH)/Makefile),)
 # If so, run compile target for component
-	@$(MAKE) -s -C $(COMPONENT_SRC_PATH) reg
+	@$(MAKE) -s -C $(COMPONENT_SRC_PATH) reg CFG_ROOT=$(CFG_ROOT) OUTPUT_ROOT=$(OUTPUT_ROOT)
 else
 # If not, print helpful error message
 	$(error Component $(COMPONENT) could not be found)
@@ -180,7 +180,7 @@ else
 # If component is in local library, check that it exists
 ifneq ($(wildcard $(COMPONENT_SRC_PATH)/Makefile),)
 # If so, run compile target for component
-	@$(MAKE) -s -C $(COMPONENT_SRC_PATH) synth
+	@$(MAKE) -s -C $(COMPONENT_SRC_PATH) synth CFG_ROOT=$(CFG_ROOT) OUTPUT_ROOT=$(OUTPUT_ROOT)
 else
 # If not, print helpful error message
 	$(error Component $(COMPONENT) could not be found)
