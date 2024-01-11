@@ -41,6 +41,30 @@ VIVADO_CMD_BASE = $(VIVADO_CMD_BASE_NO_LOG) -log $(VIVADO_LOG_DIR)/$(VIVADO_LOG_
 # -----------------------------------------------
 # Targets
 # -----------------------------------------------
+# Display path configuration
+_vivado_path_info:
+	@echo "------------------------------------------------------"
+	@echo "(Vivado) path configuration"
+	@echo "------------------------------------------------------"
+	@echo "CFG_ROOT            : $(CFG_ROOT)"
+	@echo "VIVADO_SCRIPTS_ROOT : $(VIVADO_SCRIPTS_ROOT)"
+
+# Display tool configuration
+_vivado_tool_info:
+	@echo "------------------------------------------------------"
+	@echo "(Vivado) tool configuration"
+	@echo "------------------------------------------------------"
+	@echo "VIVADO_OPTIONS      : $(VIVADO_OPTIONS)"
+
+# Display part configuration
+_vivado_part_info:
+	@echo "------------------------------------------------------"
+	@echo "Part configuration"
+	@echo "------------------------------------------------------"
+	@echo "PART                : $(PART)"
+	@echo "BOARD_PART          : $(BOARD_PART)"
+	@echo "BOARD_REPO          : $(BOARD_REPO)"
+
 # Display (consolidated) info
 _vivado_info: _vivado_path_info _vivado_tool_info _vivado_part_info
 

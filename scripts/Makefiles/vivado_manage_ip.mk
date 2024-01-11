@@ -150,6 +150,28 @@ _ip_synth: $(IP_SYNTH_PRODUCTS)
 
 .PHONY: _ip_create _ip_generate _ip_reset _ip_status _ip_upgrade _ip_synth
 
+# Info
+_ip_config_info: _vivado_info
+	@echo "----------------------------------------------------------"
+	@echo "Manage IP Info"
+	@echo "----------------------------------------------------------"
+	@echo "SRC_ROOT            : $(SRC_ROOT)"
+	@echo "IP_SRC_DIR          : $(IP_SRC_DIR)"
+	@echo "OUTPUT_ROOT         : $(OUTPUT_ROOT)"
+	@echo "COMPONENT_OUT_PATH  : $(COMPONENT_OUT_PATH)"
+	@echo "IP_LIST             :"
+	@for ip in $(IP_LIST); do \
+		echo "\t$$ip"; \
+	done
+	@echo "IP_XCI_FILES        :"
+	@for xci_file in $(IP_XCI_FILES); do \
+		echo "\t$$xci_file"; \
+	done
+
+_ip_info: _vivado_info _ip_config_info _compile_info
+
+.PHONY: ip_config_info _ip_info
+
 # Clean
 _ip_clean: _clean_compile _vivado_clean_logs
 	@rm -rf $(COMPONENT_OUT_PATH)

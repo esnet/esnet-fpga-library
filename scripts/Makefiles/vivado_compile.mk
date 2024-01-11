@@ -172,3 +172,45 @@ _clean_compile: _clean_components
 # Make library directory if it doesn't exist
 $(OBJ_DIR):
 	@mkdir -p $@
+
+# Display component configuration
+_compile_config_info:
+	@echo "------------------------------------------------------"
+	@echo "Compile configuration"
+	@echo "------------------------------------------------------"
+	@echo "COMPILE_OPTS        : $(COMPILE_OPTS)"
+	@echo "DEFINES             :"
+	@for define in $(DEFINES); do \
+		echo "\t$$define"; \
+	done
+
+_compile_component_info:
+	@echo "------------------------------------------------------"
+	@echo "Component configuration"
+	@echo "------------------------------------------------------"
+	@echo "COMPONENT_NAME      : $(COMPONENT_NAME)"
+	@echo "SIM_LIB             : $(SIM_LIB)"
+	@echo "SRCS                :"
+	@for src in $(SRCS); do \
+		echo "\t$$src"; \
+	done
+	@echo "HDRS                :"
+	@for hdr in $(HDRS); do \
+		echo "\t$$hdr"; \
+	done
+	@echo "EXT_LIBS            :"
+	@for ext_lib in $(EXT_LIBS); do \
+		echo "\t$$ext_lib"; \
+	done
+	@echo "COMPONENTS          :"
+	@for component in $(COMPONENTS); do \
+		echo "\t$$component"; \
+	done
+	@echo "SUB_LIBS            :"
+	@for sub_lib in $(sort $(COMPONENT_LIBS) $(SUBCOMPONENT_LIBS)); do \
+		echo "\t$$sub_lib"; \
+	done
+
+_compile_info: _compile_config_info _compile_component_info
+
+.PHONY: _compile_config_info _compile_component_info _compile_info

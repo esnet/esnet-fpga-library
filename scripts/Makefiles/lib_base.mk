@@ -195,6 +195,30 @@ endif
 
 .PHONY: _synth
 
+_info:
+ifdef COMPONENT
+ifneq ($(SUBLIBRARY),)
+# If component is in sub-library, pass request to sub-library
+	@$(MAKE) -s -C $(SUBLIB_SRC_ROOT) info COMPONENT=$(SUBLIB_COMPONENT) CFG_ROOT=$(CFG_ROOT) OUTPUT_ROOT=$(OUTPUT_ROOT)/$(SUBLIBRARY)
+else
+# If component is in local library, check that it exists
+ifneq ($(wildcard $(COMPONENT_SRC_PATH)/Makefile),)
+# If so, run target for component
+	@$(MAKE) -s -C $(COMPONENT_SRC_PATH) info CFG_ROOT=$(CFG_ROOT) OUTPUT_ROOT=$(OUTPUT_ROOT)
+else
+# If not, print helpful error message
+	$(error Component $(COMPONENT) could not be found)
+endif
+endif
+else
+# If no component is specified, generate helpful error message
+	@echo "ERROR: no component specified."
+	$(__compile_usage)
+	@false
+endif
+
+.PHONY: _info
+
 _clean:
 	@echo -n "Removing all output products... "
 	@-rm -rf $(OUTPUT_ROOT)

@@ -192,3 +192,15 @@ _clean_compile:
 _clean: _reg_clean
 
 .PHONY: _clean
+
+# Display component configuration
+_reg_config_info:
+	@echo "------------------------------------------------------"
+	@echo "Regio configuration"
+	@echo "------------------------------------------------------"
+	@echo "REGIO_TEMPLATES_DIR : $(REGIO_TEMPLATES_DIR)"
+	@echo "REGIO_YAML_INC_DIR  : $(REGIO_YAML_INC_DIR)"
+
+_reg_info: _reg_config_info
+
+.PHONY: _reg_config_info _reg_info
