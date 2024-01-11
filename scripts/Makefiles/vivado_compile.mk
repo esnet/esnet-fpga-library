@@ -128,9 +128,12 @@ SV_COMPILE_CMD_LOG = $(if $(DO_SV_COMPILE), $(shell echo $(SV_COMPILE_CMD) > $(O
 # -----------------------------------------------
 # TARGETS
 # -----------------------------------------------
-_compile: _compile_components $(SIM_LIB)
+_compile_sim: _compile_components $(SIM_LIB)
 
-.PHONY: _compile
+_compile_synth:
+	@echo "Compile for synth not yet implemented (placeholder target only)."
+
+.PHONY: _compile_sim
 
 # Compile sim library from source
 $(SIM_LIB): $(SRCS) $(HDRS) $(COMPONENT_OBJS) | $(OBJ_DIR)
@@ -157,17 +160,17 @@ $(COMPONENT_REFS):
 .PHONY: _compile_components $(COMPONENT_REFS)
 
 # Clean targets
-_clean_components:
+_compile_clean_components:
 	@-for component in $(COMPONENT_REFS); do \
 		$(MAKE) -s -C $(SRC_ROOT) compile_clean COMPONENT=$$component; \
 	done
 
-_clean_compile: _clean_components
+_compile_clean: _compile_clean_components
 	@[ ! -d $(OBJ_DIR) ] || (echo "Cleaning $(COMPONENT_NAME)..." && rm -rf $(OBJ_DIR))
 	@-find $(OUTPUT_ROOT) -type d -empty -delete 2>/dev/null
 	@rm -f xvlog.pb
 
-.PHONY: _clean_components _clean_compile
+.PHONY: _compile_clean_components _compile_clean
 
 # Make library directory if it doesn't exist
 $(OBJ_DIR):

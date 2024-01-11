@@ -101,7 +101,7 @@ _reg_rtl: $(REG_BLOCK_OBJS) $(REG_DECODER_OBJS)
 
 _reg_verif: $(REG_VERIF_PACKAGE_OBJ)
 
-_reg_clean: _clean_compile
+_reg_clean: _reg_compile_clean
 	@-rm -rf $(COMPONENT_OUT_PATH)
 	@-rm -f $(REGIO_IP_ROOT)/config.mk
 	@[ ! -d $(OUTPUT_ROOT) ] || find $(OUTPUT_ROOT) -type d -empty -delete 2>/dev/null
@@ -175,7 +175,10 @@ $(REGIO_VERIF_PACKAGE_OUTPUT_DIR): | $(REGIO_VERIF_OUTPUT_DIR)
 $(REGIO_IR_OUTPUT_DIR):
 	@mkdir -p $@
 
-_compile: $(REGIO_RTL_SIM_OBJ) $(REGIO_VERIF_SIM_OBJ)
+_reg_compile: $(REGIO_RTL_SIM_OBJ) $(REGIO_VERIF_SIM_OBJ)
+
+_reg_synth:
+	@echo "Compile for synth not yet supported (placeholder target only)."
 
 $(REGIO_RTL_SIM_OBJ): reg | $(REGIO_RTL_OUTPUT_DIR)
 	@$(MAKE) -s -C $(REGIO_RTL_OUTPUT_DIR) compile
@@ -183,15 +186,11 @@ $(REGIO_RTL_SIM_OBJ): reg | $(REGIO_RTL_OUTPUT_DIR)
 $(REGIO_VERIF_SIM_OBJ): reg | $(REGIO_VERIF_OUTPUT_DIR)
 	@$(MAKE) -s -C $(REGIO_VERIF_OUTPUT_DIR) compile
 
-_clean_compile:
+_reg_compile_clean:
 	@[ ! -f $(REGIO_RTL_OUTPUT_DIR)/Makefile ] || $(MAKE) -s -C $(REGIO_RTL_OUTPUT_DIR) clean
 	@[ ! -f $(REGIO_VERIF_OUTPUT_DIR)/Makefile ] || $(MAKE) -s -C $(REGIO_VERIF_OUTPUT_DIR) clean
 
-.PHONY: _compile _clean_compile
-
-_clean: _reg_clean
-
-.PHONY: _clean
+.PHONY: _reg_compile _reg_synth _reg_compile_clean
 
 # Display component configuration
 _reg_config_info:

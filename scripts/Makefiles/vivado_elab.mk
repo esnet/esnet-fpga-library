@@ -61,13 +61,13 @@ ELAB_CMD = xelab $(TOP) $(ELAB_LOG) $(ELAB_OPTS) $(DEFINE_REFS) $(LIB_REFS) $(CO
 # -----------------------------------------------
 # Targets
 # -----------------------------------------------
-_elab: _compile | $(RUN_DIR)
+_elab: _compile_sim | $(RUN_DIR)
 	@cd $(RUN_DIR) && \
 	echo 'verilog $(GLBL_V_LIBRARY) "$(GLBL_V_FILE)"' > glbl.prj && \
 	echo $(ELAB_CMD) > $(ELAB_CMD_LOG) && \
 	$(ELAB_CMD)
 
-_elab_clean: _clean_compile
+_elab_clean: _compile_clean
 	@rm -rf $(RUN_DIR)
 
 .PHONY: _elab _elab_clean

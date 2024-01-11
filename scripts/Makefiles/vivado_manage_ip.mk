@@ -82,8 +82,8 @@ _ip: _ip_generate
 
 .PHONY: _ip
 
-# Compile IP
-_ip_compile: _ip _compile
+# Compile IP for simulation
+_ip_compile: _ip _compile_sim
 
 .PHONY: _ip_compile
 
@@ -173,7 +173,7 @@ _ip_info: _vivado_info _ip_config_info _compile_info
 .PHONY: ip_config_info _ip_info
 
 # Clean
-_ip_clean: _clean_compile _vivado_clean_logs
+_ip_clean: _compile_clean _vivado_clean_logs
 	@rm -rf $(COMPONENT_OUT_PATH)
 
 .PHONY: _ip_clean
