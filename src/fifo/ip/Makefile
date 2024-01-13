@@ -1,7 +1,7 @@
 # -----------------------------------------------
 # Path setup
 # -----------------------------------------------
-IP_ROOT := ../..
+IP_ROOT := ..
 
 # -----------------------------------------------
 # IP config
@@ -15,8 +15,18 @@ include $(IP_ROOT)/config.mk
 #   Note: if no sources are explicitly listed, all
 #   source files from ./src are added automatically,
 #   with include directory ./include
+#
+#   NOTE: By default, IP output products are being generated at
+#         the path represented by $(COMPONENT_OUT_PATH). This
+#         path can be queried using 'make info',
+#         and $(COMPONENT_OUT_PATH) can be used to reference these
+#         files for compilation.
 # ----------------------------------------------------
-SRC_FILES =
+IP_LIST = \
+    fifo_xilinx_ila
+
+SRC_FILES = \
+    $(COMPONENT_OUT_PATH)/fifo_xilinx_ila/sim/fifo_xilinx_ila.v
 INC_DIRS =
 SRC_LIST_FILES =
 
@@ -25,8 +35,7 @@ SRC_LIST_FILES =
 #   List IP component and external library dependencies
 #   (see $SCRIPTS_ROOT/Makefiles/dependencies.mk)
 # ----------------------------------------------------
-COMPONENTS = reg \
-             reg.verif
+COMPONENTS =
 EXT_LIBS =
 
 # ----------------------------------------------------
@@ -43,22 +52,44 @@ ELAB_OPTS=--debug typical
 SIM_OPTS=
 
 # ----------------------------------------------------
-# Targets
+# Compile Targets
 # ----------------------------------------------------
 all: compile
 
-compile: reg
-	$(MAKE) _compile
+ip: _ip
 
-reg:
-	@$(MAKE) -C .. _reg
+compile: _ip_compile
 
-clean: _clean_compile
+synth: _ip_synth
 
-.PHONY: all compile reg clean
+clean: _ip_clean
+
+.PHONY: all ip compile synth clean
 
 # ----------------------------------------------------
-# Import Vivado compile targets
+# Info targets
 # ----------------------------------------------------
-COMPONENT_NAME = reg_verif
-include $(SCRIPTS_ROOT)/Makefiles/vivado_compile.mk
+info: _ip_info
+
+.PHONY: info
+
+# ----------------------------------------------------
+# IP management targets
+#
+#   These targets are used for managing IP, i.e. creating
+#   new IP, or modifying or upgrading existing IP.
+# ----------------------------------------------------
+ip_proj: _ip_proj
+
+ip_upgrade: _ip_upgrade
+
+ip_status: _ip_status
+
+ip_proj_clean: _ip_proj_clean
+
+.PHONY: ip_proj ip_upgrade ip_status ip_proj_clean
+
+# ----------------------------------------------------
+# Import Vivado IP management targets
+# ----------------------------------------------------
+include $(SCRIPTS_ROOT)/Makefiles/vivado_manage_ip.mk

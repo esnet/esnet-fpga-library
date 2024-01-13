@@ -26,7 +26,7 @@ SRC_LIST_FILES =
 #   (see $SCRIPTS_ROOT/Makefiles/dependencies.mk)
 # ----------------------------------------------------
 COMPONENTS = fifo.regio.rtl \
-             fifo.xilinx_ip \
+             fifo.ip \
              mem.rtl \
              sync.rtl \
              axi4l.rtl
@@ -50,11 +50,15 @@ SIM_OPTS=
 # ----------------------------------------------------
 all: compile
 
-compile: _compile
+compile: _compile_sim
 
-clean: _clean_compile
+synth: _compile_synth
 
-.PHONY: all compile clean
+info: _compile_info
+
+clean: _compile_clean
+
+.PHONY: all compile synth info clean
 
 # ----------------------------------------------------
 # Import Vivado compile targets

@@ -4,8 +4,7 @@
 # Usage: this Makefile is used by including it at the end of a 'parent' Makefile,
 #        where the parent can call the targets defined here after defining
 #        the following input 'arguments':
-#        - SIMLIB_ROOT: path to simulation compilation output objects
-#        - LIB_NAME: name of source library to compile component into
+#        - SIMLIB_DIRNAME: path to simulation compilation output objects
 #        - COMPONENT_NAME: name of 'component' created/provided by this compilation
 #        - COMPONENT_PATH: path to library for 'component' created/provided by this compilation
 #        - COMPONENT_PATHS: paths to component library dependencies
@@ -20,12 +19,33 @@
 # -----------------------------------------------
 # Include generic compile configuration
 # -----------------------------------------------
-include $(SCRIPTS_ROOT)/Makefiles/vivado_base.mk
+include $(SCRIPTS_ROOT)/Makefiles/compile_base.mk
+
+# -----------------------------------------------
+# Format component dependencies as Vivado libraries
+# -----------------------------------------------
+# Vivado library references in form lib_name=lib_path
+COMPONENT_LIBS := $(join $(addsuffix =,$(COMPONENT_NAMES)),$(COMPONENT_PATHS))
+
+# -----------------------------------------------
+# Unique list of all library dependencies
+# -----------------------------------------------
+LIBS = $(sort $(SUBCOMPONENT_LIBS) $(COMPONENT_LIBS) $(EXT_LIBS))
+
+# -----------------------------------------------
+# Synthesize library (-L) references
+# -----------------------------------------------
+LIB_REFS = $(LIBS:%=-L %)
+
+# -----------------------------------------------
+# Synthesize define (-d) references
+# -----------------------------------------------
+DEFINE_REFS = $(DEFINES:%=-d %)
 
 # -----------------------------------------------
 # Compiled object destination directory
 # -----------------------------------------------
-OBJ_DIR = $(OUTPUT_ROOT)/$(COMPONENT_PATH)/$(SIMLIB_DIRNAME)
+OBJ_DIR = $(COMPONENT_OUT_PATH)/$(SIMLIB_DIRNAME)
 
 # -----------------------------------------------
 # Output library
@@ -108,9 +128,12 @@ SV_COMPILE_CMD_LOG = $(if $(DO_SV_COMPILE), $(shell echo $(SV_COMPILE_CMD) > $(O
 # -----------------------------------------------
 # TARGETS
 # -----------------------------------------------
-_compile: _compile_components $(SIM_LIB)
+_compile_sim: _compile_components $(SIM_LIB)
 
-.PHONY: _compile
+_compile_synth:
+	@echo "Compile for synth not yet implemented (placeholder target only)."
+
+.PHONY: _compile_sim
 
 # Compile sim library from source
 $(SIM_LIB): $(SRCS) $(HDRS) $(COMPONENT_OBJS) | $(OBJ_DIR)
@@ -137,18 +160,60 @@ $(COMPONENT_REFS):
 .PHONY: _compile_components $(COMPONENT_REFS)
 
 # Clean targets
-_clean_components:
+_compile_clean_components:
 	@-for component in $(COMPONENT_REFS); do \
 		$(MAKE) -s -C $(SRC_ROOT) compile_clean COMPONENT=$$component; \
 	done
 
-_clean_compile: _clean_components
+_compile_clean: _compile_clean_components
 	@[ ! -d $(OBJ_DIR) ] || (echo "Cleaning $(COMPONENT_NAME)..." && rm -rf $(OBJ_DIR))
 	@-find $(OUTPUT_ROOT) -type d -empty -delete 2>/dev/null
 	@rm -f xvlog.pb
 
-.PHONY: _clean_components _clean_compile
+.PHONY: _compile_clean_components _compile_clean
 
 # Make library directory if it doesn't exist
 $(OBJ_DIR):
 	@mkdir -p $@
+
+# Display component configuration
+_compile_config_info:
+	@echo "------------------------------------------------------"
+	@echo "Compile configuration"
+	@echo "------------------------------------------------------"
+	@echo "COMPILE_OPTS        : $(COMPILE_OPTS)"
+	@echo "DEFINES             :"
+	@for define in $(DEFINES); do \
+		echo "\t$$define"; \
+	done
+
+_compile_component_info:
+	@echo "------------------------------------------------------"
+	@echo "Component configuration"
+	@echo "------------------------------------------------------"
+	@echo "COMPONENT_NAME      : $(COMPONENT_NAME)"
+	@echo "SIM_LIB             : $(SIM_LIB)"
+	@echo "SRCS                :"
+	@for src in $(SRCS); do \
+		echo "\t$$src"; \
+	done
+	@echo "HDRS                :"
+	@for hdr in $(HDRS); do \
+		echo "\t$$hdr"; \
+	done
+	@echo "EXT_LIBS            :"
+	@for ext_lib in $(EXT_LIBS); do \
+		echo "\t$$ext_lib"; \
+	done
+	@echo "COMPONENTS          :"
+	@for component in $(COMPONENTS); do \
+		echo "\t$$component"; \
+	done
+	@echo "SUB_LIBS            :"
+	@for sub_lib in $(sort $(COMPONENT_LIBS) $(SUBCOMPONENT_LIBS)); do \
+		echo "\t$$sub_lib"; \
+	done
+
+_compile_info: _compile_config_info _compile_component_info
+
+.PHONY: _compile_config_info _compile_component_info _compile_info
