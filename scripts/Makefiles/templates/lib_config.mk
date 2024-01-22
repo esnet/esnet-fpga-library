@@ -35,7 +35,7 @@ LIB_DESC := "<library-desc>"
 #  The local library is implied if the library name is omitted. For example, a reference
 #  to the AXI rtl library provided in the local library could appear as:
 #
-#  	 axi.rtl
+#   axi.rtl
 #
 LIBRARIES = <libraries>
 
