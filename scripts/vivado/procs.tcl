@@ -17,8 +17,27 @@ namespace eval vivadoProcs {
         set_property target_simulator XSim [current_project]
     }
 
-    proc __open_proj {proj_name proj_dir} {
-        open_project -quiet [file join $proj_dir $proj_name.xpr]
+    proc __open_proj {proj_name proj_dir {read_only 0}} {
+        if {
+            [
+                catch {
+                    if {$read_only} {
+                        open_project -quiet -read_only [file join $proj_dir $proj_name.xpr]
+                    } else {
+                        open_project -quiet [file join $proj_dir $proj_name.xpr]
+                    }
+                } msg options ]
+        } {
+            puts stderr "unexpected script error: $msg"
+            if {[info exists env(DEBUG)]} {
+                puts stderr "---- BEGIN TRACE ----"
+                puts stderr [dict get $options -errorinfo]
+                puts stderr "---- END TRACE ----"
+            }
+
+            # Reserve code 1 for "expected" error exits...
+            exit 2
+        }
     }
 
     proc create_ip_proj {part {proj_name "ip_proj"} {proj_dir "[file join [pwd] ip_proj]"} {in_memory 0}} {
@@ -59,17 +78,11 @@ namespace eval vivadoProcs {
     }
 
     proc open_proj {{proj_name "proj"} {proj_dir "[file join [pwd] proj]"}} {
-        if {[catch {__open_proj $proj_name $proj_dir} msg options]} {
-            puts stderr "unexpected script error: $msg"
-            if {[info exists env(DEBUG)]} {
-                puts stderr "---- BEGIN TRACE ----"
-                puts stderr [dict get $options -errorinfo]
-                puts stderr "---- END TRACE ----"
-            }
+        __open_proj $proj_name $proj_dir 0
+    }
 
-            # Reserve code 1 for "expected" error exits...
-            exit 2
-        }
+    proc open_proj_ro {{proj_name "proj"} {proj_dir "[file join [pwd] proj]"}} {
+        __open_proj $proj_name $proj_dir 1
     }
 
     proc close_proj {} {
