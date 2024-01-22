@@ -42,6 +42,7 @@ if {$phase == "create_proj"} {
     if {[info exists BOARD_PART]} {
         vivadoProcs::set_board_part $BOARD_PART
     }
+    config_ip_cache -disable_cache
     vivadoProcs::close_proj
 } elseif {$phase == "create_ip"} {
     vivadoProcs::create_ip_proj_in_memory $PART

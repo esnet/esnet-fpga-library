@@ -25,8 +25,7 @@ export BOARD_PART
 # -----------------------------------------------
 # Options
 # -----------------------------------------------
-VIVADO_DEFAULT_OPTIONS = -mode batch -notrace -nojournal
-
+VIVADO_DEFAULT_OPTIONS = -notrace -nojournal
 VIVADO_OPTIONS += $(VIVADO_DEFAULT_OPTIONS)
 
 VIVADO_LOG_DIR  ?= $(CURDIR)
@@ -35,8 +34,13 @@ VIVADO_LOG_NAME ?= vivado.log
 # -----------------------------------------------
 # Commands
 # -----------------------------------------------
-VIVADO_CMD_BASE_NO_LOG = vivado $(VIVADO_OPTIONS) -source $(VIVADO_SCRIPTS_ROOT)/part.tcl -source $(VIVADO_SCRIPTS_ROOT)/procs.tcl
+__VIVADO_CMD_BASE_NO_LOG = vivado $(VIVADO_OPTIONS) -source $(VIVADO_SCRIPTS_ROOT)/part.tcl -source $(VIVADO_SCRIPTS_ROOT)/procs.tcl
+
+VIVADO_CMD_BASE_NO_LOG = $(__VIVADO_CMD_BASE_NO_LOG) -mode batch
 VIVADO_CMD_BASE = $(VIVADO_CMD_BASE_NO_LOG) -log $(VIVADO_LOG_DIR)/$(VIVADO_LOG_NAME)
+
+VIVADO_CMD_BASE_GUI_NO_LOG = $(__VIVADO_CMD_BASE_NO_LOG) -mode gui
+VIVADO_CMD_BASE_GUI = $(VIVADO_CMD_BASE_GUI_NO_LOG) -log $(VIVADO_LOG_DIR)/$(VIVADO_LOG_NAME)
 
 # -----------------------------------------------
 # Targets
