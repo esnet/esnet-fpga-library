@@ -137,10 +137,10 @@ _compile_synth:
 
 # Compile sim library from source
 $(SIM_LIB): $(SRCS) $(HDRS) $(COMPONENT_OBJS) | $(OBJ_DIR)
-	@echo -----------------------------------------------------
-	@echo Compiling simulation library '$(COMPONENT_NAME)'...
-	@rm -rf $(SIM_LIB)
+	@echo "----------------------------------------------------------"
+	@echo "Compiling simulation library '$(COMPONENT_NAME)' ..."
 	@echo
+	@rm -rf $(SIM_LIB)
 	$(V_COMPILE)
 	@$(V_COMPILE_CMD_LOG)
 	$(SV_COMPILE)
@@ -149,13 +149,13 @@ $(SIM_LIB): $(SRCS) $(HDRS) $(COMPONENT_OBJS) | $(OBJ_DIR)
 	@rm -f xvlog.log
 	@echo $(LIBS) | tr ' ' '\n' > $(OBJ_DIR)/sub.libs
 	@echo
-	@echo Done.
+	@echo "Done."
 
 # Compile component dependencies
 _compile_components: $(COMPONENT_REFS)
 
 $(COMPONENT_REFS):
-	@$(MAKE) -s -C $(SRC_ROOT) compile COMPONENT=$@; \
+	@$(MAKE) -s -C $(SRC_ROOT) compile COMPONENT=$@
 
 .PHONY: _compile_components $(COMPONENT_REFS)
 
