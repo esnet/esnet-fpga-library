@@ -162,7 +162,7 @@ $(COMPONENT_REFS):
 # Clean targets
 _compile_clean_components:
 	@-for component in $(COMPONENT_REFS); do \
-		$(MAKE) -s -C $(SRC_ROOT) compile_clean COMPONENT=$$component; \
+		$(MAKE) -s -C $(SRC_ROOT) clean COMPONENT=$$component; \
 	done
 
 _compile_clean: _compile_clean_components

@@ -5,10 +5,12 @@
 # Usage: this Makefile is used by including it in a 'parent' Makefile,
 #        where the parent can call the targets defined here after defining
 #        the following input 'arguments':
-#        - LIB_NAME : name of source library (used for reporting only)
-#        - COMPONENT : 
-
-
+#        - LIB_NAME    : name of source library (used for reporting only)
+#        - COMPONENT   : target of library operation (reg/ip/info/compile/synth/clean)
+#        - CFG_ROOT    : path to configuration files (i.e. part.mk)
+#        - OUTPUT_ROOT : path to output (generated) files
+#        - LIB_ENV     : library-specific environment variables to be passed as arguments to library operations
+#        - USER_ENV    : user-specific environment variables to be passed as arguments to library operations
 # ----------------------------------------------------
 # Assign variable defaults
 # ----------------------------------------------------
@@ -17,7 +19,13 @@ LIB_NAME ?= "Unnamed library"
 # ----------------------------------------------------
 # Help
 # ----------------------------------------------------
-_help: __header __compile_help __compile_clean_help __reg_help
+_help: __header _usage
+
+_usage: __usage
+
+__space := $(EMPTY) $(EMPTY)
+__blank_line = \
+	@echo ""
 
 __header:
 	@echo $(LIB_NAME)
@@ -27,10 +35,15 @@ ifdef LIB_DESC
 endif
 	@echo ""
 
-__blank_line = \
-	@echo ""
+__usage:
+	@echo  "Usage:"
+	@echo  "  make [$(subst $(space),|,$(strip $(LIB_OPS)))] COMPONENT=<component_ref>"
+	@echo  "Examples:"
+	@echo  "  make compile COMPONENT=axi.rtl"
+	@echo  "  make info COMPONENT=vendorx.component.verif"
 
-.PHONY: _help __header
+
+.PHONY: _help __header __usage
 
 # ----------------------------------------------------
 # Config
@@ -50,181 +63,97 @@ endif
 endif
 
 # ----------------------------------------------------
-# Compile for simulation
+# Environment
 # ----------------------------------------------------
-# Compile simulation library for specified component
-__compile_usage = \
-	@echo  "Usage:";\
-	echo  "  make compile COMPONENT=<component_ref>"; \
-	echo  "Examples:"; \
-	echo  "  make compile COMPONENT=axi.rtl"; \
-	echo  "  make compile COMPONENT=vendorx.component.verif"
+# The config here allows for select environment variables
+# to be passed explictly to all library calls and subcalls
+#
+# Specify entries as:
+# e.g. ENV = VAR1_NAME=VAR1_VALUE VAR2_NAME=VAR2_VALUE
+#
+# Common environment
+COMMON_ENV = \
+	CFG_ROOT=$(CFG_ROOT)
 
-__compile_clean_usage = \
-    @echo  "Usage:";\
-	echo  "  make compile_clean [COMPONENT=<component_ref>]"; \
-	echo  "Examples:"; \
-	echo  "  make compile_clean COMPONENT=axi.rtl"; \
-	echo  "  make compile_clean COMPONENT=vendorx.component.verif"; \
-	echo  "  make compile_clean (all components in all libraries)"
+# Library-specific environment (optional)
+LIB_ENV ?=
 
-__compile_help:
-	$(__blank_line)
-	@echo 'Compile'
-	@echo '-------'
-	@echo '  - compile simulation libraries'
-	$(__compile_usage)
+# User-specific environment (optional)
+USER_ENV ?=
 
-__compile_clean_help:
-	$(__blank_line)
-	@echo 'Compile clean'
-	@echo '-------------'
-	@echo '  - clean compile objects'
-	$(__compile_clean_usage)
+# ----------------------------------------------------
+# Targets
+# ----------------------------------------------------
 
-# Generate register RTL for specified component
-__reg_usage = \
-	@echo  "Usage:";\
-	echo  "  make reg COMPONENT=<component_ref>"; \
-	echo  "Examples:"; \
-	echo  "  make reg COMPONENT=axi.rtl"; \
-	echo  "  make reg COMPONENT=vendorx.component.verif"
+# Enumerate library operations
+LIB_OPS = reg ip info compile synth driver clean
 
-__reg_help:
-	$(__blank_line)
-	@echo 'Register gen'
-	@echo '------------'
-	@echo '  - generate register RTL'
-	$(__reg_usage)
+# Define prerequisite targets
+__info:
+	@echo "------------------------------------------------------"
+	@echo "Source library configuration"
+	@echo "------------------------------------------------------"
+	@echo "LIB_NAME            : $(LIB_NAME)"
+	@echo "COMMON_ENV          : $(COMMON_ENV)"
+	@echo "LIB_ENV             : $(LIB_ENV)"
+	@echo "USER_ENV            : $(USER_ENV)"
 
-.PHONY: __reg_help
+# By default, prerequisite targets are empty
+$(foreach target,$(filter-out info,$(LIB_OPS)),$(eval __$(target):))
 
-_compile: | $(OUTPUT_ROOT)
+.PHONY: $(addprefix __,$(LIB_OPS))
+
+# Create targets
+# - targets have identical structure, and use the same Makefile recipe
+# - a target is created for each of the operations listed in LIB_OPS,
+#   prefixed with '_'
+#   e.g. _reg, _ip, _compile, etc.
+
 ifdef COMPONENT
 ifneq ($(SUBLIBRARY),)
-# If component is in sub-library, pass compile job to sub-library
-	@$(MAKE) -s -C $(SUBLIB_SRC_ROOT) compile COMPONENT=$(SUBLIB_COMPONENT) CFG_ROOT=$(CFG_ROOT) OUTPUT_ROOT=$(OUTPUT_ROOT)/$(SUBLIBRARY)
+
+# If component is in sub-library, pass job to sub-library
+define LIB_OP_RULE
+_$(target): __$(target) | $(OUTPUT_ROOT)
+	@$(MAKE) -s -C $(SUBLIB_SRC_ROOT) $(target) COMPONENT=$(SUBLIB_COMPONENT) OUTPUT_ROOT=$(OUTPUT_ROOT)/$(SUBLIBRARY) $(COMMON_ENV) $(LIB_ENV) $(USER_ENV)
+endef
 else
+
 # If component is in local library, check that it exists
 ifneq ($(wildcard $(COMPONENT_SRC_PATH)/Makefile),)
 # If so, run compile target for component
-	@$(MAKE) -s -C $(COMPONENT_SRC_PATH) compile CFG_ROOT=$(CFG_ROOT) OUTPUT_ROOT=$(OUTPUT_ROOT)
-else
+define LIB_OP_RULE
+_$(target): __$(target) | $(OUTPUT_ROOT)
+	@$(MAKE) -s -C $(COMPONENT_SRC_PATH) $(target) OUTPUT_ROOT=$(OUTPUT_ROOT) $(COMMON_ENV) $(LIB_ENV) $(USER_ENV)
+endef
+
 # If not, print helpful error message
+else
+define LIB_OP_RULE
+_$(target): __$(target) | $(OUTPUT_ROOT)
 	$(error Component $(COMPONENT) could not be found)
+endef
 endif
 endif
 else
 # If no component is specified, generate helpful error message
+define LIB_OP_RULE
+_$(target): __$(target) | $(OUTPUT_ROOT)
 	@echo "ERROR: no component specified."
-	$(__compile_usage)
+	@$(MAKE) -s _usage
 	@false
+endef
 endif
+$(foreach target,$(LIB_OPS),$(eval $(LIB_OP_RULE)))
 
-# Clean compile products
-_compile_clean:
-ifdef COMPONENT
-ifneq ($(SUBLIBRARY),)
-# If component is in sub-library, pass clean job to sub-library
-	@$(MAKE) -s -C $(SUBLIB_SRC_ROOT) compile_clean COMPONENT=$(SUBLIB_COMPONENT) CFG_ROOT=$(CFG_ROOT) OUTPUT_ROOT=$(OUTPUT_ROOT)/$(SUBLIBRARY)
-else
-# If component is in local library, check that it exists
-ifneq ($(wildcard $(COMPONENT_SRC_PATH)/Makefile),)
-# If so, run compile clean target for component
-	@$(MAKE) -s -C $(COMPONENT_SRC_PATH) clean CFG_ROOT=$(CFG_ROOT) OUTPUT_ROOT=$(OUTPUT_ROOT)
-else
-# If not, print helpful error message
-	$(error Component $(COMPONENT) could not be found)
-endif
-endif
-else
-# I no component is specified, clean all components in all libraries
-	@-for lib in $(call get_libs,$(LIBRARIES)); do \
-		$(MAKE) -s -C $(call get_lib_path,$$lib) compile_clean; \
-	done
-	@-rm -rf $(OUTPUT_ROOT)/$(SIMLIB_DIRNAME)
-endif
+.PHONY: $(addprefix _,$(LIB_OPS))
 
-.PHONY: _compile _compile_clean
-
-_reg: | $(OUTPUT_ROOT)
-ifdef COMPONENT
-ifneq ($(SUBLIBRARY),)
-# If component is in sub-library, pass compile job to sub-library
-	@$(MAKE) -s -C $(SUBLIB_SRC_ROOT) reg COMPONENT=$(SUBLIB_COMPONENT) CFG_ROOT=$(CFG_ROOT) OUTPUT_ROOT=$(OUTPUT_ROOT)/$(SUBLIBRARY)
-else
-# If component is in local library, check that it exists
-ifneq ($(wildcard $(COMPONENT_SRC_PATH)/Makefile),)
-# If so, run compile target for component
-	@$(MAKE) -s -C $(COMPONENT_SRC_PATH) reg CFG_ROOT=$(CFG_ROOT) OUTPUT_ROOT=$(OUTPUT_ROOT)
-else
-# If not, print helpful error message
-	$(error Component $(COMPONENT) could not be found)
-endif
-endif
-else
-# If no component is specified, generate helpful error message
-	@echo "ERROR: no component specified."
-	$(__compile_usage)
-	@false
-endif
-
-.PHONY: _reg
-
-_synth:
-ifdef COMPONENT
-ifneq ($(SUBLIBRARY),)
-# If component is in sub-library, pass compile job to sub-library
-	@$(MAKE) -s -C $(SUBLIB_SRC_ROOT) synth COMPONENT=$(SUBLIB_COMPONENT) CFG_ROOT=$(CFG_ROOT) OUTPUT_ROOT=$(OUTPUT_ROOT)/$(SUBLIBRARY)
-else
-# If component is in local library, check that it exists
-ifneq ($(wildcard $(COMPONENT_SRC_PATH)/Makefile),)
-# If so, run compile target for component
-	@$(MAKE) -s -C $(COMPONENT_SRC_PATH) synth CFG_ROOT=$(CFG_ROOT) OUTPUT_ROOT=$(OUTPUT_ROOT)
-else
-# If not, print helpful error message
-	$(error Component $(COMPONENT) could not be found)
-endif
-endif
-else
-# If no component is specified, generate helpful error message
-	@echo "ERROR: no component specified."
-	$(__compile_usage)
-	@false
-endif
-
-.PHONY: _synth
-
-_info:
-ifdef COMPONENT
-ifneq ($(SUBLIBRARY),)
-# If component is in sub-library, pass request to sub-library
-	@$(MAKE) -s -C $(SUBLIB_SRC_ROOT) info COMPONENT=$(SUBLIB_COMPONENT) CFG_ROOT=$(CFG_ROOT) OUTPUT_ROOT=$(OUTPUT_ROOT)/$(SUBLIBRARY)
-else
-# If component is in local library, check that it exists
-ifneq ($(wildcard $(COMPONENT_SRC_PATH)/Makefile),)
-# If so, run target for component
-	@$(MAKE) -s -C $(COMPONENT_SRC_PATH) info CFG_ROOT=$(CFG_ROOT) OUTPUT_ROOT=$(OUTPUT_ROOT)
-else
-# If not, print helpful error message
-	$(error Component $(COMPONENT) could not be found)
-endif
-endif
-else
-# If no component is specified, generate helpful error message
-	@echo "ERROR: no component specified."
-	$(__compile_usage)
-	@false
-endif
-
-.PHONY: _info
-
-_clean:
+_clean_all:
 	@echo -n "Removing all output products... "
 	@-rm -rf $(OUTPUT_ROOT)
 	@echo "Done."
 
-.PHONY: _clean
+.PHONY: _clean_all
 
 $(OUTPUT_ROOT):
 	@mkdir -p $@

@@ -1,7 +1,7 @@
 # ----------------------------------------------------
 # Path setup
-#
-# Configure in 
+# - specify paths in terms of SRC_ROOT
+#   (defined in parent Makefile)
 # ----------------------------------------------------
 PROJ_ROOT = $(abspath $(SRC_ROOT)/..)
 
@@ -22,11 +22,12 @@ LIB_DESC := "  Provides RTL source and verification code for a number of standar
 # List of source libraries, as 'name=path' pairs; Allows 'import' of source
 # files from libraries located at arbitrary locations.
 #
-# Indidual IP components can be imported into designs using a dot notation, where
-# the most significant element is the name of the source library. For example, the
-# following reference might be used to refer to an AXI RTL library from some vendor:
+# Indidual source components can be imported into designs using a dot/@ notation, where
+# the dotted portion represents the component (and subcomponents) and the @ element
+# represents name of the source library. For example, the following reference might be
+# used to refer to an AXI RTL library from some vendor:
 #
-#   vendorx.axi.rtl
+#   axi.rtl@vendorx
 #
 # For this to resolve properly it would be necessary to have a corresponding entry in
 # the LIBRARIES variable, describing the path to the referenced library:
@@ -39,3 +40,14 @@ LIB_DESC := "  Provides RTL source and verification code for a number of standar
 #  	 axi.rtl
 #
 LIBRARIES =
+
+# ----------------------------------------------------
+# Environment setup
+# - specify library-specific environment variables
+#   that should be passed as arguments to library
+#   operations
+# - entries should be specified as a list of NAME=VALUE
+#   pairs, e.g.:
+#   LIB_ENV = VAR1_NAME=VAR1_VALUE VAR2_NAME=VAR2_VALUE
+# ----------------------------------------------------
+LIB_ENV =
