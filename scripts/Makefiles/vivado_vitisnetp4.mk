@@ -12,51 +12,46 @@
 #        - P4_OPTS: (optional) dictionary of options to pass to the P4 compiler
 
 # -----------------------------------------------
-# Path setup
-# -----------------------------------------------
-VITISNETP4_IP_DIR ?= $(IP_OUT_DIR)
-IP_SRC_DIR = $(VITISNETP4_IP_DIR)
-
-# -----------------------------------------------
 # IP config
 # -----------------------------------------------
 IP_LIST = $(VITISNETP4_IP_NAME)
 
 # -----------------------------------------------
+# Path setup
+# -----------------------------------------------
+IP_SRC_DIR = $(COMPONENT_OUT_PATH)
+
+# -----------------------------------------------
 # Source files
 # -----------------------------------------------
-VITISNETP4_TCL_FILE = $(abspath $(VITISNETP4_IP_DIR)/$(VITISNETP4_IP_NAME).tcl)
+VITISNETP4_TCL_FILE = $(IP_SRC_DIR)/$(VITISNETP4_IP_NAME).tcl
 
-VITISNETP4_SRC_FILES = \
-    $(VITISNETP4_IP_DIR)/$(VITISNETP4_IP_NAME)/src/verilog/$(VITISNETP4_IP_NAME)_top_pkg.sv \
-    $(VITISNETP4_IP_DIR)/$(VITISNETP4_IP_NAME)/src/verilog/$(VITISNETP4_IP_NAME)_pkg.sv \
-    $(VITISNETP4_IP_DIR)/$(VITISNETP4_IP_NAME)/src/verilog/$(VITISNETP4_IP_NAME)_sync_fifos.sv \
-    $(VITISNETP4_IP_DIR)/$(VITISNETP4_IP_NAME)/src/verilog/$(VITISNETP4_IP_NAME)_header_sequence_identifier.sv \
-    $(VITISNETP4_IP_DIR)/$(VITISNETP4_IP_NAME)/src/verilog/$(VITISNETP4_IP_NAME)_header_field_extractor.sv \
-    $(VITISNETP4_IP_DIR)/$(VITISNETP4_IP_NAME)/src/verilog/$(VITISNETP4_IP_NAME)_error_check_module.sv \
-    $(VITISNETP4_IP_DIR)/$(VITISNETP4_IP_NAME)/src/verilog/$(VITISNETP4_IP_NAME)_extern_wrapper.sv \
-    $(VITISNETP4_IP_DIR)/$(VITISNETP4_IP_NAME)/src/verilog/$(VITISNETP4_IP_NAME)_parser_engine.sv \
-    $(VITISNETP4_IP_DIR)/$(VITISNETP4_IP_NAME)/src/verilog/$(VITISNETP4_IP_NAME)_deparser_engine.sv \
-    $(VITISNETP4_IP_DIR)/$(VITISNETP4_IP_NAME)/src/verilog/$(VITISNETP4_IP_NAME)_action_engine.sv \
-    $(VITISNETP4_IP_DIR)/$(VITISNETP4_IP_NAME)/src/verilog/$(VITISNETP4_IP_NAME)_lookup_engine.sv \
-    $(VITISNETP4_IP_DIR)/$(VITISNETP4_IP_NAME)/src/verilog/$(VITISNETP4_IP_NAME)_axi4lite_interconnect.sv \
-    $(VITISNETP4_IP_DIR)/$(VITISNETP4_IP_NAME)/src/verilog/$(VITISNETP4_IP_NAME)_statistics_registers.sv \
-    $(VITISNETP4_IP_DIR)/$(VITISNETP4_IP_NAME)/src/verilog/$(VITISNETP4_IP_NAME)_match_action_engine.sv \
-    $(VITISNETP4_IP_DIR)/$(VITISNETP4_IP_NAME)/src/verilog/$(VITISNETP4_IP_NAME)_top.sv \
-    $(VITISNETP4_IP_DIR)/$(VITISNETP4_IP_NAME)/src/verilog/$(VITISNETP4_IP_NAME).sv
+IP_SIM_SRC_FILES += \
+    $(VITISNETP4_IP_NAME)/src/verilog/$(VITISNETP4_IP_NAME)_top_pkg.sv \
+    $(VITISNETP4_IP_NAME)/src/verilog/$(VITISNETP4_IP_NAME)_pkg.sv \
+    $(VITISNETP4_IP_NAME)/src/verilog/$(VITISNETP4_IP_NAME)_sync_fifos.sv \
+    $(VITISNETP4_IP_NAME)/src/verilog/$(VITISNETP4_IP_NAME)_header_sequence_identifier.sv \
+    $(VITISNETP4_IP_NAME)/src/verilog/$(VITISNETP4_IP_NAME)_header_field_extractor.sv \
+    $(VITISNETP4_IP_NAME)/src/verilog/$(VITISNETP4_IP_NAME)_error_check_module.sv \
+    $(VITISNETP4_IP_NAME)/src/verilog/$(VITISNETP4_IP_NAME)_extern_wrapper.sv \
+    $(VITISNETP4_IP_NAME)/src/verilog/$(VITISNETP4_IP_NAME)_parser_engine.sv \
+    $(VITISNETP4_IP_NAME)/src/verilog/$(VITISNETP4_IP_NAME)_deparser_engine.sv \
+    $(VITISNETP4_IP_NAME)/src/verilog/$(VITISNETP4_IP_NAME)_action_engine.sv \
+    $(VITISNETP4_IP_NAME)/src/verilog/$(VITISNETP4_IP_NAME)_lookup_engine.sv \
+    $(VITISNETP4_IP_NAME)/src/verilog/$(VITISNETP4_IP_NAME)_axi4lite_interconnect.sv \
+    $(VITISNETP4_IP_NAME)/src/verilog/$(VITISNETP4_IP_NAME)_statistics_registers.sv \
+    $(VITISNETP4_IP_NAME)/src/verilog/$(VITISNETP4_IP_NAME)_match_action_engine.sv \
+    $(VITISNETP4_IP_NAME)/src/verilog/$(VITISNETP4_IP_NAME)_top.sv \
+    $(VITISNETP4_IP_NAME)/src/verilog/$(VITISNETP4_IP_NAME).sv
 
-VITISNETP4_INC_DIRS = \
-    $(VITISNETP4_IP_DIR)/$(VITISNETP4_IP_NAME)/hdl/fpga_asic_macros_v1_0/hdl/include/fpga \
-    $(VITISNETP4_IP_DIR)/$(VITISNETP4_IP_NAME)/hdl/mcfh_v1_0/hdl/mcfh_include \
-    $(VITISNETP4_IP_DIR)/$(VITISNETP4_IP_NAME)/hdl/cue_v1_0/hdl \
-    $(VITISNETP4_IP_DIR)/$(VITISNETP4_IP_NAME)/hdl/infrastructure_v6_4/ic_infrastructure/libs/axi \
-    $(VITISNETP4_IP_DIR)/$(VITISNETP4_IP_NAME)/hdl/axil_mil_v2_4/axil_mil/sv/axil_mil \
-    $(VITISNETP4_IP_DIR)/$(VITISNETP4_IP_NAME)/src/hw/simulation \
-    $(VITISNETP4_IP_DIR)/$(VITISNETP4_IP_NAME)/src/verilog
-
-SRC_FILES += $(VITISNETP4_SRC_FILES)
-
-INC_DIRS += $(VITISNETP4_INC_DIRS)
+IP_SIM_INC_DIRS += \
+    $(VITISNETP4_IP_NAME)/hdl/fpga_asic_macros_v1_0/hdl/include/fpga \
+    $(VITISNETP4_IP_NAME)/hdl/mcfh_v1_0/hdl/mcfh_include \
+    $(VITISNETP4_IP_NAME)/hdl/cue_v1_0/hdl \
+    $(VITISNETP4_IP_NAME)/hdl/infrastructure_v6_4/ic_infrastructure/libs/axi \
+    $(VITISNETP4_IP_NAME)/hdl/axil_mil_v2_4/axil_mil/sv/axil_mil \
+    $(VITISNETP4_IP_NAME)/src/hw/simulation \
+    $(VITISNETP4_IP_NAME)/src/verilog
 
 COMPONENTS += \
     vitisnetp4.dpi
@@ -78,9 +73,8 @@ include $(SCRIPTS_ROOT)/Makefiles/vivado_manage_ip.mk
 # -----------------------------------------------
 # Output files
 # -----------------------------------------------
-VITISNETP4_XCI_DIR = $(abspath $(IP_OUT_DIR)/$(VITISNETP4_IP_NAME))
-VITISNETP4_XCI_FILE = $(VITISNETP4_XCI_DIR)/$(VITISNETP4_IP_NAME).xci
-VITISNETP4_DPI_DRV_FILE = $(VITISNETP4_XCI_DIR)/vitisnetp4_drv_dpi.so
+VITISNETP4_XCI_FILE = $(IP_OUT_DIR)/$(VITISNETP4_IP_NAME)/$(VITISNETP4_IP_NAME).xci
+VITISNETP4_DPI_DRV_FILE = $(IP_OUT_DIR)/$(VITISNETP4_IP_NAME)/vitisnetp4_drv_dpi.so
 
 # -----------------------------------------------
 # Options
@@ -91,7 +85,38 @@ P4_OPTS += $(DEFAULT_P4_OPTS)
 # -----------------------------------------------
 # Targets
 # -----------------------------------------------
-_vitisnetp4_ip: _ip
+# Custom XCI generation script; similar in intent to the standard
+# _ip target provided in vivado_manage_ip.mk, but filters a timestamp
+# out of the old and new XCI failures; without this filter, every
+# time the XCI is created it differs from the existing XCI due to
+# this timestamp.
+_vitisnetp4_ip: $(VITISNETP4_TCL_FILE) | $(IP_OUT_DIR)
+	@echo "----------------------------------------------------------"
+	@echo "Create/update IP ($(COMPONENT_NAME)) ..."
+	@rm -rf $(IP_OUT_DIR)/.xci
+	@mkdir -p $(IP_OUT_DIR)/.xci
+	@cd $(IP_OUT_DIR)/.xci && $(VIVADO_MANAGE_IP_CMD) -tclargs create_ip $<
+	@echo
+	@echo "Update IP Summary:"
+	@mkdir -p $(IP_OUT_DIR)/$(VITISNETP4_IP_NAME)
+	@(test -e $(VITISNETP4_XCI_FILE) && cat $(VITISNETP4_XCI_FILE) | grep -v JSON_TIMESTAMP > $(IP_OUT_DIR)/.xci/old_xci) || true
+	@cat $(IP_OUT_DIR)/.xci/$(VITISNETP4_IP_NAME)/$(VITISNETP4_IP_NAME).xci | grep -v JSON_TIMESTAMP > $(IP_OUT_DIR)/.xci/new_xci
+	@cmp -s $(IP_OUT_DIR)/.xci/old_xci $(IP_OUT_DIR)/.xci/new_xci; \
+	retVal=$$?; \
+	echo -n "\t$(VITISNETP4_IP_NAME): "; \
+	case $$retVal in \
+		0) \
+			echo "No change.";; \
+		1) \
+			cp $(IP_OUT_DIR)/.xci/$(VITISNETP4_IP_NAME)/$(VITISNETP4_IP_NAME).xci $(VITISNETP4_XCI_FILE); \
+			echo "XCI updated.";; \
+		2) \
+			cp $(IP_OUT_DIR)/.xci/$(VITISNETP4_IP_NAME)/$(VITISNETP4_IP_NAME).xci $(VITISNETP4_XCI_FILE); \
+			echo "XCI created.";; \
+	esac
+	@rm -rf $(IP_OUT_DIR)/.xci
+	@echo
+	@echo "Done."
 
 _vitisnetp4_dpi_drv: $(VITISNETP4_DPI_DRV_FILE)
 
@@ -104,23 +129,23 @@ _vitisnetp4_clean: _ip_clean
 
 .PHONY: _vitisnetp4_ip _vitisnetp4_compile _vitisnetp4_synth _vitisnetp4_clean
 
-$(VITISNETP4_TCL_FILE): $(P4_FILE) | $(VITISNETP4_IP_DIR)
+$(VITISNETP4_TCL_FILE): $(P4_FILE)
+	@mkdir -p $(IP_SRC_DIR)
 	@echo "create_ip -force -name vitis_net_p4 -vendor xilinx.com -library ip -module_name $(VITISNETP4_IP_NAME) -dir . -force" > $@
 	@echo "set_property -dict [concat [list CONFIG.P4_FILE $(P4_FILE)] [list $(P4_OPTS)]] [get_ips $(VITISNETP4_IP_NAME)]" >> $@
 
-$(VITISNETP4_DPI_DRV_FILE): $(VITISNETP4_XCI_FILE)
+$(VITISNETP4_DPI_DRV_FILE): $(VITISNETP4_XCI_FILE) | $(IP_PROJ_XPR)
 	@cd $(IP_OUT_DIR) && $(VIVADO_MANAGE_IP_CMD) -tclargs drv_dpi $<
 
-$(VITISNETP4_SRC_FILES) $(VITISNETP4_INC_DIRS): $(VITISNETP4_XCI_FILE)
-	@cd $(IP_OUT_DIR) && $(VIVADO_MANAGE_IP_CMD) -tclargs generate $<
+_vitisnetp4_driver: $(VITISNETP4_XCI_FILE) | $(IP_PROJ_XPR)
+	@cd $(IP_OUT_DIR) && $(VIVADO_MANAGE_IP_CMD) -tclargs sw_driver $<
+	@$(MAKE) -s -C $(IP_OUT_DIR)/$(VITISNETP4_IP_NAME)/src/sw/drivers
 
 _vitisnetp4_info: _ip_info
-	@echo "=============================================================================="
+	@echo "----------------------------------------------------------"
 	@echo "VitisNetP4 configuration"
-	@echo "=============================================================================="
-	@echo "SCRIPTS_ROOT        : $(SCRIPTS_ROOT)"
+	@echo "----------------------------------------------------------"
 	@echo "VITISNETP4_IP_NAME  : $(VITISNETP4_IP_NAME)"
-	@echo "VITISNETP4_IP_DIR   : $(VITISNETP4_IP_DIR)"
 	@echo "P4_FILE             : $(P4_FILE)"
 	@echo "P4_OPTS             : $(P4_OPTS)"
 	@echo "VITISNETP4_TCL_FILE : $(VITISNETP4_TCL_FILE)"
