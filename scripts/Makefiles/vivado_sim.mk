@@ -66,3 +66,20 @@ _clean_sim: _elab_clean
 	@echo "Done."
 
 .PHONY: _sim _clean_sim
+
+# -----------------------------------------------
+# Info targets
+# -----------------------------------------------
+.sim_config_info:
+	@echo "------------------------------------------------------"
+	@echo "Simulation configuration"
+	@echo "------------------------------------------------------"
+	@echo "SIM_OPTS            : $(SIM_OPTS)"
+	@echo "PLUSARGS            : $(PLUSARGS)"
+	@echo "SEED                : $(SEED)"
+
+.sim_info: .sim_config_info .elab_info
+
+_sim_info: .sim_info
+
+.PHONY: .sim_config_info .sim_info _sim_info
