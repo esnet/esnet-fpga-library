@@ -1,4 +1,10 @@
 # ----------------------------------------------------
+# Import environment variables
+# ----------------------------------------------------
+$(foreach env,$(LIB_ENV)   ,$(eval $(env)))
+$(foreach env,$(USER_ENV)  ,$(eval $(env)))
+
+# ----------------------------------------------------
 # Import functions for managing/manipulating component and library references
 # ----------------------------------------------------
 include $(SCRIPTS_ROOT)/Makefiles/component_funcs.mk
