@@ -1,12 +1,9 @@
 # -----------------------------------------------
-# Path setup
+# Component setup
 # -----------------------------------------------
-IP_ROOT := ../..
+COMPONENT_ROOT := ../..
 
-# -----------------------------------------------
-# IP config
-# -----------------------------------------------
-include $(IP_ROOT)/config.mk
+include $(COMPONENT_ROOT)/config.mk
 
 # -----------------------------------------------
 # Configuration
@@ -24,24 +21,24 @@ waves ?= OFF
 # Top
 #   Specify top module(s) for elaboration
 # ----------------------------------------------------
-TOP = $(SVUNIT_TOP)
+TOP =
 
 # ----------------------------------------------------
 # Sources
 #   List source files and include directories for test
-#   (see $(SCRIPTS_ROOT)/Makefiles/sources.mk)
+#   (see $(SCRIPTS_ROOT)/Makefiles/templates/sources.mk)
 #   NOTE: SVUnit sources are automatically included
 # ----------------------------------------------------
 SRC_FILES =
 INC_DIRS =
-SRC_LIST_FILES = $(SVUNIT_SRC_LIST_FILE)
+SRC_LIST_FILES =
 
 # ----------------------------------------------------
 # Dependencies
-#   List IP component and external library dependencies
-#   (see $SCRIPTS_ROOT/Makefiles/dependencies.mk for details)
+#   List subcomponent and external library dependencies
+#   (see $SCRIPTS_ROOT/Makefiles/templates/dependencies.mk for details)
 # ----------------------------------------------------
-COMPONENTS =
+SUBCOMPONENTS =
 EXT_LIBS =
 
 # ----------------------------------------------------
@@ -51,7 +48,7 @@ EXT_LIBS =
 #   command line, as e.g.:
 #     make DEFINES="DEBUG FAST=TRUE"
 # ----------------------------------------------------
-override DEFINES += SIMULATION
+override DEFINES +=
 
 # ----------------------------------------------------
 # Run-time arguments
@@ -66,37 +63,26 @@ override PLUSARGS +=
 # ----------------------------------------------------
 # Options
 # ----------------------------------------------------
-COMPILE_OPTS=
-ELAB_OPTS=--debug typical
-SIM_OPTS=
+COMPILE_OPTS =
+ELAB_OPTS =--debug typical
+SIM_OPTS =
 
 # ----------------------------------------------------
 # Targets
 # ----------------------------------------------------
-all: build_test sim
+all: sim
 
-build_test: _build_test
-
-sim: _sim
-
+sim:   _sim
+info:  _sim_info
 clean: _clean_test _clean_sim
 
-.PHONY: all build_test sim clean
+.PHONY: all sim info clean
 
 # ----------------------------------------------------
 # Test configuration
 # ----------------------------------------------------
 SRC_DIR = .
 INC_DIR = .
-
-# ----------------------------------------------------
-# Import SVUNIT build targets/configuration
-# ----------------------------------------------------
-include $(SCRIPTS_ROOT)/Makefiles/svunit.mk
-
-# Export SVUNIT configuration
-SVUNIT_TOP = $(COMPONENT_NAME).$(SVUNIT_TOP_MODULE)
-SVUNIT_SRC_LIST_FILE = $(SVUNIT_FILE_LIST)
 
 # ----------------------------------------------------
 # Import Vivado sim targets
