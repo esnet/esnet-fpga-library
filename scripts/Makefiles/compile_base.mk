@@ -1,17 +1,5 @@
 # -----------------------------------------------
-# Import default component configuration
-#
-# Provides the following:
-#   - COMPONENT_REF: reference spec for component to be compiled
-#   - COMPONENT_NAME: standardized component name for component to be compiled
-#   - COMPONENT_PATH: path to component source
-#   - COMPONENT_BASE: component reference, not including suffix (subcomponent)
-#   - SUBCOMPONENT: subcomponent reference, equivalent to suffix of component reference
-# -----------------------------------------------
-include $(SCRIPTS_ROOT)/Makefiles/component_base.mk
-
-# -----------------------------------------------
-# Paths
+# Configure paths
 # -----------------------------------------------
 # Specify standard directory structure
 INC_DIR ?= include
@@ -61,46 +49,82 @@ else
 endif
 
 # -----------------------------------------------
-# Component dependencies
+# Subcomponent dependencies
 #
-#    Process component dependency list
+#    Process subcomponent dependency list
 #        - synthesize names and paths from ref spec
 #        - deduplicate
 #
 #    Inputs:
-#        - COMPONENTS
+#        - SUBCOMPONENTS
+#          - specified using dot/@ notation
+#            (see $(SCRIPTS_ROOT)/Makefiles/dependencies.mk)
 #
 #    Outputs:
-#        - COMPONENT_REFS
-#        - COMPONENT_NAMES
-#        - COMPONENT_PATHS
+#        - COMPONENT_DEP_REFS
+#        - COMPONENT_DEP_NAMES
+#        - COMPONENT_DEP_PATHS
 # -----------------------------------------------
-COMPONENTS ?=
-
+SUBCOMPONENTS ?=
 
 # Normalize references - Convert to lowercase, remove extraneous . separators
-__COMPONENT_REFS_UNSAFE = $(foreach component, $(COMPONENTS), $(call normalize_component_ref,$(component)))
+__SUBCOMPONENT_REFS_UNSAFE = $(foreach subcomponent, $(SUBCOMPONENTS), $(call normalize_component_ref,$(subcomponent)))
 
 # Filter out self-references
-COMPONENT_REFS = $(filter-out $(COMPONENT_REF), $(__COMPONENT_REFS_UNSAFE))
+SUBCOMPONENT_REFS = $(filter-out $(COMPONENT_REF), $(__SUBCOMPONENT_REFS_UNSAFE))
 
-# Synthesize component names
-COMPONENT_NAMES := $(foreach component, $(COMPONENT_REFS), $(call get_component_name_from_ref,$(call get_ref_without_lib,$(component))))
+# Synthesize component dependency names
+SUBCOMPONENT_NAMES := $(foreach subcomponent, $(SUBCOMPONENT_REFS), $(call get_component_name_from_ref,$(call get_ref_without_lib,$(subcomponent))))
 
-# Synthesize component paths
-COMPONENT_PATHS := $(foreach component, $(COMPONENT_REFS), $(OUTPUT_ROOT)/$(call get_lib_component_path_from_ref,$(component))/$(SIMLIB_DIRNAME))
+# Synthesize component dependency paths
+SUBCOMPONENT_PATHS := $(foreach subcomponent, $(SUBCOMPONENTS), $(OUTPUT_ROOT)/$(call get_lib_component_path_from_ref,$(subcomponent)))
 
 # -----------------------------------------------
 # Subcomponent dependencies
 #
-# 	Collect (deduplicated) list of all subcomponent dependency references, i.e. the list of compilation libraries
-# 	required to compile each of the immediate dependencies.
+#   Collect (deduplicated) list of all sub-dependency references, i.e. the list of compilation libraries
+#   required to compile each of the immediate dependencies.
 # -----------------------------------------------
-subcomponent_lib_file = $(wildcard $(component_path)/sub.libs)
-get_subcomponent_libs = $(if $(wildcard $(subcomponent_lib_file)),$(shell cat $(subcomponent_lib_file) | tr '\n' ' '))
-SUBCOMPONENT_LIBS = $(sort $(foreach component_path,$(COMPONENT_PATHS),$(get_subcomponent_libs)))
+subcomponent_sublib_file = $(wildcard $(subcomponent_path)/sub.libs)
+get_subcomponent_sublibs = $(if $(wildcard $(subcomponent_sublib_file)),$(shell cat $(subcomponent_sublib_file) | tr '\n' ' '))
+SUBCOMPONENT_SUBLIBS = $(sort $(foreach suubcomponent_path,$(SUBCOMPONENT_PATHS),$(get_subcomponent_sublibs)))
 
 # -----------------------------------------------
 # Default defines
 # -----------------------------------------------
 DEFINES += SIMULATION
+
+# ----------------------------------------------------
+# Info target
+# ----------------------------------------------------
+.compile_base_info:
+	@echo "------------------------------------------------------"
+	@echo "Compile sources"
+	@echo "------------------------------------------------------"
+	@echo "SRCS                :"
+	@for src in $(SRCS); do \
+		echo "\t$$src"; \
+	done
+	@echo "HDRS                :"
+	@for hdr in $(HDRS); do \
+		echo "\t$$hdr"; \
+	done
+	@echo "------------------------------------------------------"
+	@echo "Compile dependencies"
+	@echo "------------------------------------------------------"
+	@echo "SUBCOMPONENTS       :"
+	@for subcomponent in $(SUBCOMPONENTS); do \
+		echo "\t$$subcomponent"; \
+	done
+	@echo "SUBCOMPONENT_LIBS   :"
+	@for sub_lib in $(sort $(SUBCOMPONENT_SUBLIBS) $(SUBCOMPONENT_LIBS)); do \
+		echo "\t$$sub_lib"; \
+	done
+	@echo "EXT_LIBS            :"
+	@for ext_lib in $(EXT_LIBS); do \
+		echo "\t$$ext_lib"; \
+	done
+.PHONY: .compile_info
+
+
+

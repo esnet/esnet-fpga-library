@@ -37,7 +37,7 @@ endif
 
 __usage:
 	@echo  "Usage:"
-	@echo  "  make [$(subst $(space),|,$(strip $(LIB_OPS)))] COMPONENT=<component_ref>"
+	@echo  "  make [$(subst $(__space),|,$(strip $(LIB_OPS)))] COMPONENT=<component_ref>"
 	@echo  "Examples:"
 	@echo  "  make compile COMPONENT=axi.rtl"
 	@echo  "  make info COMPONENT=vendorx.component.verif"
