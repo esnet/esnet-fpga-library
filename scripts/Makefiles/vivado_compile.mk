@@ -7,13 +7,15 @@
 #        - SIMLIB_DIRNAME: path to simulation compilation output objects
 #        - COMPONENT_NAME: name of 'component' created/provided by this compilation
 #        - COMPONENT_PATH: path to library for 'component' created/provided by this compilation
-#        - COMPONENT_PATHS: paths to component library dependencies
-#        - COMPONENT_NAMES: names of component library dependencies
-#        - COMPILE_SRC_FILES: list of source files to compile into sim library
-#        - COMPILE_INC_FILES: list of header files to compile into sim library
-#        - COMPILE_INC_DIRS:  list of include directories
-#        - LIB_REFS: list of pre-compiled library dependencies
-#        - DEFINE_REFS: list of macro definitions
+#        - COMPONENT_OUT_PATH: path to output directory for component
+#        - SUBCOMPONENT_REFS: references to subcomponent dependencies
+#        - SUBCOMPONENT_PATHS: paths to subcomponent dependencies
+#        - SUBCOMPONENT_NAMES: names of subcomponent dependencies
+#        - SV_PKG_FILES: list of package source files to compile
+#        - SV_SRC_FILES, V_SRC_FILES: list of source files to compile
+#        - SV_HDR_FILES, V_HDR_FILES: list of header files to compile
+#        - LIBS: list of pre-compiled library dependencies
+#        - DEFINES: list of macro definitions
 #        - COMPILE_OPTS: list of options to be passed to compiler
 
 # -----------------------------------------------
@@ -22,25 +24,14 @@
 include $(SCRIPTS_ROOT)/Makefiles/compile_base.mk
 
 # -----------------------------------------------
-# Format component dependencies as Vivado libraries
-# -----------------------------------------------
-# Vivado library references in form lib_name=lib_path
-SUBCOMPONENT_LIBS := $(join $(addsuffix =,$(SUBCOMPONENT_NAMES)),$(addsuffix /$(SIMLIB_DIRNAME),$(SUBCOMPONENT_PATHS)))
-
-# -----------------------------------------------
-# Unique list of all library dependencies
-# -----------------------------------------------
-LIBS = $(sort $(SUBCOMPONENT_SUBLIBS) $(SUBCOMPONENT_LIBS) $(EXT_LIBS))
-
-# -----------------------------------------------
 # Synthesize library (-L) references
 # -----------------------------------------------
-LIB_REFS = $(LIBS:%=-L %)
+LIB_REFS =$(LIBS:%=-L %)
 
 # -----------------------------------------------
 # Synthesize define (-d) references
 # -----------------------------------------------
-DEFINE_REFS = $(DEFINES:%=-d %)
+DEFINE_REFS =$(DEFINES:%=-d %)
 
 # -----------------------------------------------
 # Compiled object destination directory
@@ -48,40 +39,32 @@ DEFINE_REFS = $(DEFINES:%=-d %)
 OBJ_DIR = $(COMPONENT_OUT_PATH)/$(SIMLIB_DIRNAME)
 
 # -----------------------------------------------
-# Output library
+# Simulation output library
 # -----------------------------------------------
 SIM_LIB = $(addsuffix .rlx, $(OBJ_DIR)/$(COMPONENT_NAME))
 
 # -----------------------------------------------
+# Synthesis outputs
+# -----------------------------------------------
+SYNTH_SOURCES_OBJ = $(COMPONENT_OUT_SYNTH_PATH)/sources.tcl
+
+list_files = $(shell test -e $(1) && cat $(1) | tr '\n' ' ')
+
+SYNTH_IP_XCI_FILES = $(sort $(foreach subcomponent_path,$(SUBCOMPONENT_PATHS),$(call list_files,$(subcomponent_path)/synth/ip_srcs.f)))
+SYNTH_V_SRC_FILES  = $(sort $(abspath $(V_SRC_FILES))  $(foreach subcomponent_path,$(SUBCOMPONENT_PATHS),$(call list_files,$(subcomponent_path)/synth/v_srcs.f)))
+SYNTH_V_HDR_FILES  = $(sort $(abspath $(V_HDR_FILES))  $(foreach subcomponent_path,$(SUBCOMPONENT_PATHS),$(call list_files,$(subcomponent_path)/synth/v_hdrs.f)))
+SYNTH_SV_PKG_FILES = $(sort $(abspath $(SV_PKG_FILES)) $(foreach subcomponent_path,$(SUBCOMPONENT_PATHS),$(call list_files,$(subcomponent_path)/synth/sv_pkg_srcs.f)))
+SYNTH_SV_SRC_FILES = $(sort $(abspath $(SV_SRC_FILES)) $(foreach subcomponent_path,$(SUBCOMPONENT_PATHS),$(call list_files,$(subcomponent_path)/synth/sv_srcs.f)))
+SYNTH_SV_HDR_FILES = $(sort $(abspath $(SV_HDR_FILES)) $(foreach subcomponent_path,$(SUBCOMPONENT_PATHS),$(call list_files,$(subcomponent_path)/synth/sv_hdrs.f)))
+
+SYNC_MODULE_NAMES = sync_meta sync_areset sync_bus
+SYNC_CONSTRAINT_XDC_FILES = $(foreach syncmodule,$(SYNC_MODULES),$(LIB_ROOT)/src/sync/build/$(syncmodule)/synth.xdc)
+SYNTH_CONSTRAINTS_OBJ = $(COMPONENT_OUT_SYNTH_PATH)/constraints.tcl
+
+# -----------------------------------------------
 # Sources
 # -----------------------------------------------
-# Verilog
-V_SRC_FILES = $(filter %.v,$(COMPILE_SRC_FILES))
-V_HDR_FILES = $(foreach incdir,$(COMPILE_INC_DIRS),$(wildcard $(incdir)/*.vh))
-
-# SystemVerilog
-SV_FILES = $(filter %.sv,$(COMPILE_SRC_FILES))
-# Identify header files (*.svh)
-SV_HDR_FILES = $(foreach incdir,$(COMPILE_INC_DIRS),$(wildcard $(incdir)/*.svh))
-# Separate source files containing package definitions (i.e. *_pkg.sv) from
-# regular source files; this allows packages to be compiled first
-SV_PKG_FILES = $(filter %_pkg.sv,$(SV_FILES))
-SV_NON_PKG_FILES = $(filter-out %_pkg.sv,$(SV_FILES))
-# Sort package files by filename (without path)
-# This is somewhat arbitrary and done mostly to ensure consistency in results:
-
-# For cases where package B requires package A, this works because A_pkg.sv is compiled first.
-# For cases where package A requires package B, this doesn't work because B_pkg.sv is compiled last.
-#
-# Obviously more control over the compile order would be beneficial in some cases.
-# However, since the general design pattern is to maintain a single package file
-# per source library, this is almost always sufficient.
-SV_PKG_FILES__SORTED = $(foreach pkgfile,$(sort $(join $(notdir $(addsuffix :,$(SV_PKG_FILES))),$(SV_PKG_FILES))),$(lastword $(subst :, ,$(pkgfile))))
-# Compile packages before regular source files
-SV_SRC_FILES = $(SV_PKG_FILES__SORTED) $(SV_NON_PKG_FILES)
-
-# Source dependencies
-SRCS = $(SV_SRC_FILES) $(V_SRC_FILES)
+SRCS = $(SV_PKG_FILES) $(SV_SRC_FILES) $(V_SRC_FILES)
 HDRS = $(SV_HDR_FILES) $(V_HDR_FILES)
 
 # -----------------------------------------------
@@ -89,20 +72,21 @@ HDRS = $(SV_HDR_FILES) $(V_HDR_FILES)
 # -----------------------------------------------
 # Synthesize compiled library object dependencies in [libpath]/[libname].rlx format
 SUBCOMPONENT_OBJS := $(addsuffix .rlx,$(join $(addsuffix /$(SIMLIB_DIRNAME)/,$(SUBCOMPONENT_PATHS)),$(SUBCOMPONENT_NAMES)))
+SUBCOMPONENT_SYNTH_OBJS := $(addsuffix /synth/sources.tcl,$(SUBCOMPONENT_PATHS))
 
 # -----------------------------------------------
 # Synthesize include (-i) references
 # -----------------------------------------------
-INC_REFS = $(COMPILE_INC_DIRS:%=-i %)
+INC_REFS =$(INCLUDES:%=-i %)
 
 # -----------------------------------------------
 # Compile options
 # -----------------------------------------------
-V_OPTS :=  $(COMPILE_OPTS)
-SV_OPTS := --sv $(COMPILE_OPTS)
+V_OPTS :=  $(strip $(COMPILE_OPTS))
+SV_OPTS := --sv $(strip $(COMPILE_OPTS))
 
 DO_V_COMPILE = $(strip $(V_SRC_FILES))
-DO_SV_COMPILE = $(strip $(SV_SRC_FILES))
+DO_SV_COMPILE = $(strip $(SV_PKG_FILES) $(SV_SRC_FILES))
 
 # -----------------------------------------------
 # Log files
@@ -115,11 +99,11 @@ SV_XVLOG_LOG := --log $(OBJ_DIR)/compile_sv.log
 # -----------------------------------------------
 XVLOG_CMD = xvlog $(INC_REFS) $(LIB_REFS) $(DEFINE_REFS) -work $(COMPONENT_NAME)=$(OBJ_DIR)
 
-V_COMPILE_CMD =  $(XVLOG_CMD) $(V_OPTS)  $(V_XVLOG_LOG)  $(V_SRC_FILES)
-SV_COMPILE_CMD = $(XVLOG_CMD) $(SV_OPTS) $(SV_XVLOG_LOG) $(SV_SRC_FILES)
+V_COMPILE_CMD  = $(XVLOG_CMD) $(V_OPTS) $(V_XVLOG_LOG) $(V_SRC_FILES)
+SV_COMPILE_CMD = $(XVLOG_CMD) $(SV_OPTS) $(SV_XVLOG_LOG) $(SV_PKG_FILES) $(SV_SRC_FILES)
 
-V_COMPILE = $(if $(DO_V_COMPILE),$(V_COMPILE_CMD))
-SV_COMPILE = $(if $(DO_SV_COMPILE),$(SV_COMPILE_CMD))
+V_COMPILE = $(if $(DO_V_COMPILE),$(strip $(V_COMPILE_CMD)))
+SV_COMPILE = $(if $(DO_SV_COMPILE),$(strip $(SV_COMPILE_CMD)))
 
 # Log compiler commands for reference
 V_COMPILE_CMD_LOG = $(if $(DO_V_COMPILE), $(shell echo $(V_COMPILE_CMD) > $(OBJ_DIR)/compile_v.sh))
@@ -128,12 +112,23 @@ SV_COMPILE_CMD_LOG = $(if $(DO_SV_COMPILE), $(shell echo $(SV_COMPILE_CMD) > $(O
 # -----------------------------------------------
 # TARGETS
 # -----------------------------------------------
-_compile_sim: _compile_subcomponents $(SIM_LIB)
+_compile_sim: .subcomponents_compile $(SIM_LIB)
 
-_compile_synth:
-	@echo "Compile for synth not yet implemented (placeholder target only)."
+_compile_synth: .subcomponents_synth $(SYNTH_SOURCES_OBJ) $(SYNTH_CONSTRAINTS_OBJ)
 
-.PHONY: _compile_sim
+_compile_clean: .subcomponents_clean
+	@[ ! -d $(OBJ_DIR) ] && [ ! -d $(COMPONENT_OUT_SYNTH_PATH) ] || (echo "Cleaning $(COMPONENT_NAME)..." && rm -rf $(OBJ_DIR) && rm -rf $(COMPONENT_OUT_SYNTH_PATH))
+	@-find $(OUTPUT_ROOT) -type d -empty -delete 2>/dev/null
+	@rm -f xvlog.pb
+
+.PHONY: _compile_sim _compile_synth _compile_clean
+
+# Make output directories as necessary
+$(OBJ_DIR):
+	@mkdir -p $@
+
+$(COMPONENT_OUT_SYNTH_PATH):
+	@mkdir -p $@
 
 # Compile sim library from source
 $(SIM_LIB): $(SRCS) $(HDRS) $(SUBCOMPONENT_OBJS) | $(OBJ_DIR)
@@ -151,30 +146,77 @@ $(SIM_LIB): $(SRCS) $(HDRS) $(SUBCOMPONENT_OBJS) | $(OBJ_DIR)
 	@echo
 	@echo "Done."
 
-# Compile subcomponent dependencies
-_compile_subcomponents: $(SUBCOMPONENT_REFS)
-
-$(SUBCOMPONENT_REFS):
-	@$(MAKE) -s -C $(SRC_ROOT) compile COMPONENT=$@
-
-.PHONY: _compile_subcomponents $(SUBCOMPONENT_REFS)
-
-# Clean targets
-_compile_clean_subcomponents:
-	@-for subcomponent in $(SUBCOMPONENT_REFS); do \
-		$(MAKE) -s -C $(SRC_ROOT) clean COMPONENT=$$subcomponent; \
+$(SYNTH_SOURCES_OBJ): $(SRCS) $(HDRS) $(SUBCOMPONENT_SYNTH_OBJS) | $(COMPONENT_OUT_SYNTH_PATH)
+	@echo "----------------------------------------------------------"
+	@echo "Compiling synthesis library '$(COMPONENT_NAME)' ..."
+	@echo
+	@-rm -rf $(COMPONENT_OUT_SYNTH_PATH)/*.f
+	@echo "# =====================================================" > $@
+	@echo "# Source listing for $(COMPONENT_NAME)" >> $@
+	@echo "#" >> $@
+	@echo "# NOTE: This file is autogenerated. DO NOT EDIT." >> $@
+	@echo "# =====================================================" >> $@
+	@echo >> $@
+	@echo "# Xilinx IP source listing" >> $@
+	@echo "# ------------------------" >> $@
+	@-for xcifile in $(abspath $(SYNTH_IP_XCI_FILES)); do \
+		echo $$xcifile >> $(COMPONENT_OUT_SYNTH_PATH)/ip_srcs.f; \
+		echo "read_ip -quiet $$xcifile" >> $@; \
 	done
+	@test -e $(COMPONENT_OUT_SYNTH_PATH)/ip_srcs.f && echo "Wrote Xilinx IP source file manifest." || true
+	@echo >> $@
+	@echo "# Verilog source file listing" >> $@
+	@echo "# ---------------------------" >> $@
+	@-for vsrcfile in $(abspath $(SYNTH_V_SRC_FILES)); do \
+		echo $$vsrcfile >> $(COMPONENT_OUT_SYNTH_PATH)/v_srcs.f; \
+		echo "read_verilog -quiet $$vsrcfile" >> $@; \
+	done
+	@test -e $(COMPONENT_OUT_SYNTH_PATH)/v_srcs.f && echo "Wrote Verilog source file manifest." || true
+	@echo >> $@
+	@echo "# Verilog header file listing" >> $@
+	@echo "# ---------------------------" >> $@
+	@-for vhdrfile in $(abspath $(SYNTH_V_HDR_FILES)); do \
+		echo $$vhdrfile >> $(COMPONENT_OUT_SYNTH_PATH)/v_hdrs.f; \
+		echo "read_verilog -quiet $$vhdrfile" >> $@; \
+	done
+	@test -e $(COMPONENT_OUT_SYNTH_PATH)/v_hdrs.f && echo "Wrote Verilog header file manifest." || true
+	@echo >> $@
+	@echo "# SystemVerilog package listing" >> $@
+	@echo "# -----------------------------" >> $@
+	@-for svpkgsrcfile in $(SYNTH_SV_PKG_FILES); do \
+		echo $$svpkgsrcfile >> $(COMPONENT_OUT_SYNTH_PATH)/sv_pkg_srcs.f; \
+		echo "read_verilog -sv -quiet $$svpkgsrcfile" >> $@; \
+	done
+	@test -e $(COMPONENT_OUT_SYNTH_PATH)/sv_pkg_srcs.f && echo "Wrote SystemVerilog package source file manifest." || true
+	@echo >> $@
+	@echo "# SystemVerilog source file listing" >> $@
+	@echo "# ---------------------------------" >> $@
+	@-for svsrcfile in $(abspath $(SYNTH_SV_SRC_FILES)); do \
+		echo $$svsrcfile >> $(COMPONENT_OUT_SYNTH_PATH)/sv_srcs.f; \
+		echo "read_verilog -sv -quiet $$svsrcfile" >> $@; \
+	done
+	@test -e $(COMPONENT_OUT_SYNTH_PATH)/sv_srcs.f && echo "Wrote SystemVerilog source file manifest." || true
+	@echo >> $@
+	@echo "# SystemVerilog header file listing" >> $@
+	@echo "# ---------------------------------" >> $@
+	@-for svhdrfile in $(abspath $(SYNTH_SV_HDR_FILES)); do \
+		echo $$svhdrfile >> $(COMPONENT_OUT_SYNTH_PATH)/sv_hdrs.f; \
+		echo "read_verilog -sv -quiet $$svhdrfile" >> $@; \
+	done
+	@test -e $(COMPONENT_OUT_SYNTH_PATH)/sv_hdrs.f && echo "Wrote SystemVerilog header file manifest." || true
+	@echo
+	@echo "Done."
 
-_compile_clean: _compile_clean_subcomponents
-	@[ ! -d $(OBJ_DIR) ] || (echo "Cleaning $(COMPONENT_NAME)..." && rm -rf $(OBJ_DIR))
-	@-find $(OUTPUT_ROOT) -type d -empty -delete 2>/dev/null
-	@rm -f xvlog.pb
-
-.PHONY: _compile_clean_subcomponents _compile_clean
-
-# Make library directory if it doesn't exist
-$(OBJ_DIR):
-	@mkdir -p $@
+$(SYNTH_CONSTRAINTS_OBJ): $(SYNC_CONSTRAINT_XDC_FILES) | $(COMPONENT_OUT_SYNTH_PATH)
+	@-rm -rf $@
+	@echo "# ======================================================" > $@
+	@echo "# Default synchronizer library (sync) timing constraints" >> $@
+	@echo "#" >> $@
+	@echo "# NOTE: This file is autogenerated. DO NOT EDIT." >> $@
+	@echo "# =====================================================" >> $@
+	@-for syncmodule in $(SYNC_MODULE_NAMES); do \
+		echo "read_xdc -quiet -unmanaged -ref $$syncmodule $(abspath $(LIB_ROOT)/src/sync/build/$$syncmodule/synth.xdc)" >> $@; \
+	done
 
 # -----------------------------------------------
 # Info targets

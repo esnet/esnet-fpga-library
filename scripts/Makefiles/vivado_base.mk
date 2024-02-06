@@ -13,14 +13,22 @@
 VIVADO_SCRIPTS_ROOT := $(SCRIPTS_ROOT)/vivado
 
 # -----------------------------------------------
-# Import part configuration
-# -----------------------------------------------
-include $(CFG_ROOT)/part.mk
-
 # Export part variables for use in Tcl scripts
+# -----------------------------------------------
 export BOARD_REPO
 export PART
 export BOARD_PART
+
+# -----------------------------------------------
+# Configure source files
+# -----------------------------------------------
+SOURCES_TCL_AUTO = $(COMPONENT_OUT_PATH)/synth/sources.tcl
+SOURCES_TCL_USER = add_sources.tcl
+CONSTRAINTS_TCL_AUTO = $(COMPONENT_OUT_PATH)/synth/constraints.tcl
+
+export SOURCES_TCL_AUTO
+export SOURCES_TCL_USER
+export CONSTRAINTS_TCL_AUTO
 
 # -----------------------------------------------
 # Options

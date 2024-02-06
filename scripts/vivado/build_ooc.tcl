@@ -45,10 +45,18 @@ if {!$incremental} {
         set_property board_part $BOARD_PART [current_project]
         puts "-- Board part set to $BOARD_PART"
     }
-    if {[file exists add_sources.tcl]} {
-        source add_sources.tcl
+    if {[file exists $env(SOURCES_TCL_AUTO)]} {
+        source $env(SOURCES_TCL_AUTO)
     } else {
-        puts "ERROR: No sources specified (add_sources.tcl missing)."
+        puts "WARNING: No sources specified ($env(SOURCES_TCL_AUTO) missing)."
+    }
+    if {[file exists $env(CONSTRAINTS_TCL_AUTO)]} {
+        source $env(CONSTRAINTS_TCL_AUTO)
+    } else {
+        puts "WARNING: No synchronizer constraints specified ($env(CONSTARINTS_TCL_AUTO) missing)."
+    }
+    if {[file exists $env(SOURCES_TCL_USER)]} {
+        source $env(SOURCES_TCL_USER)
     }
 }
 puts "Executing ${phase}_design..."

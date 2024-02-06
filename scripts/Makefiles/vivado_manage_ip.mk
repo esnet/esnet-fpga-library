@@ -8,7 +8,6 @@
 #        - IP_PROJ_NAME: name of managed IP project (optional, default: ip_proj)
 #        - SCRIPTS_ROOT: path to project scripts directory
 #        - IP_SRC_DIR: path to IP specifications, in Tcl script format (optional, default: .)
-#        - IP_OUT_DIR: path to IP output products (optional, default: standard component output path)
 #        - IP_LIST: list of IP to be included in project; each IP in IP_LIST corresponds
 #                   to an IP specification Tcl file, available at: $(IP_SRC_DIR)/$(ip_name).tcl
 
@@ -18,34 +17,23 @@
 include $(SCRIPTS_ROOT)/Makefiles/vivado_base.mk
 
 # -----------------------------------------------
-# Include base component Make library
-# -----------------------------------------------
-include $(SCRIPTS_ROOT)/Makefiles/component_base.mk
-
-# -----------------------------------------------
 # Paths
 # -----------------------------------------------
 IP_SRC_DIR ?= $(CURDIR)
-
-# Subdirectory for IP outputs
-# (by default, all IP is maintained in a separate project per part)
-IP_OUT_SUBDIR ?= $(PART)
-
-IP_OUT_DIR = $(COMPONENT_OUT_PATH)/$(IP_OUT_SUBDIR)
 
 # -----------------------------------------------
 # Configure managed IP project properties
 # -----------------------------------------------
 # Export Make variables for use in Tcl scripts
 export IP_PROJ_NAME ?= ip_proj
-export IP_PROJ_DIR ?= $(IP_OUT_DIR)/$(IP_PROJ_NAME)
+export IP_PROJ_DIR ?= $(COMPONENT_OUT_PATH)/$(IP_PROJ_NAME)
 
 IP_PROJ_XPR = $(IP_PROJ_DIR)/$(IP_PROJ_NAME).xpr
 
 # -----------------------------------------------
 # Command
 # -----------------------------------------------
-VIVADO_LOG_DIR = $(IP_OUT_DIR)
+VIVADO_LOG_DIR = $(COMPONENT_OUT_PATH)
 VIVADO_MANAGE_IP_CMD = $(VIVADO_CMD_BASE) -source $(VIVADO_SCRIPTS_ROOT)/manage_ip.tcl
 VIVADO_MANAGE_IP_CMD_GUI = $(VIVADO_CMD_BASE_GUI) -source $(VIVADO_SCRIPTS_ROOT)/manage_ip.tcl
 
@@ -57,9 +45,9 @@ IP_TCL_FILES = $(addprefix $(IP_SRC_DIR)/,$(addsuffix .tcl,$(IP_LIST)))
 # -----------------------------------------------
 # Output products
 # -----------------------------------------------
-IP_XCI_FILES = $(foreach ip,$(IP_LIST),$(IP_OUT_DIR)/$(ip)/$(ip).xci)
-IP_DCP_FILES = $(foreach ip,$(IP_LIST),$(IP_OUT_DIR)/$(ip)/$(ip).dcp)
-IP_EXAMPLE_DESIGNS = $(foreach ip,$(IP_LIST),$(IP_OUT_DIR)/$(ip)_ex)
+IP_XCI_FILES = $(foreach ip,$(IP_LIST),$(COMPONENT_OUT_PATH)/$(ip)/$(ip).xci)
+IP_DCP_FILES = $(foreach ip,$(IP_LIST),$(COMPONENT_OUT_PATH)/$(ip)/$(ip).dcp)
+IP_EXAMPLE_DESIGNS = $(foreach ip,$(IP_LIST),$(COMPONENT_OUT_PATH)/$(ip)_ex)
 
 # -----------------------------------------------
 # IP project targets
@@ -70,23 +58,19 @@ _ip_proj_create: | $(IP_PROJ_XPR)
 # Launch IP project in GUI (for interactive inspection/modification of IP)
 _ip_proj: $(IP_PROJ_XPR)
 	@make -s ip
-	@cd $(IP_OUT_DIR) && $(VIVADO_MANAGE_IP_CMD_GUI) -tclargs gui "{$(IP_XCI_FILES)}" &
+	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_IP_CMD_GUI) -tclargs gui "{$(IP_XCI_FILES)}" &
 
 _ip_proj_clean: _vivado_clean_logs
 	@rm -rf $(IP_PROJ_DIR)
 
 .PHONY: _ip_proj_create _ip_proj _ip_proj_clean
 
-$(IP_PROJ_XPR): | $(IP_OUT_DIR)
+$(IP_PROJ_XPR): | $(COMPONENT_OUT_PATH)
 	@echo "----------------------------------------------------------"
 	@echo "Creating IP project ($(COMPONENT_NAME)) ..."
 	@$(VIVADO_MANAGE_IP_CMD) -tclargs create_proj
 	@echo
 	@echo "Done."
-
-# Create output directory as needed
-$(IP_OUT_DIR):
-	@mkdir -p $@
 
 # -----------------------------------------------
 # Targets
@@ -107,31 +91,31 @@ $(IP_OUT_DIR):
 # - if the new XCI file is identical in content to the existing one, the
 #   existing one is left as is (including timestamp). This prevents
 #   unnecessary regeneration of existing output products.
-_ip : | $(IP_OUT_DIR)
+_ip : | $(COMPONENT_OUT_PATH)
 	@echo "----------------------------------------------------------"
 	@echo "Create/update IP ($(COMPONENT_NAME)) ..."
-	@rm -rf $(IP_OUT_DIR)/.xci
-	@mkdir -p $(IP_OUT_DIR)/.xci
-	@cd $(IP_OUT_DIR)/.xci && $(VIVADO_MANAGE_IP_CMD) -tclargs create_ip "{$(IP_TCL_FILES)}"
+	@rm -rf $(COMPONENT_OUT_PATH)/.xci
+	@mkdir -p $(COMPONENT_OUT_PATH)/.xci
+	@cd $(COMPONENT_OUT_PATH)/.xci && $(VIVADO_MANAGE_IP_CMD) -tclargs create_ip "{$(IP_TCL_FILES)}"
 	@echo
 	@echo "Update IP Summary:"
 	@for ip in $(IP_LIST); do \
 		echo -n "\t$$ip: "; \
-		mkdir -p $(IP_OUT_DIR)/$$ip; \
-		cmp -s $(IP_OUT_DIR)/.xci/$$ip/$$ip.xci $(IP_OUT_DIR)/$$ip/$$ip.xci; \
+		mkdir -p $(COMPONENT_OUT_PATH)/$$ip; \
+		cmp -s $(COMPONENT_OUT_PATH)/.xci/$$ip/$$ip.xci $(COMPONENT_OUT_PATH)/$$ip/$$ip.xci; \
 		retVal=$$?; \
 		case $$retVal in \
 			0) \
 				echo "No change.";; \
 			1) \
-				cp $(IP_OUT_DIR)/.xci/$$ip/$$ip.xci $(IP_OUT_DIR)/$$ip/$$ip.xci; \
+				cp $(COMPONENT_OUT_PATH)/.xci/$$ip/$$ip.xci $(COMPONENT_OUT_PATH)/$$ip/$$ip.xci; \
 				echo "XCI updated.";; \
 			2) \
-				cp $(IP_OUT_DIR)/.xci/$$ip/$$ip.xci $(IP_OUT_DIR)/$$ip/$$ip.xci; \
+				cp $(COMPONENT_OUT_PATH)/.xci/$$ip/$$ip.xci $(COMPONENT_OUT_PATH)/$$ip/$$ip.xci; \
 				echo "XCI created.";; \
 		esac \
 	done
-	@rm -rf $(IP_OUT_DIR)/.xci
+	@rm -rf $(COMPONENT_OUT_PATH)/.xci
 	@echo
 	@echo "Done."
 
@@ -142,32 +126,50 @@ _ip_exdes: $(IP_EXAMPLE_DESIGNS)
 _ip_reset: ip | $(IP_PROJ_XPR)
 	@echo "----------------------------------------------------------"
 	@echo "Reset IP output products ($(COMPONENT_NAME)) ..."
-	@cd $(IP_OUT_DIR) && $(VIVADO_MANAGE_IP_CMD) -tclargs reset "{$(IP_XCI_FILES)}"
+	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_IP_CMD) -tclargs reset "{$(IP_XCI_FILES)}"
 	@echo
 	@echo "Done."
 
 # Report on IP status (version, upgrade availability, etc)
 _ip_status: ip | $(IP_PROJ_XPR)
-	@cd $(IP_OUT_DIR) && $(VIVADO_MANAGE_IP_CMD) -tclargs status "{$(IP_XCI_FILES)}"
+	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_IP_CMD) -tclargs status "{$(IP_XCI_FILES)}"
 
 # Upgrade IP
 _ip_upgrade: ip | $(IP_PROJ_XPR)
-	@cd $(IP_OUT_DIR) && $(VIVADO_MANAGE_IP_CMD) -tclargs upgrade "{$(IP_XCI_FILES)}"
+	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_IP_CMD) -tclargs upgrade "{$(IP_XCI_FILES)}"
 
 # Compile IP
 _ip_compile: _compile_sim
 
 # Synthesize IP
-_ip_synth: ip | $(IP_PROJ_XPR)
+_ip_synth: ip | $(IP_PROJ_XPR) $(COMPONENT_OUT_SYNTH_PATH)
 	@echo "----------------------------------------------------------"
 	@echo "Synthesize IP ($(COMPONENT_NAME)) ..."
-	@cd $(IP_OUT_DIR) && $(VIVADO_MANAGE_IP_CMD) -tclargs synth "{$(IP_XCI_FILES)}"
+	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_IP_CMD) -tclargs synth "{$(IP_XCI_FILES)}"
 	@echo
+	@echo "----------------------------------------------------------"
+	@echo "Compiling synthesis library '$(COMPONENT_NAME)' ..."
+	@echo
+	@-rm -rf $(COMPONENT_OUT_SYNTH_PATH)/*.f
+	@echo "# =====================================================" > $(SYNTH_SOURCES_OBJ)
+	@echo "# Source listing for $(COMPONENT_NAME)" >> $(SYNTH_SOURCES_OBJ)
+	@echo "#" >> $(SYNTH_SOURCES_OBJ)
+	@echo "# NOTE: This file is autogenerated. DO NOT EDIT." >> $(SYNTH_SOURCES_OBJ)
+	@echo "# =====================================================" >> $(SYNTH_SOURCES_OBJ)
+	@echo >> $(SYNTH_SOURCES_OBJ)
+	@echo "# Xilinx IP source listing" >> $(SYNTH_SOURCES_OBJ)
+	@echo "# ------------------------" >> $(SYNTH_SOURCES_OBJ)
+	@rm -rf $(COMPONENT_OUT_SYNTH_PATH)/*.f
+	@-for xcifile in $(abspath $(IP_XCI_FILES)); do \
+		echo $$xcifile >> $(COMPONENT_OUT_SYNTH_PATH)/ip_srcs.f; \
+		echo "read_ip -quiet $$xcifile" >> $(SYNTH_SOURCES_OBJ); \
+	done
+	@echo >> $(SYNTH_SOURCES_OBJ)
 	@echo "Done."
 
 # Clean IP
 _ip_clean: _vivado_clean_logs _ip_proj_clean _compile_clean
-	@rm -rf $(IP_OUT_DIR)
+	@rm -rf $(COMPONENT_OUT_PATH)
 	@-find $(OUTPUT_ROOT) -type d -empty -delete 2>/dev/null
 
 .PHONY: _ip _ip_exdes _ip_reset _ip_status _ip_upgrade _ip_compile _ip_synth _ip_clean
@@ -178,14 +180,14 @@ $(IP_XCI_FILES): $(IP_TCL_FILES)
 # -----------------------------------------------
 # Generate/manage simulation sources
 # -----------------------------------------------
-__IP_SIM_SRC_FILES = $(addprefix $(IP_OUT_DIR)/,$(IP_SIM_SRC_FILES))
-__IP_SIM_INC_DIRS = $(addprefix $(IP_OUT_DIR)/,$(IP_SIM_INC_DIRS))
+__IP_SIM_SRC_FILES = $(addprefix $(COMPONENT_OUT_PATH)/,$(IP_SIM_SRC_FILES))
+__IP_SIM_INC_DIRS = $(addprefix $(COMPONENT_OUT_PATH)/,$(IP_SIM_INC_DIRS))
 
 $(__IP_SIM_SRC_FILES) $(__IP_SIM_INC_DIRS): $(IP_XCI_FILES) | $(IP_PROJ_XPR)
 	@make -s ip
 	@echo "----------------------------------------------------------"
 	@echo "Generate IP simulation output products ($(COMPONENT_NAME)) ..."
-	@cd $(IP_OUT_DIR) && $(VIVADO_MANAGE_IP_CMD) -tclargs sim "{$(IP_XCI_FILES)}"
+	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_IP_CMD) -tclargs sim "{$(IP_XCI_FILES)}"
 	@echo
 	@echo "Done."
 
@@ -201,7 +203,7 @@ $(IP_EXAMPLE_DESIGNS): $(IP_XCI_FILES) | $(IP_PROJ_XPR)
 	@make -s ip
 	@echo "----------------------------------------------------------"
 	@echo "Generate IP example designs ($(COMPONENT_NAME)) ..."
-	@cd $(IP_OUT_DIR) && $(VIVADO_MANAGE_IP_CMD) -tclargs exdes "{$(IP_XCI_FILES)}"
+	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_IP_CMD) -tclargs exdes "{$(IP_XCI_FILES)}"
 	@echo
 	@echo "Done."
 
@@ -214,7 +216,6 @@ _ip_config_info: _vivado_info
 	@echo "----------------------------------------------------------"
 	@echo "SRC_ROOT            : $(SRC_ROOT)"
 	@echo "IP_SRC_DIR          : $(IP_SRC_DIR)"
-	@echo "IP_OUT_DIR          : $(IP_OUT_DIR)"
 	@echo "IP_PROJ_XPR         : $(IP_PROJ_XPR)"
 	@echo "IP_LIST             :"
 	@for ip in $(IP_LIST); do \

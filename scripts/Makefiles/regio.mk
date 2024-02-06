@@ -168,7 +168,7 @@ $(REGIO_IR_OUTPUT_DIR):
 _reg_compile: $(REGIO_RTL_SIM_OBJ) $(REGIO_VERIF_SIM_OBJ)
 
 _reg_synth:
-	@echo "Compile for synth not yet supported (placeholder target only)."
+	@$(MAKE) -s -C $(REGIO_RTL_OUTPUT_DIR) synth
 
 $(REGIO_RTL_SIM_OBJ): reg | $(REGIO_RTL_OUTPUT_DIR)
 	@$(MAKE) -s -C $(REGIO_RTL_OUTPUT_DIR) compile
@@ -190,6 +190,6 @@ _reg_config_info:
 	@echo "REGIO_TEMPLATES_DIR : $(REGIO_TEMPLATES_DIR)"
 	@echo "REGIO_YAML_INC_DIR  : $(REGIO_YAML_INC_DIR)"
 
-_reg_info: _reg_config_info
+_reg_info: _component_info _reg_config_info
 
 .PHONY: _reg_config_info _reg_info

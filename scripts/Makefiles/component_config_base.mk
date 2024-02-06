@@ -13,6 +13,18 @@
 $(foreach env,$(LIB_ENV)   ,$(eval $(env)))
 $(foreach env,$(USER_ENV)  ,$(eval $(env)))
 
+# -----------------------------------------------
+# Import part configuration
+# -----------------------------------------------
+include $(CFG_ROOT)/part.mk
+
+# ----------------------------------------------------
+# Default variables
+# ----------------------------------------------------
+# Subdirectory for IP outputs
+# (by default, all IP is maintained in a separate project per part)
+IP_OUT_SUBDIR ?= $(PART)
+
 # ----------------------------------------------------
 # Import functions for managing/manipulating component and library references
 # ----------------------------------------------------
@@ -44,7 +56,9 @@ COMPONENT_PATH := $(call get_component_path_from_ref,$(COMPONENT_REF))
 COMPONENT_NAME := $(call get_component_name_from_ref,$(COMPONENT_REF))
 
 # Synthesize output paths
-COMPONENT_OUT_PATH := $(OUTPUT_ROOT)/$(COMPONENT_PATH)
+COMPONENT_OUT_PATH := $(abspath $(call get_component_out_path_from_ref,$(COMPONENT_REF),$(OUTPUT_ROOT),$(IP_OUT_SUBDIR)))
+
+COMPONENT_OUT_SYNTH_PATH := $(COMPONENT_OUT_PATH)/synth
 
 # ----------------------------------------------------
 # Info target
@@ -58,5 +72,6 @@ COMPONENT_OUT_PATH := $(OUTPUT_ROOT)/$(COMPONENT_PATH)
 	@echo "SUBCOMPONENT        : $(SUBCOMPONENT)"
 	@echo "COMPONENT_PATH      : $(COMPONENT_PATH)"
 	@echo "COMPONENT_OUT_PATH  : $(COMPONENT_OUT_PATH)"
+	@echo "COMPONENT_OUT_SYNTH_PATH : $(COMPONENT_OUT_SYNTH_PATH)"
 .PHONY: .component_info
 

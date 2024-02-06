@@ -15,14 +15,6 @@
 include $(SCRIPTS_ROOT)/Makefiles/vivado_base.mk
 
 # -----------------------------------------------
-# Import default component configuration
-#
-# Provides the following:
-#   - COMPONENT_OUT_PATH: Default output directory for component
-# -----------------------------------------------
-include $(SCRIPTS_ROOT)/Makefiles/component_base.mk
-
-# -----------------------------------------------
 # Export Make variables for use in Tcl scripts
 # -----------------------------------------------
 export TOP
