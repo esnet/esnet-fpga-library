@@ -21,7 +21,7 @@ module crc32_x64 (
         .data (_data),
         .crc  (_crc)
     );
-
+ 
     initial begin
         _en = 1'b0;
         _data = 0;

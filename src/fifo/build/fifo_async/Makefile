@@ -1,51 +1,57 @@
 # -----------------------------------------------
-# (Global) Path setup
+# Component setup
 # -----------------------------------------------
-IP_ROOT := ../..
+COMPONENT_ROOT := ../..
 
-# -----------------------------------------------
-# IP config
-# -----------------------------------------------
-include $(IP_ROOT)/config.mk
-
-# -----------------------------------------------
-# Export parameters used in add_sources.tcl
-# -----------------------------------------------
-export LIB_ROOT
-export OUTPUT_ROOT
+include $(COMPONENT_ROOT)/config.mk
 
 # -----------------------------------------------
 # Specify top-level module
 # -----------------------------------------------
 TOP = fifo_async_wrapper
 
-# -----------------------------------------------
-# (Local) Paths
-# -----------------------------------------------
-# By default, the build products are generated in the output directory:
-# (e.g. $(OUTPUT_ROOT)/<path_to_ip>)
-# During development, it may be more convenient to produce the build outputs
-# in the source tree directly (e.g. ./out)
-# Set the build output directory can be changed to something other than
-# the default by uncommenting the following line:
-# BUILD_OUTPUT_DIR=out
+# ----------------------------------------------------
+# Sources
+#   List source files and include directories for component.
+#   (see $(SCRIPTS_ROOT)/Makefiles/templates/sources.mk)
+#   NOTE: along with explictly-listed sources, all
+#   source files from ./src are added automatically, and
+#   .include is added as an include directory automatically.
+# ----------------------------------------------------
+SRC_FILES =
+INC_DIRS =
+SRC_LIST_FILES =
+
+# ----------------------------------------------------
+# Dependencies
+#   List subcomponent and external library dependencies
+#   (see $SCRIPTS_ROOT/Makefiles/templates/dependencies.mk)
+# ----------------------------------------------------
+SUBCOMPONENTS = \
+    fifo.rtl
 
 # ----------------------------------------------------
 # Targets
 # ----------------------------------------------------
 all: opt validate
 
-reg:
-	@$(MAKE) -s -C $(SRC_ROOT) reg COMPONENT=fifo.regio
+pre_synth: _pre_synth
+synth:     _build_core_synth
+opt:       _build_core_opt
+place:     _build_core_place
+validate:  _build_core_validate
+info:      _build_core_info
+clean:     _build_clean
 
-pre_synth: reg
-synth:     _synth
-opt:       _opt
-validate:  _validate
-.PHONY: pre_synth synth opt validate
+.PHONY: pre_synth synth opt validate info clean
 
-clean: _clean_build
-.PHONY: clean
+# ----------------------------------------------------
+# Project management targets
+# ----------------------------------------------------
+proj       : _proj
+proj_clean : _proj_clean
+
+.PHONY: proj proj_clean
 
 # -----------------------------------------------
 # Include Vivado definitions/targets

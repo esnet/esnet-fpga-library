@@ -17,6 +17,7 @@ ip:      _ip
 info:    _info
 compile: _compile
 synth:   _synth
+opt:     _opt
 driver:  _driver
 clean:   _clean
 
@@ -29,9 +30,9 @@ clean_all: _clean_all
 
 # Force refresh of output products for cache safety, etc.
 # Does not delete output products, but invalidates intermediate
-# files where applicable (e.g. IP) such that output products are
-# regenerated if source files/config has changed.
-refresh: _force_ip_refresh
+# files where applicable (e.g. IP, regio) such that output products are
+# regenerated if source files/config have changed.
+refresh: _refresh
 
 # ----------------------------------------------------
 # Include standard library targets

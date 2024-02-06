@@ -1,43 +1,59 @@
 # -----------------------------------------------
-# (Global) Path setup
+# Component setup
 # -----------------------------------------------
-IP_ROOT := ../..
+COMPONENT_ROOT := ../..
 
-# -----------------------------------------------
-# IP config
-# -----------------------------------------------
-include $(IP_ROOT)/config.mk
-
-# -----------------------------------------------
-# Export parameters used in add_sources.tcl
-# -----------------------------------------------
-export LIB_ROOT
+include $(COMPONENT_ROOT)/config.mk
 
 # -----------------------------------------------
 # Specify top-level module
 # -----------------------------------------------
 TOP = mem_ram_sdp_sync_wrapper
 
-# -----------------------------------------------
-# (Local) Paths
-# -----------------------------------------------
-BUILD_OUTPUT_DIR=out
+# ----------------------------------------------------
+# Sources
+#   List source files and include directories for component.
+#   (see $(SCRIPTS_ROOT)/Makefiles/templates/sources.mk)
+#   NOTE: along with explictly-listed sources, all
+#   source files from ./src are added automatically, and
+#   .include is added as an include directory automatically.
+# ----------------------------------------------------
+SRC_FILES =
+INC_DIRS =
+SRC_LIST_FILES =
+
+# ----------------------------------------------------
+# Dependencies
+#   List subcomponent and external library dependencies
+#   (see $SCRIPTS_ROOT/Makefiles/templates/dependencies.mk)
+# ----------------------------------------------------
+SUBCOMPONENTS = \
+    mem.rtl
 
 # ----------------------------------------------------
 # Targets
 # ----------------------------------------------------
-all: opt
+all: opt validate
 
-pre_synth:
-synth:     _synth
-opt:       _opt
-.PHONY: pre_synth synth opt
+pre_synth: _pre_synth
+synth:     _build_core_synth
+opt:       _build_core_opt
+place:     _build_core_place
+validate:  _build_core_validate
+info:      _build_core_info
+clean:     _build_clean
 
-clean: _clean_build
-.PHONY: clean
+.PHONY: pre_synth synth opt validate info clean
+
+# ----------------------------------------------------
+# Project management targets
+# ----------------------------------------------------
+proj       : _proj
+proj_clean : _proj_clean
+
+.PHONY: proj proj_clean
 
 # -----------------------------------------------
 # Include Vivado definitions/targets
 # -----------------------------------------------
 include $(SCRIPTS_ROOT)/Makefiles/vivado_build_core.mk
-

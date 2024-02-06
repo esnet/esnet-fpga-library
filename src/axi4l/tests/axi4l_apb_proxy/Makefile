@@ -17,14 +17,24 @@ waves ?= OFF
 #   command line, as e.g.:
 #     make DEFINES="DEBUG FAST=TRUE"
 # ----------------------------------------------------
-override DEFINES =
+override DEFINES +=
+
+# ----------------------------------------------------
+# Run-time arguments
+#   List runtime arguments passed to simulator as
+#   plusarg (+ARG) references.
+#   Arguments listed here will add to any arguments
+#   set at the command line, as e.g.:
+#   make PLUSARGS="FAST_SIM MODE=1"
+# ----------------------------------------------------
+override PLUSARGS +=
 
 # ----------------------------------------------------
 # Options
 # ----------------------------------------------------
-COMPILE_OPTS=
-ELAB_OPTS=
-SIM_OPTS=
+COMPILE_OPTS =
+ELAB_OPTS =
+SIM_OPTS =
 
 # -----------------------------------------------
 # Use common testcase Makefile

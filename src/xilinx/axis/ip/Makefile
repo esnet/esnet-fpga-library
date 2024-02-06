@@ -1,12 +1,9 @@
 # -----------------------------------------------
-# Path setup
+# Component setup
 # -----------------------------------------------
-IP_ROOT := ../..
+COMPONENT_ROOT := ../..
 
-# -----------------------------------------------
-# IP config
-# -----------------------------------------------
-include $(IP_ROOT)/config.mk
+include $(COMPONENT_ROOT)/config.mk
 
 # ----------------------------------------------------
 # IP listing
@@ -51,28 +48,27 @@ IP_LIST = \
 #         (The <path-to-out-dir> is prepended automatically)
 # ----------------------------------------------------
 #  List simulation source files and include directories
-#  (see $SCRIPTS_ROOT/Makefiles/sources.mk)
-
+#  (see $SCRIPTS_ROOT/Makefiles/templates/sources.mk)
 IP_SIM_SRC_FILES = \
     xilinx_axis_reg_slice/sim/xilinx_axis_reg_slice.v
 
 IP_SIM_INC_DIRS =
 
 #   List external library dependencies
-#   (see $SCRIPTS_ROOT/Makefiles/dependencies.mk)
-
+#   (see $SCRIPTS_ROOT/Makefiles/templates/dependencies.mk)
+SUBCOMPONENTS =
 EXT_LIBS = \
     axis_register_slice_v1_1_29
 
 # ----------------------------------------------------
 # Options
 # ----------------------------------------------------
-COMPILE_OPTS=
+COMPILE_OPTS =
 
 # ----------------------------------------------------
 # Targets
 # ----------------------------------------------------
-all: synth compile
+all: ip compile synth
 
 ip:      _ip
 compile: _ip_compile
