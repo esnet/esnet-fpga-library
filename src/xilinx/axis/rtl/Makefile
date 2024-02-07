@@ -13,8 +13,13 @@ include $(COMPONENT_ROOT)/config.mk
 #   source files from ./src are added automatically, and
 #   .include is added as an include directory automatically.
 # ----------------------------------------------------
-SRC_FILES =
-INC_DIRS =
+SRC_FILES = \
+    $(XILINX_VIVADO)/data/ip/xilinx/axis_infrastructure_v1_1/hdl/axis_infrastructure_v1_1_vl_rfs.v \
+    $(XILINX_VIVADO)/data/ip/xilinx/axis_register_slice_v1_1/hdl/axis_register_slice_v1_1_vl_rfs.v
+
+INC_DIRS = \
+    $(XILINX_VIVADO)/data/ip/xilinx/axis_infrastructure_v1_1/hdl
+
 SRC_LIST_FILES =
 
 # ----------------------------------------------------
@@ -22,9 +27,7 @@ SRC_LIST_FILES =
 #   List subcomponent and external library dependencies
 #   (see $SCRIPTS_ROOT/Makefiles/templates/dependencies.mk)
 # ----------------------------------------------------
-SUBCOMPONENTS = \
-    xilinx.axis.ip
-
+SUBCOMPONENTS =
 EXT_LIBS =
 
 # ----------------------------------------------------
