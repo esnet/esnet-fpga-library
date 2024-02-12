@@ -15,40 +15,76 @@
 include $(SCRIPTS_ROOT)/Makefiles/vivado_base.mk
 
 # -----------------------------------------------
-# Export Make variables for use in Tcl scripts
+# Configure Vivado project properties
+# -----------------------------------------------
+export PROJ_NAME ?= proj
+export PROJ_DIR ?= $(COMPONENT_OUT_PATH)/$(PROJ_NAME)
+
+PROJ_XPR = $(PROJ_DIR)/$(PROJ_NAME).xpr
+
+# -----------------------------------------------
+# Configure top-level module
 # -----------------------------------------------
 export TOP
-export BUILD_OUTPUT_DIR=$(COMPONENT_OUT_PATH)
 
 # -----------------------------------------------
 # Options
 # -----------------------------------------------
-VIVADO_LOG_DIR = $(BUILD_OUTPUT_DIR)
-
 # Build validation paramaters
 WNS_MIN ?= 0
 TNS_MIN ?= 0
 
 # -----------------------------------------------
-# Targets
+# Project targets
 # -----------------------------------------------
-# Create build summary in JSON format
-%.summary.json: %.timing.summary.rpt
-	$(VIVADO_SCRIPTS_ROOT)/gen_summary.py $< --build-name $(notdir $*) --summary-json-file $@
+_proj : | $(PROJ_XPR)
+	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_BUILD_CMD_GUI) -tclargs gui &
 
-# (Retain summary even when it is generated as an intermediate file)
-.PRECIOUS: %.summary.json
+_proj_clean:
+	@rm -rf $(PROJ_DIR)
 
-# Validate build based on JSON summary created from specific build phase
-%.summary.xml: %.summary.json
-	$(VIVADO_SCRIPTS_ROOT)/check_timing.py $< --junit-xml-file $@ --wns-min $(WNS_MIN) --tns-min $(TNS_MIN)
+.PHONY: _proj_create _proj _proj_clean
 
-# Create build directory
-$(BUILD_OUTPUT_DIR):
-	@mkdir -p $(BUILD_OUTPUT_DIR)
+$(PROJ_XPR): | $(COMPONENT_OUT_PATH)
+	@echo "----------------------------------------------------------"
+	@echo "Creating OOC build project ($(COMPONENT_NAME)) ..."
+	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_BUILD_CMD) -tclargs create_proj
+	@echo
+	@echo "Done."
+
+$(COMPONENT_OUT_PATH):
+	@mkdir -p $@
+
+# -----------------------------------------------
+# Build targets
+#
+#   Automatically generate build stage targets
+#   for all supported design stages, where
+#   supported design stages are described in
+#   BUILD_STAGES
+# -----------------------------------------------
+_pre_synth: _compile_synth
+
+define BUILD_STAGE_RULE
+_$(stage): pre_synth | $(PROJ_XPR)
+	@echo "----------------------------------------------------------"
+	@echo "Running $(stage)_design for '$(TOP)' OOC ..."
+	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_BUILD_CMD) -tclargs $(stage)
+	@echo
+	@echo "Done."
+endef
+$(foreach stage,$(BUILD_STAGES),$(eval $(BUILD_STAGE_RULE)))
+
+.PHONY: $(foreach stage, $(BUILD_STAGES),_$(stage))
 
 # Remove build output directory
-_clean_build: _vivado_clean_logs
-	@rm -rf $(BUILD_OUTPUT_DIR)
+_build_clean: _vivado_clean_logs
+	@rm -rf $(COMPONENT_OUT_PATH)
 
-.PHONY: _clean_build
+.PHONY: _build_clean
+
+# -----------------------------------------------
+# Include base Vivado build Make instructions
+# -----------------------------------------------
+include $(SCRIPTS_ROOT)/Makefiles/vivado_compile.mk
+

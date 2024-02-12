@@ -58,8 +58,17 @@ SYNTH_SV_SRC_FILES = $(sort $(abspath $(SV_SRC_FILES)) $(foreach subcomponent_pa
 SYNTH_SV_HDR_FILES = $(sort $(abspath $(SV_HDR_FILES)) $(foreach subcomponent_path,$(SUBCOMPONENT_PATHS),$(call list_files,$(subcomponent_path)/synth/sv_hdrs.f)))
 
 SYNC_MODULE_NAMES = sync_meta sync_areset sync_bus
-SYNC_CONSTRAINT_XDC_FILES = $(foreach syncmodule,$(SYNC_MODULES),$(LIB_ROOT)/src/sync/build/$(syncmodule)/synth.xdc)
+SYNC_CONSTRAINT_XDC_FILES = $(foreach syncmodule,$(SYNC_MODULE_NAMES),$(LIB_ROOT)/src/sync/build/$(syncmodule)/synth.xdc)
+
+RAM_MODULE_NAMES = xilinx_ram_sdp_lutram
+RAM_CONSTRAINT_XDC_FILES = $(foreach rammodule,$(RAM_MODULE_NAMES),$(LIB_ROOT)/src/xilinx/ram/build/$(rammodule)/synth.xdc)
+
 SYNTH_CONSTRAINTS_OBJ = $(COMPONENT_OUT_SYNTH_PATH)/constraints.tcl
+
+SYNTH_FILES = \
+    $(SYNTH_IP_XCI_FILES) \
+    $(SYNTH_V_SRC_FILES) $(SYNTH_V_HDR_FILES) \
+    $(SYNTH_SV_PKG_FILES) $(SYNTH_SV_SRC_FILES) $(SYNTH_SV_HDR_FILES)
 
 # -----------------------------------------------
 # Sources
@@ -146,7 +155,7 @@ $(SIM_LIB): $(SRCS) $(HDRS) $(SUBCOMPONENT_OBJS) | $(OBJ_DIR)
 	@echo
 	@echo "Done."
 
-$(SYNTH_SOURCES_OBJ): $(SRCS) $(HDRS) $(SUBCOMPONENT_SYNTH_OBJS) | $(COMPONENT_OUT_SYNTH_PATH)
+$(SYNTH_SOURCES_OBJ): $(SYNTH_FILES) $(SUBCOMPONENT_SYNTH_OBJS) | $(COMPONENT_OUT_SYNTH_PATH)
 	@echo "----------------------------------------------------------"
 	@echo "Compiling synthesis library '$(COMPONENT_NAME)' ..."
 	@echo
@@ -159,64 +168,118 @@ $(SYNTH_SOURCES_OBJ): $(SRCS) $(HDRS) $(SUBCOMPONENT_SYNTH_OBJS) | $(COMPONENT_O
 	@echo >> $@
 	@echo "# Xilinx IP source listing" >> $@
 	@echo "# ------------------------" >> $@
+	@if [ ! -z "$(strip $(SYNTH_IP_XCI_FILES))" ]; then \
+		echo "read_ip -quiet {" >> $@; \
+	fi
 	@-for xcifile in $(abspath $(SYNTH_IP_XCI_FILES)); do \
 		echo $$xcifile >> $(COMPONENT_OUT_SYNTH_PATH)/ip_srcs.f; \
-		echo "read_ip -quiet $$xcifile" >> $@; \
+		echo "\t$$xcifile" >> $@; \
 	done
+	@if [ ! -z "$(strip $(SYNTH_IP_XCI_FILES))" ]; then \
+		echo "}" >> $@; \
+	fi
 	@test -e $(COMPONENT_OUT_SYNTH_PATH)/ip_srcs.f && echo "Wrote Xilinx IP source file manifest." || true
 	@echo >> $@
 	@echo "# Verilog source file listing" >> $@
 	@echo "# ---------------------------" >> $@
+	@if [ ! -z "$(strip $(SYNTH_V_SRC_FILES))" ]; then \
+		echo "add_file -quiet {" >> $@; \
+	fi
 	@-for vsrcfile in $(abspath $(SYNTH_V_SRC_FILES)); do \
 		echo $$vsrcfile >> $(COMPONENT_OUT_SYNTH_PATH)/v_srcs.f; \
-		echo "read_verilog -quiet $$vsrcfile" >> $@; \
+	    echo "\t$$vsrcfile" >> $@; \
 	done
+	@if [ ! -z "$(strip $(SYNTH_V_SRC_FILES))" ]; then \
+		echo "}" >> $@; \
+	fi
 	@test -e $(COMPONENT_OUT_SYNTH_PATH)/v_srcs.f && echo "Wrote Verilog source file manifest." || true
 	@echo >> $@
 	@echo "# Verilog header file listing" >> $@
 	@echo "# ---------------------------" >> $@
+	@if [ ! -z "$(strip $(SYNTH_V_HDR_FILES))" ]; then \
+		echo "add_file -quiet {" >> $@; \
+	fi
 	@-for vhdrfile in $(abspath $(SYNTH_V_HDR_FILES)); do \
 		echo $$vhdrfile >> $(COMPONENT_OUT_SYNTH_PATH)/v_hdrs.f; \
-		echo "read_verilog -quiet $$vhdrfile" >> $@; \
+		echo "\t$$vhdrfile" >> $@; \
 	done
+	@if [ ! -z "$(strip $(SYNTH_V_HDR_FILES))" ]; then \
+		echo "}" >> $@; \
+	fi
 	@test -e $(COMPONENT_OUT_SYNTH_PATH)/v_hdrs.f && echo "Wrote Verilog header file manifest." || true
 	@echo >> $@
 	@echo "# SystemVerilog package listing" >> $@
 	@echo "# -----------------------------" >> $@
-	@-for svpkgsrcfile in $(SYNTH_SV_PKG_FILES); do \
-		echo $$svpkgsrcfile >> $(COMPONENT_OUT_SYNTH_PATH)/sv_pkg_srcs.f; \
-		echo "read_verilog -sv -quiet $$svpkgsrcfile" >> $@; \
+	@if [ ! -z "$(strip $(SYNTH_SV_PKG_FILES))" ]; then \
+		echo "add_file -quiet {" >> $@; \
+	fi
+	@-for svpkgfile in $(SYNTH_SV_PKG_FILES); do \
+		echo $$svpkgfile >> $(COMPONENT_OUT_SYNTH_PATH)/sv_pkg_srcs.f; \
+		echo "\t$$svpkgfile" >> $@; \
 	done
+	@if [ ! -z "$(strip $(SYNTH_SV_PKG_FILES))" ]; then \
+		echo "}" >> $@; \
+	fi
 	@test -e $(COMPONENT_OUT_SYNTH_PATH)/sv_pkg_srcs.f && echo "Wrote SystemVerilog package source file manifest." || true
 	@echo >> $@
 	@echo "# SystemVerilog source file listing" >> $@
 	@echo "# ---------------------------------" >> $@
+	@if [ ! -z "$(strip $(SYNTH_SV_SRC_FILES))" ]; then \
+		echo "add_file -quiet {" >> $@; \
+	fi
 	@-for svsrcfile in $(abspath $(SYNTH_SV_SRC_FILES)); do \
 		echo $$svsrcfile >> $(COMPONENT_OUT_SYNTH_PATH)/sv_srcs.f; \
-		echo "read_verilog -sv -quiet $$svsrcfile" >> $@; \
+	    echo "\t$$svsrcfile" >> $@; \
 	done
+	@if [ ! -z "$(strip $(SYNTH_SV_SRC_FILES))" ]; then \
+		echo "}" >> $@; \
+	fi
 	@test -e $(COMPONENT_OUT_SYNTH_PATH)/sv_srcs.f && echo "Wrote SystemVerilog source file manifest." || true
 	@echo >> $@
 	@echo "# SystemVerilog header file listing" >> $@
 	@echo "# ---------------------------------" >> $@
+	@if [ ! -z "$(strip $(SYNTH_SV_HDR_FILES))" ]; then \
+		echo "add_file -quiet {" >> $@; \
+	fi
 	@-for svhdrfile in $(abspath $(SYNTH_SV_HDR_FILES)); do \
 		echo $$svhdrfile >> $(COMPONENT_OUT_SYNTH_PATH)/sv_hdrs.f; \
-		echo "read_verilog -sv -quiet $$svhdrfile" >> $@; \
+		echo "\t$$svhdrfile" >> $@; \
 	done
+	@if [ ! -z "$(strip $(SYNTH_SV_HDR_FILES))" ]; then \
+		echo "}" >> $@; \
+	fi
 	@test -e $(COMPONENT_OUT_SYNTH_PATH)/sv_hdrs.f && echo "Wrote SystemVerilog header file manifest." || true
 	@echo
 	@echo "Done."
 
-$(SYNTH_CONSTRAINTS_OBJ): $(SYNC_CONSTRAINT_XDC_FILES) | $(COMPONENT_OUT_SYNTH_PATH)
+$(SYNTH_CONSTRAINTS_OBJ): $(SYNC_CONSTRAINT_XDC_FILES) $(RAM_CONSTRAINT_XDC_FILES) | $(COMPONENT_OUT_SYNTH_PATH)
 	@-rm -rf $@
 	@echo "# ======================================================" > $@
-	@echo "# Default synchronizer library (sync) timing constraints" >> $@
+	@echo "# Default timing constraints" >> $@
+	@echo "#" >> $@
+	@echo "# Includes per-reference constraints for sync (synchronizer)" >> $@
+	@echo "# and xilinx.ram (RAM) modules with clock domain crossing" >> $@
+	@echo "# (CDC) paths." >> $@
 	@echo "#" >> $@
 	@echo "# NOTE: This file is autogenerated. DO NOT EDIT." >> $@
 	@echo "# =====================================================" >> $@
+	@echo >> $@
+	@echo "# Synchronizer constraints" >> $@
+	@echo "# ------------------------" >> $@
 	@-for syncmodule in $(SYNC_MODULE_NAMES); do \
-		echo "read_xdc -quiet -unmanaged -ref $$syncmodule $(abspath $(LIB_ROOT)/src/sync/build/$$syncmodule/synth.xdc)" >> $@; \
+		echo "if {[lsearch [get_files -compile_order sources -used_in synthesis] *sync/rtl/src/$$syncmodule.sv] >= 0} {" >> $@; \
+		echo "\tread_xdc -quiet -unmanaged -ref $$syncmodule $(abspath $(LIB_ROOT)/src/sync/build/$$syncmodule/synth.xdc)" >> $@; \
+		echo "}" >> $@; \
 	done
+	@echo >> $@
+	@echo "# RAM constraints" >> $@
+	@echo "# ---------------" >> $@
+	@-for rammodule in $(RAM_MODULE_NAMES); do \
+		echo "if {[lsearch [get_files -compile_order sources -used_in synthesis] *ram/rtl/src/$$rammodule.sv] >= 0} {" >> $@; \
+		echo "\tread_xdc -quiet -unmanaged -ref $$rammodule $(abspath $(LIB_ROOT)/src/xilinx/ram/build/$$rammodule/synth.xdc)" >> $@; \
+		echo "}" >> $@; \
+	done
+
 
 # -----------------------------------------------
 # Info targets

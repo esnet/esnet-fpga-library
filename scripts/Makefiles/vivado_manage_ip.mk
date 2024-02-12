@@ -33,9 +33,11 @@ IP_PROJ_XPR = $(IP_PROJ_DIR)/$(IP_PROJ_NAME).xpr
 # -----------------------------------------------
 # Command
 # -----------------------------------------------
-VIVADO_LOG_DIR = $(COMPONENT_OUT_PATH)
-VIVADO_MANAGE_IP_CMD = $(VIVADO_CMD_BASE) -source $(VIVADO_SCRIPTS_ROOT)/manage_ip.tcl
-VIVADO_MANAGE_IP_CMD_GUI = $(VIVADO_CMD_BASE_GUI) -source $(VIVADO_SCRIPTS_ROOT)/manage_ip.tcl
+
+VIVADO_MANAGE_IP_CMD_BASE = $(VIVADO_CMD_BASE) -source $(VIVADO_SCRIPTS_ROOT)/manage_ip.tcl
+
+VIVADO_MANAGE_IP_CMD = $(VIVADO_MANAGE_IP_CMD_BASE) -mode batch
+VIVADO_MANAGE_IP_CMD_GUI = $(VIVADO_MANAGE_IP_CMD_BASE) -mode gui
 
 # -----------------------------------------------
 # Sources
@@ -68,7 +70,7 @@ _ip_proj_clean: _vivado_clean_logs
 $(IP_PROJ_XPR): | $(COMPONENT_OUT_PATH)
 	@echo "----------------------------------------------------------"
 	@echo "Creating IP project ($(COMPONENT_NAME)) ..."
-	@$(VIVADO_MANAGE_IP_CMD) -tclargs create_proj
+	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_IP_CMD) -tclargs create_proj
 	@echo
 	@echo "Done."
 

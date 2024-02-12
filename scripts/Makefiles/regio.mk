@@ -167,7 +167,7 @@ $(REGIO_IR_OUTPUT_DIR):
 
 _reg_compile: $(REGIO_RTL_SIM_OBJ) $(REGIO_VERIF_SIM_OBJ)
 
-_reg_synth:
+_reg_synth: reg
 	@$(MAKE) -s -C $(REGIO_RTL_OUTPUT_DIR) synth
 
 $(REGIO_RTL_SIM_OBJ): reg | $(REGIO_RTL_OUTPUT_DIR)
@@ -189,7 +189,18 @@ _reg_config_info:
 	@echo "------------------------------------------------------"
 	@echo "REGIO_TEMPLATES_DIR : $(REGIO_TEMPLATES_DIR)"
 	@echo "REGIO_YAML_INC_DIR  : $(REGIO_YAML_INC_DIR)"
+	@echo "REG_BLOCK_YAML      :"
+	@for blockyaml in $(REG_BLOCK_YAML); do \
+		echo "\t$$blockyaml"; \
+	done
+	@echo "REG_DECODER_YAML    :"
+	@for decoderyaml in $(REG_DECODER_YAML); do \
+		echo "\t$$decoderyaml"; \
+	done
+	@echo "REGIO_IR_OUTPUT_DIR    : $(REGIO_IR_OUTPUT_DIR)"
+	@echo "REGIO_RTL_OUTPUT_DIR   : $(REGIO_RTL_OUTPUT_DIR)"
+	@echo "REGIO_VERIF_OUTPUT_DIR : $(REGIO_VERIF_OUTPUT_DIR)"
 
-_reg_info: _component_info _reg_config_info
+_reg_info: _reg_config_info .component_info
 
 .PHONY: _reg_config_info _reg_info

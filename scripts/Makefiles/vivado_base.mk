@@ -23,11 +23,9 @@ export BOARD_PART
 # Configure source files
 # -----------------------------------------------
 SOURCES_TCL_AUTO = $(COMPONENT_OUT_PATH)/synth/sources.tcl
-SOURCES_TCL_USER = add_sources.tcl
 CONSTRAINTS_TCL_AUTO = $(COMPONENT_OUT_PATH)/synth/constraints.tcl
 
 export SOURCES_TCL_AUTO
-export SOURCES_TCL_USER
 export CONSTRAINTS_TCL_AUTO
 
 # -----------------------------------------------
@@ -36,19 +34,10 @@ export CONSTRAINTS_TCL_AUTO
 VIVADO_DEFAULT_OPTIONS = -notrace -nojournal
 VIVADO_OPTIONS += $(VIVADO_DEFAULT_OPTIONS)
 
-VIVADO_LOG_DIR  ?= $(CURDIR)
-VIVADO_LOG_NAME ?= vivado.log
-
 # -----------------------------------------------
 # Commands
 # -----------------------------------------------
-__VIVADO_CMD_BASE_NO_LOG = vivado $(VIVADO_OPTIONS) -source $(VIVADO_SCRIPTS_ROOT)/part.tcl -source $(VIVADO_SCRIPTS_ROOT)/procs.tcl
-
-VIVADO_CMD_BASE_NO_LOG = $(__VIVADO_CMD_BASE_NO_LOG) -mode batch
-VIVADO_CMD_BASE = $(VIVADO_CMD_BASE_NO_LOG) -log $(VIVADO_LOG_DIR)/$(VIVADO_LOG_NAME)
-
-VIVADO_CMD_BASE_GUI_NO_LOG = $(__VIVADO_CMD_BASE_NO_LOG) -mode gui
-VIVADO_CMD_BASE_GUI = $(VIVADO_CMD_BASE_GUI_NO_LOG) -log $(VIVADO_LOG_DIR)/$(VIVADO_LOG_NAME)
+VIVADO_CMD_BASE = vivado $(VIVADO_OPTIONS) -source $(VIVADO_SCRIPTS_ROOT)/part.tcl -source $(VIVADO_SCRIPTS_ROOT)/procs.tcl
 
 # -----------------------------------------------
 # Targets

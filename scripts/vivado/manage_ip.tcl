@@ -36,7 +36,7 @@ set PROJ_FILE [file join $PROJ_DIR $PROJ_NAME.xpr]
 # -------------------------------
 if {$phase == "create_proj"} {
     puts ""
-    puts "Creating IP project $PROJ_FILE..."
+    puts "Creating IP project $PROJ_FILE ..."
     puts ""
     vivadoProcs::create_ip_proj $PART $PROJ_NAME $PROJ_DIR
     if {[info exists BOARD_PART]} {
@@ -61,7 +61,7 @@ if {$phase == "create_proj"} {
     }
     vivadoProcs::close_proj
 } else {
-    puts "Opening IP project $PROJ_FILE..."
+    puts "Opening IP project $PROJ_FILE ..."
     puts ""
     switch $phase {
         ip -
@@ -153,7 +153,7 @@ if {$phase == "create_proj"} {
             upgrade_ip [get_ips]
         }
         default {
-            puts "INVALID IP job: $phase (create_proj/create_ip/sim/exdes/drv_dpi/synth/reset/status/upgrade)"
+            puts "INVALID IP job: $phase (create_proj/create_ip/sim/exdes/drv_dpi/synth/reset/status/upgrade/gui)"
         }
     }
     switch $phase {

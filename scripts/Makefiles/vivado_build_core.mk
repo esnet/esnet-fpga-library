@@ -6,54 +6,48 @@
 #        the following input 'arguments':
 #        - SCRIPTS_ROOT: path to project scripts directory
 #        - TOP: name of top-level module to build
-#        - BUILD_OUTPUT_DIR: path to build output files
+# -----------------------------------------------
+# Configure default user sources/constraints for OOC flow
+# -----------------------------------------------
+SOURCES_TCL_USER ?= $(abspath sources.tcl)
+CONSTRAINTS_XDC_USER ?= $(abspath timing_ooc.xdc place_ooc.xdc)
 
-# -----------------------------------------------
-# Include base Vivado build Make instructions
-# -----------------------------------------------
-include $(SCRIPTS_ROOT)/Makefiles/vivado_build_base.mk
+export SOURCES_TCL_USER
+export CONSTRAINTS_XDC_USER
 
 # -----------------------------------------------
 # Command
 # -----------------------------------------------
-VIVADO_CMD = $(VIVADO_CMD_BASE_NO_LOG) -source $(VIVADO_SCRIPTS_ROOT)/build_ooc.tcl
+VIVADO_BUILD_CMD_BASE = $(VIVADO_CMD_BASE) -source $(VIVADO_SCRIPTS_ROOT)/build_ooc.tcl
+
+VIVADO_BUILD_CMD = $(VIVADO_BUILD_CMD_BASE) -mode batch
+VIVADO_BUILD_CMD_GUI = $(VIVADO_BUILD_CMD_BASE) -mode gui
 
 # -----------------------------------------------
-# Targets
+# Configure build flow
 # -----------------------------------------------
-_pre_synth: _compile_synth
-_synth:     $(BUILD_OUTPUT_DIR)/$(TOP).synth.dcp
-_opt:       $(BUILD_OUTPUT_DIR)/$(TOP).opt.dcp
-_place:     $(BUILD_OUTPUT_DIR)/$(TOP).place.dcp
-_validate:  $(BUILD_OUTPUT_DIR)/$(TOP).opt.summary.xml
+BUILD_STAGES = synth opt place
 
-.PHONY: _pre_synth _synth _opt _place _validate
+# -----------------------------------------------
+# Output files
+# -----------------------------------------------
+SYNTH_DCP_FILE = $(PROJ_DIR)/$(PROJ_NAME).runs/synth_1/$(TOP).dcp
+OPT_TIMING_SUMMARY = $(PROJ_DIR)/$(PROJ_NAME).runs/impl_1/opt_report_timing_summary_0.rpt
+BUILD_SUMMARY_JSON = $(COMPONENT_OUT_PATH)/$(TOP).opt.summary.json
+BUILD_SUMMARY_XML = $(COMPONENT_OUT_PATH)/$(TOP).opt.summary.xml
 
-# pre_synth hook to be described in 'parent' Makefile
-# (can be used to trigger regmap or IP generation before launching synthesis)
-$(BUILD_OUTPUT_DIR)/$(TOP).synth.dcp: pre_synth | $(BUILD_OUTPUT_DIR)
-	@echo "----------------------------------------------------------"
-	@echo "Synthesizing '$(TOP)' OOC ..."
-	@echo
-	$(VIVADO_CMD) -log $(BUILD_OUTPUT_DIR)/$(TOP).synth.log -tclargs synth 0
-	@echo
-	@echo "Done."
+# -----------------------------------------------
+# Validation targets
+# -----------------------------------------------
+_summary:
+	@test -e $(OPT_TIMING_SUMMARY) && \
+		$(VIVADO_SCRIPTS_ROOT)/gen_summary.py $(OPT_TIMING_SUMMARY) --build-name $(TOP).opt --summary-json-file $(BUILD_SUMMARY_JSON) || \
+		echo "Failed to generate build summary. Timing summary ($(OPT_TIMING_SUMMARY)) not available. Design must first be synthesized and optimized."
 
-$(BUILD_OUTPUT_DIR)/$(TOP).opt.dcp: $(BUILD_OUTPUT_DIR)/$(TOP).synth.dcp
-	@echo "----------------------------------------------------------"
-	@echo "Optimizing '$(TOP)' OOC ..."
-	@echo
-	$(VIVADO_CMD) -log $(BUILD_OUTPUT_DIR)/$(TOP).opt.log -tclargs opt 1
-	@echo
-	@echo "Done."
+_validate: _summary
+	@$(VIVADO_SCRIPTS_ROOT)/check_timing.py $(BUILD_SUMMARY_JSON) --junit-xml-file $(BUILD_SUMMARY_XML) --wns-min $(WNS_MIN) --tns-min $(TNS_MIN)
 
-$(BUILD_OUTPUT_DIR)/$(TOP).place.dcp: $(BUILD_OUTPUT_DIR)/$(TOP).opt.dcp
-	@echo "----------------------------------------------------------"
-	@echo "Placing '$(TOP)' OOC ..."
-	@echo
-	$(VIVADO_CMD) -log $(BUILD_OUTPUT_DIR)/$(TOP).place.log -tclargs place 1
-	@echo
-	@echo "Done."
+.PHONY: _summary _validate
 
 # -----------------------------------------------
 # Info targets
@@ -71,5 +65,6 @@ _build_core_info: _vivado_build_core_info _compile_info
 # -----------------------------------------------
 # Include base Vivado build Make instructions
 # -----------------------------------------------
-include $(SCRIPTS_ROOT)/Makefiles/vivado_compile.mk
+include $(SCRIPTS_ROOT)/Makefiles/vivado_build_base.mk
+
 

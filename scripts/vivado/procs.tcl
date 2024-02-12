@@ -105,6 +105,10 @@ namespace eval vivadoProcs {
         report_qor_suggestions -file $out_dir/$build_name.qor_suggestions.rpt
     }
 
+    proc set_top {top} {
+        set_property top $top [current_fileset]
+    }
+
     proc __run_phase {phase top ooc out_dir} {
         # Mode selection
         # -----------------------------------------------
@@ -210,6 +214,28 @@ namespace eval vivadoProcs {
             # Reserve code 1 for "expected" error exits...
             exit 2
         }
+    }
+
+    # Configure synthesis run
+    proc config_synth_run {{run_name "synth_1"}} {
+        set_property strategy {Vivado Synthesis Defaults} [get_runs $run_name]
+        set_property -name {STEPS.SYNTH_DESIGN.ARGS.MORE OPTIONS} -value {-mode out_of_context} -objects [get_runs $run_name]
+        # Report logic levels
+        create_report_config -report_name ${run_name}_synth_report_design_analysis_0 -step synth_design -report_type report_design_analysis -run $run_name
+        set_property DISPLAY_NAME {Design Analysis - Synth Design} [get_report_configs -of_objects [get_runs $run_name] ${run_name}_synth_report_design_analysis_0] 
+        set_property OPTIONS.logic_level_distribution {true} [get_report_config -of_objects [get_runs $run_name] ${run_name}_synth_report_design_analysis_0] 
+    }
+
+    # Configure implementation run
+    proc config_impl_run {{run_name "impl_1"}} {
+        set_property strategy {Vivado Implementation Defaults} [get_runs $run_name]
+        set_property report_strategy {UltraFast Design Methodology Reports} [get_runs $run_name]
+        # Report CDC
+        create_report_config -report_name ${run_name}_init_report_cdc_0 -step init_design -report_type report_cdc -run $run_name
+        set_property DISPLAY_NAME {CDC - Design Initialization} [get_report_configs -of_objects [get_runs $run_name] ${run_name}_init_report_cdc_0] 
+        # Report clock interaction
+        create_report_config -report_name ${run_name}_init_report_clock_interaction_0 -step init_design -report_type report_clock_interaction -run $run_name
+        set_property DISPLAY_NAME {Clock Interaction - Design Initialization} [get_report_configs -of_objects [get_runs $run_name] ${run_name}_init_report_clock_interaction_0]
     }
 
 }
