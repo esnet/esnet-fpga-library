@@ -37,17 +37,34 @@ BUILD_SUMMARY_JSON = $(COMPONENT_OUT_PATH)/$(TOP).opt.summary.json
 BUILD_SUMMARY_XML = $(COMPONENT_OUT_PATH)/$(TOP).opt.summary.xml
 
 # -----------------------------------------------
+# Synthesis targets
+# -----------------------------------------------
+define BUILD_CORE_STAGE_TARGET
+_build_core_$(stage): _$(stage)
+	@$(MAKE) -s _build_core_synth_lib
+endef
+$(foreach stage,$(BUILD_STAGES),$(eval $(BUILD_CORE_STAGE_TARGET)))
+
+_build_core_synth_lib: | $(COMPONENT_OUT_SYNTH_PATH)
+	@echo "----------------------------------------------------------"
+	@echo "Compiling synthesis library '$(COMPONENT_NAME)' ..."
+	@echo
+	@-rm -rf $(COMPONENT_OUT_SYNTH_PATH)/*.f
+	@echo $(abspath $(SYNTH_DCP_FILE)) > $(COMPONENT_OUT_SYNTH_PATH)/dcp_srcs.f
+	@echo "Done."
+
+# -----------------------------------------------
 # Validation targets
 # -----------------------------------------------
-_summary:
+_build_core_summary:
 	@test -e $(OPT_TIMING_SUMMARY) && \
 		$(VIVADO_SCRIPTS_ROOT)/gen_summary.py $(OPT_TIMING_SUMMARY) --build-name $(TOP).opt --summary-json-file $(BUILD_SUMMARY_JSON) || \
 		echo "Failed to generate build summary. Timing summary ($(OPT_TIMING_SUMMARY)) not available. Design must first be synthesized and optimized."
 
-_validate: _summary
+_build_core_validate: _build_core_summary
 	@$(VIVADO_SCRIPTS_ROOT)/check_timing.py $(BUILD_SUMMARY_JSON) --junit-xml-file $(BUILD_SUMMARY_XML) --wns-min $(WNS_MIN) --tns-min $(TNS_MIN)
 
-.PHONY: _summary _validate
+.PHONY: _build_core_summary _build_core_validate
 
 # -----------------------------------------------
 # Info targets

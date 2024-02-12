@@ -74,6 +74,9 @@ $(IP_PROJ_XPR): | $(COMPONENT_OUT_PATH)
 	@echo
 	@echo "Done."
 
+$(COMPONENT_OUT_PATH):
+	@mkdir -p $@
+
 # -----------------------------------------------
 # Targets
 # -----------------------------------------------
