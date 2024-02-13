@@ -26,7 +26,7 @@ SRC_DIR ?= src
 #      - V_SRC_FILES, V_HDR_FILES
 # ----------------------------------------------------
 # Import all source/header files from $(SRC_DIR) and $(INC_DIR) respectively
-__SRC_FILES = $(SRC_FILES) $(wildcard $(SRC_DIR)/*.v) $(wildcard $(SRC_DIR)/*.sv)
+__SRC_FILES = $(SRC_FILES) $(sort $(wildcard $(SRC_DIR)/*.v)) $(sort $(wildcard $(SRC_DIR)/*.sv))
 __INC_DIRS = $(sort $(INC_DIR) $(INC_DIRS))
 # Import file lists
 ifneq ($(strip $(SRC_LIST_FILES)),)
@@ -36,34 +36,36 @@ ifneq ($(strip $(SRC_LIST_FILES)),)
 	FILE_LIST_EXISTS = $(wildcard $(filelist))
 	FILE_LIST = $(if $(FILE_LIST_EXISTS),$(shell cat $(filelist)))
 	FILE_REFS = $(foreach filelist,$(SRC_LIST_FILES),$(FILE_LIST))
-	__SRC_FILES += $(filter-out +incdir+%,$(FILE_REFS))
-	__INC_DIRS += $(subst +incdir+,,$(filter +incdir+%,$(FILE_REFS)))
+	__FILE_LIST_SRC_FILES += $(filter-out +incdir+%,$(FILE_REFS))
+	__FILE_LIST_INC_DIRS += $(subst +incdir+,,$(filter +incdir+%,$(FILE_REFS)))
 endif
+# Synthesize (unsorted, non-unique) list of all Verilog/SystemVerilog source files
+__SRC_FILES = $(SRC_FILES) $(__FILE_LIST_SRC_FILES) $(wildcard $(SRC_DIR)/*.v) $(wildcard $(SRC_DIR)/*.sv)
 # Synthesize list of include directories
-INCLUDES = $(__INC_DIRS)
+INCLUDES = $(sort $(INC_DIR) $(INC_DIRS) $(__FILE_LIST_INC_DIRS))
+
 # Synthesize list of Verilog source files
 V_SRC_FILES = $(sort $(filter %.v,$(__SRC_FILES)))
 V_HDR_FILES = $(sort $(foreach incdir,$(__INC_DIRS),$(wildcard $(incdir)/*.vh)))
-# Synthesize list of SystemVerilog source files
-__SV_FILES = $(sort $(filter %.sv,$(__SRC_FILES)))
+# Synthesize list of SystemVerilog files
+__SV_FILES = $(filter %.sv,$(__SRC_FILES))
 # Identify header files (*.svh)
 SV_HDR_FILES = $(sort $(foreach incdir,$(__INC_DIRS),$(wildcard $(incdir)/*.svh)))
 # Separate source files containing package definitions (i.e. *_pkg.sv) from
 # regular source files; this allows packages to be compiled first
-__SV_PKG_FILES__UNSORTED = $(filter %_pkg.sv,$(__SV_FILES))
-__SV_NON_PKG_FILES = $(filter-out %_pkg.sv,$(__SV_FILES))
-# Sort package files by filename (without path)
-# This is somewhat arbitrary and done mostly to ensure consistency in results:
-
-# For cases where package B requires package A, this works because A_pkg.sv is compiled first.
-# For cases where package A requires package B, this doesn't work because B_pkg.sv is compiled last.
-#
-# Obviously more control over the compile order would be beneficial in some cases.
-# However, since the general design pattern is to maintain a single package file
-# per source library, this is almost always sufficient.
-SV_PKG_FILES = $(foreach pkgfile,$(sort $(join $(notdir $(addsuffix :,$(__SV_PKG_FILES__UNSORTED))),$(__SV_PKG_FILES__UNSORTED))),$(lastword $(subst :, ,$(pkgfile))))
-# Compile packages before regular source files
-SV_SRC_FILES = $(__SV_NON_PKG_FILES)
+__SV_PKG_FILES = $(filter %_pkg.sv,$(__SV_FILES))
+SV_SRC_FILES = $(sort $(filter-out %_pkg.sv,$(__SV_FILES)))
+# Synthesize unique list of package files, but maintain order
+# Order rules:
+#   - first include packages listed in SRC_FILES
+#   - next, include packages listed in file lists (e.g. SRC_LIST_FILES)
+#   - finally, include packages added by wildcard match in SRC_DIR (in alphabetical order)
+# These ordering rules provide some control over compile order, where for example,
+# package A and package B are present, and package A depends on package B. Without
+# ordering rules, this would result in a compile error when package B is compiled
+# before package A. This compile error could be avoided e.g. by explicitly listing
+# package B and package A (in that order) in SRC_FILES.
+SV_PKG_FILES = $(call uniq,$(__SV_PKG_FILES))
 
 # -----------------------------------------------
 # Subcomponent dependencies
