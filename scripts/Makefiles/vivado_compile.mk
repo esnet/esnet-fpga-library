@@ -54,10 +54,12 @@ list_files = $(shell test -e $(1) && cat $(1) | tr '\n' ' ')
 SYNTH_IP_XCI_FILES = $(sort $(foreach subcomponent_path,$(SUBCOMPONENT_PATHS),$(call list_files,$(subcomponent_path)/synth/ip_srcs.f)))
 SYNTH_V_SRC_FILES  = $(sort $(abspath $(V_SRC_FILES))  $(foreach subcomponent_path,$(SUBCOMPONENT_PATHS),$(call list_files,$(subcomponent_path)/synth/v_srcs.f)))
 SYNTH_V_HDR_FILES  = $(sort $(abspath $(V_HDR_FILES))  $(foreach subcomponent_path,$(SUBCOMPONENT_PATHS),$(call list_files,$(subcomponent_path)/synth/v_hdrs.f)))
-SYNTH_SV_PKG_FILES = $(sort $(abspath $(SV_PKG_FILES)) $(foreach subcomponent_path,$(SUBCOMPONENT_PATHS),$(call list_files,$(subcomponent_path)/synth/sv_pkg_srcs.f)))
 SYNTH_SV_SRC_FILES = $(sort $(abspath $(SV_SRC_FILES)) $(foreach subcomponent_path,$(SUBCOMPONENT_PATHS),$(call list_files,$(subcomponent_path)/synth/sv_srcs.f)))
 SYNTH_SV_HDR_FILES = $(sort $(abspath $(SV_HDR_FILES)) $(foreach subcomponent_path,$(SUBCOMPONENT_PATHS),$(call list_files,$(subcomponent_path)/synth/sv_hdrs.f)))
 SYNTH_DCP_FILES    = $(foreach subcomponent_path,$(SUBCOMPONENT_PATHS),$(call list_files,$(subcomponent_path)/synth/dcp_srcs.f))
+
+# List of package files should be unique, but not sorted, to preserve ordering of dependencies
+SYNTH_SV_PKG_FILES = $(call uniq,$(foreach subcomponent_path,$(SUBCOMPONENT_PATHS),$(call list_files,$(subcomponent_path)/synth/sv_pkg_srcs.f)) $(abspath $(SV_PKG_FILES)))
 
 SYNC_MODULE_NAMES = sync_meta sync_areset sync_bus
 SYNC_CONSTRAINT_XDC_FILES = $(foreach syncmodule,$(SYNC_MODULE_NAMES),$(LIB_ROOT)/src/sync/build/$(syncmodule)/synth.xdc)
