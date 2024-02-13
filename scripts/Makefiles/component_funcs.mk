@@ -1,8 +1,7 @@
 # ----------------------------------------------------
 # Common functions
 # ----------------------------------------------------
-__space := $(subst ,, )
-__to_lower = $(shell echo $(1) | tr '[:upper:]' '[:lower:]')
+include $(SCRIPTS_ROOT)/Makefiles/funcs.mk
 
 # ----------------------------------------------------
 # Component reference functions
