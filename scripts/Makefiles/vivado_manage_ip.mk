@@ -48,6 +48,7 @@ IP_TCL_FILES = $(addprefix $(IP_SRC_DIR)/,$(addsuffix .tcl,$(IP_LIST)))
 # Output products
 # -----------------------------------------------
 IP_XCI_FILES = $(foreach ip,$(IP_LIST),$(COMPONENT_OUT_PATH)/$(ip)/$(ip).xci)
+IP_XCI_PROXY_FILES = $(foreach ip,$(IP_LIST),$(COMPONENT_OUT_PATH)/.xci/$(ip)/$(ip).xci)
 IP_DCP_FILES = $(foreach ip,$(IP_LIST),$(COMPONENT_OUT_PATH)/$(ip)/$(ip).dcp)
 IP_EXAMPLE_DESIGNS = $(foreach ip,$(IP_LIST),$(COMPONENT_OUT_PATH)/$(ip)_ex)
 
@@ -99,7 +100,6 @@ $(COMPONENT_OUT_PATH):
 _ip : | $(COMPONENT_OUT_PATH)
 	@echo "----------------------------------------------------------"
 	@echo "Create/update IP ($(COMPONENT_NAME)) ..."
-	@rm -rf $(COMPONENT_OUT_PATH)/.xci
 	@mkdir -p $(COMPONENT_OUT_PATH)/.xci
 	@cd $(COMPONENT_OUT_PATH)/.xci && $(VIVADO_MANAGE_IP_CMD) -tclargs create_ip "{$(IP_TCL_FILES)}"
 	@echo
@@ -120,7 +120,6 @@ _ip : | $(COMPONENT_OUT_PATH)
 				echo "XCI created.";; \
 		esac \
 	done
-	@rm -rf $(COMPONENT_OUT_PATH)/.xci
 	@echo
 	@echo "Done."
 
@@ -147,11 +146,7 @@ _ip_upgrade: ip | $(IP_PROJ_XPR)
 _ip_compile: _compile_sim
 
 # Synthesize IP
-_ip_synth: ip | $(IP_PROJ_XPR) $(COMPONENT_OUT_SYNTH_PATH)
-	@echo "----------------------------------------------------------"
-	@echo "Synthesize IP ($(COMPONENT_NAME)) ..."
-	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_IP_CMD) -tclargs synth "{$(IP_XCI_FILES)}"
-	@echo
+_ip_synth: $(IP_DCP_FILES) | $(IP_PROJ_XPR) $(COMPONENT_OUT_SYNTH_PATH)
 	@echo "----------------------------------------------------------"
 	@echo "Compiling synthesis library '$(COMPONENT_NAME)' ..."
 	@echo
@@ -179,8 +174,16 @@ _ip_clean: _vivado_clean_logs _ip_proj_clean _compile_clean
 
 .PHONY: _ip _ip_exdes _ip_reset _ip_status _ip_upgrade _ip_compile _ip_synth _ip_clean
 
-$(IP_XCI_FILES): $(IP_TCL_FILES)
+$(IP_XCI_PROXY_FILES): $(IP_TCL_FILES)
 	@$(MAKE) -s ip
+
+$(IP_XCI_FILES): | $(IP_XCI_PROXY_FILES)
+
+$(IP_DCP_FILES): $(IP_XCI_FILES) | $(IP_PROJ_XPR)
+	@echo "----------------------------------------------------------"
+	@echo "Synthesize IP ($(COMPONENT_NAME)) ..."
+	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_IP_CMD) -tclargs synth "{$(IP_XCI_FILES)}"
+	@echo
 
 # -----------------------------------------------
 # Generate/manage simulation sources
@@ -189,7 +192,6 @@ __IP_SIM_SRC_FILES = $(addprefix $(COMPONENT_OUT_PATH)/,$(IP_SIM_SRC_FILES))
 __IP_SIM_INC_DIRS = $(addprefix $(COMPONENT_OUT_PATH)/,$(IP_SIM_INC_DIRS))
 
 $(__IP_SIM_SRC_FILES) $(__IP_SIM_INC_DIRS): $(IP_XCI_FILES) | $(IP_PROJ_XPR)
-	@make -s ip
 	@echo "----------------------------------------------------------"
 	@echo "Generate IP simulation output products ($(COMPONENT_NAME)) ..."
 	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_IP_CMD) -tclargs sim "{$(IP_XCI_FILES)}"
@@ -205,7 +207,6 @@ INC_DIRS += $(__IP_SIM_INC_DIRS)
 # Generate IP example designs
 # -----------------------------------------------
 $(IP_EXAMPLE_DESIGNS): $(IP_XCI_FILES) | $(IP_PROJ_XPR)
-	@make -s ip
 	@echo "----------------------------------------------------------"
 	@echo "Generate IP example designs ($(COMPONENT_NAME)) ..."
 	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_IP_CMD) -tclargs exdes "{$(IP_XCI_FILES)}"
