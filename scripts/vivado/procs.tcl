@@ -89,8 +89,16 @@ namespace eval vivadoProcs {
         close_project
     }
 
+    proc get_part {} {
+        return [get_property part [current_project]]
+    }
+
     proc set_board_part {board_part} {
         set_property board_part $board_part [current_project]
+    }
+
+    proc get_board_part {} {
+        return [get_property board_part [current_project]]
     }
 
     proc run_reports {build_name out_dir} {

@@ -92,9 +92,8 @@ P4_OPTS += $(DEFAULT_P4_OPTS)
 _vitisnetp4_ip: $(VITISNETP4_TCL_FILE) | $(COMPONENT_OUT_PATH)
 	@echo "----------------------------------------------------------"
 	@echo "Create/update IP ($(COMPONENT_NAME)) ..."
-	@rm -rf $(COMPONENT_OUT_PATH)/.xci
 	@mkdir -p $(COMPONENT_OUT_PATH)/.xci
-	@cd $(COMPONENT_OUT_PATH)/.xci && $(VIVADO_MANAGE_IP_CMD) -tclargs create_ip $<
+	@cd $(COMPONENT_OUT_PATH)/.xci && $(VIVADO_MANAGE_IP_CMD) -tclargs create_ip $(BUILD_OPTIONS)
 	@echo
 	@echo "Update IP Summary:"
 	@mkdir -p $(COMPONENT_OUT_PATH)/$(VITISNETP4_IP_NAME)
@@ -113,7 +112,6 @@ _vitisnetp4_ip: $(VITISNETP4_TCL_FILE) | $(COMPONENT_OUT_PATH)
 			cp $(COMPONENT_OUT_PATH)/.xci/$(VITISNETP4_IP_NAME)/$(VITISNETP4_IP_NAME).xci $(VITISNETP4_XCI_FILE); \
 			echo "XCI created.";; \
 	esac
-	@rm -rf $(COMPONENT_OUT_PATH)/.xci
 	@echo
 	@echo "Done."
 
@@ -135,11 +133,11 @@ $(VITISNETP4_TCL_FILE): $(P4_FILE)
 	@echo "create_ip -force -name vitis_net_p4 -vendor xilinx.com -library ip -module_name $(VITISNETP4_IP_NAME) -dir . -force" > $@
 	@echo "set_property -dict [concat [list CONFIG.P4_FILE $(P4_FILE)] [list $(P4_OPTS)]] [get_ips $(VITISNETP4_IP_NAME)]" >> $@
 
-$(VITISNETP4_DPI_DRV_FILE): $(VITISNETP4_XCI_FILE) | $(IP_PROJ_XPR)
-	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_IP_CMD) -tclargs drv_dpi $<
+$(VITISNETP4_DPI_DRV_FILE): $(VITISNETP4_XCI_FILE) | $(PROJ_XPR)
+	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_IP_CMD) -tclargs drv_dpi $(BUILD_OPTIONS)
 
-_vitisnetp4_driver: $(VITISNETP4_XCI_FILE) | $(IP_PROJ_XPR)
-	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_IP_CMD) -tclargs sw_driver $<
+_vitisnetp4_driver: $(VITISNETP4_XCI_FILE) | $(PROJ_XPR)
+	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_IP_CMD) -tclargs sw_driver $(BUILD_OPTIONS)
 	@$(MAKE) -s -C $(COMPONENT_OUT_PATH)/$(VITISNETP4_IP_NAME)/src/sw/drivers
 
 _vitisnetp4_info: _ip_info

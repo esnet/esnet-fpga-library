@@ -13,11 +13,21 @@
 VIVADO_SCRIPTS_ROOT := $(SCRIPTS_ROOT)/vivado
 
 # -----------------------------------------------
-# Export part variables for use in Tcl scripts
+# Part config
 # -----------------------------------------------
-export BOARD_REPO
-export PART
-export BOARD_PART
+VIVADO_PART_CONFIG = \
+    -part $(PART) \
+    -board_part $(BOARD_PART) \
+    -board_repo $(abspath $(BOARD_REPO))
+
+# -----------------------------------------------
+# Project config
+# -----------------------------------------------
+VIVADO_PROJ_CONFIG = \
+    -proj_name $(PROJ_NAME) \
+    -proj_dir $(PROJ_DIR)
+
+PROJ_XPR = $(PROJ_DIR)/$(PROJ_NAME).xpr
 
 # -----------------------------------------------
 # Configure source files
@@ -25,11 +35,8 @@ export BOARD_PART
 SOURCES_TCL_AUTO = $(COMPONENT_OUT_PATH)/synth/sources.tcl
 CONSTRAINTS_TCL_AUTO = $(COMPONENT_OUT_PATH)/synth/constraints.tcl
 
-export SOURCES_TCL_AUTO
-export CONSTRAINTS_TCL_AUTO
-
 # -----------------------------------------------
-# Options
+# Tool options
 # -----------------------------------------------
 VIVADO_DEFAULT_OPTIONS = -notrace -nojournal
 VIVADO_OPTIONS += $(VIVADO_DEFAULT_OPTIONS)
@@ -37,7 +44,7 @@ VIVADO_OPTIONS += $(VIVADO_DEFAULT_OPTIONS)
 # -----------------------------------------------
 # Commands
 # -----------------------------------------------
-VIVADO_CMD_BASE = vivado $(VIVADO_OPTIONS) -source $(VIVADO_SCRIPTS_ROOT)/part.tcl -source $(VIVADO_SCRIPTS_ROOT)/procs.tcl
+VIVADO_CMD_BASE = vivado $(VIVADO_OPTIONS) -source $(VIVADO_SCRIPTS_ROOT)/procs.tcl
 
 # -----------------------------------------------
 # Targets

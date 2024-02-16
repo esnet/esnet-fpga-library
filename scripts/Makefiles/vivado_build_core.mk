@@ -12,9 +12,6 @@
 SOURCES_TCL_USER ?= $(abspath sources.tcl)
 CONSTRAINTS_XDC_USER ?= $(abspath timing_ooc.xdc place_ooc.xdc)
 
-export SOURCES_TCL_USER
-export CONSTRAINTS_XDC_USER
-
 # -----------------------------------------------
 # Command
 # -----------------------------------------------
@@ -27,6 +24,21 @@ VIVADO_BUILD_CMD_GUI = $(VIVADO_BUILD_CMD_BASE) -mode gui
 # Configure build flow
 # -----------------------------------------------
 BUILD_STAGES = synth opt place
+
+# -----------------------------------------------
+# Configure build options
+# -----------------------------------------------
+BUILD_JOBS ?= 4
+
+# Format as optional arguments
+BUILD_OPTIONS = \
+    $(VIVADO_PART_CONFIG) \
+    $(VIVADO_PROJ_CONFIG) \
+    -jobs $(BUILD_JOBS) \
+    -sources_tcl_auto $(SOURCES_TCL_AUTO) \
+    -constraints_tcl_auto $(CONSTRAINTS_TCL_AUTO) \
+    $(foreach sources_tcl,$(SOURCES_TCL_USER),-sources_tcl $(sources_tcl)) \
+    $(foreach constraints_xdc,$(CONSTRAINTS_XDC_USER),-constraints_xdc $(constraints_xdc))
 
 # -----------------------------------------------
 # Output files

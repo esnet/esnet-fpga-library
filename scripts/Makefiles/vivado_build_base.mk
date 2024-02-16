@@ -15,17 +15,11 @@
 include $(SCRIPTS_ROOT)/Makefiles/vivado_base.mk
 
 # -----------------------------------------------
-# Configure Vivado project properties
+# Vivado project properties
 # -----------------------------------------------
-export PROJ_NAME ?= proj
-export PROJ_DIR ?= $(COMPONENT_OUT_PATH)/$(PROJ_NAME)
-
+PROJ_DIR = $(COMPONENT_OUT_PATH)/proj
+PROJ_NAME = proj
 PROJ_XPR = $(PROJ_DIR)/$(PROJ_NAME).xpr
-
-# -----------------------------------------------
-# Configure top-level module
-# -----------------------------------------------
-export TOP
 
 # -----------------------------------------------
 # Options
@@ -38,7 +32,7 @@ TNS_MIN ?= 0
 # Project targets
 # -----------------------------------------------
 _proj : | $(PROJ_XPR)
-	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_BUILD_CMD_GUI) -tclargs gui &
+	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_BUILD_CMD_GUI) -tclargs gui $(TOP) $(BUILD_OPTIONS) &
 
 _proj_clean:
 	@rm -rf $(PROJ_DIR)
@@ -48,7 +42,7 @@ _proj_clean:
 $(PROJ_XPR): | $(COMPONENT_OUT_PATH)
 	@echo "----------------------------------------------------------"
 	@echo "Creating OOC build project ($(COMPONENT_NAME)) ..."
-	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_BUILD_CMD) -tclargs create_proj
+	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_BUILD_CMD) -tclargs create_proj $(TOP) $(BUILD_OPTIONS)
 	@echo
 	@echo "Done."
 
@@ -69,7 +63,7 @@ define BUILD_STAGE_RULE
 _$(stage): pre_synth | $(PROJ_XPR)
 	@echo "----------------------------------------------------------"
 	@echo "Running $(stage)_design for '$(TOP)' OOC ..."
-	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_BUILD_CMD) -tclargs $(stage)
+	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_BUILD_CMD) -tclargs $(stage) $(TOP) $(BUILD_OPTIONS)
 	@echo
 	@echo "Done."
 endef
