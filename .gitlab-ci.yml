@@ -2,7 +2,8 @@ include:
   - template: 'Workflows/Branch-Pipelines.gitlab-ci.yml'
 
 stages:
-  - rtl_sim
+  - ip
+  - sim
   - synth
 
 variables:
@@ -14,7 +15,7 @@ variables:
   image: $CI_REGISTRY/ht/xilinx-tools-docker:43194-gd5ce900f
   before_script:
     - git clone https://gitlab.es.net/ht/open-nic-shell.git
-    - make config BOARD_REPO=$CI_PROJECT_DIR/open-nic-shell/board_files/Xilinx
+    - make -s config BOARD_REPO=$CI_PROJECT_DIR/open-nic-shell/board_files/Xilinx
     - if [ $RANDOMIZE_SEED -gt 0 ]; then export SEED=$RANDOM; fi
     - echo "Running pipeline with SEED $SEED..."
   variables:
@@ -24,43 +25,54 @@ variables:
     LANG: C.UTF-8
     GIT_SUBMODULE_STRATEGY: recursive
 
-rtl_sim:
-  stage: rtl_sim
+ip:
+  stage: ip
   extends: .common
   tags:
     - ht-sim
   script:
-    - make -C src/std/tests/regression SEED=$SEED
+    - make -s -C src synth COMPONENT=fifo.ip
+    - make -s -C src synth COMPONENT=axi4s.ip
+  artifacts:
+    paths: [.out]
+
+sim:
+  stage: sim
+  extends: .common
+  tags:
+    - ht-sim
+  script:
+    - make -s -C src/std/tests/regression SEED=$SEED
     - grep 'PASSED.*suites passing' src/std/tests/regression/run_$SEED/sim.log
-    - make -C src/sync/tests/regression SEED=$SEED
+    - make -s -C src/sync/tests/regression SEED=$SEED
     - grep 'PASSED.*suites passing' src/sync/tests/regression/run_$SEED/sim.log
-    - make -C src/arb/tests/regression SEED=$SEED
+    - make -s -C src/arb/tests/regression SEED=$SEED
     - grep 'PASSED.*suites passing' src/arb/tests/regression/run_$SEED/sim.log
-    - make -C src/mem/tests/regression SEED=$SEED
+    - make -s -C src/mem/tests/regression SEED=$SEED
     - grep 'PASSED.*suites passing' src/mem/tests/regression/run_$SEED/sim.log
-    - make -C src/reg/proxy/tests/regression SEED=$SEED
+    - make -s -C src/reg/proxy/tests/regression SEED=$SEED
     - grep 'PASSED.*suites passing' src/reg/proxy/tests/regression/run_$SEED/sim.log
-    - make -C src/reg/endian/tests/regression SEED=$SEED
+    - make -s -C src/reg/endian/tests/regression SEED=$SEED
     - grep 'PASSED.*suites passing' src/reg/endian/tests/regression/run_$SEED/sim.log
-    - make -C src/reg/example/tests/regression SEED=$SEED
+    - make -s -C src/reg/example/tests/regression SEED=$SEED
     - grep 'PASSED.*suites passing' src/reg/example/tests/regression/run_$SEED/sim.log
-    - make -C src/fifo/tests/regression SEED=$SEED
+    - make -s -C src/fifo/tests/regression SEED=$SEED
     - grep 'PASSED.*suites passing' src/fifo/tests/regression/run_$SEED/sim.log
-    - make -C src/packet/tests/regression SEED=$SEED
+    - make -s -C src/packet/tests/regression SEED=$SEED
     - grep 'PASSED.*suites passing' src/packet/tests/regression/run_$SEED/sim.log
-    - make -C src/axi4l/tests/regression SEED=$SEED
+    - make -s -C src/axi4l/tests/regression SEED=$SEED
     - grep 'PASSED.*suites passing' src/axi4l/tests/regression/run_$SEED/sim.log
-    - make -C src/axi4s/tests/regression SEED=$SEED
+    - make -s -C src/axi4s/tests/regression SEED=$SEED
     - grep 'PASSED.*suites passing' src/axi4s/tests/regression/run_$SEED/sim.log
-    - make -C src/crc/tests/regression SEED=$SEED
+    - make -s -C src/crc/tests/regression SEED=$SEED
     - grep 'PASSED.*suites passing' src/crc/tests/regression/run_$SEED/sim.log
-    - make -C src/db/tests/regression SEED=$SEED
+    - make -s -C src/db/tests/regression SEED=$SEED
     - grep 'PASSED.*suites passing' src/db/tests/regression/run_$SEED/sim.log
-    - make -C src/htable/tests/regression SEED=$SEED
+    - make -s -C src/htable/tests/regression SEED=$SEED
     - grep 'PASSED.*suites passing' src/htable/tests/regression/run_$SEED/sim.log
-    - make -C src/state/tests/regression SEED=$SEED
+    - make -s -C src/state/tests/regression SEED=$SEED
     - grep 'PASSED.*suites passing' src/state/tests/regression/run_$SEED/sim.log
-    - make -C src/timer/tests/regression SEED=$SEED
+    - make -s -C src/timer/tests/regression SEED=$SEED
     - grep 'PASSED.*suites passing' src/timer/tests/regression/run_$SEED/sim.log
   artifacts:
     name: "artifacts.$CI_PROJECT_NAME.$CI_JOB_NAME.$CI_PIPELINE_ID"
@@ -68,30 +80,25 @@ rtl_sim:
       junit:
         - src/*/tests/regression/run_*/tests.xml
     when: always
+  needs: [ip]
   timeout: 3h
 
-.synth:
+synth:
   stage: synth
   extends: .common
   tags:
     - ht-sim
+  parallel:
+    matrix:
+      - COMPONENT: [sync, mem, fifo, axi4l, db, htable, state]
   script:
-    # Run all build jobs in specified IP library
-    - find src/$IP_LIB/build -mindepth 1 -maxdepth 1 -type d -name '[^\.]*' -exec make -C {} \;
+    # Run all build jobs in specified component library
+    - find src/$COMPONENT/build -mindepth 1 -maxdepth 1 -type d -name '[^\.]*' -exec make -s -C {} \;
   artifacts:
     when: always
-    paths: [.out/$IP_LIB/build]
+    paths: [.out/$COMPONENT/build]
     reports:
       junit:
-        - .out/$IP_LIB/build/**/*.summary.xml
-  needs: []
+        - .out/$COMPONENT/build/**/*.summary.xml
+  needs: [ip]
 
-fifo__synth:
-  extends: .synth
-  variables:
-    IP_LIB: fifo
-
-sync__synth:
-  extends: .synth
-  variables:
-    IP_LIB: sync
