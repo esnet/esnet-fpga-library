@@ -1,4 +1,4 @@
-name: MY_IP_NAME
+name: MY_COMPONENT_NAME
 info: |
   Example register block specification.
 regs:

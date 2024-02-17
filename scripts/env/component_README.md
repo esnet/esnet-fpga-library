@@ -1,6 +1,6 @@
-# MY_IP_NAME
+# MY_COMPONENT_NAME
 
-Description of IP functionality goes here.
+Description of component functionality goes here.
 
 ## Unit Tests
 
