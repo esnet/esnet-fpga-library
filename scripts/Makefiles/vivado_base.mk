@@ -13,34 +13,38 @@
 VIVADO_SCRIPTS_ROOT := $(SCRIPTS_ROOT)/vivado
 
 # -----------------------------------------------
-# Import part configuration
+# Part config
 # -----------------------------------------------
-include $(CFG_ROOT)/part.mk
-
-# Export part variables for use in Tcl scripts
-export BOARD_REPO
-export PART
-export BOARD_PART
+VIVADO_PART_CONFIG = \
+    -part $(PART) \
+    -board_part $(BOARD_PART) \
+    -board_repo $(abspath $(BOARD_REPO))
 
 # -----------------------------------------------
-# Options
+# Project config
+# -----------------------------------------------
+VIVADO_PROJ_CONFIG = \
+    -proj_name $(PROJ_NAME) \
+    -proj_dir $(PROJ_DIR)
+
+PROJ_XPR = $(PROJ_DIR)/$(PROJ_NAME).xpr
+
+# -----------------------------------------------
+# Configure source files
+# -----------------------------------------------
+SOURCES_TCL_AUTO = $(COMPONENT_OUT_PATH)/synth/sources.tcl
+CONSTRAINTS_TCL_AUTO = $(COMPONENT_OUT_PATH)/synth/constraints.tcl
+
+# -----------------------------------------------
+# Tool options
 # -----------------------------------------------
 VIVADO_DEFAULT_OPTIONS = -notrace -nojournal
 VIVADO_OPTIONS += $(VIVADO_DEFAULT_OPTIONS)
 
-VIVADO_LOG_DIR  ?= $(CURDIR)
-VIVADO_LOG_NAME ?= vivado.log
-
 # -----------------------------------------------
 # Commands
 # -----------------------------------------------
-__VIVADO_CMD_BASE_NO_LOG = vivado $(VIVADO_OPTIONS) -source $(VIVADO_SCRIPTS_ROOT)/part.tcl -source $(VIVADO_SCRIPTS_ROOT)/procs.tcl
-
-VIVADO_CMD_BASE_NO_LOG = $(__VIVADO_CMD_BASE_NO_LOG) -mode batch
-VIVADO_CMD_BASE = $(VIVADO_CMD_BASE_NO_LOG) -log $(VIVADO_LOG_DIR)/$(VIVADO_LOG_NAME)
-
-VIVADO_CMD_BASE_GUI_NO_LOG = $(__VIVADO_CMD_BASE_NO_LOG) -mode gui
-VIVADO_CMD_BASE_GUI = $(VIVADO_CMD_BASE_GUI_NO_LOG) -log $(VIVADO_LOG_DIR)/$(VIVADO_LOG_NAME)
+VIVADO_CMD_BASE = vivado $(VIVADO_OPTIONS) -source $(VIVADO_SCRIPTS_ROOT)/procs.tcl
 
 # -----------------------------------------------
 # Targets

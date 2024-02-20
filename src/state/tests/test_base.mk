@@ -1,12 +1,9 @@
 # -----------------------------------------------
-# Path setup
+# Component setup
 # -----------------------------------------------
-IP_ROOT := ../..
+COMPONENT_ROOT := ../..
 
-# -----------------------------------------------
-# IP config
-# -----------------------------------------------
-include $(IP_ROOT)/config.mk
+include $(COMPONENT_ROOT)/config.mk
 
 # -----------------------------------------------
 # Configuration
@@ -29,7 +26,7 @@ TOP = $(SVUNIT_TOP)
 # ----------------------------------------------------
 # Sources
 #   List source files and include directories for test
-#   (see $(SCRIPTS_ROOT)/Makefiles/sources.mk)
+#   (see $(SCRIPTS_ROOT)/Makefiles/templates/sources.mk)
 #   NOTE: SVUnit sources are automatically included
 # ----------------------------------------------------
 SRC_FILES =
@@ -38,18 +35,20 @@ SRC_LIST_FILES = $(SVUNIT_SRC_LIST_FILE)
 
 # ----------------------------------------------------
 # Dependencies
-#   List IP component and external library dependencies
-#   (see $SCRIPTS_ROOT/Makefiles/dependencies.mk for details)
+#   List subcomponent and external library dependencies
+#   (see $SCRIPTS_ROOT/Makefiles/templates/dependencies.mk for details)
 # ----------------------------------------------------
-COMPONENTS = state.rtl \
-             state.verif \
-             state.tb \
-             std.rtl \
-             axi4l.rtl \
-             htable.rtl \
-             axi4l.verif \
-             db.verif \
-             htable.verif
+SUBCOMPONENTS = \
+    state.rtl \
+    state.verif \
+    state.tb \
+    std.rtl \
+    axi4l.rtl \
+    htable.rtl \
+    axi4l.verif \
+    db.verif \
+    htable.verif
+
 EXT_LIBS =
 
 # ----------------------------------------------------
@@ -59,14 +58,24 @@ EXT_LIBS =
 #   command line, as e.g.:
 #     make DEFINES="DEBUG FAST=TRUE"
 # ----------------------------------------------------
-override DEFINES += SIMULATION
+override DEFINES +=
+
+# ----------------------------------------------------
+# Run-time arguments
+#   List runtime arguments passed to simulator as
+#   plusarg (+ARG) references.
+#   Arguments listed here will add to any arguments
+#   set at the command line, as e.g.:
+#   make PLUSARGS="FAST_SIM MODE=1"
+# ----------------------------------------------------
+override PLUSARGS +=
 
 # ----------------------------------------------------
 # Options
 # ----------------------------------------------------
-COMPILE_OPTS=
-ELAB_OPTS=--debug typical
-SIM_OPTS=
+COMPILE_OPTS =
+ELAB_OPTS = --debug typical
+SIM_OPTS =
 
 # ----------------------------------------------------
 # Targets
@@ -74,12 +83,11 @@ SIM_OPTS=
 all: build_test sim
 
 build_test: _build_test
+sim:        _sim
+info:       _sim_info
+clean:      _clean_test _clean_sim
 
-sim: _sim
-
-clean: _clean_test _clean_sim
-
-.PHONY: all build_test sim clean
+.PHONY: all build_test sim info clean
 
 # ----------------------------------------------------
 # Test configuration

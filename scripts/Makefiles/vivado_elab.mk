@@ -74,3 +74,21 @@ _elab_clean: _compile_clean
 
 $(RUN_DIR):
 	@mkdir -p $(RUN_DIR)
+
+# -----------------------------------------------
+# Info targets
+# -----------------------------------------------
+.elab_config_info:
+	@echo "------------------------------------------------------"
+	@echo "Elaboration configuration"
+	@echo "------------------------------------------------------"
+	@echo "RUN_DIR             : $(RUN_DIR)"
+	@echo "SNAPSHOT            : $(SNAPSHOT)"
+	@echo "ELAB_OPTS           : $(ELAB_OPTS)"
+	@echo "TIMESCALE           : $(TIMESCALE)"
+
+.elab_info: .elab_config_info .compile_info
+
+_elab_info: .elab_info
+
+.PHONY: .elab_config_info .elab_info _elab_info

@@ -1,27 +1,52 @@
 # -------------------------------
 # COMMAND-LINE ARGUMENTS
 # -------------------------------
-# phase (argument 0) [design phase to execute, i.e. proj/create/generate/reset/status/upgrade/synth]
-set phase [lindex $argv 0]
+# Phase (argument 0) [design phase to execute, i.e. create_proj/create_ip/ip/gui/sim/exdes/drv_dpi/sw_driver/synth/reset/status/upgrade]
+set PHASE [lindex $argv 0]
 
-# -------------------------------
-# Global definitions
-# (provided via environment variables)
-# -------------------------------
-# Set IP project directory (if none is set, set to 'ip_proj')
-if {[info exists env(IP_PROJ_DIR)]} {
-    set PROJ_DIR $env(IP_PROJ_DIR)
-} else {
-    set PROJ_DIR "ip_proj"
+# Optional arguments (expected to be specified in -name value pairs)
+array set OPTIONS {
+    -part                 ""
+    -board_part           ""
+    -board_repo           ""
+    -proj_dir             ./ip_proj
+    -proj_name            ip_proj
+    -jobs                 8
+    -ip_tcl               {}
+    -ip_xci               {}
 }
 
-# Set IP project name (if none is set, set to 'ip_proj')
-if {[info exists env(IP_PROJ_NAME)]} {
-    set PROJ_NAME $env(IP_PROJ_NAME)
-} else {
-    set PROJ_NAME "ip_proj"
+for {set i 1} {$i < $argc} {incr i 2} {
+    set argName [lindex $argv $i]
+    set argValue [lindex $argv [expr $i+1]]
+    if {[info exists OPTIONS($argName)]} {
+        if {[lsearch {-ip_tcl -ip_xci} $argName] >= 0} {
+            lappend OPTIONS($argName) $argValue
+        } else {
+            set OPTIONS($argName) $argValue
+        }
+    } else {
+        puts "WARNING: Ignoring unknown optional argument ${argName}."
+    }
+}
+# Reformat options (flatten array, remove dash, convert to uppercase)
+foreach {argName argValue} [array get OPTIONS] {
+    set [string toupper [string range $argName 1 end]] $argValue
 }
 
+# -------------------------------
+# Configure board repository
+# -------------------------------
+if { $BOARD_REPO != "" } {
+    if {[file exists $BOARD_REPO] && [file isdirectory $BOARD_REPO]} {
+        set_param board.repoPaths $BOARD_REPO
+    } else {
+        puts "WARNING: Couldn't find board repository at $BOARD_REPO. Using default repository."
+    }
+}
+# -------------------------------
+# Project definitions
+# -------------------------------
 set PROJ_FILE [file join $PROJ_DIR $PROJ_NAME.xpr]
 
 # -------------------------------
@@ -34,24 +59,23 @@ set PROJ_FILE [file join $PROJ_DIR $PROJ_NAME.xpr]
 # -------------------------------
 # Select/execute design phase
 # -------------------------------
-if {$phase == "create_proj"} {
+if {$PHASE == "create_proj"} {
     puts ""
-    puts "Creating IP project $PROJ_FILE..."
+    puts "Creating IP project $PROJ_FILE ..."
     puts ""
     vivadoProcs::create_ip_proj $PART $PROJ_NAME $PROJ_DIR
-    if {[info exists BOARD_PART]} {
+    if {[string trim $BOARD_PART] != ""} {
         vivadoProcs::set_board_part $BOARD_PART
     }
     config_ip_cache -disable_cache
     vivadoProcs::close_proj
-} elseif {$phase == "create_ip"} {
+} elseif {$PHASE == "create_ip"} {
     vivadoProcs::create_ip_proj_in_memory $PART
-    if {[info exists BOARD_PART]} {
+    if {[string trim $BOARD_PART] != ""} {
         vivadoProcs::set_board_part $BOARD_PART
     }
     set ip_list []
-    set tcl_files [lindex $argv 1]
-    foreach tcl_file $tcl_files {
+    foreach tcl_file $IP_TCL {
         set ip [file rootname [file tail $tcl_file]]
         puts ""
         puts "Generating XCI for $ip ..."
@@ -61,9 +85,9 @@ if {$phase == "create_proj"} {
     }
     vivadoProcs::close_proj
 } else {
-    puts "Opening IP project $PROJ_FILE..."
+    puts "Opening IP project $PROJ_FILE ..."
     puts ""
-    switch $phase {
+    switch $PHASE {
         ip -
         gui -
         sim -
@@ -80,8 +104,7 @@ if {$phase == "create_proj"} {
         }
     }
     # Add new XCI files
-    set xci_files [lindex $argv 1]
-    foreach xci_file $xci_files {
+    foreach xci_file $IP_XCI {
         set ip [file rootname [file tail $xci_file]]
         if {[lsearch -exact [get_ips] $ip] < 0} {
             read_ip $xci_file
@@ -92,7 +115,7 @@ if {$phase == "create_proj"} {
         }
     }
     # Perform specified operation
-    switch $phase {
+    switch $PHASE {
         ip -
         gui {
             # Take no action
@@ -153,10 +176,10 @@ if {$phase == "create_proj"} {
             upgrade_ip [get_ips]
         }
         default {
-            puts "INVALID IP job: $phase (create_proj/create_ip/sim/exdes/drv_dpi/synth/reset/status/upgrade)"
+            puts "INVALID IP job: $PHASE (create_proj/create_ip/sim/exdes/drv_dpi/synth/reset/status/upgrade/gui)"
         }
     }
-    switch $phase {
+    switch $PHASE {
         gui {
             # Project opened in interactive mode; don't close
         }

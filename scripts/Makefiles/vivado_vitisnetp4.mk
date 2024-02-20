@@ -7,7 +7,6 @@
 #        - SCRIPTS_ROOT: path to project scripts directory
 #        - VITISNETP4_IP_NAME: name of vitisnetp4 ip component to be created
 #        - VITISNETP4_IP_DIR: location for IP source
-#        - IP_OUT_DIR: location for IP output products
 #        - P4_FILE: path to p4 file describing vitisnetp4 component functionality
 #        - P4_OPTS: (optional) dictionary of options to pass to the P4 compiler
 
@@ -25,6 +24,8 @@ IP_SRC_DIR = $(COMPONENT_OUT_PATH)
 # Source files
 # -----------------------------------------------
 VITISNETP4_TCL_FILE = $(IP_SRC_DIR)/$(VITISNETP4_IP_NAME).tcl
+
+SRC_FILES = $(shell find $(XILINX_VIVADO)/data/ip/xilinx/vitis_net_p4* -name "vitis_net_p4_dpi_pkg.sv")
 
 IP_SIM_SRC_FILES += \
     $(VITISNETP4_IP_NAME)/src/verilog/$(VITISNETP4_IP_NAME)_top_pkg.sv \
@@ -53,9 +54,6 @@ IP_SIM_INC_DIRS += \
     $(VITISNETP4_IP_NAME)/src/hw/simulation \
     $(VITISNETP4_IP_NAME)/src/verilog
 
-COMPONENTS += \
-    vitisnetp4.dpi
-
 EXT_LIBS += \
     cam_v2_6_0 \
     cam_blk_lib_v1_0_0 \
@@ -73,8 +71,9 @@ include $(SCRIPTS_ROOT)/Makefiles/vivado_manage_ip.mk
 # -----------------------------------------------
 # Output files
 # -----------------------------------------------
-VITISNETP4_XCI_FILE = $(IP_OUT_DIR)/$(VITISNETP4_IP_NAME)/$(VITISNETP4_IP_NAME).xci
-VITISNETP4_DPI_DRV_FILE = $(IP_OUT_DIR)/$(VITISNETP4_IP_NAME)/vitisnetp4_drv_dpi.so
+VITISNETP4_XCI_FILE = $(COMPONENT_OUT_PATH)/$(VITISNETP4_IP_NAME)/$(VITISNETP4_IP_NAME).xci
+VITISNETP4_DPI_DRV_FILE = $(COMPONENT_OUT_PATH)/$(VITISNETP4_IP_NAME)/vitisnetp4_drv_dpi.so
+VITISNETP4_PKG_FILE = $(COMPONENT_OUT_PATH)/$(VITISNETP4_IP_NAME)/src/verilog/$(VITISNETP4_IP_NAME)_pkg.sv
 
 # -----------------------------------------------
 # Options
@@ -90,31 +89,29 @@ P4_OPTS += $(DEFAULT_P4_OPTS)
 # out of the old and new XCI failures; without this filter, every
 # time the XCI is created it differs from the existing XCI due to
 # this timestamp.
-_vitisnetp4_ip: $(VITISNETP4_TCL_FILE) | $(IP_OUT_DIR)
+_vitisnetp4_ip: $(VITISNETP4_TCL_FILE) | $(COMPONENT_OUT_PATH)
 	@echo "----------------------------------------------------------"
 	@echo "Create/update IP ($(COMPONENT_NAME)) ..."
-	@rm -rf $(IP_OUT_DIR)/.xci
-	@mkdir -p $(IP_OUT_DIR)/.xci
-	@cd $(IP_OUT_DIR)/.xci && $(VIVADO_MANAGE_IP_CMD) -tclargs create_ip $<
+	@mkdir -p $(COMPONENT_OUT_PATH)/.xci
+	@cd $(COMPONENT_OUT_PATH)/.xci && $(VIVADO_MANAGE_IP_CMD) -tclargs create_ip $(BUILD_OPTIONS)
 	@echo
 	@echo "Update IP Summary:"
-	@mkdir -p $(IP_OUT_DIR)/$(VITISNETP4_IP_NAME)
-	@(test -e $(VITISNETP4_XCI_FILE) && cat $(VITISNETP4_XCI_FILE) | grep -v JSON_TIMESTAMP > $(IP_OUT_DIR)/.xci/old_xci) || true
-	@cat $(IP_OUT_DIR)/.xci/$(VITISNETP4_IP_NAME)/$(VITISNETP4_IP_NAME).xci | grep -v JSON_TIMESTAMP > $(IP_OUT_DIR)/.xci/new_xci
-	@cmp -s $(IP_OUT_DIR)/.xci/old_xci $(IP_OUT_DIR)/.xci/new_xci; \
+	@mkdir -p $(COMPONENT_OUT_PATH)/$(VITISNETP4_IP_NAME)
+	@(test -e $(VITISNETP4_XCI_FILE) && cat $(VITISNETP4_XCI_FILE) | grep -v JSON_TIMESTAMP > $(COMPONENT_OUT_PATH)/.xci/old_xci) || true
+	@cat $(COMPONENT_OUT_PATH)/.xci/$(VITISNETP4_IP_NAME)/$(VITISNETP4_IP_NAME).xci | grep -v JSON_TIMESTAMP > $(COMPONENT_OUT_PATH)/.xci/new_xci
+	@cmp -s $(COMPONENT_OUT_PATH)/.xci/old_xci $(COMPONENT_OUT_PATH)/.xci/new_xci; \
 	retVal=$$?; \
 	echo -n "\t$(VITISNETP4_IP_NAME): "; \
 	case $$retVal in \
 		0) \
 			echo "No change.";; \
 		1) \
-			cp $(IP_OUT_DIR)/.xci/$(VITISNETP4_IP_NAME)/$(VITISNETP4_IP_NAME).xci $(VITISNETP4_XCI_FILE); \
+			cp $(COMPONENT_OUT_PATH)/.xci/$(VITISNETP4_IP_NAME)/$(VITISNETP4_IP_NAME).xci $(VITISNETP4_XCI_FILE); \
 			echo "XCI updated.";; \
 		2) \
-			cp $(IP_OUT_DIR)/.xci/$(VITISNETP4_IP_NAME)/$(VITISNETP4_IP_NAME).xci $(VITISNETP4_XCI_FILE); \
+			cp $(COMPONENT_OUT_PATH)/.xci/$(VITISNETP4_IP_NAME)/$(VITISNETP4_IP_NAME).xci $(VITISNETP4_XCI_FILE); \
 			echo "XCI created.";; \
 	esac
-	@rm -rf $(IP_OUT_DIR)/.xci
 	@echo
 	@echo "Done."
 
@@ -122,7 +119,9 @@ _vitisnetp4_dpi_drv: $(VITISNETP4_DPI_DRV_FILE)
 
 _vitisnetp4_compile: _ip_exdes _vitisnetp4_dpi_drv _ip_compile
 
-_vitisnetp4_synth: _ip_synth
+_vitisnetp4_synth: _ip_synth | $(COMPONENT_OUT_SYNTH_PATH)
+	@rm -rf $(COMPONENT_OUT_SYNTH_PATH)/sv_pkg_srcs.f
+	@echo $(abspath $(VITISNETP4_PKG_FILE)) > $(COMPONENT_OUT_SYNTH_PATH)/sv_pkg_srcs.f
 
 _vitisnetp4_clean: _ip_clean
 	@rm -f $(VITISNETP4_TCL_FILE)
@@ -134,12 +133,12 @@ $(VITISNETP4_TCL_FILE): $(P4_FILE)
 	@echo "create_ip -force -name vitis_net_p4 -vendor xilinx.com -library ip -module_name $(VITISNETP4_IP_NAME) -dir . -force" > $@
 	@echo "set_property -dict [concat [list CONFIG.P4_FILE $(P4_FILE)] [list $(P4_OPTS)]] [get_ips $(VITISNETP4_IP_NAME)]" >> $@
 
-$(VITISNETP4_DPI_DRV_FILE): $(VITISNETP4_XCI_FILE) | $(IP_PROJ_XPR)
-	@cd $(IP_OUT_DIR) && $(VIVADO_MANAGE_IP_CMD) -tclargs drv_dpi $<
+$(VITISNETP4_DPI_DRV_FILE): $(VITISNETP4_XCI_FILE) | $(PROJ_XPR)
+	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_IP_CMD) -tclargs drv_dpi $(BUILD_OPTIONS)
 
-_vitisnetp4_driver: $(VITISNETP4_XCI_FILE) | $(IP_PROJ_XPR)
-	@cd $(IP_OUT_DIR) && $(VIVADO_MANAGE_IP_CMD) -tclargs sw_driver $<
-	@$(MAKE) -s -C $(IP_OUT_DIR)/$(VITISNETP4_IP_NAME)/src/sw/drivers
+_vitisnetp4_driver: $(VITISNETP4_XCI_FILE) | $(PROJ_XPR)
+	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_IP_CMD) -tclargs sw_driver $(BUILD_OPTIONS)
+	@$(MAKE) -s -C $(COMPONENT_OUT_PATH)/$(VITISNETP4_IP_NAME)/src/sw/drivers
 
 _vitisnetp4_info: _ip_info
 	@echo "----------------------------------------------------------"

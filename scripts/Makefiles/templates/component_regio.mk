@@ -1,12 +1,9 @@
 # -----------------------------------------------
-# Path setup
+# Component setup
 # -----------------------------------------------
-IP_ROOT := ..
+COMPONENT_ROOT := ..
 
-# -----------------------------------------------
-# IP config
-# -----------------------------------------------
-include $(IP_ROOT)/config.mk
+include $(COMPONENT_ROOT)/config.mk
 
 # -----------------------------------------------
 # Regmap YAML sources
@@ -25,17 +22,13 @@ REGIO_GENERATE_OPTS :=
 # ----------------------------------------------------
 # Targets
 # ----------------------------------------------------
-all: compile
+all: reg compile synth
 
-reg: _reg
-
+reg:     _reg
 compile: _reg_compile
-
-synth: _reg_synth
-
-info: _reg_info
-
-clean: _reg_clean
+synth:   _reg_synth
+info:    _reg_info
+clean:   _reg_clean
 
 .PHONY: all reg compile synth info clean
 

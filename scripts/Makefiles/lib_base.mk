@@ -6,7 +6,7 @@
 #        where the parent can call the targets defined here after defining
 #        the following input 'arguments':
 #        - LIB_NAME    : name of source library (used for reporting only)
-#        - COMPONENT   : target of library operation (reg/ip/info/compile/synth/clean)
+#        - COMPONENT   : target of library operation (reg/ip/info/compile/synth/opt/clean)
 #        - CFG_ROOT    : path to configuration files (i.e. part.mk)
 #        - OUTPUT_ROOT : path to output (generated) files
 #        - LIB_ENV     : library-specific environment variables to be passed as arguments to library operations
@@ -37,7 +37,7 @@ endif
 
 __usage:
 	@echo  "Usage:"
-	@echo  "  make [$(subst $(space),|,$(strip $(LIB_OPS)))] COMPONENT=<component_ref>"
+	@echo  "  make [$(subst $(__space),|,$(strip $(LIB_OPS)))] COMPONENT=<component_ref>"
 	@echo  "Examples:"
 	@echo  "  make compile COMPONENT=axi.rtl"
 	@echo  "  make info COMPONENT=vendorx.component.verif"
@@ -86,7 +86,7 @@ USER_ENV ?=
 # ----------------------------------------------------
 
 # Enumerate library operations
-LIB_OPS = reg ip info compile synth driver clean
+LIB_OPS = reg ip info compile synth opt driver clean
 
 # Define prerequisite targets
 __info:
@@ -154,6 +154,24 @@ _clean_all:
 	@echo "Done."
 
 .PHONY: _clean_all
+
+_refresh_ip:
+	@echo "----------------------------------------------------------"
+	@echo "Forcing refresh of IP output products for $(LIB_NAME) ..."
+	@find $(OUTPUT_ROOT) -type d -name .xci -prune -exec rm -rf {} \; 2> /dev/null || true
+	@echo
+	@echo "Done."
+
+_refresh_regio:
+	@echo "----------------------------------------------------------"
+	@echo "Forcing refresh of regio output products for $(LIB_NAME) ..."
+	@find $(OUTPUT_ROOT) -type d -name regio -prune -exec rm -rf {} \; 2> /dev/null || true
+	@echo
+	@echo "Done."
+
+_refresh: _refresh_ip _refresh_regio
+
+.PHONY: _refresh_ip _refresh_regio _refresh
 
 $(OUTPUT_ROOT):
 	@mkdir -p $@

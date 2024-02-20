@@ -1,8 +1,7 @@
 # ----------------------------------------------------
 # Common functions
 # ----------------------------------------------------
-__space := $(subst ,, )
-__to_lower = $(shell echo $(1) | tr '[:upper:]' '[:lower:]')
+include $(SCRIPTS_ROOT)/Makefiles/funcs.mk
 
 # ----------------------------------------------------
 # Component reference functions
@@ -37,6 +36,16 @@ is_regio_component = $(and $(call __component_is_base_regio,$(1)),$(call __subco
 get_component_src_path_from_ref = $(strip $(if $(call is_regio_component,$(1)),\
 	$(call get_component_base_path_from_ref,$(1)),\
 	$(call get_component_path_from_ref,$(1))\
+))
+
+# IP component identification
+is_ip_component = $(filter $(call get_subcomponent_from_ref,$(1)),ip)
+is_build_component = $(filter $(call get_component_parts_from_ref,$(1)),build)
+
+# Determine output path; handle ip as special case
+get_component_out_path_from_ref = $(strip $(if $(or $(call is_ip_component,$(1)), $(call is_build_component,$(1))),\
+	$(2)/$(call get_component_path_from_ref,$(1))/$(3),\
+	$(2)/$(call get_component_path_from_ref,$(1))\
 ))
 
 # ----------------------------------------------------
@@ -86,3 +95,9 @@ get_ref_without_lib = $(firstword $(call __get_lib_parts_from_ref,$(1)))
 # Function: get path from ref
 reverse = $(if $(1),$(call reverse,$(wordlist 2,$(words $(1)),$(1)))) $(firstword $(1))
 get_lib_component_path_from_ref = $(call get_component_path_from_ref,$(call get_component_ref_from_parts,$(call reverse,$(call __get_lib_parts_from_ref,$(1)))))
+
+# Function: get output path from ref
+get_lib_component_out_path_from_ref = $(strip $(if $(call is_ip_component,$(1)),\
+	$(2)/$(call get_lib_component_path_from_ref,$(1))/$(3),\
+	$(2)/$(call get_lib_component_path_from_ref,$(1))\
+))
