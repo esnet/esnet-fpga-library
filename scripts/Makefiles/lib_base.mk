@@ -66,7 +66,7 @@ endif
 # Environment
 # ----------------------------------------------------
 # The config here allows for select environment variables
-# to be passed explictly to all library calls and subcalls
+# to be passed explicitly to all library calls and subcalls
 #
 # Specify entries as:
 # e.g. ENV = VAR1_NAME=VAR1_VALUE VAR2_NAME=VAR2_VALUE
