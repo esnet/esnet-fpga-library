@@ -56,7 +56,6 @@ IP_SIM_INC_DIRS =
 
 #   List external library dependencies
 #   (see $SCRIPTS_ROOT/Makefiles/templates/dependencies.mk)
-SUBCOMPONENTS =
 EXT_LIBS =
 
 # ----------------------------------------------------

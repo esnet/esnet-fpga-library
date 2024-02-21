@@ -20,7 +20,7 @@
 # (see dependencies.mk).
 SRC_FILES=
 
-# Include directories required to compile the component can be listed explictly
+# Include directories required to compile the component can be listed explicitly
 # using INC_DIRS. Again, typically only include directories other than $(INCLUDE_DIR)
 # would be listed since $(INCLUDE_DIR) is automatically handled.
 INC_DIRS=
