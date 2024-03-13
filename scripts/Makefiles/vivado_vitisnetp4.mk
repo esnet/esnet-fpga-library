@@ -98,17 +98,33 @@ _vitisnetp4_ip: $(VITISNETP4_TCL_FILE) | $(COMPONENT_OUT_PATH)
 	@echo "Update IP Summary:"
 	@mkdir -p $(COMPONENT_OUT_PATH)/$(VITISNETP4_IP_NAME)
 	@(test -e $(VITISNETP4_XCI_FILE) && cat $(VITISNETP4_XCI_FILE) | grep -v JSON_TIMESTAMP > $(COMPONENT_OUT_PATH)/.xci/old_xci) || true
+	@sed -i 's:\.xci/::g' $(COMPONENT_OUT_PATH)/.xci/$(VITISNETP4_IP_NAME)/$(VITISNETP4_IP_NAME).xci
 	@cat $(COMPONENT_OUT_PATH)/.xci/$(VITISNETP4_IP_NAME)/$(VITISNETP4_IP_NAME).xci | grep -v JSON_TIMESTAMP > $(COMPONENT_OUT_PATH)/.xci/new_xci
 	@cmp -s $(COMPONENT_OUT_PATH)/.xci/old_xci $(COMPONENT_OUT_PATH)/.xci/new_xci; \
 	retVal=$$?; \
 	echo -n "\t$(VITISNETP4_IP_NAME): "; \
 	case $$retVal in \
 		0) \
-			echo "No change.";; \
+			cmp -s $(COMPONENT_OUT_PATH)/$(VITISNETP4_IP_NAME)/$(VITISNETP4_IP_NAME).p4 $(P4_FILE); \
+			p4CmpRetVal=$$?; \
+			case $$p4CmpRetVal in \
+				0) \
+					echo "P4 and XCI unchanged.";; \
+				1) \
+					cp $(P4_FILE) $(COMPONENT_OUT_PATH)/$(VITISNETP4_IP_NAME)/$(VITISNETP4_IP_NAME).p4; \
+					cp $(COMPONENT_OUT_PATH)/.xci/$(VITISNETP4_IP_NAME)/$(VITISNETP4_IP_NAME).xci $(VITISNETP4_XCI_FILE); \
+					echo "P4 changed. XCI regenerated.";; \
+				2) \
+					cp $(P4_FILE) $(COMPONENT_OUT_PATH)/$(VITISNETP4_IP_NAME)/$(VITISNETP4_IP_NAME).p4; \
+					cp $(COMPONENT_OUT_PATH)/.xci/$(VITISNETP4_IP_NAME)/$(VITISNETP4_IP_NAME).xci $(VITISNETP4_XCI_FILE); \
+					echo "XCI regenerated.";; \
+			esac;; \
 		1) \
+			cp $(P4_FILE) $(COMPONENT_OUT_PATH)/$(VITISNETP4_IP_NAME)/$(VITISNETP4_IP_NAME).p4; \
 			cp $(COMPONENT_OUT_PATH)/.xci/$(VITISNETP4_IP_NAME)/$(VITISNETP4_IP_NAME).xci $(VITISNETP4_XCI_FILE); \
 			echo "XCI updated.";; \
 		2) \
+			cp $(P4_FILE) $(COMPONENT_OUT_PATH)/$(VITISNETP4_IP_NAME)/$(VITISNETP4_IP_NAME).p4; \
 			cp $(COMPONENT_OUT_PATH)/.xci/$(VITISNETP4_IP_NAME)/$(VITISNETP4_IP_NAME).xci $(VITISNETP4_XCI_FILE); \
 			echo "XCI created.";; \
 	esac
@@ -132,6 +148,7 @@ $(VITISNETP4_TCL_FILE): $(P4_FILE)
 	@mkdir -p $(IP_SRC_DIR)
 	@echo "create_ip -force -name vitis_net_p4 -vendor xilinx.com -library ip -module_name $(VITISNETP4_IP_NAME) -dir . -force" > $@
 	@echo "set_property -dict [concat [list CONFIG.P4_FILE $(P4_FILE)] [list $(P4_OPTS)]] [get_ips $(VITISNETP4_IP_NAME)]" >> $@
+	@echo "generate_target {simulation synthesis} [get_ips $(VITISNETP4_IP_NAME)]" >> $@
 
 $(VITISNETP4_DPI_DRV_FILE): $(VITISNETP4_XCI_FILE) | $(PROJ_XPR)
 	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_IP_CMD) -tclargs drv_dpi $(BUILD_OPTIONS)
