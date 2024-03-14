@@ -40,11 +40,10 @@ BUILD_JOBS ?= 4
 
 # Format as optional arguments
 BUILD_OPTIONS = \
-    $(VIVADO_PART_CONFIG) \
     $(VIVADO_PROJ_CONFIG) \
-    -jobs $(BUILD_JOBS) \
-    $(foreach ip_tcl,$(IP_TCL_FILES),-ip_tcl $(ip_tcl)) \
-    $(foreach ip_xci,$(IP_XCI_FILES),-ip_xci $(ip_xci))
+    $(VIVADO_PART_CONFIG) \
+    $(foreach ip,$(IP_LIST),-ip $(ip)) \
+    -jobs $(BUILD_JOBS)
 
 # -----------------------------------------------
 # Sources
@@ -55,9 +54,12 @@ IP_TCL_FILES = $(addprefix $(IP_SRC_DIR)/,$(addsuffix .tcl,$(IP_LIST)))
 # Output products
 # -----------------------------------------------
 IP_XCI_FILES = $(foreach ip,$(IP_LIST),$(COMPONENT_OUT_PATH)/$(ip)/$(ip).xci)
-IP_XCI_PROXY_FILES = $(foreach ip,$(IP_LIST),$(COMPONENT_OUT_PATH)/.xci/$(ip)/$(ip).xci)
 IP_DCP_FILES = $(foreach ip,$(IP_LIST),$(COMPONENT_OUT_PATH)/$(ip)/$(ip).dcp)
 IP_EXAMPLE_DESIGNS = $(foreach ip,$(IP_LIST),$(COMPONENT_OUT_PATH)/$(ip)_ex)
+
+IP_XCI_PROXY_DIR = $(COMPONENT_OUT_PATH)/.xci
+IP_XCI_PROXY_FILES = $(foreach ip,$(IP_LIST),$(IP_XCI_PROXY_DIR)/$(ip)/$(ip).xci)
+IP_XCI_PROXY_REFRESH_FILES = $(foreach ip,$(IP_LIST),$(IP_XCI_PROXY_DIR)/.refresh__$(ip))
 
 # -----------------------------------------------
 # IP project targets
@@ -71,7 +73,7 @@ _ip_proj: $(PROJ_XPR)
 	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_IP_CMD_GUI) -tclargs gui $(BUILD_OPTIONS) &
 
 _ip_proj_clean: _vivado_clean_logs
-	@rm -rf $(IP_PROJ_DIR)
+	@rm -rf $(PROJ_DIR)
 
 .PHONY: _ip_proj_create _ip_proj _ip_proj_clean
 
@@ -103,42 +105,89 @@ $(COMPONENT_OUT_PATH):
 # - if the new XCI file is identical in content to the existing one, the
 #   existing one is left as is (including timestamp). This prevents
 #   unnecessary regeneration of existing output products.
-_ip : | $(COMPONENT_OUT_PATH)
+_ip: $(IP_XCI_PROXY_DIR)/.refreshed
+
+# Schedule IP refresh
+_ip_refresh: | $(IP_XCI_PROXY_DIR)
+	@touch $(IP_XCI_PROXY_DIR)/.refresh
+
+.PHONY: _ip _ip_refresh
+
+# Create XCI proxy directory as needed
+$(IP_XCI_PROXY_DIR):
+	@mkdir -p $@
+
+# Define rules for each IP determining when that IP needs to be created or updated.
+# The IP should be created when it doesn't exist; it should additionally be regenerated
+# every time the source (Tcl) is updated, and when an explicit request has been made
+# to update the IP.
+define XCI_PROXY_FILE_REFRESH_RULE
+$(IP_XCI_PROXY_DIR)/.refresh__$(ip): $(IP_SRC_DIR)/$(ip).tcl $(IP_XCI_PROXY_DIR)/.refresh | $(IP_XCI_PROXY_DIR)
+	@mkdir -p $$(@D)
+	@touch $$@
+endef
+$(foreach ip,$(IP_LIST),$(eval $(XCI_PROXY_FILE_REFRESH_RULE)))
+
+# Create global refresh file as needed
+$(IP_XCI_PROXY_DIR)/.refresh: | $(IP_XCI_PROXY_DIR)
+	@test -f $@ || touch $@
+
+# Recipe for creating/updating IP
+# Only create/update the subset of IP for which a refresh is required.
+$(IP_XCI_PROXY_DIR)/.refreshed: $(IP_XCI_PROXY_REFRESH_FILES) | $(PROJ_XPR) $(IP_XCI_PROXY_DIR)
 	@echo "----------------------------------------------------------"
 	@echo "Create/update IP ($(COMPONENT_NAME)) ..."
-	@mkdir -p $(COMPONENT_OUT_PATH)/.xci
-	@cd $(COMPONENT_OUT_PATH)/.xci && $(VIVADO_MANAGE_IP_CMD) -tclargs create_ip $(BUILD_OPTIONS)
-	@echo
-	@echo "Update IP Summary:"
-	@for ip in $(IP_LIST); do \
-		echo -n "\t$$ip: "; \
-		mkdir -p $(COMPONENT_OUT_PATH)/$$ip; \
-		cmp -s $(COMPONENT_OUT_PATH)/.xci/$$ip/$$ip.xci $(COMPONENT_OUT_PATH)/$$ip/$$ip.xci; \
+	@for ip in $(subst .refresh__,,$(notdir $?)); do \
+		if [ -d $(IP_XCI_PROXY_DIR)/$$ip ]; then \
+			rm -rf $(IP_XCI_PROXY_DIR)/$$ip.old && \
+				mv $(IP_XCI_PROXY_DIR)/$$ip $(IP_XCI_PROXY_DIR)/$$ip.old; \
+		fi; \
+	done
+	@cd $(IP_XCI_PROXY_DIR) && $(VIVADO_MANAGE_IP_CMD) -tclargs create_ip $(BUILD_OPTIONS) $(foreach ip,$(subst .refresh__,,$(notdir $?)),-ip_tcl $(IP_SRC_DIR)/$(ip).tcl)
+	@resultString="\nUpdate summary:\n"; \
+	for ip in $(subst .refresh__,,$(notdir $?)); do \
+	resultString="$$resultString\t$$ip:"; \
+		cmp -s $(IP_XCI_PROXY_DIR)/$$ip/$$ip.xci $(IP_XCI_PROXY_DIR)/$$ip.old/$$ip.xci; \
 		retVal=$$?; \
 		case $$retVal in \
 			0) \
-				echo "No change.";; \
+				resultString="$$resultString No change.\n";;\
 			1) \
-				cp $(COMPONENT_OUT_PATH)/.xci/$$ip/$$ip.xci $(COMPONENT_OUT_PATH)/$$ip/$$ip.xci; \
-				echo "XCI updated.";; \
+				cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_IP_CMD) -tclargs remove_ip $(BUILD_OPTIONS) -ip_xci $(COMPONENT_OUT_PATH)/$$ip/$$ip.xci; \
+				rm -rf $(COMPONENT_OUT_PATH)/$$ip; \
+				mkdir -p $(COMPONENT_OUT_PATH)/$$ip; \
+				cp $(IP_XCI_PROXY_DIR)/$$ip/$$ip.xci $(COMPONENT_OUT_PATH)/$$ip/$$ip.xci; \
+				resultString="$$resultString XCI updated.\n";; \
 			2) \
-				cp $(COMPONENT_OUT_PATH)/.xci/$$ip/$$ip.xci $(COMPONENT_OUT_PATH)/$$ip/$$ip.xci; \
-				echo "XCI created.";; \
-		esac \
-	done
-	@echo
+				if [ -f $(COMPONENT_OUT_PATH)/$$ip/$$ip.xci ]; then \
+					cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_IP_CMD) -tclargs remove_ip $(BUILD_OPTIONS) -ip_xci $(COMPONENT_OUT_PATH)/$$ip/$$ip.xci; \
+					rm -rf $(COMPONENT_OUT_PATH)/$$ip; \
+				fi; \
+				mkdir -p $(COMPONENT_OUT_PATH)/$$ip; \
+				cp $(IP_XCI_PROXY_DIR)/$$ip/$$ip.xci $(COMPONENT_OUT_PATH)/$$ip/$$ip.xci; \
+				resultString="$$resultString XCI created.\n";; \
+		esac; \
+	done; \
+	echo $$resultString
+	@touch $@
 	@echo "Done."
 
-.PHONY: _ip
-
-$(IP_XCI_PROXY_FILES): _ip_xci_proxy_files.intermediate ;
-
-_ip_xci_proxy_files.intermediate: $(IP_TCL_FILES)
-	@$(MAKE) -s ip
-
-.INTERMEDIATE: _ip_xci_proxy_files.intermediate
-
-$(IP_XCI_FILES): | $(IP_XCI_PROXY_FILES)
+# XCI files are generated via the ip target; downstream targets (i.e. those that
+# generate simulation and synthesis output products) depend on the XCI file only
+# so that they only get updated when necessary, i.e. when the IP specification has
+# changed.
+$(IP_XCI_FILES): ip
+	@for ip in $(IP_LIST); do \
+		if [ ! -f $(COMPONENT_OUT_PATH)/$$ip/$$ip.xci ]; then \
+			echo "----------------------------------------------------------"; \
+			echo "Repairing IP ($(COMPONENT_NAME):$$ip) ..."; \
+			rm -rf $(COMPONENT_OUT_PATH)/$$ip; \
+			mkdir -p $(COMPONENT_OUT_PATH)/$$ip; \
+			cp $(IP_XCI_PROXY_DIR)/$$ip/$$ip.xci $(COMPONENT_OUT_PATH)/$$ip/$$ip.xci; \
+			echo; \
+			echo "Done."; \
+		fi; \
+	done
 
 # -----------------------------------------------
 # IP management targets
@@ -179,6 +228,9 @@ _ip_clean: _vivado_clean_logs _ip_proj_clean _compile_clean
 # Generate/manage synthesis products
 # -----------------------------------------------
 $(IP_DCP_FILES): _ip_dcp_files.intermediate ;
+	@for dcp_file in $(IP_DCP_FILES); do \
+		test -f $$dcp_file && touch $$dcp_file || false; \
+	done
 
 _ip_dcp_files.intermediate: $(IP_XCI_FILES) | $(PROJ_XPR)
 	@echo "----------------------------------------------------------"
@@ -229,6 +281,8 @@ _ip_sim_sources: $(__IP_SIM_SRC_FILES) $(__IP_SIM_INC_DIRS)
 # as compile sources for sim
 SRC_FILES += $(__IP_SIM_SRC_FILES)
 INC_DIRS += $(__IP_SIM_INC_DIRS)
+
+.PHONY: _ip_sim_sources
 
 # -----------------------------------------------
 # Generate IP example designs

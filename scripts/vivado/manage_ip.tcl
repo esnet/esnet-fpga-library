@@ -12,6 +12,7 @@ array set OPTIONS {
     -proj_dir             ./ip_proj
     -proj_name            ip_proj
     -jobs                 8
+    -ip                   {}
     -ip_tcl               {}
     -ip_xci               {}
 }
@@ -20,7 +21,7 @@ for {set i 1} {$i < $argc} {incr i 2} {
     set argName [lindex $argv $i]
     set argValue [lindex $argv [expr $i+1]]
     if {[info exists OPTIONS($argName)]} {
-        if {[lsearch {-ip_tcl -ip_xci} $argName] >= 0} {
+        if {[lsearch {-ip_tcl -ip_xci -ip} $argName] >= 0} {
             lappend OPTIONS($argName) $argValue
         } else {
             set OPTIONS($argName) $argValue
@@ -48,13 +49,6 @@ if { $BOARD_REPO != "" } {
 # Project definitions
 # -------------------------------
 set PROJ_FILE [file join $PROJ_DIR $PROJ_NAME.xpr]
-
-# -------------------------------
-# Part configuration
-# -------------------------------
-# Config script should set:
-# PART (FPGA device part)
-# BOARD_PART (FPGA board designation, where applicable)
 
 # -------------------------------
 # Select/execute design phase
@@ -88,8 +82,9 @@ if {$PHASE == "create_proj"} {
     puts "Opening IP project $PROJ_FILE ..."
     puts ""
     switch $PHASE {
-        ip -
         gui -
+        remove_ip -
+        ip -
         sim -
         exdes -
         drv_dpi -
@@ -98,28 +93,44 @@ if {$PHASE == "create_proj"} {
         reset -
         upgrade {
             vivadoProcs::open_proj $PROJ_NAME $PROJ_DIR
+            # Add IP that is not yet managed by the project
+            foreach ip $IP {
+                if {[lsearch -exact [get_ips] $ip] < 0} {
+                    if {[file exists "$ip/$ip.xci"]} {
+                        read_ip $ip/$ip.xci
+                        puts "Added $ip to the IP project."
+                    }
+                }
+            }
+            # Remove unlisted IP from the project
+            foreach ip [get_ips] {
+                set ip_name [get_property NAME $ip]
+                if {[lsearch -exact $IP $ip_name] < 0} {
+                    remove_files [get_files [get_property IP_FILE $ip]]
+                    puts "Removed ${ip_name} from the IP project."
+                }
+            }
         }
         default {
             vivadoProcs::open_proj_ro $PROJ_NAME $PROJ_DIR 
         }
     }
-    # Add new XCI files
-    foreach xci_file $IP_XCI {
-        set ip [file rootname [file tail $xci_file]]
-        if {[lsearch -exact [get_ips] $ip] < 0} {
-            read_ip $xci_file
-            puts "Added $ip to the IP project."
-        } elseif {[get_property IS_LOCKED [get_ips $ip]]} {
-            upgrade_ip [get_ips $ip]
-            export_ip_user_files -of_objects [get_ips $ip] -sync -force -quiet
-        }
-    }
     # Perform specified operation
     switch $PHASE {
-        ip -
-        gui {
+        gui -
+        ip {
             # Take no action
-            # (used for loading IP from XCI files only)
+        }
+        remove_ip {
+            foreach xci_file $IP_XCI {
+                set ip [file rootname [file tail $xci_file]]
+                if {[lsearch -exact [get_ips] $ip] < 0} {
+                    puts "Warning: tried to remove $ip but $ip isn't managed by IP project."
+                } else {
+                    remove_files [get_files $xci_file]
+                    puts "Removed $ip from the IP project."
+                }
+            }
         }
         sim {
             reset_target -quiet {simulation instantiation_template} [get_ips]
@@ -176,7 +187,7 @@ if {$PHASE == "create_proj"} {
             upgrade_ip [get_ips]
         }
         default {
-            puts "INVALID IP job: $PHASE (create_proj/create_ip/sim/exdes/drv_dpi/synth/reset/status/upgrade/gui)"
+            puts "INVALID IP job: $PHASE (create_proj/create_ip/ip/remove_ip/sim/exdes/drv_dpi/synth/reset/status/upgrade/gui)"
         }
     }
     switch $PHASE {
