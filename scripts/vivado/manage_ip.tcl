@@ -173,7 +173,7 @@ if {$PHASE == "create_proj"} {
                 }
             }
             if {[llength $ip_runs] > 0} {
-                launch_runs -jobs 4 $ip_runs
+                launch_runs -jobs ${JOBS} $ip_runs
                 wait_on_runs $ip_runs
             }
         }
