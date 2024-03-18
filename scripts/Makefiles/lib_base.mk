@@ -158,7 +158,7 @@ _clean_all:
 _refresh_ip:
 	@echo "----------------------------------------------------------"
 	@echo "Forcing refresh of IP output products for $(LIB_NAME) ..."
-	@find $(OUTPUT_ROOT) -type d -name .xci -prune -exec rm -rf {} \; 2> /dev/null || true
+	@find $(OUTPUT_ROOT) -type d -name .xci -prune -exec touch {}/.refresh \; 2> /dev/null || true
 	@echo
 	@echo "Done."
 

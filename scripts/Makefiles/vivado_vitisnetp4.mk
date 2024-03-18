@@ -72,6 +72,7 @@ include $(SCRIPTS_ROOT)/Makefiles/vivado_manage_ip.mk
 # Output files
 # -----------------------------------------------
 VITISNETP4_XCI_FILE = $(COMPONENT_OUT_PATH)/$(VITISNETP4_IP_NAME)/$(VITISNETP4_IP_NAME).xci
+VITISNETP4_XCI_PROXY_FILE = $(COMPONENT_OUT_PATH)/.xci/$(VITISNETP4_IP_NAME)/$(VITISNETP4_IP_NAME).xci
 VITISNETP4_DPI_DRV_FILE = $(COMPONENT_OUT_PATH)/$(VITISNETP4_IP_NAME)/vitisnetp4_drv_dpi.so
 VITISNETP4_PKG_FILE = $(COMPONENT_OUT_PATH)/$(VITISNETP4_IP_NAME)/src/verilog/$(VITISNETP4_IP_NAME)_pkg.sv
 
@@ -89,46 +90,43 @@ P4_OPTS += $(DEFAULT_P4_OPTS)
 # out of the old and new XCI failures; without this filter, every
 # time the XCI is created it differs from the existing XCI due to
 # this timestamp.
-_vitisnetp4_ip: $(VITISNETP4_TCL_FILE) | $(COMPONENT_OUT_PATH)
+_vitisnetp4_ip: $(IP_XCI_PROXY_DIR)/.vitisnetp4_refreshed
+
+$(IP_XCI_PROXY_DIR)/.vitisnetp4_refreshed: $(VITISNETP4_TCL_FILE) $(IP_XCI_PROXY_DIR)/.refresh | $(PROJ_XPR) $(IP_XCI_PROXY_DIR)
 	@echo "----------------------------------------------------------"
 	@echo "Create/update IP ($(COMPONENT_NAME)) ..."
-	@mkdir -p $(COMPONENT_OUT_PATH)/.xci
-	@cd $(COMPONENT_OUT_PATH)/.xci && $(VIVADO_MANAGE_IP_CMD) -tclargs create_ip $(BUILD_OPTIONS)
-	@echo
-	@echo "Update IP Summary:"
-	@mkdir -p $(COMPONENT_OUT_PATH)/$(VITISNETP4_IP_NAME)
-	@(test -e $(VITISNETP4_XCI_FILE) && cat $(VITISNETP4_XCI_FILE) | grep -v JSON_TIMESTAMP > $(COMPONENT_OUT_PATH)/.xci/old_xci) || true
-	@sed -i 's:\.xci/::g' $(COMPONENT_OUT_PATH)/.xci/$(VITISNETP4_IP_NAME)/$(VITISNETP4_IP_NAME).xci
-	@cat $(COMPONENT_OUT_PATH)/.xci/$(VITISNETP4_IP_NAME)/$(VITISNETP4_IP_NAME).xci | grep -v JSON_TIMESTAMP > $(COMPONENT_OUT_PATH)/.xci/new_xci
-	@cmp -s $(COMPONENT_OUT_PATH)/.xci/old_xci $(COMPONENT_OUT_PATH)/.xci/new_xci; \
+	@if [ -d $(IP_XCI_PROXY_DIR)/$(VITISNETP4_IP_NAME) ]; then \
+		rm -rf $(IP_XCI_PROXY_DIR)/$(VITISNETP4_IP_NAME).old && \
+			mv $(IP_XCI_PROXY_DIR)/$(VITISNETP4_IP_NAME) $(IP_XCI_PROXY_DIR)/$(VITISNETP4_IP_NAME).old; \
+	fi;
+	@cd $(IP_XCI_PROXY_DIR) && $(VIVADO_MANAGE_IP_CMD) -tclargs create_ip $(BUILD_OPTIONS) -ip_tcl $(VITISNETP4_TCL_FILE)
+	@sed -i 's:\.xci/::g' $(VITISNETP4_XCI_PROXY_FILE);
+	@cat $(VITISNETP4_XCI_PROXY_FILE) | grep -v JSON_TIMESTAMP > $(IP_XCI_PROXY_DIR)/$(VITISNETP4_IP_NAME)/xci
+	@cat $(P4_FILE) >> $(IP_XCI_PROXY_DIR)/$(VITISNETP4_IP_NAME)/xci
+	@resultString="\nUpdate summary:\n" \
+	resultString="$$resultString\t$(VITISNETP4_IP_NAME):"; \
+	cmp -s $(IP_XCI_PROXY_DIR)/$(VITISNETP4_IP_NAME).old/xci $(IP_XCI_PROXY_DIR)/$(VITISNETP4_IP_NAME)/xci; \
 	retVal=$$?; \
-	echo -n "\t$(VITISNETP4_IP_NAME): "; \
 	case $$retVal in \
 		0) \
-			cmp -s $(COMPONENT_OUT_PATH)/$(VITISNETP4_IP_NAME)/$(VITISNETP4_IP_NAME).p4 $(P4_FILE); \
-			p4CmpRetVal=$$?; \
-			case $$p4CmpRetVal in \
-				0) \
-					echo "P4 and XCI unchanged.";; \
-				1) \
-					cp $(P4_FILE) $(COMPONENT_OUT_PATH)/$(VITISNETP4_IP_NAME)/$(VITISNETP4_IP_NAME).p4; \
-					cp $(COMPONENT_OUT_PATH)/.xci/$(VITISNETP4_IP_NAME)/$(VITISNETP4_IP_NAME).xci $(VITISNETP4_XCI_FILE); \
-					echo "P4 changed. XCI regenerated.";; \
-				2) \
-					cp $(P4_FILE) $(COMPONENT_OUT_PATH)/$(VITISNETP4_IP_NAME)/$(VITISNETP4_IP_NAME).p4; \
-					cp $(COMPONENT_OUT_PATH)/.xci/$(VITISNETP4_IP_NAME)/$(VITISNETP4_IP_NAME).xci $(VITISNETP4_XCI_FILE); \
-					echo "XCI regenerated.";; \
-			esac;; \
+			resultString="$$resultString No change.\n";;\
 		1) \
-			cp $(P4_FILE) $(COMPONENT_OUT_PATH)/$(VITISNETP4_IP_NAME)/$(VITISNETP4_IP_NAME).p4; \
-			cp $(COMPONENT_OUT_PATH)/.xci/$(VITISNETP4_IP_NAME)/$(VITISNETP4_IP_NAME).xci $(VITISNETP4_XCI_FILE); \
-			echo "XCI updated.";; \
+			cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_IP_CMD) -tclargs remove_ip $(BUILD_OPTIONS) -ip_xci $(VITISNETP4_XCI_FILE); \
+			rm -rf $(COMPONENT_OUT_PATH)/$(VITISNETP4_IP_NAME); \
+			mkdir -p $(COMPONENT_OUT_PATH)/$(VITISNETP4_IP_NAME); \
+			cp $(VITISNETP4_XCI_PROXY_FILE) $(VITISNETP4_XCI_FILE); \
+			resultString="$$resultString XCI and/or P4 updated.\n";; \
 		2) \
-			cp $(P4_FILE) $(COMPONENT_OUT_PATH)/$(VITISNETP4_IP_NAME)/$(VITISNETP4_IP_NAME).p4; \
-			cp $(COMPONENT_OUT_PATH)/.xci/$(VITISNETP4_IP_NAME)/$(VITISNETP4_IP_NAME).xci $(VITISNETP4_XCI_FILE); \
-			echo "XCI created.";; \
-	esac
-	@echo
+			if [ -f $(VITISNETP4_XCI_FILE) ]; then \
+				cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_IP_CMD) -tclargs remove_ip $(BUILD_OPTIONS) -ip_xci $(VITISNETP4_XCI_FILE); \
+				rm -rf $(COMPONENT_OUT_PATH)/$(VITISNETP4_IP_NAME); \
+			fi; \
+			mkdir -p $(COMPONENT_OUT_PATH)/$(VITISNETP4_IP_NAME); \
+			cp $(VITISNETP4_XCI_PROXY_FILE) $(VITISNETP4_XCI_FILE); \
+			resultString="$$resultString XCI created.\n";; \
+	esac; \
+	echo $$resultString
+	touch $@
 	@echo "Done."
 
 _vitisnetp4_dpi_drv: $(VITISNETP4_DPI_DRV_FILE)
@@ -148,7 +146,6 @@ $(VITISNETP4_TCL_FILE): $(P4_FILE)
 	@mkdir -p $(IP_SRC_DIR)
 	@echo "create_ip -force -name vitis_net_p4 -vendor xilinx.com -library ip -module_name $(VITISNETP4_IP_NAME) -dir . -force" > $@
 	@echo "set_property -dict [concat [list CONFIG.P4_FILE $(P4_FILE)] [list $(P4_OPTS)]] [get_ips $(VITISNETP4_IP_NAME)]" >> $@
-	@echo "generate_target {simulation synthesis} [get_ips $(VITISNETP4_IP_NAME)]" >> $@
 
 $(VITISNETP4_DPI_DRV_FILE): $(VITISNETP4_XCI_FILE) | $(PROJ_XPR)
 	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_IP_CMD) -tclargs drv_dpi $(BUILD_OPTIONS)
