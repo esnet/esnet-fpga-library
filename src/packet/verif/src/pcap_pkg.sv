@@ -1,6 +1,13 @@
 package pcap_pkg;
 
     //===================================
+    // Parameters
+    //===================================
+    // PCAP magic number
+    localparam int MAGIC_NUMBER    = 32'ha1b2c3d4; // ms resolution
+    localparam int MAGIC_NUMBER_NS = 32'ha1b23c4d; // ns resolution
+
+    //===================================
     // Typedefs
     //===================================
     // Global header
@@ -16,15 +23,43 @@ package pcap_pkg;
 
     localparam int PCAP_HDR_BYTES = $bits(pcap_hdr_t)/8;
 
+    typedef enum {
+        PCAP_TIME_RESOLUTION_US,
+        PCAP_TIME_RESOLUTION_NS
+    } pcap_time_resolution_t;
+
+    typedef enum {
+        PCAP_ENDIAN_MAINTAIN, // PCAP file written with same endianness; no change required.
+        PCAP_ENDIAN_SWAP      // PCAP file written with different endianness; swap required.
+    } pcap_endian_t;
+
+    typedef struct packed {
+        logic valid;
+        pcap_time_resolution_t resolution;
+        pcap_endian_t endianness;
+    } pcap_meta_t;
+
     // Record (packet) header
     typedef struct packed {
         int unsigned ts_sec;
         int unsigned ts_usec;
         int unsigned incl_len;
         int unsigned orig_len;
-    } pcaprec_hdr_t;
+    } pcap_record_hdr_t;
 
-    localparam int PCAPREC_HDR_BYTES = $bits(pcaprec_hdr_t)/8;
+    localparam int PCAP_RECORD_HDR_BYTES = $bits(pcap_record_hdr_t)/8;
+
+    // PCAP record type
+    typedef struct {
+        pcap_record_hdr_t hdr;
+        byte pkt_data [$];
+    } pcap_record_t;
+
+    // PCAP data type
+    typedef struct {
+        pcap_hdr_t    hdr;
+        pcap_record_t records[$];
+    } pcap_t;
 
     //===================================
     // Functions
@@ -45,40 +80,45 @@ package pcap_pkg;
         end
     endfunction
 
-    function automatic void read_pcap(
-            input string filename,
-            output pcap_hdr_t hdr,
-            output pcaprec_hdr_t record_hdr[$],
-            output byte pkt_data[$][$]
-        );
+    function automatic pcap_t read_pcap(input string filename);
         byte data [$];
+        pcap_t pcap;
         read_to_bytes(filename, data);
-        parse(data, hdr, record_hdr, pkt_data);
+        return parse(data);
     endfunction
 
     function automatic pcap_hdr_t pop_hdr(ref byte data[$]);
         pcap_hdr_t hdr;
         {>>{hdr}} = data;
+        // Check that header can be popped from buffer
+        assert(data.size() >= PCAP_HDR_BYTES) else
+            $fatal(1, $sformatf("[pcap_pkg::pop_hdr] Insufficient bytes to pop PCAP header. %d bytes required, %d bytes available in buffer.", PCAP_HDR_BYTES, data.size()));
+        // Build header from buffer
         for (int i = 0; i < PCAP_HDR_BYTES; i++) data.pop_front();
         return hdr;
     endfunction
 
-    function automatic pcaprec_hdr_t pop_record_hdr(ref byte data[$], input bit swap_endian=0);
-        pcaprec_hdr_t record_hdr;
+    function automatic pcap_record_hdr_t pop_record_hdr(ref byte data[$]);
+        pcap_record_hdr_t record_hdr;
         {>>{record_hdr}} = data;
-        for (int i = 0; i < PCAPREC_HDR_BYTES; i++) data.pop_front();
-        if (swap_endian) swap_record_hdr_endianness(record_hdr);
+        // Check that header can be popped from buffer
+        assert(data.size() >= PCAP_RECORD_HDR_BYTES) else
+            $fatal(1, $sformatf("[pcap_pkg::pop_record_hdr] Insufficient bytes to pop PCAP record header. %d bytes required, %d bytes available in buffer.", PCAP_RECORD_HDR_BYTES, data.size()));
+        // Build header from buffer
+        for (int i = 0; i < PCAP_RECORD_HDR_BYTES; i++) data.pop_front();
         return record_hdr;
     endfunction
 
-    function automatic bit check_endianness(input pcap_hdr_t hdr);
-       bit   little_endian = 0;
-       
-       if (hdr.magic_number == 32'h4d3cb2a1) little_endian = 1;
-       if (hdr.magic_number == 32'hd4c3b2a1) little_endian = 1;
-       
-       return little_endian;
-       
+    function automatic pcap_meta_t parse_hdr(input pcap_hdr_t hdr);
+        pcap_meta_t pcap_meta;
+        int MAGIC_NUMBER_SWAPPED    = {<<byte{MAGIC_NUMBER}};
+        int MAGIC_NUMBER_NS_SWAPPED = {<<byte{MAGIC_NUMBER_NS}};
+        if      (hdr.magic_number == MAGIC_NUMBER)            pcap_meta = '{valid: 1'b1, resolution: PCAP_TIME_RESOLUTION_US, endianness: PCAP_ENDIAN_MAINTAIN};
+        else if (hdr.magic_number == MAGIC_NUMBER_NS)         pcap_meta = '{valid: 1'b1, resolution: PCAP_TIME_RESOLUTION_NS, endianness: PCAP_ENDIAN_MAINTAIN};
+        else if (hdr.magic_number == MAGIC_NUMBER_SWAPPED)    pcap_meta = '{valid: 1'b1, resolution: PCAP_TIME_RESOLUTION_US, endianness: PCAP_ENDIAN_SWAP};
+        else if (hdr.magic_number == MAGIC_NUMBER_NS_SWAPPED) pcap_meta = '{valid: 1'b1, resolution: PCAP_TIME_RESOLUTION_NS, endianness: PCAP_ENDIAN_SWAP};
+        else                                                  pcap_meta = '{valid: 1'b0, resolution: PCAP_TIME_RESOLUTION_US, endianness: PCAP_ENDIAN_MAINTAIN};
+        return pcap_meta;
     endfunction
 
     function automatic void swap_hdr_endianness(ref pcap_hdr_t hdr);
@@ -91,44 +131,56 @@ package pcap_pkg;
         {<<byte{hdr.network}} = hdr.network;
     endfunction
 
-    function automatic void swap_record_hdr_endianness(ref pcaprec_hdr_t record_hdr);
+    function automatic void swap_record_hdr_endianness(ref pcap_record_hdr_t record_hdr);
         {<<byte{record_hdr.ts_sec}} = record_hdr.ts_sec;
         {<<byte{record_hdr.ts_usec}} = record_hdr.ts_usec;
         {<<byte{record_hdr.incl_len}} = record_hdr.incl_len;
         {<<byte{record_hdr.orig_len}} = record_hdr.orig_len;
     endfunction
 
-    function automatic void parse(
-            input byte data[$],
-            output pcap_hdr_t hdr,
-            output pcaprec_hdr_t record_hdr [$],
-            output byte pkt_data [$][$]
-        );
+    function automatic pcap_t parse(input byte data[$]);
         int pkt_bytes;
-        bit swap_endian;
+        pcap_t pcap;
+        pcap_meta_t meta;
 
         // Parse global header
-        hdr = pop_hdr(data);
+        pcap.hdr = pop_hdr(data);
+        meta = parse_hdr(pcap.hdr);
 
-        // Determine endianness and swap if necessary
-        swap_endian = check_endianness(hdr);
-        if (swap_endian) swap_hdr_endianness(hdr);
+        // Validate header
+        if (!meta.valid)
+            $fatal(1, $sformatf("[pcap_pkg::parse] Invalid PCAP header (magic number = 0x%x).", pcap.hdr.magic_number));
+
+        // Swap endianness as required
+        if (meta.endianness == PCAP_ENDIAN_SWAP) swap_hdr_endianness(pcap.hdr);
 
         // Parse packet records
         while (data.size() > 0) begin
-            pcaprec_hdr_t __record_hdr;
-            automatic byte __pkt_data[$] = {};
-            // Process packet header
-            __record_hdr = pop_record_hdr(data, swap_endian);
+            int pkt_bytes;
+            pcap_record_t __record;
+
+            // Parse packet header
+            __record.hdr = pop_record_hdr(data);
+
+            // Swap endianness as required
+            if (meta.endianness == PCAP_ENDIAN_SWAP) swap_record_hdr_endianness(__record.hdr);
+
             // Process packet data
-            pkt_bytes = __record_hdr.incl_len;
+            __record.pkt_data = {};
+            pkt_bytes = __record.hdr.incl_len;
+
+            // Check that packet data can be popped from buffer
+            assert(data.size() >= pkt_bytes) else
+            $fatal(1, $sformatf("[pcap_pkg::parse] Insufficient bytes in buffer to pop packet data. %d bytes required, %d bytes available in buffer.", pkt_bytes, data.size()));
             for (int i = 0; i < pkt_bytes; i++) begin
-                __pkt_data.push_back(data.pop_front());
+                __record.pkt_data.push_back(data.pop_front());
             end
-            // Assemble output data
-            record_hdr.push_back(__record_hdr);
-            pkt_data.push_back(__pkt_data);
+
+            // Add assembled record
+            pcap.records.push_back(__record);
         end
+
+        return pcap;
 
     endfunction
 
@@ -148,9 +200,12 @@ package pcap_pkg;
         $display("data link type: 0x%x", hdr.network);
     endfunction
 
-    function automatic void print_record_hdr(input pcaprec_hdr_t record_hdr);
-        $display("timestamp seconds: 0x%x", record_hdr.ts_sec);
-        $display("timestamp microseconds: 0x%x", record_hdr.ts_usec);
+    function automatic void print_record_hdr(input pcap_record_hdr_t record_hdr, input bit ns_resolution=1'b0);
+        $display("timestamp seconds: %0d", record_hdr.ts_sec);
+        if (ns_resolution)
+            $display("timestamp nanoseconds: %0d", record_hdr.ts_usec);
+        else
+            $display("timestamp microseconds: %0d", record_hdr.ts_usec);
         $display("packet length (captured): %0d", record_hdr.incl_len);
         $display("packet length (original): %0d", record_hdr.orig_len);
     endfunction
@@ -160,25 +215,28 @@ package pcap_pkg;
         $display(pkt_string);
     endfunction
 
-    function automatic void print_pcap(
-            input pcap_hdr_t hdr,
-            input pcaprec_hdr_t record_hdr [$],
-            input byte pkt_data [$][$]
-        );
-        int num_pkts = record_hdr.size();
+    function automatic void print_pcap(input pcap_t pcap);
+        int num_pkts = pcap.records.size();
+        pcap_meta_t meta;
+        bit ns_resolution;
+
+        // Determine record timestamp resolution
+        meta = parse_hdr(pcap.hdr);
+        ns_resolution = (meta.resolution == PCAP_TIME_RESOLUTION_NS);
+
         $display("========================================");
         $display("Global Header");
         $display("========================================");
-        print_hdr(hdr);
+        print_hdr(pcap.hdr);
         $display("========================================");
         $display("Packets: %0d", num_pkts);
         $display("========================================");
         for (int i = 0; i < num_pkts; i++) begin
             $display("Packet %0d (of %0d)", i+1, num_pkts);
             $display("========================================");
-            print_record_hdr(record_hdr[i]);
+            print_record_hdr(pcap.records[i].hdr, ns_resolution);
             $display();
-            print_pkt_data(pkt_data[i]);
+            print_pkt_data(pcap.records[i].pkt_data);
             $display("========================================");
         end
     endfunction
