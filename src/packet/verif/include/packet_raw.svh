@@ -47,9 +47,9 @@ class packet_raw extends packet;
     // [[ overrides std_verif_pkg::transaction.to_string() extended class ]]
     function string to_string();
         string str = super.to_string();
-        str = {str, std_string_pkg::horiz_line()};
-        str = {str, std_string_pkg::byte_array_to_string(this.__data)};
-        str = {str, std_string_pkg::horiz_line()};
+        str = {str, string_pkg::horiz_line()};
+        str = {str, string_pkg::byte_array_to_string(this.__data)};
+        str = {str, string_pkg::horiz_line()};
         return str;
     endfunction
 

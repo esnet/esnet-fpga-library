@@ -1,9 +1,9 @@
 `include "svunit_defines.svh"
 
-module std_string_unit_test;
+module string_unit_test;
     import svunit_pkg::svunit_testcase;
 
-    string name = "std_string_ut";
+    string name = "string_ut";
     svunit_testcase svunit_ut;
 
     //===================================
@@ -96,7 +96,7 @@ module std_string_unit_test;
     `SVUNIT_TESTS_BEGIN
 
     `SVTEST(byte_array_to_hex_string)
-        import std_string_pkg::*;
+        import string_pkg::*;
         string got_string;
         string exp_string = hex_string;
 
@@ -115,7 +115,7 @@ module std_string_unit_test;
     `SVTEST_END
 
     `SVTEST(byte_array_to_ascii_string)
-        import std_string_pkg::*;
+        import string_pkg::*;
         string got_string;
         string exp_string = ascii_string;
 

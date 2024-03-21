@@ -47,7 +47,7 @@ class packet extends std_verif_pkg::base;
     // Get string representation of packet
     virtual function string to_string();
         string str;
-        str = {str, std_string_pkg::horiz_line()};
+        str = {str, string_pkg::horiz_line()};
         str = {str,
                 $sformatf(
                     "Packet '%s' (%s, %0d bytes):\n",

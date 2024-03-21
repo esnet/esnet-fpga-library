@@ -31,9 +31,9 @@ class packet_eth extends packet;
     // Get string representation of packet
     function automatic string to_string();
         string str = super.to_string();
-        str = {str, std_string_pkg::horiz_line()};
-        str = {str, std_string_pkg::byte_array_to_string(this.to_bytes())};
-        str = {str, std_string_pkg::horiz_line()};
+        str = {str, string_pkg::horiz_line()};
+        str = {str, string_pkg::byte_array_to_string(this.to_bytes())};
+        str = {str, string_pkg::horiz_line()};
         return str;
     endfunction
 
