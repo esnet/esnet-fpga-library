@@ -40,7 +40,6 @@ SRC_LIST_FILES = $(SVUNIT_SRC_LIST_FILE)
 # ----------------------------------------------------
 SUBCOMPONENTS = \
     packet.rtl \
-    packet.tb \
     packet.verif
 
 EXT_LIBS =

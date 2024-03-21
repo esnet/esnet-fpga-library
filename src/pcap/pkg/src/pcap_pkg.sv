@@ -211,7 +211,7 @@ package pcap_pkg;
     endfunction
 
     function automatic void print_pkt_data(input byte pkt_data [$]);
-        string pkt_string = std_string_pkg::byte_array_to_string(pkt_data);
+        string pkt_string = string_pkg::byte_array_to_string(pkt_data);
         $display(pkt_string);
     endfunction
 

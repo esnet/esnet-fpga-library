@@ -24,6 +24,7 @@ SRC_LIST_FILES =
 # ----------------------------------------------------
 SUBCOMPONENTS = \
     axi4s.rtl \
+    pcap.pkg \
     std.verif \
     packet.verif \
     reg.verif

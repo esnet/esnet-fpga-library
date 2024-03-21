@@ -39,13 +39,7 @@ SRC_LIST_FILES = $(SVUNIT_SRC_LIST_FILE)
 #   (see $SCRIPTS_ROOT/Makefiles/templates/dependencies.mk for details)
 # ----------------------------------------------------
 SUBCOMPONENTS = \
-    axi4s.rtl \
-    axi4s.verif \
-    axi4s.regio.verif \
-    std.rtl \
-    pcap.pkg \
-    packet.verif \
-    axi4l.verif
+    pcap.pkg
 
 EXT_LIBS =
 
