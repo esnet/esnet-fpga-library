@@ -24,6 +24,7 @@ SRC_LIST_FILES =
 # ----------------------------------------------------
 SUBCOMPONENTS = \
     packet.rtl \
+    string.pkg \
     std.verif
 
 EXT_LIBS =

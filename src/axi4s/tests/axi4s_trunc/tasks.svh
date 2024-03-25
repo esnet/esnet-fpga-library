@@ -3,9 +3,7 @@
 //=======================================================================
 
 // variabes for reading expected pcap data
-byte                      exp_data[$][$];
-pcap_pkg::pcap_hdr_t      exp_pcap_hdr;
-pcap_pkg::pcaprec_hdr_t   exp_pcap_record_hdr[$];
+pcap_pkg::pcap_t exp_pcap;
 
 string filename = {"../../../tests/axi4s_trunc/64B_to_319B_pkts.pcap"};
 
@@ -73,7 +71,7 @@ task run_pkt_test (input bit dest_port=0, input int size=0, input VERBOSE=0 );
               rx_pkt_cnt++;
               debug_msg( $sformatf( "      Receiving packet # %0d (of %0d)...", rx_pkt_cnt, num_pkts), VERBOSE );
               debug_msg("      Comparing rx_pkt to exp_pkt...", VERBOSE);
-              compare_pkts(rx_data, exp_data[start_idx+rx_pkt_cnt-1], size);
+              compare_pkts(rx_data, exp_pcap.records[start_idx+rx_pkt_cnt-1].pkt_data, size);
              `FAIL_IF_LOG( dest != dest_port, 
                            $sformatf("FAIL!!! Output tdest mismatch. tdest=%0h (exp:%0h)", dest, dest_port) )
           end

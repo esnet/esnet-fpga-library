@@ -23,11 +23,7 @@ SRC_LIST_FILES =
 #   (see $SCRIPTS_ROOT/Makefiles/templates/dependencies.mk)
 # ----------------------------------------------------
 SUBCOMPONENTS = \
-    axi4s.rtl \
-    pcap.pkg \
-    std.verif \
-    packet.verif \
-    reg.verif
+    string.pkg
 
 EXT_LIBS =
 

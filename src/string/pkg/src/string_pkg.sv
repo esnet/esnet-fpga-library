@@ -1,5 +1,5 @@
 // String manipulation utility package
-package std_string_pkg;
+package string_pkg;
 
     // String : indent
     function automatic string indent(
@@ -72,5 +72,5 @@ package std_string_pkg;
         return str;
     endfunction
 
-endpackage : std_string_pkg
+endpackage : string_pkg
 

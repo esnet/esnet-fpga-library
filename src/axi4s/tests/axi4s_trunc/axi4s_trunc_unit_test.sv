@@ -126,12 +126,12 @@ module axi4s_trunc_unit_test;
 
       `SVTEST(trunc_test)
           debug_msg("Reading expected pcap file...");
-          pcap_pkg::read_pcap(filename, exp_pcap_hdr, exp_pcap_record_hdr, exp_data);
+          exp_pcap = pcap_pkg::read_pcap(filename);
 
           force axi4s_out.tready = '1;
 
           for (length=64; length<256; length = length + 3) begin
-	     $display("Length: ", length);
+          $display("Length: ", length);
              run_pkt_test(.size(length)); 
           end
       `SVTEST_END

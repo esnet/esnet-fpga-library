@@ -42,43 +42,14 @@ sim:
   tags:
     - ht-sim
   script:
-    - make -s -C src/std/tests/regression SEED=$SEED
-    - grep 'PASSED.*suites passing' src/std/tests/regression/run_$SEED/sim.log
-    - make -s -C src/sync/tests/regression SEED=$SEED
-    - grep 'PASSED.*suites passing' src/sync/tests/regression/run_$SEED/sim.log
-    - make -s -C src/arb/tests/regression SEED=$SEED
-    - grep 'PASSED.*suites passing' src/arb/tests/regression/run_$SEED/sim.log
-    - make -s -C src/mem/tests/regression SEED=$SEED
-    - grep 'PASSED.*suites passing' src/mem/tests/regression/run_$SEED/sim.log
-    - make -s -C src/reg/proxy/tests/regression SEED=$SEED
-    - grep 'PASSED.*suites passing' src/reg/proxy/tests/regression/run_$SEED/sim.log
-    - make -s -C src/reg/endian/tests/regression SEED=$SEED
-    - grep 'PASSED.*suites passing' src/reg/endian/tests/regression/run_$SEED/sim.log
-    - make -s -C src/reg/example/tests/regression SEED=$SEED
-    - grep 'PASSED.*suites passing' src/reg/example/tests/regression/run_$SEED/sim.log
-    - make -s -C src/fifo/tests/regression SEED=$SEED
-    - grep 'PASSED.*suites passing' src/fifo/tests/regression/run_$SEED/sim.log
-    - make -s -C src/packet/tests/regression SEED=$SEED
-    - grep 'PASSED.*suites passing' src/packet/tests/regression/run_$SEED/sim.log
-    - make -s -C src/axi4l/tests/regression SEED=$SEED
-    - grep 'PASSED.*suites passing' src/axi4l/tests/regression/run_$SEED/sim.log
-    - make -s -C src/axi4s/tests/regression SEED=$SEED
-    - grep 'PASSED.*suites passing' src/axi4s/tests/regression/run_$SEED/sim.log
-    - make -s -C src/crc/tests/regression SEED=$SEED
-    - grep 'PASSED.*suites passing' src/crc/tests/regression/run_$SEED/sim.log
-    - make -s -C src/db/tests/regression SEED=$SEED
-    - grep 'PASSED.*suites passing' src/db/tests/regression/run_$SEED/sim.log
-    - make -s -C src/htable/tests/regression SEED=$SEED
-    - grep 'PASSED.*suites passing' src/htable/tests/regression/run_$SEED/sim.log
-    - make -s -C src/state/tests/regression SEED=$SEED
-    - grep 'PASSED.*suites passing' src/state/tests/regression/run_$SEED/sim.log
-    - make -s -C src/timer/tests/regression SEED=$SEED
-    - grep 'PASSED.*suites passing' src/timer/tests/regression/run_$SEED/sim.log
+    - shopt -s globstar
+    - for testsuite in src/**/tests/regression; do make -s -C $testsuite; done
+    - for testsuite in src/**/tests/regression; do grep -vqz '<failure' $testsuite/run_$SEED/tests.xml; done
   artifacts:
     name: "artifacts.$CI_PROJECT_NAME.$CI_JOB_NAME.$CI_PIPELINE_ID"
     reports:
       junit:
-        - src/*/tests/regression/run_*/tests.xml
+        - src/**/tests/regression/run_$SEED/tests.xml
     when: always
   needs: [ip]
   timeout: 3h

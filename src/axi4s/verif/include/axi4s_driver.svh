@@ -145,8 +145,7 @@ class axi4s_driver #(
             input TUSER_T user=0
         );
         // Signals
-        pcap_pkg::pcap_hdr_t    pcap_hdr;
-        pcap_pkg::pcaprec_hdr_t pcap_record_hdr[$];
+        pcap_pkg::pcap_t pcap;
         byte pkt_data[$][$];
         int num_pcap_pkts;
         int pkt_idx;
@@ -154,10 +153,10 @@ class axi4s_driver #(
         info_msg($sformatf("Reading packets from PCAP file %s for TID %d.", pcap_filename, id));
 
         // Read packet data from PCAP file
-        pcap_pkg::read_pcap(pcap_filename, pcap_hdr, pcap_record_hdr, pkt_data);
+        pcap = pcap_pkg::read_pcap(pcap_filename);
 
         // Get number of packets described in PCAP
-        num_pcap_pkts = pcap_record_hdr.size();
+        num_pcap_pkts = pcap.records.size();
 
         info_msg($sformatf("Done. %0d packet(s) read successfully for TID %d.", num_pcap_pkts, id));
 
@@ -177,7 +176,7 @@ class axi4s_driver #(
             // Create new packet transaction from next PCAP record
             packet_verif_pkg::packet_raw packet = packet_verif_pkg::packet_raw::create_from_bytes(
                 $sformatf("Packet %0d", pkt_idx),
-                pkt_data[i]
+                pcap.records[i].pkt_data
             );
 
             // Generate new AXI-S transaction
