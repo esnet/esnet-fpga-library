@@ -64,6 +64,8 @@ module state_cache_core_unit_test;
     db_intf  #(.KEY_T(hash_t), .VALUE_T(ENTRY_T)) tbl_wr_if [NUM_TABLES] (.clk(clk));
     db_intf  #(.KEY_T(hash_t), .VALUE_T(ENTRY_T)) tbl_rd_if [NUM_TABLES] (.clk(clk));
 
+    integer status_fill;
+
     // Instantiation
     state_cache_core #(
         .KEY_T ( KEY_T ),
@@ -636,7 +638,8 @@ module state_cache_core_unit_test;
         do
             agent.db_agent.get_fill(got_fill);
         while (got_fill != NUM_ENTRIES);
-        `FAIL_UNLESS_EQUAL(got_fill, NUM_ENTRIES);
+        `FAIL_UNLESS_EQUAL(status_fill, NUM_ENTRIES);
+
         foreach (entries[key]) begin
             bit error;
             bit timeout;
@@ -715,6 +718,7 @@ module state_cache_core_unit_test;
         do begin
             agent.db_agent.get_fill(got_fill);
         end while (got_fill != NUM_ENTRIES);
+        `FAIL_UNLESS_EQUAL(status_fill, NUM_ENTRIES);
         // Delete entries
         for (int i = 0; i < NUM_RECYCLED; i++) begin
             do begin
@@ -730,6 +734,7 @@ module state_cache_core_unit_test;
         do begin
             agent.db_agent.get_fill(got_fill);
         end while (got_fill != (NUM_ENTRIES - NUM_RECYCLED));
+        `FAIL_UNLESS_EQUAL(status_fill, NUM_ENTRIES - NUM_RECYCLED);
         // Insert entries
         do begin
             // Choose unique key
@@ -748,6 +753,7 @@ module state_cache_core_unit_test;
         do begin
             agent.db_agent.get_fill(got_fill);
         end while (got_fill != NUM_ENTRIES);
+        `FAIL_UNLESS_EQUAL(status_fill, NUM_ENTRIES);
         // Check
         `FAIL_UNLESS(entries.size() == NUM_ENTRIES);
         foreach (entries[key]) begin

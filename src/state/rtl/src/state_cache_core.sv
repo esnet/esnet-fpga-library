@@ -41,7 +41,10 @@ module state_cache_core
     output logic                 tbl_init      [NUM_TABLES],
     input  logic                 tbl_init_done [NUM_TABLES],
     db_intf.requester            tbl_wr_if     [NUM_TABLES],
-    db_intf.requester            tbl_rd_if     [NUM_TABLES]
+    db_intf.requester            tbl_rd_if     [NUM_TABLES],
+
+    // Status
+    output integer               status_fill
 
 );
 
@@ -551,6 +554,11 @@ module state_cache_core
     assign delete_if.valid = 1'b1;
     assign delete_if.value = delete_key;
     assign delete_if.next_key = '0; // Unused
+
+    // -----------------------------
+    // Export status
+    // -----------------------------
+    assign status_fill = htable_status_if.fill[$bits(ID_T):0];
 
     // -----------------------------
     // Counters
