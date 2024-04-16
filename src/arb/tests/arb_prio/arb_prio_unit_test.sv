@@ -17,7 +17,7 @@ module arb_prio_unit_test;
     logic [N-1:0] req;
     logic [N-1:0] grant;
     logic [N-1:0] ack;
-    int sel;
+    integer sel;
 
     arb_prio #(
         .N ( N )
