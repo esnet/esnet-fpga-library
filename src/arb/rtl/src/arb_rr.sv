@@ -11,7 +11,7 @@ module arb_rr
     input  logic [N-1:0] req,   // per-input req
     output logic [N-1:0] grant, // one-hot grant
     input  logic [N-1:0] ack,   // per-input ack (for multi-cycle grant support)
-    output int   sel            // binary selector (not gated by enable)
+    output integer sel          // binary selector (not gated by enable)
 );
     // Parameters
     localparam int SEL_WID = $clog2(N);

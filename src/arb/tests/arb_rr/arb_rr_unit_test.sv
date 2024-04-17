@@ -21,7 +21,7 @@ module arb_rr_unit_test #(parameter arb_rr_mode_t MODE = RR);
     logic [N-1:0] req;
     logic [N-1:0] grant;
     logic [N-1:0] ack;
-    int sel;
+    integer sel;
 
     arb_rr #(
         .MODE ( MODE ),
