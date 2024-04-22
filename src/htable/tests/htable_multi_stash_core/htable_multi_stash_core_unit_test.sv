@@ -182,7 +182,7 @@ module htable_multi_stash_core_unit_test;
     //===================================
     `SVUNIT_TESTS_BEGIN
     
-    `SVTEST(reset)
+    `SVTEST(hard_reset)
     `SVTEST_END
 
     `SVTEST(info)

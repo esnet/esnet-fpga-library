@@ -236,6 +236,9 @@ module db_ctrl_intf_2to1_mux_unit_test;
         test.build();
         svunit_ut = test.svunit_ut;
     endfunction
+    function void __register_tests();
+        test.__register_tests();
+    endfunction
     task run();
         test.run();
     endtask
@@ -287,6 +290,9 @@ module db_ctrl_intf_prio_mux_unit_test;
     function void build();
         test.build();
         svunit_ut = test.svunit_ut;
+    endfunction
+    function void __register_tests();
+        test.__register_tests();
     endfunction
     task run();
         test.run();
@@ -355,6 +361,9 @@ module db_ctrl_intf_prio_mux_hier_unit_test;
     function void build();
         test.build();
         svunit_ut = test.svunit_ut;
+    endfunction
+    function void __register_tests();
+        test.__register_tests();
     endfunction
     task run();
         test.run();

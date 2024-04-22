@@ -1,4 +1,4 @@
-    `SVTEST(reset)
+    `SVTEST(hard_reset)
     `SVTEST_END
 
     `SVTEST(info)
