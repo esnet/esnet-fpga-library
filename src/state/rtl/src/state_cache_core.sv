@@ -1,11 +1,11 @@
 module state_cache_core
     import htable_pkg::*;
 #(
-    parameter type KEY_T = logic[15:0],
-    parameter type ID_T = logic[15:0],
+    parameter type KEY_T = logic,
+    parameter type ID_T = logic,
     parameter int  NUM_IDS = 2**$bits(ID_T),
     parameter int  NUM_TABLES = 3,
-    parameter int  TABLE_SIZE [NUM_TABLES] = '{default: 4096},
+    parameter int  TABLE_SIZE [NUM_TABLES] = '{default: 512},
     parameter int  HASH_LATENCY = 0,
     parameter int  NUM_WR_TRANSACTIONS = 4,
     parameter int  NUM_RD_TRANSACTIONS = 8,
@@ -54,12 +54,6 @@ module state_cache_core
     import state_pkg::*;
 
     // ----------------------------------
-    // Parameters
-    // ----------------------------------
-    localparam int ID_WID = $bits(ID_T);
-    localparam int KEY_WID = $bits(KEY_T);
-    
-    // ----------------------------------
     // Typedefs
     // ----------------------------------
     typedef struct packed {
@@ -71,17 +65,6 @@ module state_cache_core
         KEY_T key;
         logic back_to_back;
     } lookup_req_ctxt_t;
-
-    typedef enum logic [2:0] {
-        DELETE_RESET          = 0,
-        DELETE_IDLE           = 1,
-        DELETE_REVMAP_REQ     = 2,
-        DELETE_REVMAP_PENDING = 3,
-        DELETE_REQ            = 4,
-        DELETE_DEALLOC_ID     = 5,
-        DELETE_DONE           = 6,
-        DELETE_ERROR          = 7
-    } delete_state_t;
 
     // ----------------------------------
     // Signals
@@ -109,48 +92,21 @@ module state_cache_core
     lookup_req_ctxt_t lookup_req_ctxt_in;
     lookup_req_ctxt_t lookup_req_ctxt_out;
 
-    logic allocator_init_done;
-
-    logic alloc_req;
-    logic alloc_rdy;
-    ID_T  alloc_id;
-
-    logic dealloc_req;
-    logic dealloc_rdy;
-    ID_T  dealloc_id;
-
-    logic err_alloc;
-    logic err_dealloc;
-    ID_T  err_id;
-
-    logic revmap_init_done;
-    logic revmap_rd_req;
+    logic init_done__id_manager;
 
     logic insert_req;
+    logic __insert_req;
     KEY_T insert_key;
     logic insert_rdy;
+    logic __insert_rdy;
     logic insert_done;
     logic insert_error;
     ID_T  insert_id;
 
-    logic insert_sel;
-
     lookup_result_t lookup_result;
-
-    delete_state_t delete_state;
-    delete_state_t nxt_delete_state;
 
     logic [7:0] delete_state_mon_in;
     logic [7:0] delete_state_mon_out;
-
-    logic delete_req;
-    KEY_T delete_key;
-    logic delete_rdy;
-    logic delete_done;
-    logic delete_error;
-    ID_T  delete_id;
-
-    logic delete_if_rdy;
 
     // ----------------------------------
     // Interfaces
@@ -161,8 +117,8 @@ module state_cache_core
     db_intf #(.KEY_T(KEY_T), .VALUE_T(ID_T)) htable_lookup_if (.clk(clk));
     db_intf #(.KEY_T(KEY_T), .VALUE_T(ID_T)) htable_update_if (.clk(clk));
 
-    mem_wr_intf #(.ADDR_WID(ID_WID), .DATA_WID(KEY_WID)) revmap_wr_if (.clk(clk));
-    mem_rd_intf #(.ADDR_WID(ID_WID), .DATA_WID(KEY_WID)) revmap_rd_if (.clk(clk));
+    db_intf #(.KEY_T(KEY_T), .VALUE_T(ID_T)) __delete_if (.clk(clk));
+    db_intf #(.KEY_T(KEY_T), .VALUE_T(ID_T)) insert_if (.clk(clk));
 
     axi4l_intf #() cache_axil_if ();
     axi4l_intf #() cache_axil_if__clk ();
@@ -177,7 +133,7 @@ module state_cache_core
     // ----------------------------------
     always @(posedge clk) begin
         if (srst) init_done <= 1'b0;
-        else if (htable_init_done && allocator_init_done && revmap_init_done) init_done <= 1'b1;
+        else if (htable_init_done && init_done__id_manager) init_done <= 1'b1;
         else init_done <= 1'b0;
     end
 
@@ -233,7 +189,6 @@ module state_cache_core
     );
     assign reg_if.status_nxt_v = 1'b1;
 
-    assign delete_state_mon_in = {5'b0, delete_state};
     assign reg_if.dbg_delete_status_nxt_v = 1'b1;
     assign reg_if.dbg_delete_status_nxt.state = state_cache_reg_pkg::fld_dbg_delete_status_state_t'(delete_state_mon_out);
 
@@ -319,36 +274,6 @@ module state_cache_core
     );
 
     // ----------------------------------
-    // ID allocator
-    // ----------------------------------
-    state_allocator_bv #(
-        .ID_T           ( ID_T ),
-        .NUM_IDS        ( NUM_IDS ),
-        .ALLOC_FC       ( 0 ),
-        .DEALLOC_FC     ( 1 ),
-        .SIM__FAST_INIT ( SIM__FAST_INIT )
-    ) i_state_allocator_bv (
-        .clk            ( clk ),
-        .srst           ( __srst ),
-        .init_done      ( allocator_init_done ),
-        .en             ( __en ),
-        .alloc_req      ( alloc_req ),
-        .alloc_rdy      ( alloc_rdy ),
-        .alloc_id       ( alloc_id ),
-        .dealloc_req    ( dealloc_req ),
-        .dealloc_rdy    ( dealloc_rdy ),
-        .dealloc_id     ( dealloc_id ),
-        .err_alloc      ( err_alloc ),
-        .err_dealloc    ( err_dealloc ),
-        .err_id         ( err_id ),
-        .axil_if        ( allocator_axil_if )
-    );
-
-    assign alloc_req = insert_req && htable_update_if.rdy;
-
-    assign dealloc_id = delete_id;
-
-    // ----------------------------------
     // Lookup request context
     // ----------------------------------
     assign lookup_req_ctxt_in.key = lookup_if.key;
@@ -386,7 +311,6 @@ module state_cache_core
 
     always_ff @(posedge clk) if (lookup_if.req && lookup_if.rdy) last_lookup_key <= lookup_if.key;
 
-
     initial last_lookup_valid = 1'b0;
     always @(posedge clk) begin
         if (htable_srst)        last_lookup_valid <= 1'b0;
@@ -422,7 +346,7 @@ module state_cache_core
             lookup_result._new = 1'b0;
         end else if (insert_rdy) begin
             lookup_if.valid = 1'b1;
-            lookup_result.id = alloc_id;
+            lookup_result.id = insert_id;
             lookup_result._new = 1'b1;
         end
     end
@@ -432,128 +356,66 @@ module state_cache_core
     assign lookup_if.next_key = '0; // Not supported
 
     // ----------------------------------
-    // Auto-insert
+    // State ID manager
     // ----------------------------------
-    // Synthesize insertion request
-    assign insert_rdy   = htable_update_if.rdy && alloc_rdy;
-    assign insert_req   = htable_lookup_if.ack && !htable_lookup_if.valid && !htable_lookup_if.error && !back_to_back_lookup_valid;
-    assign insert_key   = lookup_req_ctxt_out.key;
-    assign insert_id    = alloc_id;
-    // Insertion status
-    assign insert_done  = insert_req &&  insert_rdy;
-    assign insert_error = insert_req && !insert_rdy;
+    state_id_manager     #(
+        .KEY_T            ( KEY_T ),
+        .ID_T             ( ID_T ),
+        .NUM_IDS          ( NUM_IDS ),
+        .SIM__FAST_INIT   ( SIM__FAST_INIT )
+    ) i_state_id_manager  (
+        .clk              ( clk ),
+        .srst             ( __srst ),
+        .init_done        ( init_done__id_manager ),
+        .en               ( __en ),
+        .insert_req       ( __insert_req ),
+        .insert_key       ( insert_key ),
+        .insert_rdy       ( __insert_rdy ),
+        .insert_id        ( insert_id ),
+        .delete_by_id_if  ( delete_if ),
+        .delete_by_key_if ( __delete_if ),
+        .axil_if          ( allocator_axil_if ),
+        .delete_state_mon ( delete_state_mon_in )
+    );
+
+    assign __insert_req = insert_req && htable_update_if.rdy;
 
     // ----------------------------------
     // Drive hash table update interface
     // ----------------------------------
-    assign insert_sel = insert_req && alloc_rdy;
-
-    assign delete_rdy = insert_sel ? 1'b0 : htable_update_if.rdy;
-
-    assign htable_update_if.req = delete_req || (insert_req && alloc_rdy);
-    assign htable_update_if.key = insert_sel ? insert_key : delete_key;
-    assign htable_update_if.next  = 1'b0;
-    assign htable_update_if.valid = insert_sel;
-    assign htable_update_if.value = insert_sel? insert_id : delete_id;
-
-    // ----------------------------------
-    // Reverse (ID-to-key) mapping
-    // ----------------------------------
-    localparam mem_pkg::spec_t REV_MAP_MEM_SPEC = '{
-        ADDR_WID: ID_WID,
-        DATA_WID: KEY_WID,
-        ASYNC: 0,
-        RESET_FSM: 1,
-        OPT_MODE: mem_pkg::OPT_MODE_TIMING
-    };
-
-    mem_ram_sdp        #(
-        .SPEC           ( REV_MAP_MEM_SPEC ),
-        .SIM__FAST_INIT ( SIM__FAST_INIT )
-    ) i_mem_ram_sdp__rev_map (
-        .mem_wr_if      ( revmap_wr_if ),
-        .mem_rd_if      ( revmap_rd_if )
+    // Prioritize insertions over deletions
+    // (assumption here is that deletions can be backpressured and therefore less
+    //  time-sensitive, whereas insertion operations need to be executed promptly)
+    db_intf_prio_mux     #(
+        .KEY_T            ( KEY_T ),
+        .VALUE_T          ( ID_T ),
+        .NUM_TRANSACTIONS ( NUM_WR_TRANSACTIONS ),
+        .WR_RD_N          ( 1 )
+    ) i_db_intf_prio_mux (
+        .clk                          ( clk ),
+        .srst                         ( __srst ),
+        .db_if_from_requester_hi_prio ( insert_if ),
+        .db_if_from_requester_lo_prio ( __delete_if ),
+        .db_if_to_responder           ( htable_update_if )
     );
 
-    assign revmap_wr_if.rst = __srst;
-    assign revmap_wr_if.en = 1'b1;
-    assign revmap_wr_if.req = htable_update_if.req;
-    assign revmap_wr_if.addr = htable_update_if.value;
-    assign revmap_wr_if.data = htable_update_if.key;
-
-    assign revmap_rd_if.rst = 1'b0;
-    assign revmap_rd_if.req = revmap_rd_req;
-    assign revmap_rd_if.addr = delete_id;
-
-    assign revmap_init_done = revmap_wr_if.rdy;
-
     // ----------------------------------
-    // Deletion FSM
+    // Auto-insert
     // ----------------------------------
-    initial delete_state = DELETE_RESET;
-    always @(posedge clk) begin
-        if (__srst) delete_state <= DELETE_RESET;
-        else        delete_state <= nxt_delete_state;
-    end
+    // Synthesize insertion request
+    assign insert_rdy = __insert_rdy && htable_update_if.rdy;
+    assign insert_req   = htable_lookup_if.ack && !htable_lookup_if.valid && !htable_lookup_if.error && !back_to_back_lookup_valid;
+    assign insert_key   = lookup_req_ctxt_out.key;
 
-    always_comb begin
-        nxt_delete_state = delete_state;
-        delete_if_rdy = 1'b0;
-        revmap_rd_req = 1'b0;
-        delete_req = 1'b0;
-        dealloc_req = 1'b0;
-        delete_done = 1'b0;
-        delete_error = 1'b0;
-        case (delete_state)
-            DELETE_RESET : begin
-                nxt_delete_state = DELETE_IDLE;
-            end
-            DELETE_IDLE : begin
-                delete_if_rdy = 1'b1;
-                if (delete_if.req) nxt_delete_state = DELETE_REVMAP_REQ;
-            end
-            DELETE_REVMAP_REQ : begin
-                revmap_rd_req = 1'b1;
-                if (revmap_rd_if.rdy) nxt_delete_state = DELETE_REVMAP_PENDING;
-            end
-            DELETE_REVMAP_PENDING : begin
-                if (revmap_rd_if.ack) nxt_delete_state = DELETE_REQ;
-            end
-            DELETE_REQ : begin
-                delete_req = 1'b1;
-                if (delete_rdy) nxt_delete_state = DELETE_DEALLOC_ID;
-            end
-            DELETE_DEALLOC_ID : begin
-                dealloc_req = 1'b1;
-                if (dealloc_rdy) nxt_delete_state = DELETE_DONE;
-            end
-            DELETE_DONE : begin
-                delete_done = 1'b1;
-                nxt_delete_state = DELETE_IDLE;
-            end
-            DELETE_ERROR : begin
-                delete_error = 1'b1;
-                nxt_delete_state = DELETE_IDLE;
-            end
-            default : begin
-                nxt_delete_state = DELETE_IDLE;
-            end
-        endcase
-    end
+    // Insertion status
+    assign insert_done  = insert_req &&  insert_rdy;
+    assign insert_error = insert_req && !insert_rdy;
 
-    // Latch delete context (ID)
-    always_ff @(posedge clk) if (delete_if.req && delete_if.rdy) delete_id <= delete_if.key;
-
-    // Latch delete_context (key)
-    always_ff @(posedge clk) if (revmap_rd_if.ack) delete_key <= revmap_rd_if.data;
-
-    // Drive delete interface
-    assign delete_if.rdy = delete_if_rdy;
-    assign delete_if.ack = (delete_done || delete_error);
-    assign delete_if.error = delete_error;
-    assign delete_if.valid = 1'b1;
-    assign delete_if.value = delete_key;
-    assign delete_if.next_key = '0; // Unused
+    assign insert_if.req = insert_req && __insert_rdy;
+    assign insert_if.valid = 1'b1;
+    assign insert_if.key = insert_key;
+    assign insert_if.value = insert_id;
+    assign insert_if.next = 1'b0; // Unused
 
     // -----------------------------
     // Export status
