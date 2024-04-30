@@ -1,0 +1,20 @@
+name: sar_reassembly_htable
+visible: true
+
+blocks:
+  db: &db
+    !include src/db/regio/db.yaml
+
+decoders:
+  htable: &htable
+    !include src/htable/regio/htable_cuckoo_fast_update_decoder.yaml
+
+interfaces:
+  - decoder: *htable
+    width: 8
+    address: 0x0000
+    name: htable
+  - block: *db
+    address: 0x0400
+    width: 10
+    name: db

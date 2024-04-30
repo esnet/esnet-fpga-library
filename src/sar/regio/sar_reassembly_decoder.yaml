@@ -1,0 +1,26 @@
+name: sar_reassembly
+visible: true
+
+blocks:
+  reassembly: &reassembly
+    !include src/sar/regio/sar_reassembly.yaml
+
+decoders:
+  cache: &cache
+    !include src/sar/regio/sar_reassembly_cache_decoder.yaml
+  state: &state
+    !include src/sar/regio/sar_reassembly_state_decoder.yaml
+
+interfaces:
+  - block: *reassembly
+    width: 10
+    address: 0x0000
+    name: regs
+  - decoder: *state
+    address: 0x1000
+    width: 12
+    name: state
+  - decoder: *cache
+    width: 13
+    address: 0x2000
+    name: cache

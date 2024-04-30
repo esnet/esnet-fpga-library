@@ -1,0 +1,20 @@
+name: sar_reassembly_state
+visible: true
+
+blocks:
+  state_check: &state_check
+    !include src/sar/regio/sar_reassembly_state_check.yaml
+
+decoders:
+  state_core: &state_core
+    !include src/state/regio/state_decoder.yaml
+
+interfaces:
+  - block: *state_check
+    width: 9
+    address: 0x0000
+    name: check
+  - decoder: *state_core
+    address: 0x0200
+    width: 11
+    name: core
