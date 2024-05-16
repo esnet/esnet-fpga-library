@@ -86,7 +86,7 @@ USER_ENV ?=
 # ----------------------------------------------------
 
 # Enumerate library operations
-LIB_OPS = reg ip info compile synth opt driver clean
+LIB_OPS = reg ip info compile synth opt build driver clean
 
 # Define prerequisite targets
 __info:

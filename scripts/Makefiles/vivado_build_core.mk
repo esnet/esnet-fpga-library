@@ -15,7 +15,7 @@ CONSTRAINTS_XDC_USER ?= $(abspath timing_ooc.xdc place_ooc.xdc)
 # -----------------------------------------------
 # Command
 # -----------------------------------------------
-VIVADO_BUILD_CMD_BASE = $(VIVADO_CMD_BASE) -source $(VIVADO_SCRIPTS_ROOT)/build_ooc.tcl
+VIVADO_BUILD_CMD_BASE = $(VIVADO_CMD_BASE) -source $(VIVADO_SCRIPTS_ROOT)/build.tcl
 
 VIVADO_BUILD_CMD = $(VIVADO_BUILD_CMD_BASE) -mode batch
 VIVADO_BUILD_CMD_GUI = $(VIVADO_BUILD_CMD_BASE) -mode gui
@@ -34,6 +34,7 @@ BUILD_JOBS ?= 4
 BUILD_OPTIONS = \
     $(VIVADO_PART_CONFIG) \
     $(VIVADO_PROJ_CONFIG) \
+	-ooc 1 \
     -jobs $(BUILD_JOBS) \
     -sources_tcl_auto $(SOURCES_TCL_AUTO) \
     -constraints_tcl_auto $(CONSTRAINTS_TCL_AUTO) \
