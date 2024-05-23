@@ -43,9 +43,10 @@ BUILD_OPTIONS = \
     -constraints_tcl_auto $(CONSTRAINTS_TCL_AUTO) \
     $(foreach sources_tcl,$(SOURCES_TCL_USER),-sources_tcl $(sources_tcl)) \
     $(foreach constraints_xdc,$(CONSTRAINTS_XDC_USER),-constraints_xdc $(constraints_xdc)) \
-	-timestamp $(BUILD_TIMESTAMP) \
-	-userid $(BITSTREAM_USERID) \
-	-usr_access $(BITSTREAM_USR_ACCESS)
+    $(foreach define,$(DEFINES),-define $(define)) \
+    -timestamp $(BUILD_TIMESTAMP) \
+    -userid $(BITSTREAM_USERID) \
+    -usr_access $(BITSTREAM_USR_ACCESS)
 
 # -----------------------------------------------
 # Output files

@@ -39,7 +39,8 @@ BUILD_OPTIONS = \
     -sources_tcl_auto $(SOURCES_TCL_AUTO) \
     -constraints_tcl_auto $(CONSTRAINTS_TCL_AUTO) \
     $(foreach sources_tcl,$(SOURCES_TCL_USER),-sources_tcl $(sources_tcl)) \
-    $(foreach constraints_xdc,$(CONSTRAINTS_XDC_USER),-constraints_xdc $(constraints_xdc))
+    $(foreach constraints_xdc,$(CONSTRAINTS_XDC_USER),-constraints_xdc $(constraints_xdc)) \
+    $(foreach define,$(DEFINES),-define $(define))
 
 # -----------------------------------------------
 # Output files

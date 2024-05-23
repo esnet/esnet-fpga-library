@@ -20,6 +20,7 @@ array set OPTIONS {
     -constraints_tcl_auto synth/constraints.tcl
     -sources_tcl          {}
     -constraints_xdc      {}
+    -define               {}
     -timestamp            0
     -userid               0
     -usr_access           0
@@ -29,7 +30,7 @@ for {set i 2} {$i < $argc} {incr i 2} {
     set argName [lindex $argv $i]
     set argValue [lindex $argv [expr $i+1]]
     if {[info exists OPTIONS($argName)]} {
-        if {[lsearch {-sources_tcl -constraints_xdc} $argName] >= 0} {
+        if {[lsearch {-sources_tcl -constraints_xdc -define} $argName] >= 0} {
             lappend OPTIONS($argName) $argValue
         } else {
             set OPTIONS($argName) $argValue
@@ -136,6 +137,9 @@ if {$PHASE == "create_proj"} {
         }
     }
     vivadoProcs::set_top $TOP
+
+    # Apply defines
+    set_property verilog_define $DEFINE [current_fileset]
 
     # Perform specified operation
     switch $PHASE {
