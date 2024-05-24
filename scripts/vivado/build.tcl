@@ -109,22 +109,30 @@ if {$PHASE == "create_proj"} {
         puts "ERROR: specified board part ($BOARD_PART) is different from project board part ([vivadoProcs::get_board_part])."
         exit 2
     }
-    # Load sources and constraints
+    # Load sources
     if {[file exists $SOURCES_TCL_AUTO]} {
         source $SOURCES_TCL_AUTO
     } else {
         puts "WARNING: No sources specified ($SOURCES_TCL_AUTO missing)."
-    }
-    if {[file exists $CONSTRAINTS_TCL_AUTO]} {
-        source $CONSTRAINTS_TCL_AUTO
-    } else {
-        puts "WARNING: No synchronizer constraints specified ($CONSTRAINTS_TCL_AUTO missing)."
     }
     foreach sources_file $SOURCES_TCL {
         if {[file exists ${sources_file}]} {
             puts "Reading user source file ${sources_file}."
             source ${sources_file}
         }
+    }
+
+    # Configure design
+    vivadoProcs::set_top $TOP
+
+    # Apply defines
+    set_property verilog_define $DEFINE [current_fileset]
+
+    # Load constraints
+    if {[file exists $CONSTRAINTS_TCL_AUTO]} {
+        source $CONSTRAINTS_TCL_AUTO
+    } else {
+        puts "WARNING: No synchronizer constraints specified ($CONSTRAINTS_TCL_AUTO missing)."
     }
     foreach xdc_file $CONSTRAINTS_XDC {
         if {[file exists ${xdc_file}]} {
@@ -136,10 +144,12 @@ if {$PHASE == "create_proj"} {
             }
         }
     }
-    vivadoProcs::set_top $TOP
-
-    # Apply defines
-    set_property verilog_define $DEFINE [current_fileset]
+    # Configure bitstream parameters
+    set fp [open [file join $PROJ_DIR "build.xdc" ] w]
+    puts $fp "set_property BITSTREAM.CONFIG.USERID \"$USERID\" \[current_design\]"
+    puts $fp "set_property BITSTREAM.CONFIG.USR_ACCESS $USR_ACCESS \[current_design\]"
+    close $fp
+    read_xdc [file join $PROJ_DIR "build.xdc"]
 
     # Perform specified operation
     switch $PHASE {
@@ -199,10 +209,6 @@ if {$PHASE == "create_proj"} {
         bitstream {
             puts "Generating bitstream for $TOP ..."
             if {[get_property PROGRESS [get_runs impl_1]] == "100%"} {
-                open_run [get_runs impl_1]
-                # Set bitstream properties
-                set_property BITSTREAM.CONFIG.USERID $USERID [current_design]
-                set_property BITSTREAM.CONFIG.USR_ACCESS $USR_ACCESS [current_design]
                 launch_runs -jobs $JOBS -to_step write_bitstream impl_1
                 wait_on_runs impl_1
             } else {
