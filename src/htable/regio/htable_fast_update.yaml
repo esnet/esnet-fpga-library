@@ -51,21 +51,21 @@ regs:
         - name: state
           desc: FSM state.
           width: 8
-          enum_hex:
-              00 : RESET
-              01 : IDLE
-              02 : GET_NEXT
-              03 : GET_NEXT_PENDING
-              04 : GET_NEXT_DONE
-              05 : TBL_INSERT
-              06 : TBL_DELETE
-              07 : TBL_UPDATE_PENDING
-              08 : TBL_UPDATE_DONE
-              09 : TBL_UPDATE_ERROR
-              0A : STASH_POP
-              0B : STASH_POP_WAIT
-              0C : STASH_POP_PENDING
-              0D : ERROR
+          enum:
+              0x0 : RESET
+              0x1 : IDLE
+              0x2 : GET_NEXT
+              0x3 : GET_NEXT_PENDING
+              0x4 : GET_NEXT_DONE
+              0x5 : TBL_INSERT
+              0x6 : TBL_DELETE
+              0x7 : TBL_UPDATE_PENDING
+              0x8 : TBL_UPDATE_DONE
+              0x9 : TBL_UPDATE_ERROR
+              0xA : STASH_POP
+              0xB : STASH_POP_WAIT
+              0xC : STASH_POP_PENDING
+              0xD : ERROR
 
   - name: cnt_control
     access: wr_evt

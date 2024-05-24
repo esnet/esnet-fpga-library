@@ -15,7 +15,7 @@ regs:
         - name: db_type
           desc: database type identifier
           width: 8
-          enum_hex:
+          enum:
             0 : UNSPECIFIED
             1 : STASH
             2 : HTABLE
@@ -89,7 +89,7 @@ regs:
         - name: state_mon
           desc: Block state monitor.
           width: 8
-          enum_hex:
+          enum:
             0 : RESET
             1 : IDLE
             2 : REQ
@@ -105,15 +105,15 @@ regs:
         - name: code
           desc: Command code.
           width: 8
-          enum_hex:
-              0 : NOP
-              1 : GET
-              2 : GET_NEXT
-              3 : SET
-              4 : UNSET
-              5 : UNSET_NEXT
-              6 : REPLACE
-              7 : CLEAR
+          enum:
+            0 : NOP
+            1 : GET
+            2 : GET_NEXT
+            3 : SET
+            4 : UNSET
+            5 : UNSET_NEXT
+            6 : REPLACE
+            7 : CLEAR
 
   - name: status
     desc: Status register
@@ -122,10 +122,10 @@ regs:
         - name: code
           desc: Status code.
           width: 8
-          enum_hex:
-              0 : RESET
-              1 : READY
-              2 : BUSY
+          enum:
+            0 : RESET
+            1 : READY
+            2 : BUSY
         - name: done
           desc: Done flag. Indicates that last operation completed successfully. Sticky until read or until new transaction received.
           width: 1

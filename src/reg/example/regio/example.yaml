@@ -17,10 +17,10 @@ regs:
         - name:  field1
           desc:  field1 (8-bit enum)
           width: 8
-          enum_hex:
-              0  : ABC
-              1  : XYZ
-              ff : ERROR
+          enum:
+              0x0  : ABC
+              0x1  : XYZ
+              0xff : ERROR
 
   - name: ro_example
     desc: Read-only register with fields
@@ -32,10 +32,10 @@ regs:
         - name:  field1
           desc:  field1 (8-bit enum)
           width: 8
-          enum_hex:
-              0  : ABC
-              1  : XYZ
-              ff : ERROR
+          enum:
+              0x0  : ABC
+              0x1  : XYZ
+              0xff : ERROR
 
   - name: wr_evt_example
     desc: Write-Event register |

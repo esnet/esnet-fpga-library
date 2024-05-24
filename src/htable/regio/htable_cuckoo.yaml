@@ -59,37 +59,37 @@ regs:
         - name: state
           desc: FSM state.
           width: 8
-          enum_hex:
-              00 : RESET
-              01 : IDLE
-              02 : CLEAR
-              03 : CLEAR_PENDING
-              04 : CLEAR_NEXT
-              05 : CLEAR_STASH
-              06 : CLEAR_STASH_PENDING
-              07 : CHECK
-              08 : CHECK_PENDING
-              09 : CHECK_NEXT
-              0A : CHECK_FOUND
-              0B : CHECK_NOT_FOUND
-              0C : DELETE
-              0D : DELETE_PENDING
-              0E : INSERT_GET
-              0F : INSERT_GET_PENDING
-              10 : INSERT_PUSH
-              11 : INSERT_PUSH_PENDING
-              12 : INSERT_SET
-              13 : INSERT_SET_PENDING
-              14 : INSERT_POP
-              15 : INSERT_POP_PENDING
-              16 : INSERT_NEXT
-              17 : DONE
-              18 : INSERT_KEY_EXISTS
-              19 : INSERT_LOOP
-              1A : DELETE_KEY_NOT_FOUND
-              1B : TBL_ERROR
-              1C : STASH_ERROR
-              1D : ERROR
+          enum:
+              0x0 : RESET
+              0x1 : IDLE
+              0x2 : CLEAR
+              0x3 : CLEAR_PENDING
+              0x4 : CLEAR_NEXT
+              0x5 : CLEAR_STASH
+              0x6 : CLEAR_STASH_PENDING
+              0x7 : CHECK
+              0x8 : CHECK_PENDING
+              0x9 : CHECK_NEXT
+              0xA : CHECK_FOUND
+              0xB : CHECK_NOT_FOUND
+              0xC : DELETE
+              0xD : DELETE_PENDING
+              0xE : INSERT_GET
+              0xF : INSERT_GET_PENDING
+              0x10 : INSERT_PUSH
+              0x11 : INSERT_PUSH_PENDING
+              0x12 : INSERT_SET
+              0x13 : INSERT_SET_PENDING
+              0x14 : INSERT_POP
+              0x15 : INSERT_POP_PENDING
+              0x16 : INSERT_NEXT
+              0x17 : DONE
+              0x18 : INSERT_KEY_EXISTS
+              0x19 : INSERT_LOOP
+              0x1A : DELETE_KEY_NOT_FOUND
+              0x1B : TBL_ERROR
+              0x1C : STASH_ERROR
+              0x1D : ERROR
 
   - name: cnt_control
     access: wr_evt
