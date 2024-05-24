@@ -209,8 +209,18 @@ if {$PHASE == "create_proj"} {
                 puts "Error generating bitstream. Implementation is not complete."
             }
         }
+        flash {
+            puts "Generating flash image for $TOP ..."
+            set bitfile ${PROJ_DIR}/proj.runs/impl_1/${TOP}.bit
+            set flashfile ${PROJ_DIR}/proj.runs/impl_1/${TOP}.mcs
+            if {[file exists ${bitfile}]} {
+                write_cfgmem -force -format mcs -size 128 -interface SPIx4 -loadbit "up 0x1002000 ${bitfile}" -file ${flashfile}
+            } else {
+                puts "Error generating flash image. No bitstream found."
+            }
+        }
         default {
-            puts "INVALID job: $PHASE (create_proj/synth/opt/place/place_opt/route/route_opt/bitstream/gui)"
+            puts "INVALID job: $PHASE (create_proj/synth/opt/place/place_opt/route/route_opt/bitstream/flash/gui)"
         }
     }
     switch $PHASE {

@@ -22,7 +22,7 @@ VIVADO_BUILD_CMD_GUI = $(VIVADO_BUILD_CMD_BASE) -mode gui
 # -----------------------------------------------
 # Configure build flow
 # -----------------------------------------------
-BUILD_STAGES = synth opt place place_opt route route_opt bitstream mcs
+BUILD_STAGES = synth opt place place_opt route route_opt bitstream flash
 
 # -----------------------------------------------
 # Configure build options
