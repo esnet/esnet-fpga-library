@@ -59,6 +59,12 @@ package {{ blk.name_lower }}_reg_pkg;
         {{ "{:35}".format(reg.name_upper ~ '_' ~ field.name_upper ~ '_' ~ v | upper()) }} = {{ field.width }}'h{{ k }}{{ ',' if not loop.last }}
 {%-         endfor %}
     } fld_{{ reg.name_lower }}_{{ field.name_lower }}_t;
+{%-       elif field.enum: %}
+    typedef enum bit [{{ field.width - 1 }}:0] {
+{%-         for k, v in field.enum.items() %}
+        {{ "{:35}".format(reg.name_upper ~ '_' ~ field.name_upper ~ '_' ~ v | upper()) }} = {{ field.width }}'d{{ k }}{{ ',' if not loop.last }}
+{%-         endfor %}
+    } fld_{{ reg.name_lower }}_{{ field.name_lower }}_t;
 {%-       else: %}
     typedef bit [{{ field.width - 1 }}:0] fld_{{ reg.name_lower }}_{{ field.name_lower }}_t;
 {%-       endif %}
