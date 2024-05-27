@@ -44,15 +44,15 @@ regs:
         - name: state
           desc: Delete FSM state.
           width: 3
-          enum_hex:
-              0 : RESET
-              1 : IDLE
-              2 : REVMAP_REQ
-              3 : REVMAP_PENDING
-              4 : REQ
-              5 : DEALLOC_ID
-              6 : DONE
-              7 : ERROR
+          enum:
+              0x0 : RESET
+              0x1 : IDLE
+              0x2 : REVMAP_REQ
+              0x3 : REVMAP_PENDING
+              0x4 : REQ
+              0x5 : DEALLOC_ID
+              0x6 : DONE
+              0x7 : ERROR
 
   - name: cnt_control
     access: wr_evt

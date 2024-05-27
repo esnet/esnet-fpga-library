@@ -15,19 +15,19 @@ regs:
         - name: fifo_type
           desc: 
           width: 1
-          enum_hex:
+          enum:
               0 : SYNC
               1 : ASYNC
         - name: oflow_prot
           desc: overflow protection
           width: 1
-          enum_hex:
+          enum:
               0 : DISABLED
               1 : ENABLED
         - name: uflow_prot
           desc: underflow protection
           width: 1
-          enum_hex:
+          enum:
               0 : DISABLED
               1 : ENABLED
 

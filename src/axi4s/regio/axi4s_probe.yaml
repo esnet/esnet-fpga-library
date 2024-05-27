@@ -30,14 +30,14 @@ regs:
         - name: latch
           desc: 0 - latch regs track internal counts continuously. 1 - latch regs snapshot internal counts only on wr_evt.
           width: 1
-          enum_hex:
-              0: LATCH_ON_CLK
-              1: LATCH_ON_WR_EVT
+          enum:
+              0 : LATCH_ON_CLK
+              1 : LATCH_ON_WR_EVT
           init: 0
         - name: clear
           desc: 0 - internal counts NOT cleared by reg events.  1 - internal counts cleared upon wr_evt. 
           width: 1
-          enum_hex:
-              0: NO_CLEAR
-              1: CLEAR_ON_WR_EVT
+          enum:
+              0 : NO_CLEAR
+              1 : CLEAR_ON_WR_EVT
           init: 0

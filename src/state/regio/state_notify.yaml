@@ -61,17 +61,17 @@ regs:
         - name: state
           desc: FSM state.
           width: 8
-          enum_hex:
-              00 : RESET
-              01 : SCAN_START
-              02 : STATE_RD_REQ
-              03 : STATE_RD_WAIT
-              04 : CHECK_REQ
-              05 : CHECK_WAIT
-              05 : NOTIFY
-              06 : ERROR
-              07 : SCAN_NEXT
-              08 : SCAN_DONE
+          enum:
+              0x0 : RESET
+              0x1 : SCAN_START
+              0x2 : STATE_RD_REQ
+              0x3 : STATE_RD_WAIT
+              0x4 : CHECK_REQ
+              0x5 : CHECK_WAIT
+              0x5 : NOTIFY
+              0x6 : ERROR
+              0x7 : SCAN_NEXT
+              0x8 : SCAN_DONE
 
   - name: dbg_control
     access: rw
