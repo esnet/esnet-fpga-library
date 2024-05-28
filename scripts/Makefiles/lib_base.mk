@@ -72,8 +72,11 @@ endif
 # e.g. ENV = VAR1_NAME=VAR1_VALUE VAR2_NAME=VAR2_VALUE
 #
 # Common environment
+BUILD_ID ?= $(shell date +"%s")
+
 COMMON_ENV = \
-	CFG_ROOT=$(CFG_ROOT)
+    CFG_ROOT=$(CFG_ROOT) \
+    BUILD_ID=$(BUILD_ID)
 
 # Library-specific environment (optional)
 LIB_ENV ?=

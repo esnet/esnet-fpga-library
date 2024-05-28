@@ -30,7 +30,6 @@ BUILD_STAGES = synth opt place place_opt route route_opt bitstream flash
 BUILD_JOBS ?= 4
 
 BUILD_TIMESTAMP ?= $(shell date +"%s")
-BUILD_ID ?= $(BUILD_TIMESTAMP)
 BITSTREAM_USERID = $(shell printf "0x%08x" $(BUILD_ID))
 BITSTREAM_USR_ACCESS ?= $(BITSTREAM_USERID)
 
@@ -83,6 +82,8 @@ _vivado_build_info: _vivado_info
 	@echo "------------------------------------------------------"
 	@echo "Build configuration"
 	@echo "------------------------------------------------------"
+	@echo "BUILD_TIMESTAMP     : $(BUILD_TIMESTAMP)"
+	@echo "BUILD_ID            : $(BUILD_ID)"
 	@echo "TOP                 : $(TOP)"
 
 _build_info: _vivado_build_info _compile_info
