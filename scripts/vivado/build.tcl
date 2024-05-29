@@ -144,7 +144,15 @@ if {$PHASE == "create_proj"} {
             }
         }
     }
-   
+    if !${OOC} {
+        # Configure bitstream parameters
+        set fp [open [file join $PROJ_DIR "build.xdc" ] w]
+        puts $fp "set_property BITSTREAM.CONFIG.USERID \"$USERID\" \[current_design\]"
+        puts $fp "set_property BITSTREAM.CONFIG.USR_ACCESS $USR_ACCESS \[current_design\]"
+        close $fp
+        read_xdc -quiet [file join $PROJ_DIR "build.xdc"]
+    }
+
     # Perform specified operation
     switch $PHASE {
         gui {
@@ -203,13 +211,6 @@ if {$PHASE == "create_proj"} {
         bitstream {
             puts "Generating bitstream for $TOP ..."
             if {[get_property PROGRESS [get_runs impl_1]] == "100%"} {
-                # Configure bitstream parameters
-                set fp [open [file join $PROJ_DIR "build.xdc" ] w]
-                puts $fp "set_property BITSTREAM.CONFIG.USERID \"$USERID\" \[current_design\]"
-                puts $fp "set_property BITSTREAM.CONFIG.USR_ACCESS $USR_ACCESS \[current_design\]"
-                close $fp
-                read_xdc [file join $PROJ_DIR "build.xdc"]
-                # Write bitstream
                 launch_runs -jobs $JOBS -to_step write_bitstream impl_1
                 wait_on_runs impl_1
             } else {
