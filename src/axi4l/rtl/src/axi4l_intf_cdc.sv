@@ -178,8 +178,10 @@ module axi4l_intf_cdc
 
     // Terminate interface to peripheral
     axi4l_controller #(
-        .ADDR_WID  ( ADDR_WID ),
-        .BUS_WIDTH ( BUS_WIDTH )
+        .ADDR_WID   ( ADDR_WID ),
+        .BUS_WIDTH  ( BUS_WIDTH ),
+        .WR_TIMEOUT ( 0 ), // Disable write timeouts
+        .RD_TIMEOUT ( 0 )  // Disable read timeouts
     ) i_axi4l_controller (
         .clk       ( clk__to_peripheral ),
         .srst      ( srst__to_peripheral ),

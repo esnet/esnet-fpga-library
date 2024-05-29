@@ -225,9 +225,11 @@ namespace eval vivadoProcs {
     }
 
     # Configure synthesis run
-    proc config_synth_run {{run_name "synth_1"}} {
+    proc config_synth_run {{run_name "synth_1"} {ooc 0}} {
         set_property strategy {Vivado Synthesis Defaults} [get_runs $run_name]
-        set_property -name {STEPS.SYNTH_DESIGN.ARGS.MORE OPTIONS} -value {-mode out_of_context} -objects [get_runs $run_name]
+        if $ooc {
+            set_property -name {STEPS.SYNTH_DESIGN.ARGS.MORE OPTIONS} -value {-mode out_of_context} -objects [get_runs $run_name]
+        }
         # Report logic levels
         create_report_config -report_name ${run_name}_synth_report_design_analysis_0 -step synth_design -report_type report_design_analysis -run $run_name
         set_property DISPLAY_NAME {Design Analysis - Synth Design} [get_report_configs -of_objects [get_runs $run_name] ${run_name}_synth_report_design_analysis_0] 
@@ -235,9 +237,10 @@ namespace eval vivadoProcs {
     }
 
     # Configure implementation run
-    proc config_impl_run {{run_name "impl_1"}} {
+    proc config_impl_run {{run_name "impl_1"} {ooc 0}} {
         set_property strategy {Vivado Implementation Defaults} [get_runs $run_name]
         set_property report_strategy {UltraFast Design Methodology Reports} [get_runs $run_name]
+        set_property STEPS.POST_ROUTE_PHYS_OPT_DESIGN.IS_ENABLED true [get_runs $run_name]
         # Report CDC
         create_report_config -report_name ${run_name}_init_report_cdc_0 -step init_design -report_type report_cdc -run $run_name
         set_property DISPLAY_NAME {CDC - Design Initialization} [get_report_configs -of_objects [get_runs $run_name] ${run_name}_init_report_cdc_0] 

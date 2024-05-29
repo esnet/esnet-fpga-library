@@ -6,7 +6,6 @@
 #        the following input 'arguments':
 #        - SCRIPTS_ROOT: path to project scripts directory
 #        - CFG_ROOT: path to the part configuration file(s)
-#        - BUILD_OUTPUT_DIR: path to build output products
 #        - TOP: top-level module for build
 
 # -----------------------------------------------
@@ -37,11 +36,11 @@ _proj : | $(PROJ_XPR)
 _proj_clean:
 	@rm -rf $(PROJ_DIR)
 
-.PHONY: _proj_create _proj _proj_clean
+.PHONY: _proj _proj_clean
 
 $(PROJ_XPR): | $(COMPONENT_OUT_PATH)
 	@echo "----------------------------------------------------------"
-	@echo "Creating OOC build project ($(COMPONENT_NAME)) ..."
+	@echo "Creating build project ($(COMPONENT_NAME)) ..."
 	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_BUILD_CMD) -tclargs create_proj $(TOP) $(BUILD_OPTIONS)
 	@echo
 	@echo "Done."
@@ -62,7 +61,7 @@ _pre_synth: _compile_synth
 define BUILD_STAGE_RULE
 _$(stage): pre_synth | $(PROJ_XPR)
 	@echo "----------------------------------------------------------"
-	@echo "Running $(stage)_design for '$(TOP)' OOC ..."
+	@echo "Running $(stage)_design for '$(TOP)' ..."
 	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_BUILD_CMD) -tclargs $(stage) $(TOP) $(BUILD_OPTIONS)
 	@echo
 	@echo "Done."

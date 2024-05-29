@@ -19,8 +19,6 @@ module axi4s_fifo_async
         .ASYNC             ( 1 )
     ) i_axi4s_fifo_core    (
         .axi4s_in          ( axi4s_in ),
-        .axi4s_out_clk     ( axi4s_out.aclk ),
-        .axi4s_out_aresetn ( axi4s_out.aresetn ),
         .axi4s_out         ( axi4s_out )
     );
 

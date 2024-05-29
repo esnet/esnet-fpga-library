@@ -5,7 +5,9 @@ module axi4l_controller
     parameter axi4l_bus_width_t BUS_WIDTH = AXI4L_BUS_WIDTH_32,
     // Derived parameters (don't override)
     parameter int DATA_BYTE_WID = get_axi4l_bus_width_in_bytes(BUS_WIDTH),
-    parameter int DATA_WID = DATA_BYTE_WID * 8
+    parameter int DATA_WID = DATA_BYTE_WID * 8,
+    parameter int WR_TIMEOUT = 64, // Write timeout (in clock cycles); set to 0 to disable timeout
+    parameter int RD_TIMEOUT = 64  // Read timeout  (in clock cycles); set to 0 to disable timeout
 ) (
     // Upstream (register control)
     input  logic                     clk,
@@ -24,22 +26,12 @@ module axi4l_controller
     // Downstream (AXI-L)
     axi4l_intf.controller            axi4l_if
 );
-
-    // Parameters
-    // --------------------
-    localparam int WR_TIMEOUT = 64;
-    localparam int WR_TIMER_WID = $clog2(WR_TIMEOUT);
-    localparam int RD_TIMEOUT = 64;
-    localparam int RD_TIMER_WID = $clog2(RD_TIMEOUT);
-
     // Signals
     // --------------------
     logic                      wr_pending;
-    logic [WR_TIMER_WID-1:0]   wr_timer;
     logic                      wr_timeout;
 
     logic                      rd_pending;
-    logic [RD_TIMER_WID-1:0]   rd_timer;
     logic                      rd_timeout;
 
     // Clock/reset
@@ -96,15 +88,27 @@ module axi4l_controller
 
     // Write timeout
     // -------------
-    initial wr_timer = 0;
-    always @(posedge clk) begin
-        if (srst) wr_timer <= 0;
-        else begin
-            if (wr_pending) wr_timer <= wr_timer + 1;
-            else            wr_timer <= 0;
-        end
-    end
-    assign wr_timeout = (wr_timer == WR_TIMEOUT-1);
+    generate
+        if (WR_TIMEOUT > 0) begin : g__wr_timeout
+            // (Local) parameters
+            localparam int WR_TIMER_WID = $clog2(WR_TIMEOUT);
+            // (Local) signals
+            logic [WR_TIMER_WID-1:0] wr_timer;
+
+            initial wr_timer = 0;
+            always @(posedge clk) begin
+                if (srst) wr_timer <= 0;
+                else begin
+                    if (wr_pending) wr_timer <= wr_timer + 1;
+                    else            wr_timer <= 0;
+                end
+            end
+            assign wr_timeout = (wr_timer == WR_TIMEOUT-1);
+        end : g__wr_timeout
+        else begin : g__no_wr_timeout
+            assign wr_timeout = 0;
+        end : g__no_wr_timeout
+    endgenerate
 
     // Write response
     // --------------------
@@ -163,23 +167,39 @@ module axi4l_controller
 
     // Read timeout
     // -------------
-    initial rd_timer = 0;
-    always @(posedge clk) begin
-        if (srst) rd_timer <= 0;
-        else begin
-            if (rd_pending) rd_timer <= rd_timer + 1;
-            else            rd_timer <= 0;
-        end
-    end
-    assign rd_timeout = (rd_timer == RD_TIMEOUT-1);
+    generate
+        if (RD_TIMEOUT > 0) begin : g__rd_timeout
+            // (Local) parameters
+            localparam int RD_TIMER_WID = $clog2(RD_TIMEOUT);
+            // (Local) signals
+            logic [RD_TIMER_WID-1:0]   rd_timer;
+
+            initial rd_timer = 0;
+            always @(posedge clk) begin
+                if (srst) rd_timer <= 0;
+                else begin
+                    if (rd_pending) rd_timer <= rd_timer + 1;
+                    else            rd_timer <= 0;
+                end
+            end
+            assign rd_timeout = (rd_timer == RD_TIMEOUT-1);
+        end : g__rd_timeout
+        else begin : g__no_rd_timeout
+            assign rd_timeout = 1'b0;
+        end : g__no_rd_timeout
+    endgenerate
 
     // Read response
     // --------------------
     initial axi4l_if.rready = 1'b0;
     always @(posedge clk) begin
-        if (srst) axi4l_if.rready <= 1'b0;
-        else if (rd) axi4l_if.rready <= 1'b1;
-        else if (axi4l_if.rvalid || rd_timeout) axi4l_if.rready <= 1'b0;
+        if (srst)                              axi4l_if.rready <= 1'b0;
+        else if (rd)                           axi4l_if.rready <= 1'b1;
+        else if (rd_pending) begin
+            if (axi4l_if.rvalid || rd_timeout) axi4l_if.rready <= 1'b0;
+            else                               axi4l_if.rready <= 1'b1;
+        end else if (axi4l_if.rvalid)          axi4l_if.rready <= 1'b1;
+        else                                   axi4l_if.rready <= 1'b0;
     end
 
     initial begin

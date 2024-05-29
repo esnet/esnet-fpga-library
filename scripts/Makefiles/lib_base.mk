@@ -72,8 +72,11 @@ endif
 # e.g. ENV = VAR1_NAME=VAR1_VALUE VAR2_NAME=VAR2_VALUE
 #
 # Common environment
+BUILD_ID ?= $(shell date +"%s")
+
 COMMON_ENV = \
-	CFG_ROOT=$(CFG_ROOT)
+    CFG_ROOT=$(CFG_ROOT) \
+    BUILD_ID=$(BUILD_ID)
 
 # Library-specific environment (optional)
 LIB_ENV ?=
@@ -86,7 +89,7 @@ USER_ENV ?=
 # ----------------------------------------------------
 
 # Enumerate library operations
-LIB_OPS = reg ip info compile synth opt driver clean
+LIB_OPS = reg ip info compile synth opt build driver clean
 
 # Define prerequisite targets
 __info:

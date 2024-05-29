@@ -30,13 +30,9 @@ xsim.log
 # Synthesis
 *.dcp
 *.rpt
+*.tmp
 
 **/.Xil
-
-# IP                 #
-######################
-**/ip_proj
-**/ip_user_files
 
 # SVUnit             #
 ######################
