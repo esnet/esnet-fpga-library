@@ -3,7 +3,7 @@
 module axi4l_decoder_unit_test;
     import svunit_pkg::svunit_testcase;
     import axi4l_verif_pkg::*;
-    import mem_map_pkg::*;
+    import reg_pkg::*;
     import reg_example_reg_verif_pkg::*;
 
     string name = "axi4l_decoder_unit_test";

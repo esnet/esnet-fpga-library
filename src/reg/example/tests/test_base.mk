@@ -39,6 +39,7 @@ SRC_LIST_FILES = $(SVUNIT_SRC_LIST_FILE)
 #   (see $SCRIPTS_ROOT/Makefiles/templates/dependencies.mk for details)
 # ----------------------------------------------------
 SUBCOMPONENTS = \
+    reg.rtl \
     reg.example.rtl \
     reg.example.regio.rtl \
     reg.example.regio.verif \
