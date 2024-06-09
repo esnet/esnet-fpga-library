@@ -8,13 +8,11 @@ module arb_rr
     input  logic clk,
     input  logic srst,
     input  logic en,
-    input  logic [N-1:0] req,   // per-input req
-    output logic [N-1:0] grant, // one-hot grant
-    input  logic [N-1:0] ack,   // per-input ack (for multi-cycle grant support)
-    output integer sel          // binary selector (not gated by enable)
+    input  logic [N-1:0] req,         // per-input req
+    output logic [N-1:0] grant,       // one-hot grant
+    input  logic [N-1:0] ack,         // per-input ack (for multi-cycle grant support)
+    output logic [$clog2(N)-1:0] sel  // binary selector (not gated by enable)
 );
-    // Parameters
-    localparam int SEL_WID = $clog2(N);
 
     // Typdefs
     typedef enum logic [1:0] {
@@ -27,11 +25,11 @@ module arb_rr
     state_t state;
     state_t nxt_state;
 
-    logic [SEL_WID-1:0] _idx;
+    logic [$clog2(N)-1:0] _idx;
     logic reset_idx;
     logic inc_idx;
 
-    logic [SEL_WID-1:0] sel_r;
+    logic [$clog2(N)-1:0] sel_r;
     logic [N-1:0] grant_r;
 
 
