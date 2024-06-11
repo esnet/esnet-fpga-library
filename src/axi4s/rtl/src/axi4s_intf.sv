@@ -486,6 +486,65 @@ module axi4s_full_pipe
 endmodule : axi4s_full_pipe
 
 
+// AXI-Stream interface N:1 mux
+module axi4s_intf_mux
+#(
+    parameter int  N = 2,  // number of ingress axi4s interfaces.
+    parameter int  DATA_BYTE_WID = 8,
+    parameter type TID_T         = bit,
+    parameter type TDEST_T       = bit,
+    parameter type TUSER_T       = bit
+) (
+    axi4s_intf.rx                axi4s_in_if[N],
+    axi4s_intf.tx                axi4s_out_if,
+    input logic [$clog2(N)-1:0]  sel
+);
+
+    logic                          aresetn[N];
+    logic                          tvalid[N];
+    logic [DATA_BYTE_WID-1:0][7:0] tdata[N];
+    logic [DATA_BYTE_WID-1:0]      tkeep[N];
+    logic                          tlast[N];
+    TID_T                          tid[N];
+    TDEST_T                        tdest[N];
+    TUSER_T                        tuser[N];
+
+    logic                          tready[N];
+
+    // Convert between array of signals and array of interfaces
+    generate
+        for (genvar g_if = 0; g_if < N; g_if++) begin : g__if
+            assign aresetn[g_if] = axi4s_in_if[g_if].aresetn;
+            assign  tvalid[g_if] = axi4s_in_if[g_if].tvalid;
+            assign   tdata[g_if] = axi4s_in_if[g_if].tdata;
+            assign   tkeep[g_if] = axi4s_in_if[g_if].tkeep;
+            assign   tlast[g_if] = axi4s_in_if[g_if].tlast;
+            assign     tid[g_if] = axi4s_in_if[g_if].tid;
+            assign   tdest[g_if] = axi4s_in_if[g_if].tdest;
+            assign   tuser[g_if] = axi4s_in_if[g_if].tuser;
+
+            assign axi4s_in_if[g_if].tready = (sel == g_if) ? axi4s_out_if.tready : 1'b0;
+        end
+    endgenerate
+
+    always_comb begin
+        // all interfaces must be synchronous to axi4s_in_if[0].
+        axi4s_out_if.aclk    = axi4s_in_if[0].aclk;
+
+        // mux logic
+        axi4s_out_if.aresetn = aresetn [sel];
+        axi4s_out_if.tvalid  = tvalid  [sel];
+        axi4s_out_if.tlast   = tlast   [sel];
+        axi4s_out_if.tkeep   = tkeep   [sel];
+        axi4s_out_if.tdata   = tdata   [sel];
+        axi4s_out_if.tid     = tid     [sel];
+        axi4s_out_if.tdest   = tdest   [sel];
+        axi4s_out_if.tuser   = tuser   [sel];
+    end
+
+endmodule
+
+
 // AXI-Stream interface 2:1 mux
 module axi4s_intf_2to1_mux (
     axi4s_intf.rx axi4s_in_if_0,
@@ -513,6 +572,42 @@ module axi4s_intf_2to1_mux (
 endmodule
 
 
+// AXI-Stream interface 1:N demux
+module axi4s_intf_demux
+#(
+    parameter int N = 2  // number of egress axi4s interfaces.
+) (
+    axi4s_intf.rx  axi4s_in,
+    axi4s_intf.tx  axi4s_out[N],
+
+    input logic [$clog2(N)-1:0]  sel
+);
+
+    logic tready[N];
+
+    generate
+        for (genvar g_if = 0; g_if < N; g_if++) begin : g__if
+            assign tready[g_if] = axi4s_out[g_if].tready;
+
+            // axis4s output interface signalling.
+            assign axi4s_out[g_if].aclk    = axi4s_in.aclk;
+            assign axi4s_out[g_if].aresetn = axi4s_in.aresetn;
+            assign axi4s_out[g_if].tvalid  = (sel == g_if) ? axi4s_in.tvalid : 1'b0;
+            assign axi4s_out[g_if].tdata   = axi4s_in.tdata;
+            assign axi4s_out[g_if].tkeep   = axi4s_in.tkeep;
+            assign axi4s_out[g_if].tlast   = axi4s_in.tlast;
+            assign axi4s_out[g_if].tid     = axi4s_in.tid;
+            assign axi4s_out[g_if].tdest   = axi4s_in.tdest;
+            assign axi4s_out[g_if].tuser   = axi4s_in.tuser;
+        end
+
+        // axis4s input interface signalling.
+        assign axi4s_in.tready = tready[sel];
+    endgenerate
+
+endmodule
+
+
 // AXI-Stream interface 1:2 demux
 module axi4s_intf_1to2_demux (
     axi4s_intf.rx       axi4s_in,
@@ -535,7 +630,6 @@ module axi4s_intf_1to2_demux (
     assign axi4s_out0.tdest   = axi4s_in.tdest;
     assign axi4s_out0.tuser   = axi4s_in.tuser;
 
-    // axis4s copy interface signalling.
     assign axi4s_out1.aclk    = axi4s_in.aclk;
     assign axi4s_out1.aresetn = axi4s_in.aresetn;
     assign axi4s_out1.tvalid  = axi4s_in.tvalid && output_sel;
