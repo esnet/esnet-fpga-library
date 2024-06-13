@@ -6,7 +6,7 @@
 
 package {{ dec.name_lower }}_decoder_pkg;
 
-    import mem_map_pkg::*;
+    import reg_pkg::*;
 
     localparam map_spec_t MEM_MAP = '{
         NUM_REGIONS : {{ dec.interfaces | length }},

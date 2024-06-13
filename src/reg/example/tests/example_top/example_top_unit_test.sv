@@ -13,7 +13,7 @@ module example_top_unit_test;
     // and block sizes specified in example/reg/example_decoder.yaml. The properties
     // of the memory map can be used directly by importing the `MEM_MAP` parameter provided
     // in the decoder-specific package (`example_decoder_pkg`):
-    localparam mem_map_pkg::map_spec_t DECODER_ADDRESS_MAP = example_decoder_pkg::MEM_MAP;
+    localparam reg_pkg::map_spec_t DECODER_ADDRESS_MAP = example_decoder_pkg::MEM_MAP;
     localparam int BLK_OFFSET [3] = '{
         0: DECODER_ADDRESS_MAP.region[0].base,
         1: DECODER_ADDRESS_MAP.region[1].base,

@@ -1,5 +1,5 @@
 module axi4l_decoder #(
-    parameter mem_map_pkg::map_spec_t MEM_MAP = mem_map_pkg::DEFAULT_MAP_SPEC
+    parameter reg_pkg::map_spec_t MEM_MAP = reg_pkg::DEFAULT_MAP_SPEC
 ) (
     axi4l_intf.peripheral axi4l_if,
     axi4l_intf.controller axi4l_client_if [MEM_MAP.NUM_REGIONS]
@@ -107,7 +107,7 @@ module axi4l_decoder #(
         client_wr_sel = 0;
         client_wr_offset = 0;
         __wr_addr_decode_error = 1'b0;
-        if (wr) mem_map_pkg::decode(wr_addr, MEM_MAP, client_wr_sel, client_wr_offset, __wr_addr_decode_error);
+        if (wr) reg_pkg::decode(wr_addr, MEM_MAP, client_wr_sel, client_wr_offset, __wr_addr_decode_error);
     end
     assign __wr = wr && !__wr_addr_decode_error;
 
@@ -116,7 +116,7 @@ module axi4l_decoder #(
         client_rd_sel = 0;
         client_rd_offset = 0;
         __rd_addr_decode_error = 1'b0;
-        if (rd) mem_map_pkg::decode(rd_addr, MEM_MAP, client_rd_sel, client_rd_offset, __rd_addr_decode_error);
+        if (rd) reg_pkg::decode(rd_addr, MEM_MAP, client_rd_sel, client_rd_offset, __rd_addr_decode_error);
     end
     assign __rd = rd && !__rd_addr_decode_error;
 

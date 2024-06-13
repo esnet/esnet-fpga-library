@@ -3,7 +3,6 @@ package mem_pkg;
     // -----------------------------
     // Typedefs
     // -----------------------------
-
     typedef enum {
         OPT_MODE_DEFAULT, // Balanced
         OPT_MODE_TIMING,  // Optimize for performance (more pipelining)
@@ -25,6 +24,35 @@ package mem_pkg;
         RESET_FSM: 0,
         OPT_MODE: OPT_MODE_DEFAULT
     };
+
+    typedef enum {
+        ACCESS_UNSPECIFIED,
+        ACCESS_READ_WRITE,
+        ACCESS_READ_ONLY
+    } access_t;
+
+    typedef enum {
+        MEM_TYPE_UNSPECIFIED,
+        MEM_TYPE_SRAM,
+        MEM_TYPE_DDR,
+        MEM_TYPE_HBM
+    } mem_type_t;
+
+    typedef enum logic [2:0] {
+        COMMAND_NOP,
+        COMMAND_READ,
+        COMMAND_READ_BURST,
+        COMMAND_WRITE,
+        COMMAND_WRITE_BURST,
+        COMMAND_CLEAR
+    } command_t;
+
+    typedef enum logic [1:0] {
+        STATUS_UNSPECIFIED,
+        STATUS_OK,
+        STATUS_ERROR,
+        STATUS_TIMEOUT
+    } status_t;
 
     // -----------------------------
     // Functions

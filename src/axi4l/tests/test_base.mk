@@ -41,6 +41,7 @@ SRC_LIST_FILES = $(SVUNIT_SRC_LIST_FILE)
 SUBCOMPONENTS = \
     axi4l.rtl axi4l.verif \
     xilinx.axi.rtl \
+    reg.rtl \
     reg.proxy.rtl \
     reg.proxy.verif \
     reg.example.rtl \
