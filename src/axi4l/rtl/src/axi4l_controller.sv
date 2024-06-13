@@ -114,9 +114,15 @@ module axi4l_controller
     // --------------------
     initial axi4l_if.bready = 1'b0;
     always @(posedge clk) begin
-        if (srst) axi4l_if.bready <= 1'b0;
-        else if (wr) axi4l_if.bready <= 1'b1;
-        else if (axi4l_if.bvalid || wr_timeout) axi4l_if.bready <= 1'b0;
+        if (srst)                                  axi4l_if.bready <= 1'b0;
+        else begin
+            if (wr)                                axi4l_if.bready <= 1'b1;
+            else if (wr_pending) begin
+                if (axi4l_if.bvalid || wr_timeout) axi4l_if.bready <= 1'b0;
+                else                               axi4l_if.bready <= 1'b1;
+            end else if (axi4l_if.bvalid)          axi4l_if.bready <= 1'b1;
+            else                                   axi4l_if.bready <= 1'b0;
+        end
     end
 
     initial begin
@@ -193,13 +199,15 @@ module axi4l_controller
     // --------------------
     initial axi4l_if.rready = 1'b0;
     always @(posedge clk) begin
-        if (srst)                              axi4l_if.rready <= 1'b0;
-        else if (rd)                           axi4l_if.rready <= 1'b1;
-        else if (rd_pending) begin
-            if (axi4l_if.rvalid || rd_timeout) axi4l_if.rready <= 1'b0;
-            else                               axi4l_if.rready <= 1'b1;
-        end else if (axi4l_if.rvalid)          axi4l_if.rready <= 1'b1;
-        else                                   axi4l_if.rready <= 1'b0;
+        if (srst)                                  axi4l_if.rready <= 1'b0;
+        else begin
+            if (rd)                                axi4l_if.rready <= 1'b1;
+            else if (rd_pending) begin
+                if (axi4l_if.rvalid || rd_timeout) axi4l_if.rready <= 1'b0;
+                else                               axi4l_if.rready <= 1'b1;
+            end else if (axi4l_if.rvalid)          axi4l_if.rready <= 1'b1;
+            else                                   axi4l_if.rready <= 1'b0;
+        end
     end
 
     initial begin
