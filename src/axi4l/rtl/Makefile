@@ -26,6 +26,7 @@ SUBCOMPONENTS = \
     xilinx.axi.rtl \
     sync.rtl \
     reg.rtl \
+    reg.proxy.rtl \
     mem.rtl \
     util.rtl \
     apb.rtl
