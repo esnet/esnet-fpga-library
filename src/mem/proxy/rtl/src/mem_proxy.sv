@@ -113,6 +113,8 @@ module mem_proxy
     // -----------------------------
     // Signals
     // -----------------------------
+    logic      local_srst;
+
     fld_status_code_t status_code;
     logic      status_done;
     logic      status_error;
@@ -173,6 +175,20 @@ module mem_proxy
         .reg_blk_if ( reg_if )
     );
 
+    // Soft reset
+    initial local_srst = 1'b1;
+    always @(posedge clk) begin
+        if (srst || reg_if.control.reset) local_srst <= 1'b1;
+        else                              local_srst <= 1'b0;
+    end
+
+    // Monitor
+    assign reg_if.monitor_nxt_v = 1'b1;
+    assign reg_if.monitor_nxt.reset_mon = local_srst;
+    assign reg_if.monitor_nxt.enable_mon = 1'b1;
+    assign reg_if.monitor_nxt.ready_mon = init_done;
+    assign reg_if.monitor_nxt.state_mon = fld_monitor_state_mon_t'({'0, state});
+
     // Assign static INFO register values
     assign reg_if.info_nxt_v = 1'b1;
     assign reg_if.info_nxt.mem_type = getRegFromType(MEM_TYPE);
@@ -185,6 +201,8 @@ module mem_proxy
     assign reg_if.info_burst_nxt_v = 1'b1;
     assign reg_if.info_burst_nxt.min = BURST_SIZE_MIN;
     assign reg_if.info_burst_nxt.max = BURST_SIZE_MAX;
+    assign reg_if.info_burst_nxt.rsvd0 = '0;
+    assign reg_if.info_burst_nxt.rsvd1 = '0;
 
     // Report state machine status to regmap
     assign reg_if.status_nxt_v = 1'b1;
@@ -193,6 +211,7 @@ module mem_proxy
     assign reg_if.status_nxt.error = status_error;
     assign reg_if.status_nxt.timeout = status_timeout;
     assign reg_if.status_nxt.burst_size = status_burst_size;
+    assign reg_if.status_nxt.rsvd = '0;
 
     // Status read event
     assign status_rd_ack = reg_if.status_rd_evt;
@@ -220,7 +239,7 @@ module mem_proxy
     // Latch request
     initial req = 1'b0;
     always @(posedge clk) begin
-        if (srst)             req <= 1'b0;
+        if (local_srst)       req <= 1'b0;
         else if (command_evt) req <= 1'b1;
         else if (rdy)         req <= 1'b0;
     end
@@ -246,8 +265,8 @@ module mem_proxy
     // Transaction state machine
     initial state = RESET;
     always @(posedge clk) begin
-        if (srst) state <= RESET;
-        else      state <= nxt_state;
+        if (local_srst) state <= RESET;
+        else            state <= nxt_state;
     end
 
     always_comb begin
@@ -362,7 +381,6 @@ module mem_proxy
 
     // Drive write interface
     assign mem_wr_if.en = 1'b1;
-    assign mem_wr_if.addr = addr;
     always_comb begin
         mem_wr_if.addr = addr + (word * DATA_BYTES);
         mem_wr_if.data = wr_data[word];
@@ -409,16 +427,16 @@ module mem_proxy
     // -- Maintain `done` flag
     initial status_done = 1'b0;
     always @(posedge clk) begin
-        if (srst)      status_done <= 1'b0;
-        else if (done) status_done <= 1'b1;
-        else if (req)  status_done <= 1'b0;
+        if (local_srst) status_done <= 1'b0;
+        else if (done)  status_done <= 1'b1;
+        else if (req)   status_done <= 1'b0;
         else if (status_rd_ack && reg_if.status.done) status_done <= 1'b0;
     end
 
     // -- Maintain `error` flag
     initial status_error = 1'b0;
     always @(posedge clk) begin
-        if (srst)       status_error <= 1'b0;
+        if (local_srst) status_error <= 1'b0;
         else if (error) status_error <= 1'b1;
         else if (req)   status_error <= 1'b0;
         else if (status_rd_ack && reg_if.status.error) status_error <= 1'b0;
@@ -427,7 +445,7 @@ module mem_proxy
     // -- Maintain `timeout` flag
     initial status_timeout = 1'b0;
     always @(posedge clk) begin
-        if (srst)         status_timeout <= 1'b0;
+        if (local_srst)   status_timeout <= 1'b0;
         else if (timeout) status_timeout <= 1'b1;
         else if (req)     status_timeout <= 1'b0;
         else if (status_rd_ack && reg_if.status.timeout) status_timeout <= 1'b0;
@@ -435,7 +453,7 @@ module mem_proxy
 
     // -- Maintain burst size status
     always @(posedge clk) begin
-        if (srst) status_burst_size <= '0;
+        if (local_srst)   status_burst_size <= '0;
         else if (timeout) status_burst_size <= '0;
         else if (done)    status_burst_size <= burst_len * DATA_BYTES;
         else if (req)     status_burst_size <= '0;
