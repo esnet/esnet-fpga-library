@@ -86,13 +86,20 @@ regs:
           desc: Block state monitor.
           width: 8
           enum:
-            0 : RESET
-            1 : IDLE
-            2 : REQ
-            3 : BUSY
-            4 : DONE
-            5 : ERROR
-            6 : TIMEOUT
+            0  : RESET
+            1  : INIT_DEBOUNCE
+            2  : INIT_PENDING
+            3  : IDLE
+            4  : READ_REQ
+            5  : READ_PENDING
+            6  : WRITE_REQ
+            7  : WRITE_PENDING
+            8  : CLEAR_REQ
+            9  : CLEAR_DEBOUNCE
+            10 : CLEAR_PENDING
+            11 : DONE
+            12 : ERROR
+            13 : TIMEOUT
 
   - name: command
     desc: Command register
