@@ -1,7 +1,7 @@
 # -----------------------------------------------
 # Component setup
 # -----------------------------------------------
-COMPONENT_ROOT := ..
+COMPONENT_ROOT := ../..
 
 include $(COMPONENT_ROOT)/config.mk
 
@@ -23,13 +23,8 @@ SRC_LIST_FILES =
 #   (see $SCRIPTS_ROOT/Makefiles/templates/dependencies.mk)
 # ----------------------------------------------------
 SUBCOMPONENTS = \
-    xilinx.axi.rtl \
-    sync.rtl \
-    reg.rtl \
-    reg.proxy.rtl \
     mem.rtl \
-    util.rtl \
-    apb.rtl
+    axi3.rtl
 
 EXT_LIBS =
 

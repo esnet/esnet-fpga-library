@@ -1,7 +1,7 @@
 # -----------------------------------------------
 # Component setup
 # -----------------------------------------------
-COMPONENT_ROOT := ..
+COMPONENT_ROOT := ../..
 
 include $(COMPONENT_ROOT)/config.mk
 
@@ -23,13 +23,10 @@ SRC_LIST_FILES =
 #   (see $SCRIPTS_ROOT/Makefiles/templates/dependencies.mk)
 # ----------------------------------------------------
 SUBCOMPONENTS = \
-    xilinx.axi.rtl \
-    sync.rtl \
-    reg.rtl \
-    reg.proxy.rtl \
     mem.rtl \
-    util.rtl \
-    apb.rtl
+    axi3.rtl \
+    std.verif \
+    string.pkg
 
 EXT_LIBS =
 
@@ -47,14 +44,13 @@ COMPILE_OPTS =
 # ----------------------------------------------------
 # Targets
 # ----------------------------------------------------
-all: compile synth
+all: compile
 
 compile: _compile_sim
-synth:   _compile_synth
 info:    _compile_info
 clean:   _compile_clean
 
-.PHONY: all compile synth info clean
+.PHONY: all compile info clean
 
 # ----------------------------------------------------
 # Import Vivado compile targets
