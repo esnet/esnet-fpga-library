@@ -13,7 +13,7 @@ regs:
     access: ro
     fields:
         - name: fifo_type
-          desc: 
+          desc: type
           width: 1
           enum:
               0 : SYNC
