@@ -5,9 +5,7 @@ module fifo_async_axil #(
     parameter bit OFLOW_PROT = 1,
     parameter bit UFLOW_PROT = 1,
     // Derived parameters (don't override)
-    parameter int CNT_WID = FWFT ? $clog2(DEPTH+1+1) : $clog2(DEPTH+1),
-    // Debug parameters
-    parameter bit DEBUG_ILA = 1'b0
+    parameter int CNT_WID = FWFT ? $clog2(DEPTH+1+1) : $clog2(DEPTH+1)
 ) (
     // Write interface
     input  logic               wr_clk,
@@ -52,8 +50,7 @@ module fifo_async_axil #(
         .FWFT   ( FWFT ),
         .OFLOW_PROT ( OFLOW_PROT ),
         .UFLOW_PROT ( UFLOW_PROT ),
-        .AXIL_IF    ( 1 ),
-        .DEBUG_ILA  ( DEBUG_ILA )
+        .AXIL_IF    ( 1 )
     ) i_fifo_core (
         .wr_clk   ( wr_clk ),
         .wr_srst  ( wr_srst ),
