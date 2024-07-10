@@ -119,7 +119,6 @@ module axi4l_controller
             if (wr)                                axi4l_if.bready <= 1'b1;
             else if (wr_pending) begin
                 if (axi4l_if.bvalid || wr_timeout) axi4l_if.bready <= 1'b0;
-                else                               axi4l_if.bready <= 1'b1;
             end else if (axi4l_if.bvalid)          axi4l_if.bready <= 1'b1;
             else                                   axi4l_if.bready <= 1'b0;
         end
@@ -204,7 +203,6 @@ module axi4l_controller
             if (rd)                                axi4l_if.rready <= 1'b1;
             else if (rd_pending) begin
                 if (axi4l_if.rvalid || rd_timeout) axi4l_if.rready <= 1'b0;
-                else                               axi4l_if.rready <= 1'b1;
             end else if (axi4l_if.rvalid)          axi4l_if.rready <= 1'b1;
             else                                   axi4l_if.rready <= 1'b0;
         end
