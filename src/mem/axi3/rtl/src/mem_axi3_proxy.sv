@@ -167,7 +167,7 @@ module mem_axi3_proxy
         end
     end
 
-    always_ff @(posedge clk) if (mem_rd_if.req) axi3_if.araddr <= mem_rd_if.addr;
+    always_ff @(posedge clk) if (mem_rd_if.req && mem_rd_if.rdy) axi3_if.araddr <= mem_rd_if.addr;
   
     // Read metadata
     // -----------------------------
