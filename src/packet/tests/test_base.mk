@@ -41,6 +41,7 @@ SRC_LIST_FILES = $(SVUNIT_SRC_LIST_FILE)
 SUBCOMPONENTS = \
     packet.pkg \
     packet.rtl \
+    mem.rtl \
     packet.verif
 
 EXT_LIBS =
