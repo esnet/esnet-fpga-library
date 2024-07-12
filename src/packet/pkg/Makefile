@@ -22,11 +22,7 @@ SRC_LIST_FILES =
 #   List subcomponent and external library dependencies
 #   (see $SCRIPTS_ROOT/Makefiles/templates/dependencies.mk)
 # ----------------------------------------------------
-SUBCOMPONENTS = \
-    packet.pkg \
-    string.pkg \
-    std.verif
-
+SUBCOMPONENTS =
 EXT_LIBS =
 
 # ----------------------------------------------------
@@ -43,13 +39,14 @@ COMPILE_OPTS =
 # ----------------------------------------------------
 # Targets
 # ----------------------------------------------------
-all: compile
+all: compile synth
 
 compile: _compile_sim
+synth:   _compile_synth
 info:    _compile_info
 clean:   _compile_clean
 
-.PHONY: all compile info clean
+.PHONY: all compile synth info clean
 
 # ----------------------------------------------------
 # Import Vivado compile targets

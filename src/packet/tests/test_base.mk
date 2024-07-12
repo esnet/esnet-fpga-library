@@ -39,7 +39,7 @@ SRC_LIST_FILES = $(SVUNIT_SRC_LIST_FILE)
 #   (see $SCRIPTS_ROOT/Makefiles/templates/dependencies.mk for details)
 # ----------------------------------------------------
 SUBCOMPONENTS = \
-    packet.rtl \
+    packet.pkg \
     packet.verif
 
 EXT_LIBS =

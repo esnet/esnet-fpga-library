@@ -62,17 +62,13 @@ module packet_transaction_unit_test;
 
         `SVTEST(packet_raw_transaction)
             import packet_verif_pkg::*;
-            packet_raw the_raw_packet;
-            packet_transaction the_transaction;
+            packet_raw the_packet;
 
             // Create raw packet
-            the_raw_packet = packet_raw::create_from_bytes("the raw packet", payload_data);
-
-            // Create transaction from packet
-            the_transaction = new("the packet transaction", the_raw_packet);
+            the_packet = packet_raw::create_from_bytes("the raw packet", payload_data);
 
             // Print transaction
-            $display(the_transaction.to_string());
+            $display(the_packet.to_string());
 
         `SVTEST_END
 
