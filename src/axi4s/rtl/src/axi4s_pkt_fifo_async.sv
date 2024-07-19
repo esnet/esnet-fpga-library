@@ -10,6 +10,7 @@ module axi4s_pkt_fifo_async
 #(
    parameter int   FIFO_DEPTH = 256,
    parameter int   MAX_PKT_LEN = 9100,
+   parameter int   TX_THRESHOLD = 0,
    // Debug parameters
    parameter bit   DEBUG_ILA = 1'b0
 ) (
@@ -70,6 +71,9 @@ module axi4s_pkt_fifo_async
    logic [CNT_WIDTH:0]  rd_count;
    logic                empty;
    logic                uflow;
+
+   logic                pkt_empty;
+   logic                pkt_ready;
 
    localparam DATA_WIDTH = $size(wr_data);
    localparam PKT_DISCARD_DEPTH = $ceil($itor(MAX_PKT_LEN) / $itor(DATA_BYTE_WID)) * 3; // axi4s_pkt_discard_ovfl buffers 3 max pkts.
@@ -141,7 +145,7 @@ module axi4s_pkt_fifo_async
    assign almost_full = wr_count > (FIFO_ASYNC_DEPTH - ALMOST_FULL_THRESH);
    assign flow_ctl    = wr_count > flow_ctl_thresh;
 
-   assign rd = !empty && axi4s_out.tready;
+   assign rd = axi4s_out.tvalid && axi4s_out.tready;
 
    
    // --- fifo_async instantiation ---
@@ -173,6 +177,45 @@ module axi4s_pkt_fifo_async
       .axil_if   ( axil_if )
    );
 
+   // --- pkt context ---
+   fifo_async   #(
+       .DATA_T   ( logic ),
+       .DEPTH    ( FIFO_ASYNC_DEPTH ),
+       .FWFT     ( 1 )
+   ) fifo_async__pkt_ctxt (
+       .wr_clk   ( axi4s_to_fifo.aclk ),
+       .wr_srst  ( ~axi4s_to_fifo.aresetn ),
+       .wr_rdy   ( ),
+       .wr       (  axi4s_to_fifo.tvalid && axi4s_to_fifo.tready && axi4s_to_fifo.tlast ),
+       .wr_data  (  1'b1 ),
+       .rd_clk   (  axi4s_out.aclk ),
+       .rd_srst  ( ~axi4s_out.aresetn ),
+       .rd       (  axi4s_out.tvalid && axi4s_out.tready && axi4s_out.tlast ),
+       .rd_data  ( ),
+       .wr_count ( ),
+       .rd_count ( ),
+       .empty    ( pkt_empty ),
+       .oflow    ( ),
+       .uflow    ( )
+   );
+
+   // --- pkt_ready ---
+   // (optionally) begin packet Tx only if word threshold is met or full packet is available.
+   // With appropriate configuration, this can prevent mid-packet underrun.
+   generate
+       if (TX_THRESHOLD == 0) begin : g__no_tx_threshold
+           // No Tx threshold: begin packet Tx as soon as first word is available.
+           assign pkt_ready = 1'b1;
+       end : g__no_tx_threshold
+       else if (TX_THRESHOLD >= MAX_PKT_LEN) begin : g__tx_wait_for_packet
+           // Hold off packet Tx until full packet is available.
+           assign pkt_ready = !pkt_empty;
+       end : g__tx_wait_for_packet
+       else begin : g__tx_threshold
+           // Tx threshold: begin packet Tx if word threshold is met, or if full packet is available.
+           assign pkt_ready = !pkt_empty || (rd_count >= TX_THRESHOLD);
+       end : g__tx_threshold
+   endgenerate
 
    // --- axi4s output clock/reset ---
    assign axi4s_out.aclk = clk_out;
@@ -187,7 +230,7 @@ module axi4s_pkt_fifo_async
    );
 
    // --- axi4s output signaling ---
-   assign axi4s_out.tvalid = ~empty;
+   assign axi4s_out.tvalid = ~empty && (~axi4s_out.sop || pkt_ready);
 
    assign axi4s_out.tuser  = rd_data.tuser;
    assign axi4s_out.tlast  = rd_data.tlast;
