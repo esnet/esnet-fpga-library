@@ -24,8 +24,10 @@ SRC_LIST_FILES =
 # ----------------------------------------------------
 SUBCOMPONENTS = \
     packet.pkg \
+    packet.eth.pkg \
     string.pkg \
-    std.verif
+    std.verif \
+    pcap.pkg
 
 EXT_LIBS =
 
