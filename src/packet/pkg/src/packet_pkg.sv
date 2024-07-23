@@ -3,7 +3,9 @@
 // ============================================
 package packet_pkg;
 
+    // ============================================
     // Protocols
+    // ============================================
     typedef enum {
         PROTOCOL_NONE,
         PROTOCOL_ETHERNET,
@@ -20,4 +22,16 @@ package packet_pkg;
         endcase
     endfunction
             
+    // ============================================
+    // Typedefs
+    // ============================================
+    typedef enum logic [2:0] {
+        STATUS_UNDEFINED = 0,
+        STATUS_OK = 1,
+        STATUS_ERR = 2,
+        STATUS_OFLOW = 3,
+        STATUS_SHORT = 4,
+        STATUS_LONG = 5
+    } status_t;
+
 endpackage : packet_pkg
