@@ -1,19 +1,25 @@
 `include "svunit_defines.svh"
 
 module axi4s_intf_unit_test #(
-    parameter logic[2:0] DUT_SELECT = 0
+    parameter logic[3:0] DUT_SELECT = 0
 );
     import svunit_pkg::svunit_testcase;
     import packet_verif_pkg::*;
     import axi4s_verif_pkg::*;
 
-    localparam string dut_string = DUT_SELECT == 0 ? "axi4s_intf_connector" :
-                                   DUT_SELECT == 1 ? "axi4s_int_pipe" :
-                                   DUT_SELECT == 2 ? "axi4s_tready_pipe" :
-                                   DUT_SELECT == 3 ? "axi4s_full_pipe" :
-                                   DUT_SELECT == 4 ? "axi4s_fifo_sync_32d" :
-                                   DUT_SELECT == 5 ? "axi4s_fifo_sync_512d" :
-                                   DUT_SELECT == 6 ? "axi4s_fifo_sync_8192d" : "undefined";
+    localparam string dut_string = DUT_SELECT ==  0 ? "axi4s_intf_connector" :
+                                   DUT_SELECT ==  1 ? "axi4s_int_pipe" :
+                                   DUT_SELECT ==  2 ? "axi4s_tready_pipe" :
+                                   DUT_SELECT ==  3 ? "axi4s_full_pipe" :
+                                   DUT_SELECT ==  4 ? "axi4s_fifo_sync_32d" :
+                                   DUT_SELECT ==  5 ? "axi4s_fifo_sync_512d" :
+                                   DUT_SELECT ==  6 ? "axi4s_fifo_sync_8192d" :
+                                   DUT_SELECT ==  7 ? "axi4s_fifo_async_32d" :
+                                   DUT_SELECT ==  8 ? "axi4s_fifo_async_512d" :
+                                   DUT_SELECT ==  9 ? "axi4s_fifo_async_8192d" :
+                                   DUT_SELECT == 10 ? "axi4s_pkt_fifo_async_default" :
+                                   DUT_SELECT == 11 ? "axi4s_pkt_fifo_async_st_fwd" :
+                                   DUT_SELECT == 12 ? "axi4s_pkt_fifo_sync" : "undefined";
 
     string name = $sformatf("axi4s_intf_dut_%s_ut", dut_string);
     svunit_testcase svunit_ut;
@@ -34,19 +40,66 @@ module axi4s_intf_unit_test #(
     axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID)) axis_in_if ();
     axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID)) axis_out_if ();
 
+    axi4l_intf  axil_to_probe ();
+    axi4l_intf  axil_to_ovfl  ();
+    axi4l_intf  axil_if ();
+
+    axi4l_intf_controller_term axi4l_to_probe_controller_term (.axi4l_if(axil_to_probe));
+    axi4l_intf_controller_term axi4l_to_ovfl_controller_term  (.axi4l_if(axil_to_ovfl));
+    axi4l_intf_controller_term axi4l_if_controller_term       (.axi4l_if(axil_if));
+
+    logic tvalid_check = 0;
+
     generate
       case (DUT_SELECT)
-         0: axi4s_intf_connector DUT (.axi4s_from_tx(axis_in_if), .axi4s_to_rx(axis_out_if));
+         0: axi4s_intf_connector DUT (   .axi4s_from_tx(axis_in_if), .   axi4s_to_rx(axis_out_if));
+         1: axi4s_intf_pipe      DUT (.axi4s_if_from_tx(axis_in_if), .axi4s_if_to_rx(axis_out_if));
+         2: axi4s_tready_pipe    DUT (.axi4s_if_from_tx(axis_in_if), .axi4s_if_to_rx(axis_out_if));
+         3: axi4s_full_pipe      DUT (.axi4s_if_from_tx(axis_in_if), .axi4s_if_to_rx(axis_out_if));
 
-         1: axi4s_intf_pipe DUT (.axi4s_if_from_tx(axis_in_if), .axi4s_if_to_rx(axis_out_if));
+         4: axi4s_fifo_sync  #(.DEPTH(  32)) DUT (.axi4s_in(axis_in_if), .axi4s_out(axis_out_if));
+         5: axi4s_fifo_sync  #(.DEPTH( 512)) DUT (.axi4s_in(axis_in_if), .axi4s_out(axis_out_if));
+         6: axi4s_fifo_sync  #(.DEPTH(8192)) DUT (.axi4s_in(axis_in_if), .axi4s_out(axis_out_if));
 
-         2: axi4s_tready_pipe DUT (.axi4s_if_from_tx(axis_in_if), .axi4s_if_to_rx(axis_out_if));
+         7: begin
+                axi4s_fifo_async #(.DEPTH(  32)) DUT (.axi4s_in(axis_in_if), .axi4s_out(axis_out_if));
+               `SVUNIT_CLK_GEN(axis_out_if.aclk, 1.0ns);  // slow to fast
+            end
 
-         3: axi4s_full_pipe DUT (.axi4s_if_from_tx(axis_in_if), .axi4s_if_to_rx(axis_out_if));
+         8: begin
+                axi4s_fifo_async #(.DEPTH( 512)) DUT (.axi4s_in(axis_in_if), .axi4s_out(axis_out_if));
+               `SVUNIT_CLK_GEN(axis_out_if.aclk, 1.5ns);
+            end
 
-         4: axi4s_fifo_sync #(.DEPTH(32))   DUT (.axi4s_in(axis_in_if), .axi4s_out(axis_out_if));
-         5: axi4s_fifo_sync #(.DEPTH(512))  DUT (.axi4s_in(axis_in_if), .axi4s_out(axis_out_if));
-         6: axi4s_fifo_sync #(.DEPTH(8192)) DUT (.axi4s_in(axis_in_if), .axi4s_out(axis_out_if));
+         9: begin
+                axi4s_fifo_async #(.DEPTH(8192)) DUT (.axi4s_in(axis_in_if), .axi4s_out(axis_out_if));
+               `SVUNIT_CLK_GEN(axis_out_if.aclk, 2.0ns);  // fast to slow
+            end
+
+         10: begin
+                axi4s_pkt_fifo_async DUT ( .axi4s_in(axis_in_if), .axi4s_out(axis_out_if), .clk_out(axis_out_if.aclk),
+                                           .flow_ctl_thresh('0), .flow_ctl(),
+                                           .axil_to_probe(axil_to_probe), .axil_to_ovfl(axil_to_ovfl), .axil_if(axil_if) );
+
+               `SVUNIT_CLK_GEN(axis_out_if.aclk, 2.0ns);  // fast to slow
+            end
+
+         11: begin
+                assign tvalid_check = 1;
+
+                axi4s_pkt_fifo_async #(.TX_THRESHOLD(512)) DUT (
+                                           .axi4s_in(axis_in_if), .axi4s_out(axis_out_if), .clk_out(axis_out_if.aclk),
+                                           .flow_ctl_thresh('0), .flow_ctl(),
+                                           .axil_to_probe(axil_to_probe), .axil_to_ovfl(axil_to_ovfl), .axil_if(axil_if) );
+
+               `SVUNIT_CLK_GEN(axis_out_if.aclk, 1.0ns);  // slow to fast
+            end
+
+         12: begin
+                axi4s_pkt_fifo_sync DUT ( .srst(reset_if.reset), .axi4s_in(axis_in_if), .axi4s_out(axis_out_if),
+                                          .axil_to_probe(axil_to_probe), .axil_to_ovfl(axil_to_ovfl), .axil_if(axil_if),
+                                          .oflow() );
+            end
       endcase
    endgenerate
 
@@ -68,10 +121,27 @@ module axi4s_intf_unit_test #(
     // Reset
     std_reset_intf reset_if (.clk(axis_in_if.aclk));
     assign axis_in_if.aresetn = !reset_if.reset;
+    assign axis_out_if.aresetn = axis_in_if.aresetn;
     assign reset_if.ready = !reset_if.reset;
 
     // Assign clock (333MHz)
     `SVUNIT_CLK_GEN(axis_in_if.aclk, 1.5ns);
+
+    // Checking logic
+    logic pkt_pending, pkt_pending_ff;
+
+    always @(posedge axis_out_if.aclk) begin
+        if (!axis_out_if.aresetn)                          pkt_pending_ff <=  0;
+        else if (axis_out_if.tvalid && axis_out_if.tready) pkt_pending_ff <=  pkt_pending_ff ? !axis_out_if.tlast : axis_out_if.sop;
+    end
+
+    assign pkt_pending = pkt_pending_ff || (axis_out_if.tvalid && axis_out_if.tready && axis_out_if.sop);
+
+    logic tvalid_fail;
+    always @(posedge axis_out_if.aclk) begin
+        if (!axis_out_if.aresetn) tvalid_fail <= 0;
+        else if (tvalid_check)    tvalid_fail <= tvalid_fail || (pkt_pending && axis_out_if.tready && !axis_out_if.tvalid);
+    end
 
     //===================================
     // Build
@@ -170,50 +240,50 @@ module axi4s_intf_unit_test #(
         `SVTEST(one_packet_good)
             len = $urandom_range(64, 511);
             one_packet();
-            #10us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
+            #10us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg ); `FAIL_IF_LOG( tvalid_fail, "Unexpected stall on axis_out_if.tvalid" );
         `SVTEST_END
 
         `SVTEST(one_packet_tpause_2)
             env.monitor.set_tpause(2);
             one_packet();
-            #10us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
+            #10us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg ); `FAIL_IF_LOG( tvalid_fail, "Unexpected stall on axis_out_if.tvalid" );
         `SVTEST_END
 
         `SVTEST(one_packet_twait_2)
             env.driver.set_twait(2);
             one_packet();
-            #10us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
+            #10us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg ); `FAIL_IF_LOG( tvalid_fail, "Unexpected stall on axis_out_if.tvalid" );
         `SVTEST_END
 
         `SVTEST(one_packet_tpause_2_twait_2)
             env.monitor.set_tpause(2);
             env.driver.set_twait(2);
             one_packet();
-            #10us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
+            #10us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg ); `FAIL_IF_LOG( tvalid_fail, "Unexpected stall on axis_out_if.tvalid" );
         `SVTEST_END
 
         `SVTEST(packet_stream_good)
             packet_stream();
-            #100us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
+            #100us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg ); `FAIL_IF_LOG( tvalid_fail, "Unexpected stall on axis_out_if.tvalid" );
         `SVTEST_END
 
         `SVTEST(packet_stream_tpause_2)
             env.monitor.set_tpause(2);
             packet_stream();
-            #100us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
+            #100us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg ); `FAIL_IF_LOG( tvalid_fail, "Unexpected stall on axis_out_if.tvalid" );
         `SVTEST_END
 
         `SVTEST(packet_stream_twait_2)
             env.driver.set_twait(2);
             packet_stream();
-            #100us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
+            #100us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg ); `FAIL_IF_LOG( tvalid_fail, "Unexpected stall on axis_out_if.tvalid" );
         `SVTEST_END
 
         `SVTEST(packet_stream_tpause_2_twait_2)
             env.monitor.set_tpause(2);
             env.driver.set_twait(2);
             packet_stream();
-            #100us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
+            #100us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg ); `FAIL_IF_LOG( tvalid_fail, "Unexpected stall on axis_out_if.tvalid" );
         `SVTEST_END
 
         `SVTEST(one_packet_bad)
@@ -288,4 +358,28 @@ endmodule
 
 module axi4s_fifo_sync_8192d_unit_test;
 `AXI4S_UNIT_TEST(6)
+endmodule
+
+module axi4s_fifo_async_32d_unit_test;
+`AXI4S_UNIT_TEST(7)
+endmodule
+
+module axi4s_fifo_async_512d_unit_test;
+`AXI4S_UNIT_TEST(8)
+endmodule
+
+module axi4s_fifo_async_8192d_unit_test;
+`AXI4S_UNIT_TEST(9)
+endmodule
+
+module axi4s_pkt_fifo_async_default_unit_test;
+`AXI4S_UNIT_TEST(10)
+endmodule
+
+module axi4s_pkt_fifo_async_st_fwd_unit_test;
+`AXI4S_UNIT_TEST(11)
+endmodule
+
+module axi4s_pkt_fifo_sync_unit_test;
+`AXI4S_UNIT_TEST(12)
 endmodule
