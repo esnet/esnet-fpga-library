@@ -124,6 +124,9 @@ interface axi4s_intf
         cb_tx.tlast  <= 1'b0;
         cb_tx.tkeep  <= '0;
         cb_tx.tdata  <= '0;
+        cb_tx.tid    <= '0;
+        cb_tx.tdest  <= '0;
+        cb_tx.tuser  <= '0;
     endtask
 
     task idle_rx();
