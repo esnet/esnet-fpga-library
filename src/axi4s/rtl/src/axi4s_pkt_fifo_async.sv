@@ -60,6 +60,7 @@ module axi4s_pkt_fifo_async
        logic [DATA_BYTE_WID-1:0][7:0] tdata;
    } fifo_data_t;
 
+   logic                wr_rdy;
    logic                wr;
    fifo_data_t          wr_data;
    logic [CNT_WIDTH:0]  wr_count;
@@ -109,7 +110,7 @@ module axi4s_pkt_fifo_async
              .axi4s_out (axi4s_to_fifo)
          );
 
-         assign axi4s_to_fifo.tready = !almost_full;
+         assign axi4s_to_fifo.tready = !almost_full && wr_rdy;
          assign wr = axi4s_to_fifo.tvalid;
       end : g__pkt_discard_ovfl
 
@@ -126,7 +127,7 @@ module axi4s_pkt_fifo_async
 
          axi4l_intf_peripheral_term axi4l_to_ovfl_peripheral_term (.axi4l_if(axil_to_ovfl));
 
-         assign axi4s_to_fifo.tready = !full;
+         assign axi4s_to_fifo.tready = !full && wr_rdy;
          assign wr = axi4s_to_fifo.tvalid && axi4s_to_fifo.tready;
       end : g__no_pkt_discard_ovfl
 
@@ -157,7 +158,7 @@ module axi4s_pkt_fifo_async
    ) fifo_async_0 (
       .wr_clk    ( axi4s_to_fifo.aclk ),
       .wr_srst   (~axi4s_to_fifo.aresetn ),
-      .wr_rdy    ( ),
+      .wr_rdy    ( wr_rdy ),
       .wr        ( wr ),
       .wr_data   ( wr_data ),
 
