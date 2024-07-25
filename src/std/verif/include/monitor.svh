@@ -54,6 +54,7 @@ virtual class monitor #(
     task receive(output TRANSACTION_T transaction);
         trace_msg("receive()");
         _receive(transaction);
+        transaction.set_name($sformatf("%s[%0d]", __rx_transaction_prefix, num_transactions()));
         __cnt++;
         trace_msg("receive() Done.");
     endtask
@@ -66,7 +67,6 @@ virtual class monitor #(
         forever begin
             TRANSACTION_T transaction;
             receive(transaction);
-            transaction.set_name($sformatf("%s[%0d]", __rx_transaction_prefix, num_transactions()));
             outbox.put(transaction);
         end
         trace_msg("_start() Done.");
