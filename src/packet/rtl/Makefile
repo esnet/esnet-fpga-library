@@ -24,6 +24,7 @@ SRC_LIST_FILES =
 # ----------------------------------------------------
 SUBCOMPONENTS = \
     std.rtl \
+    fifo.rtl \
     mem.rtl \
     packet.pkg
 

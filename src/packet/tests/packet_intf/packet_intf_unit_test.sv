@@ -6,7 +6,9 @@ module packet_intf_unit_test #(
     import svunit_pkg::svunit_testcase;
     import packet_verif_pkg::*;
 
-    localparam string dut_string = DUT_SELECT == 0 ? "packet_intf_connector" : "undefined";
+    localparam string dut_string = DUT_SELECT == 0 ? "packet_intf_connector" : 
+                                                 1 ? "packet_fifo" :
+                                                     "undefined";
 
     string name = $sformatf("packet_intf_dut_%s_ut", dut_string);
     svunit_testcase svunit_ut;
@@ -15,7 +17,7 @@ module packet_intf_unit_test #(
     // Parameters
     //===================================
     localparam int DATA_BYTE_WID = 8;
-    localparam type META_T = bit;
+    localparam type META_T = logic[31:0];
 
     typedef packet#(META_T) PACKET_T;
 
@@ -23,14 +25,18 @@ module packet_intf_unit_test #(
     // DUT
     //===================================
     logic clk;
-    packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_T(META_T)) packet_in_if (.clk(clk));
-    packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_T(META_T)) packet_out_if (.clk(clk));
+    logic srst;
+
+    packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_T(META_T)) packet_in_if (.clk(clk), .srst(srst));
+    packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_T(META_T)) packet_out_if (.clk(clk), .srst(srst));
+
 
     generate
-      case (DUT_SELECT)
-         0: packet_intf_connector DUT (.from_tx(packet_in_if), .to_rx(packet_out_if));
-      endcase
-   endgenerate
+        case (DUT_SELECT)
+            0: packet_intf_connector DUT (.from_tx(packet_in_if), .to_rx(packet_out_if));
+            1: packet_fifo #(.DEPTH (16384)) DUT (.*);
+        endcase
+    endgenerate
 
 
     //===================================
@@ -46,8 +52,9 @@ module packet_intf_unit_test #(
     std_verif_pkg::event_scoreboard#(PACKET_T) scoreboard;
 
     // Reset
-    std_reset_intf reset_if (.clk(packet_in_if.clk));
-    assign reset_if.ready = !reset_if.reset;
+    std_reset_intf reset_if (.clk(clk));
+    assign srst = reset_if.reset;
+    assign reset_if.ready = !srst;
 
     // Assign clock (333MHz)
     `SVUNIT_CLK_GEN(clk, 1.5ns);
@@ -127,8 +134,11 @@ module packet_intf_unit_test #(
 
     task one_packet(int id=0, int len=$urandom_range(64, 511));
         packet_raw#(META_T) packet;
+        META_T meta;
         packet = new($sformatf("pkt_%0d", id), len);
         packet.randomize();
+        void'(std::randomize(meta));
+        packet.set_meta(meta);
         env.inbox.put(packet);
     endtask
 
@@ -238,4 +248,8 @@ endmodule
 
 module packet_intf_connector_unit_test;
 `PACKET_UNIT_TEST(0)
+endmodule
+
+module packet_fifo_unit_test;
+`PACKET_UNIT_TEST(1)
 endmodule
