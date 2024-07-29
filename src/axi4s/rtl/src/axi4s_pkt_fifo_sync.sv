@@ -14,9 +14,7 @@ module axi4s_pkt_fifo_sync
    parameter int   ALMOST_FULL_THRESH = 4,  // set to 4 for pkt_discard (IGNORES_TREADY) mode.
    parameter int   MAX_PKT_LEN = 9100,
    parameter logic STR_FWD_MODE = 0,        // when 1, full packet is required to deassert empty.
-   parameter logic NO_INTRA_PKT_GAP = 0,    // when 1, space for full packet is required to assert tready.
-   // Debug parameters
-   parameter bit   DEBUG_ILA = 1'b0
+   parameter logic NO_INTRA_PKT_GAP = 0     // when 1, space for full packet is required to assert tready.
 ) (
    input logic srst,
 
@@ -145,8 +143,7 @@ module axi4s_pkt_fifo_sync
    fifo_sync_axil #(
       .DATA_T    (fifo_data_t),
       .DEPTH     (FIFO_SYNC_DEPTH),
-      .FWFT      (1),
-      .DEBUG_ILA (DEBUG_ILA)
+      .FWFT      (1)
    ) fifo_sync_0 (
       .clk       ( axi4s_to_fifo.aclk ),
       .srst      (~axi4s_to_fifo.aresetn || srst),
@@ -209,29 +206,5 @@ module axi4s_pkt_fifo_sync
    assign axi4s_out.tdest  = rd_data.tdest;
    assign axi4s_out.tkeep  = rd_data.tkeep;
    assign axi4s_out.tdata  = rd_data.tdata;
-
-    // Optional debug ILAs
-    generate
-        if (DEBUG_ILA) begin : g__ila
-            fifo_xilinx_ila i_fifo_in_ila (
-                .clk (axi4s_in.aclk),
-                .probe0 ( !axi4s_in.aresetn ),  // input wire [0:0]  probe0
-                .probe1 ( full ),          // input wire [0:0]  probe1
-                .probe2 ( almost_full ),   // input wire [0:0]  probe2
-                .probe3 ( oflow ),         // input wire [0:0]  probe3
-                .probe4 ( '0 ),            // input wire [31:0] probe4
-                .probe5 ( {'0, wr_count} ) // input wire [31:0] probe5
-            );
-            fifo_xilinx_ila i_fifo_out_ila (
-                .clk (axi4s_out.aclk),
-                .probe0 ( !axi4s_out.aresetn ), // input wire [0:0]  probe0
-                .probe1 ( empty ),         // input wire [0:0]  probe1
-                .probe2 ( empty ),         // input wire [0:0]  probe2
-                .probe3 ( uflow ),         // input wire [0:0]  probe3
-                .probe4 ( '0 ),            // input wire [31:0] probe4
-                .probe5 ( {'0, rd_count} ) // input wire [31:0] probe5
-            );
-        end : g__ila
-    endgenerate
 
 endmodule
