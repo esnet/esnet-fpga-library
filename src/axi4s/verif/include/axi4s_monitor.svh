@@ -121,20 +121,21 @@ class axi4s_monitor #(
         TDEST_T tdest;
         TUSER_T tuser;
 
-        packet_verif_pkg::packet_raw packet;
-
         debug_msg("Waiting for transaction...");
 
         // Receive transaction
         receive_raw(data, tid, tdest, tuser, _tpause);
 
-        // Build Rx packet transaction
-        packet = packet_verif_pkg::packet_raw::create_from_bytes("rx_packet", data);
-
         // Build Rx AXI-S transaction
-        transaction = new("rx_axi4s_transaction", packet, tid, tdest, tuser);
+        transaction = axi4s_transaction#(TID_T,TDEST_T,TUSER_T)::create_from_bytes(
+            "rx_axi4s_transaction",
+            data,
+            tid,
+            tdest,
+            tuser
+        );
 
-        debug_msg($sformatf("Received %s (%0d bytes).", transaction.get_name(), transaction.get_packet().size()));
+        debug_msg($sformatf("Received %s (%0d bytes).", transaction.get_name(), transaction.size()));
     endtask
 
     task flush();

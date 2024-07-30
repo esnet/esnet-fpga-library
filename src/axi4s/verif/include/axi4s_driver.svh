@@ -129,7 +129,7 @@ class axi4s_driver #(
         debug_msg($sformatf("Sending:\n%s", transaction.to_string()));
 
         // Send transaction
-        send_raw(transaction.get_packet().to_bytes(), transaction.tid, transaction.tdest, transaction.tuser, _twait);
+        send_raw(transaction.to_bytes(), transaction.get_tid(), transaction.get_tdest(), transaction.get_tuser(), _twait);
 
         debug_msg("Done.");
     endtask
@@ -173,20 +173,15 @@ class axi4s_driver #(
         pkt_idx = 0;
         for (int i = start_idx; i < num_pkts; i++) begin
 
-            // Create new packet transaction from next PCAP record
-            packet_verif_pkg::packet_raw packet = packet_verif_pkg::packet_raw::create_from_bytes(
-                $sformatf("Packet %0d", pkt_idx),
-                pcap.records[i].pkt_data
-            );
-
-            // Generate new AXI-S transaction
-            axi4s_transaction#(TID_T, TDEST_T, TUSER_T) transaction = new(
-                packet.get_name(),
-                packet,
-                id,
-                dest,
-                user
-            );
+            // Generate new AXI-S transaction from next PCAP record
+            axi4s_transaction#(TID_T,TDEST_T,TUSER_T) transaction =
+                axi4s_transaction#(TID_T,TDEST_T,TUSER_T)::create_from_bytes(
+                    $sformatf("Packet %0d", pkt_idx),
+                    pcap.records[i].pkt_data,
+                    id,
+                    dest,
+                    user
+                );
 
             info_msg($sformatf("TID %d: Sending packet # %0d (of %0d)...", id, pkt_idx+1, num_pkts));
 
