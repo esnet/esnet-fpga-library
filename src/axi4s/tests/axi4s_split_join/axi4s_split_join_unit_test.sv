@@ -225,7 +225,6 @@ module axi4s_split_join_unit_test
     //===================================
     string msg;
 
-    packet_raw packet;
     AXI4S_TRANSACTION_T axis_transaction;
             
     byte hdr_in  [];
@@ -262,15 +261,13 @@ module axi4s_split_join_unit_test
           hdr_trunc_length = 128;
 
           // build input packet (hdr_exp + pyld_in).
-          packet = new();
-          packet = packet.create_from_bytes($sformatf("pkt_exp_%0d", j), {hdr_in, pyld_in});
+          axis_transaction = AXI4S_TRANSACTION_T::create_from_bytes($sformatf("trans_exp_%0d", j), {hdr_in, pyld_in});
 
           // submit expected packet to scoreboard.
-          axis_transaction = new($sformatf("trans_exp_%0d", j), packet);
           repeat (4) env.model.inbox.put(axis_transaction);
 
           // launch input packet.
-          axis_transaction = new($sformatf("trans_in_%0d", j), packet);
+          axis_transaction.set_name($sformatf("trans_in_%0d", j));
           repeat (4) env.driver.inbox.put(axis_transaction);
 
           // wait for packet transit time.
@@ -305,18 +302,18 @@ module axi4s_split_join_unit_test
               hdr_trunc_length = i+prefix.size();
 
               // build and launch expected packet (hdr_exp + pyld_in).
-              packet = new();
-              packet = packet.create_from_bytes($sformatf("pkt_exp_%0d_%0d", i, j), {prefix, hdr_exp, pyld_in});
+              axis_transaction = AXI4S_TRANSACTION_T::create_from_bytes($sformatf("trans_exp_%0d_%0d", i, j), {prefix, hdr_exp, pyld_in});
               for (int k = 0; k < 4; k++) begin
-                 axis_transaction = new($sformatf("trans_exp_%0d_%0d", i, j), packet, k%2, k%2+1); // alternate tid & tdest.
+                 axis_transaction.set_tid(k%2);
+                 axis_transaction.set_tdest(k%2+1); // alternate tid & tdest.
                  env.model.inbox.put(axis_transaction);
               end
 
               // build and launch input packet (hdr_in + pyld_in).
-              packet = new();
-              packet = packet.create_from_bytes($sformatf("pkt_in_%0d_%0d", i, j), {hdr_in, pyld_in});  // alternate tid & tdest.
+              axis_transaction= AXI4S_TRANSACTION_T::create_from_bytes($sformatf("trans_in_%0d_%0d", i, j), {hdr_in, pyld_in});
               for (int k = 0; k < 4; k++) begin
-                 axis_transaction = new($sformatf("trans_in_%0d_%0d", i, j), packet, k%2, k%2+1);
+                 axis_transaction.set_tid(k%2);
+                 axis_transaction.set_tdest(k%2+1); // alternate tid & tdest.
                  env.driver.inbox.put(axis_transaction);
               end
 
@@ -326,9 +323,7 @@ module axi4s_split_join_unit_test
           // if drop_hdr is set, send packet that will be dropped (before looping to increment payload size).
           if (drop_hdr.size() != 0) begin
             hdr_trunc_length = 16; // set header processing truncation length to 16B.
-            packet = new();
-            packet = packet.create_from_bytes($sformatf("pkt_in_drop_%0d", j), {drop_hdr, pyld_in});
-            axis_transaction = new($sformatf("trans_in_drop_%0d", j), packet);
+            axis_transaction = AXI4S_TRANSACTION_T::create_from_bytes($sformatf("trans_in_drop_%0d", j), {drop_hdr, pyld_in});
             env.driver.inbox.put(axis_transaction);
 
             axi4s_out._wait(100); // wait for packet transit time.

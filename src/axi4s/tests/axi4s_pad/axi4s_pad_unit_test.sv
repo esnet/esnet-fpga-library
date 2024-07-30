@@ -121,25 +121,21 @@ module axi4s_pad_unit_test;
 
     AXI4S_TRANSACTION_T  axis_transaction_in, axis_transaction_out;
 
-    packet_raw  packet_in, packet_out;
-
     string msg;
 
     task one_packet(input int len=64);
        // Create 'input' transaction.
-       packet_in = new(.len(len));
-       packet_in.randomize();
-       axis_transaction_in = new("trans_0_in", packet_in);
+       axis_transaction_in = new("trans_0_in", len);
+       axis_transaction_in.randomize();
 
        // Create 'output' transaction.
        if (len < 60) begin // output pkt is zero padded to 60B.
-          packet_out = new(.len(60));
-          packet_out.randomize();
-          for (int i=0;   i<len; i++) packet_out.set_byte(i, packet_in.get_byte(i));
-          for (int i=len; i<60;  i++) packet_out.set_byte(i, 8'h00);
-          axis_transaction_out = new("trans_0_out", packet_out);
+          axis_transaction_out = new("trans_0_out", .len(60));
+          axis_transaction_out.randomize();
+          for (int i=0;   i<len; i++) axis_transaction_out.set_byte(i, axis_transaction_in.get_byte(i));
+          for (int i=len; i<60;  i++) axis_transaction_out.set_byte(i, 8'h00);
        end else begin // output pkt = input pkt.
-          axis_transaction_out = new("trans_0_out", packet_in);
+          axis_transaction_out = axis_transaction_in.clone("trans_0_out");
        end
 
        // Put 'input' and 'output' transactions.

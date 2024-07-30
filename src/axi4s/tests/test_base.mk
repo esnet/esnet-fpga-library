@@ -44,7 +44,6 @@ SUBCOMPONENTS = \
     axi4s.regio.verif \
     std.rtl \
     pcap.pkg \
-    packet.verif \
     axi4l.verif
 
 EXT_LIBS =
