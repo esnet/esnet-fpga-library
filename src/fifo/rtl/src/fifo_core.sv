@@ -10,8 +10,7 @@ module fifo_core
     parameter opt_mode_t WR_OPT_MODE = fifo_pkg::OPT_MODE_TIMING,
     parameter opt_mode_t RD_OPT_MODE = fifo_pkg::OPT_MODE_TIMING,
     // Debug parameters
-    parameter bit AXIL_IF = 1'b0,
-    parameter bit DEBUG_ILA = 1'b0
+    parameter bit AXIL_IF = 1'b0
 ) (
     // Write interface
     input  logic        wr_clk,
@@ -195,8 +194,7 @@ module fifo_core
         .UFLOW_PROT ( __UFLOW_PROT ),
         .WR_OPT_MODE( WR_OPT_MODE ),
         .RD_OPT_MODE( RD_OPT_MODE ),
-        .AXIL_IF    ( AXIL_IF ),
-        .DEBUG_ILA  ( DEBUG_ILA )
+        .AXIL_IF    ( AXIL_IF )
     ) i_fifo_ctrl_fsm (
         .wr_clk   ( wr_clk ),
         .wr_srst  ( local_wr_srst ),

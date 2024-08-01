@@ -24,7 +24,6 @@ SRC_LIST_FILES =
 # ----------------------------------------------------
 SUBCOMPONENTS = \
     fifo.regio.rtl \
-    fifo.ip \
     mem.rtl \
     sync.rtl \
     axi4l.rtl

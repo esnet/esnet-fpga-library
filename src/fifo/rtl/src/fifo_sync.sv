@@ -5,9 +5,7 @@ module fifo_sync #(
     parameter bit OFLOW_PROT = 1,
     parameter bit UFLOW_PROT = 1,
     // Derived parameters (don't override)
-    parameter int CNT_WID = FWFT ? $clog2(DEPTH+1+1) : $clog2(DEPTH+1),
-    // Debug parameters
-    parameter bit DEBUG_ILA = 1'b0
+    parameter int CNT_WID = FWFT ? $clog2(DEPTH+1+1) : $clog2(DEPTH+1)
 ) (
     // Clock/reset
     input  logic               clk,
@@ -51,8 +49,7 @@ module fifo_sync #(
         .FWFT   ( FWFT ),
         .OFLOW_PROT ( OFLOW_PROT ),
         .UFLOW_PROT ( UFLOW_PROT ),
-        .AXIL_IF    ( 0 ),
-        .DEBUG_ILA  ( DEBUG_ILA )
+        .AXIL_IF    ( 0 )
     ) i_fifo_core (
         .wr_clk   ( clk ),
         .wr_srst  ( srst ),

@@ -9,8 +9,7 @@ module fifo_ctrl_fsm #(
     parameter int PTR_WID = DEPTH > 1 ? $clog2(DEPTH) : 1,
     parameter int CNT_WID = $clog2(DEPTH+1),
     // Debug parameters
-    parameter bit AXIL_IF = 1'b0,
-    parameter bit DEBUG_ILA = 1'b0
+    parameter bit AXIL_IF = 1'b0
 ) (
     // Write side
     input  logic               wr_clk,
@@ -271,30 +270,6 @@ module fifo_ctrl_fsm #(
             // Terminate unused AXI-L interface
             axi4l_intf_peripheral_term i_axil4l_intf_peripheral_term (.axi4l_if (axil_if));
         end : g__no_axil
-    endgenerate
-
-    // Optional debug ILAs
-    generate
-        if (DEBUG_ILA) begin : g__ila
-            fifo_xilinx_ila i_fifo_wr_ila (
-                .clk (wr_clk),
-                .probe0 ( wr_srst ),       // input wire [0:0]  probe0
-                .probe1 ( wr_full ),       // input wire [0:0]  probe1
-                .probe2 ( wr_full ),       // input wire [0:0]  probe2
-                .probe3 ( wr_oflow ),      // input wire [0:0]  probe3
-                .probe4 ( {'0, wr_ptr} ),  // input wire [31:0] probe4
-                .probe5 ( {'0, wr_count} ) // input wire [31:0] probe5
-            );
-            fifo_xilinx_ila i_fifo_rd_ila (
-                .clk (rd_clk),
-                .probe0 ( rd_srst ),       // input wire [0:0]  probe0
-                .probe1 ( rd_empty ),      // input wire [0:0]  probe1
-                .probe2 ( rd_empty ),      // input wire [0:0]  probe2
-                .probe3 ( rd_uflow ),      // input wire [0:0]  probe3
-                .probe4 ( {'0, rd_ptr} ),  // input wire [31:0] probe4
-                .probe5 ( {'0, rd_count} ) // input wire [31:0] probe5
-            );
-        end : g__ila
     endgenerate
 
 endmodule : fifo_ctrl_fsm

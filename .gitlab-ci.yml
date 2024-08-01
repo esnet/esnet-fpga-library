@@ -31,7 +31,6 @@ ip:
   tags:
     - ht-sim
   script:
-    - make -s -C src synth COMPONENT=fifo.ip
     - make -s -C src synth COMPONENT=axi4s.ip
   artifacts:
     paths: [.out]

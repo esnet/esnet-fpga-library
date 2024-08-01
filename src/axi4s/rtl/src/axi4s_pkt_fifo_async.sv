@@ -10,9 +10,7 @@ module axi4s_pkt_fifo_async
 #(
    parameter int   FIFO_DEPTH = 256,
    parameter int   MAX_PKT_LEN = 9100,
-   parameter int   TX_THRESHOLD = 0,
-   // Debug parameters
-   parameter bit   DEBUG_ILA = 1'b0
+   parameter int   TX_THRESHOLD = 0
 ) (
    axi4s_intf.rx   axi4s_in,
 
@@ -153,8 +151,7 @@ module axi4s_pkt_fifo_async
    fifo_async_axil #(
       .DATA_T    (fifo_data_t),
       .DEPTH     (FIFO_ASYNC_DEPTH),
-      .FWFT      (1),
-      .DEBUG_ILA (DEBUG_ILA)
+      .FWFT      (1)
    ) fifo_async_0 (
       .wr_clk    ( axi4s_to_fifo.aclk ),
       .wr_srst   (~axi4s_to_fifo.aresetn ),
@@ -239,29 +236,5 @@ module axi4s_pkt_fifo_async
    assign axi4s_out.tdest  = rd_data.tdest;
    assign axi4s_out.tkeep  = rd_data.tkeep;
    assign axi4s_out.tdata  = rd_data.tdata;
-
-    // Optional debug ILAs
-    generate
-        if (DEBUG_ILA) begin : g__ila
-            fifo_xilinx_ila i_fifo_in_ila (
-                .clk (axi4s_in.aclk),
-                .probe0 ( !axi4s_in.aresetn ),  // input wire [0:0]  probe0
-                .probe1 ( full ),          // input wire [0:0]  probe1
-                .probe2 ( almost_full ),   // input wire [0:0]  probe2
-                .probe3 ( oflow ),         // input wire [0:0]  probe3
-                .probe4 ( '0 ),            // input wire [31:0] probe4
-                .probe5 ( {'0, wr_count} ) // input wire [31:0] probe5
-            );
-            fifo_xilinx_ila i_fifo_out_ila (
-                .clk (axi4s_out.aclk),
-                .probe0 ( !axi4s_out.aresetn ), // input wire [0:0]  probe0
-                .probe1 ( empty ),         // input wire [0:0]  probe1
-                .probe2 ( empty ),         // input wire [0:0]  probe2
-                .probe3 ( uflow ),         // input wire [0:0]  probe3
-                .probe4 ( '0 ),            // input wire [31:0] probe4
-                .probe5 ( {'0, rd_count} ) // input wire [31:0] probe5
-            );
-        end : g__ila
-    endgenerate
 
 endmodule

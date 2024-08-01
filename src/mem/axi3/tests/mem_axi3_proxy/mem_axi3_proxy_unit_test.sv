@@ -68,7 +68,7 @@ module mem_axi3_proxy_unit_test;
     //===================================
     mem_axi3_bfm #(
         .CHANNELS ( NUM_CHANNELS ),
-        .DEBUG    ( 1 )
+        .DEBUG    ( 0 )
     ) i_mem_axi3_bfm (
         .*
     );
@@ -229,8 +229,8 @@ module mem_axi3_proxy_unit_test;
             byte exp_data [DATA_BYTES];
             byte got_data [];
             // Randomize access
-            std::randomize(addr);
-            std::randomize(exp_data);
+            void'(std::randomize(addr));
+            void'(std::randomize(exp_data));
             // Write
             agent.write(addr, exp_data, error, timeout);
             `FAIL_IF(error);
@@ -245,6 +245,47 @@ module mem_axi3_proxy_unit_test;
                     got_data[i] === exp_data[i],
                     $sformatf("Read data mismatch at byte %0d. Exp: 0x%0x, Got: 0x%0x.", i, exp_data[i], got_data[i])
                 );
+            end
+        `SVTEST_END
+
+        //===================================
+        // Test:
+        //   writes_reads
+        //
+        // Desc:
+        //   Write some large-ish number of random entries into the memory
+        //   and then read them all back, checking that each transaction
+        //   completes successfully, and with the expected data.
+        //===================================
+        `SVTEST(writes_reads)
+            const int NUM_TRANSACTIONS = 500;
+            typedef byte data_t [DATA_BYTES];
+            data_t exp_data [ADDR_T];
+            do begin
+                ADDR_T __addr;
+                data_t __exp_data;
+                // Randomize access
+                void'(std::randomize(__addr));
+                void'(std::randomize(__exp_data));
+                // Store address/data pair in expected value array
+                exp_data[__addr] = __exp_data;
+                // Write transaction to memory
+                agent.write(__addr, __exp_data, error, timeout);
+                `FAIL_IF(error);
+                `FAIL_IF(timeout);
+            end while (exp_data.size() < NUM_TRANSACTIONS);
+
+            foreach (exp_data[addr]) begin
+                data_t got_data;
+                agent.read(addr, DATA_BYTES, got_data, error, timeout);
+                `FAIL_IF(error);
+                `FAIL_IF(timeout);
+                foreach (got_data[i]) begin
+                    `FAIL_UNLESS_LOG(
+                        got_data[i] === exp_data[addr][i],
+                        $sformatf("Read data mismatch at byte %0d for value stored at 0x%0x. Exp: 0x%0x, Got: 0x%0x.", i, addr, exp_data[addr][i], got_data[i])
+                    );
+                end
             end
         `SVTEST_END
 

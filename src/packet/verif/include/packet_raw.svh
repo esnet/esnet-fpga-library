@@ -1,4 +1,4 @@
-class packet_raw extends packet;
+class packet_raw #(parameter type META_T = bit) extends packet#(META_T);
 
     local static const string __CLASS_NAME = "packet_verif_pkg::packet_raw";
 
@@ -16,9 +16,11 @@ class packet_raw extends packet;
     // Constructor
     function new(
         input string name = "packet_raw",
-        input int len = 64
+        input int len = 64,
+        input META_T meta = '0,
+        input bit err = 1'b0
     );
-        super.new(name, packet_pkg::PROTOCOL_NONE);
+        super.new(name, packet_pkg::PROTOCOL_NONE, meta, err);
         this.__len = len;
     endfunction
 
@@ -29,17 +31,19 @@ class packet_raw extends packet;
     endfunction
 
     // Construct raw packet from array of bytes
-    static function packet_raw create_from_bytes(
-        input string name = "packet_raw",
-        input byte data[]
-    );
-        packet_raw new_packet = new(name, data.size());
+    static function packet_raw#(META_T) create_from_bytes(
+            input string name = "packet_raw",
+            input byte data[],
+            input META_T meta = '0,
+            input bit err = 1'b0
+        );
+        packet_raw#(META_T) new_packet = new(name, data.size(), meta, err);
         new_packet.set_from_bytes(data);
         return new_packet;
     endfunction
 
-    function automatic packet_raw clone(input string name);
-        packet_raw cloned_packet = packet_raw::create_from_bytes(name, this.to_bytes);
+    function automatic packet_raw#(META_T) clone(input string name);
+        packet_raw#(META_T) cloned_packet = packet_raw#(META_T)::create_from_bytes(name, this.to_bytes, this.get_meta(), this.is_errored());
         return cloned_packet;
     endfunction
 

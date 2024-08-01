@@ -4,7 +4,6 @@ module axi4s_intf_unit_test #(
     parameter logic[3:0] DUT_SELECT = 0
 );
     import svunit_pkg::svunit_testcase;
-    import packet_verif_pkg::*;
     import axi4s_verif_pkg::*;
 
     localparam string dut_string = DUT_SELECT ==  0 ? "axi4s_intf_connector" :
@@ -214,16 +213,14 @@ module axi4s_intf_unit_test #(
     //===================================
 
     AXI4S_TRANSACTION_T axis_transaction;
-    packet_raw packet;
 
     string msg;
     int len;
 
     task one_packet(int id=0, int len=$urandom_range(64, 511));
-       packet = new($sformatf("pkt_%0d", id), len);
-       packet.randomize();
-       axis_transaction = new($sformatf("trans_%0d",id), packet);
-       env.inbox.put(axis_transaction);
+        axis_transaction = new($sformatf("trans_%0d",id), len);
+        axis_transaction.randomize();
+        env.inbox.put(axis_transaction);
     endtask
 
     task packet_stream();
@@ -289,21 +286,18 @@ module axi4s_intf_unit_test #(
         `SVTEST(one_packet_bad)
             int bad_byte_idx;
             byte bad_byte_data;
-            packet_raw bad_packet;
-            AXI4S_TRANSACTION_T bad_axis_transaction;
+            AXI4S_TRANSACTION_T bad_transaction;
             // Create 'expected' transaction
-            packet = new();
-            packet.randomize();
-            axis_transaction = new("trans_0", packet);
+            axis_transaction = new("trans_0");
+            axis_transaction.randomize();
             env.model.inbox.put(axis_transaction);
             // Create 'actual' transaction and modify one byte of packet
             // so that it generates a mismatch wrt the expected packet
-            bad_packet = packet.clone("trans_0_bad");
-            bad_byte_idx = $urandom % bad_packet.size();
-            bad_byte_data = 8'hFF ^ bad_packet.get_byte(bad_byte_idx);
-            bad_packet.set_byte(bad_byte_idx, bad_byte_data);
-            bad_axis_transaction = new("trans_0_bad", bad_packet);
-            env.driver.inbox.put(bad_axis_transaction);
+            bad_transaction = axis_transaction.clone("trans_0_bad");
+            bad_byte_idx = $urandom % bad_transaction.size();
+            bad_byte_data = 8'hFF ^ bad_transaction.get_byte(bad_byte_idx);
+            bad_transaction.set_byte(bad_byte_idx, bad_byte_data);
+            env.driver.inbox.put(bad_transaction);
             axis_in_if._wait(1000);
             `FAIL_UNLESS_LOG(
                 scoreboard.report(msg),

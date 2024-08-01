@@ -1,4 +1,4 @@
-class packet extends std_verif_pkg::base;
+class packet #(parameter type META_T = bit) extends std_verif_pkg::transaction;
 
     local static const string __CLASS_NAME = "packet_verif_pkg::packet";
 
@@ -12,6 +12,8 @@ class packet extends std_verif_pkg::base;
     // Properties
     //===================================
     local protocol_t __protocol;
+    protected META_T _meta;
+    protected bit    _err;
 
     //===================================
     // Methods
@@ -19,10 +21,14 @@ class packet extends std_verif_pkg::base;
     // Constructor
     function new(
             input string name = "packet",
-            input protocol_t protocol = packet_pkg::PROTOCOL_NONE
+            input protocol_t protocol = packet_pkg::PROTOCOL_NONE,
+            input META_T meta = '0,
+            input bit err = 1'b0
         );
         super.new(name);
         this.__protocol = protocol;
+        this._meta = meta;
+        this._err = err;
     endfunction
 
     // Configure trace output
@@ -41,28 +47,55 @@ class packet extends std_verif_pkg::base;
         return this.to_bytes().size();
     endfunction
 
+    // Metadata
+    function automatic void set_meta(input META_T meta);
+        this._meta = meta;
+    endfunction
+
+    function automatic META_T get_meta();
+        return this._meta;
+    endfunction
+
+    // Out-of-band error indication
+    function automatic void mark_as_errored();
+        this._err = 1'b0;
+    endfunction
+
+    function automatic bit is_errored();
+        return this._err;
+    endfunction
+
     // Clone
     virtual function automatic packet clone(input string name); endfunction
 
-    // Get string representation of packet
-    virtual function string to_string();
+    // Get string representation of transaction
+    // [[ implements std_verif_pkg::transaction.to_string() ]]
+    virtual function automatic string to_string();
         string str;
         str = {str, string_pkg::horiz_line()};
         str = {str,
                 $sformatf(
-                    "Packet '%s' (%s, %0d bytes):\n",
+                    "Packet '%s' (%s, %0d bytes, err: %0b, meta: 0x%0x):\n",
                     get_name(),
                     packet_pkg::get_protocol_name(protocol()),
-                    size()
+                    size(),
+                    this.is_errored(),
+                    this._meta
                 )
               };
         return str;
     endfunction
 
     // Compare packets
-    function bit compare(input packet b, output string msg);
+    virtual function automatic bit _compare(input packet#(META_T) b, output string msg);
         if (this.size() != b.size()) begin
             msg = $sformatf("Packet size mismatch. A: %0d bytes, B: %0d bytes.", this.size(), b.size());
+            return 0;
+        end else if (this.get_meta() != b.get_meta()) begin
+            msg = $sformatf("Packet metadata mismatch. A: 0x%0x, B: 0x%0x.", this.get_meta(), b.get_meta());
+            return 0;
+        end else if (this.is_errored() != b.is_errored()) begin
+            msg = $sformatf("Packet error indication mismatch. A: %b, B: %b.", this.is_errored(), b.is_errored());
             return 0;
         end else begin
             byte a_data [] = this.to_bytes();
@@ -79,6 +112,12 @@ class packet extends std_verif_pkg::base;
         end
         msg = "Packets match.";
         return 1;
+    endfunction
+
+    // Compare packet transactions
+    // [[ implements std_verif_pkg::transaction.compare() ]]
+    function bit compare(input packet#(META_T) t2, output string msg);
+        return this._compare(t2, msg);
     endfunction
 
     //===================================

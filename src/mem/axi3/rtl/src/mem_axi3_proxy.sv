@@ -134,7 +134,6 @@ module mem_axi3_proxy
             if (mem_wr_if.req && mem_wr_if.rdy)   axi3_if.bready <= 1'b1;
             else if (wr_pending) begin
                 if (axi3_if.bvalid || wr_timeout) axi3_if.bready <= 1'b0;
-                else                              axi3_if.bready <= 1'b1;
             end else if (axi3_if.bvalid)          axi3_if.bready <= 1'b1;
             else                                  axi3_if.bready <= 1'b0;
         end
@@ -168,7 +167,7 @@ module mem_axi3_proxy
         end
     end
 
-    always_ff @(posedge clk) if (mem_rd_if.req) axi3_if.araddr <= mem_rd_if.addr;
+    always_ff @(posedge clk) if (mem_rd_if.req && mem_rd_if.rdy) axi3_if.araddr <= mem_rd_if.addr;
   
     // Read metadata
     // -----------------------------
@@ -229,7 +228,6 @@ module mem_axi3_proxy
             if (mem_rd_if.req && mem_rd_if.rdy)   axi3_if.rready <= 1'b1;
             else if (rd_pending) begin
                 if (axi3_if.rvalid || rd_timeout) axi3_if.rready <= 1'b0;
-                else                              axi3_if.rready <= 1'b1;
             end else if (axi3_if.rvalid)          axi3_if.rready <= 1'b1;
             else                                  axi3_if.rready <= 1'b0;
         end

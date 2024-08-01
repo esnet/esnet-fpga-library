@@ -1,4 +1,5 @@
 name: fifo_ctrl
+visible: true
 
 blocks:
   info: &info
