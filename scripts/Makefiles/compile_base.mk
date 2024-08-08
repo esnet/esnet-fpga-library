@@ -40,9 +40,9 @@ ifneq ($(strip $(SRC_LIST_FILES)),)
 	__FILE_LIST_INC_DIRS += $(subst +incdir+,,$(filter +incdir+%,$(FILE_REFS)))
 endif
 # Synthesize (unsorted, non-unique) list of all Verilog/SystemVerilog source files
-__SRC_FILES = $(SRC_FILES) $(__FILE_LIST_SRC_FILES) $(wildcard $(SRC_DIR)/*.v) $(wildcard $(SRC_DIR)/*.sv)
+__SRC_FILES = $(abspath $(SRC_FILES) $(__FILE_LIST_SRC_FILES) $(wildcard $(SRC_DIR)/*.v) $(wildcard $(SRC_DIR)/*.sv))
 # Synthesize list of include directories
-INCLUDES = $(sort $(INC_DIR) $(INC_DIRS) $(__FILE_LIST_INC_DIRS))
+INCLUDES = $(sort $(abspath $(INC_DIR) $(INC_DIRS) $(__FILE_LIST_INC_DIRS)))
 
 # Synthesize list of Verilog source files
 V_SRC_FILES = $(sort $(filter %.v,$(__SRC_FILES)))
