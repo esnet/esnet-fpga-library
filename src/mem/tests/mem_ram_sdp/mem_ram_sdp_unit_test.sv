@@ -128,11 +128,11 @@ module mem_ram_sdp_unit_test #(
 
         //===================================
         // Test:
-        //   reset
+        //   hard_reset
         //
         // Desc:
         //===================================
-        `SVTEST(reset)
+        `SVTEST(hard_reset)
         `SVTEST_END
 
         //===================================
@@ -176,6 +176,9 @@ endmodule : mem_ram_sdp_unit_test
   function void build();\
     test.build();\
     svunit_ut = test.svunit_ut;\
+  endfunction\
+  function void __register_tests();\
+    test.__register_tests();\
   endfunction\
   task run();\
     test.run();\

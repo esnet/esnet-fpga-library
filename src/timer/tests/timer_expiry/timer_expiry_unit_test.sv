@@ -138,7 +138,7 @@ module timer_expiry_unit_test;
 
     //===================================
     // Test:
-    //   reset
+    //   hard_reset
     //
     // Desc: Assert reset and check that
     //       inititialization completes
@@ -146,7 +146,7 @@ module timer_expiry_unit_test;
     //       (Note) reset assertion/check
     //       is included in setup() task
     //===================================
-    `SVTEST(reset)
+    `SVTEST(hard_reset)
     `SVTEST_END
 
     //===================================

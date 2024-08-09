@@ -9,8 +9,6 @@
 # ----------------------------------------------------
 # Configuration
 # ----------------------------------------------------
-include $(SCRIPTS_ROOT)/Makefiles/component_base.mk
-
 SVUNIT_DIR := $(COMPONENT_OUT_PATH)/svunit
 SVUNIT_TOP_MODULE = testrunner
 
@@ -36,6 +34,17 @@ SVUNIT_BUILD_CMD := buildSVUnit -o $(SVUNIT_DIR)
 SVUNIT_VIVADO_WORKAROUND_CMD := $(abspath $(SCRIPTS_ROOT))/svunit/svunit_vivado.sh $(SVUNIT_DIR)
 
 SVUNIT_CMD := $(SVUNIT_ENV_SETUP); $(SVUNIT_BUILD_CMD); $(SVUNIT_VIVADO_WORKAROUND_CMD)
+
+
+# ----------------------------------------------------
+# Compile config
+# ----------------------------------------------------
+SRC_LIST_FILES += $(SVUNIT_FILE_LIST)
+
+# ----------------------------------------------------
+# Elaboration config
+# ----------------------------------------------------
+TOP = $(COMPONENT_NAME).$(SVUNIT_TOP_MODULE)
 
 # ----------------------------------------------------
 # Targets

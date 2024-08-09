@@ -139,7 +139,7 @@ module state_allocator_bv_unit_test #(
         //       (Note) reset assertion/check
         //       is included in setup() task
         //===================================
-        `SVTEST(reset)
+        `SVTEST(hard_reset)
         `SVTEST_END
 
         //===================================
@@ -425,6 +425,9 @@ endmodule : state_allocator_bv_unit_test
   function void build();\
     test.build();\
     svunit_ut = test.svunit_ut;\
+  endfunction\
+  function void __register_tests();\
+    test.__register_tests();\
   endfunction\
   task run();\
     test.run();\

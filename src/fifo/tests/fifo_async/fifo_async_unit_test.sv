@@ -568,6 +568,9 @@ endmodule : fifo_async_unit_test
     test.build();\
     svunit_ut = test.svunit_ut;\
   endfunction\
+  function void __register_tests();\
+    test.__register_tests();\
+  endfunction \
   task run();\
     test.run();\
   endtask
