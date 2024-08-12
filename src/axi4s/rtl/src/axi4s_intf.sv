@@ -586,26 +586,39 @@ module axi4s_intf_demux
     input logic [$clog2(N)-1:0]  sel
 );
 
+    localparam int  DATA_BYTE_WID = axi4s_in.DATA_BYTE_WID;
+    localparam type TID_T         = axi4s_in.TID_T;
+    localparam type TDEST_T       = axi4s_in.TDEST_T;
+    localparam type TUSER_T       = axi4s_in.TUSER_T;
+
+    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) axi4s_in_p ();
+    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) axi4s_out_p[N] ();
+
     logic tready[N];
+
+    axi4s_tready_pipe in_pipe (.axi4s_if_from_tx(axi4s_in), .axi4s_if_to_rx(axi4s_in_p));
+
+    // axis4s input interface signalling.
+    assign axi4s_in_p.tready = tready[sel];
 
     generate
         for (genvar g_if = 0; g_if < N; g_if++) begin : g__if
-            assign tready[g_if] = axi4s_out[g_if].tready;
+            assign tready[g_if] = axi4s_out_p[g_if].tready;
 
             // axis4s output interface signalling.
-            assign axi4s_out[g_if].aclk    = axi4s_in.aclk;
-            assign axi4s_out[g_if].aresetn = axi4s_in.aresetn;
-            assign axi4s_out[g_if].tvalid  = (sel == g_if) ? axi4s_in.tvalid : 1'b0;
-            assign axi4s_out[g_if].tdata   = axi4s_in.tdata;
-            assign axi4s_out[g_if].tkeep   = axi4s_in.tkeep;
-            assign axi4s_out[g_if].tlast   = axi4s_in.tlast;
-            assign axi4s_out[g_if].tid     = axi4s_in.tid;
-            assign axi4s_out[g_if].tdest   = axi4s_in.tdest;
-            assign axi4s_out[g_if].tuser   = axi4s_in.tuser;
+            assign axi4s_out_p[g_if].aclk    = axi4s_in_p.aclk;
+            assign axi4s_out_p[g_if].aresetn = axi4s_in_p.aresetn;
+            assign axi4s_out_p[g_if].tvalid  = (sel == g_if) ? axi4s_in_p.tvalid : 1'b0;
+            assign axi4s_out_p[g_if].tdata   = axi4s_in_p.tdata;
+            assign axi4s_out_p[g_if].tkeep   = axi4s_in_p.tkeep;
+            assign axi4s_out_p[g_if].tlast   = axi4s_in_p.tlast;
+            assign axi4s_out_p[g_if].tid     = axi4s_in_p.tid;
+            assign axi4s_out_p[g_if].tdest   = axi4s_in_p.tdest;
+            assign axi4s_out_p[g_if].tuser   = axi4s_in_p.tuser;
+
+            axi4s_intf_pipe out_pipe (.axi4s_if_from_tx(axi4s_out_p[g_if]), .axi4s_if_to_rx(axi4s_out[g_if]));
         end
 
-        // axis4s input interface signalling.
-        assign axi4s_in.tready = tready[sel];
     endgenerate
 
 endmodule
