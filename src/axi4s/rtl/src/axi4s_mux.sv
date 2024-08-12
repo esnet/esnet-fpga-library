@@ -8,8 +8,7 @@ module axi4s_mux
    import axi4s_pkg::*;
    import arb_pkg::*;
 #(
-   parameter int   N = 2,         // number of ingress axi4s interfaces.
-   parameter logic OUT_PIPE = 0
+   parameter int   N = 2    // number of ingress axi4s interfaces.
  ) (
    axi4s_intf.rx    axi4s_in[N],
    axi4s_intf.tx    axi4s_out
@@ -19,6 +18,7 @@ module axi4s_mux
    localparam type TDEST_T       = axi4s_out.TDEST_T;
    localparam type TUSER_T       = axi4s_out.TUSER_T;
 
+   axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) axi4s_in_p[N] ();
    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) axi4s_out_p ();
 
    logic [N-1:0] axi4s_in_req;
@@ -36,7 +36,7 @@ module axi4s_mux
       .TDEST_T       (TDEST_T),
       .TUSER_T       (TUSER_T)
    ) axi4s_intf_mux_0 (
-      .axi4s_in_if   (axi4s_in),
+      .axi4s_in_if   (axi4s_in_p),
       .axi4s_out_if  (axi4s_out_p),
       .sel           (sel)
    );
@@ -57,22 +57,24 @@ module axi4s_mux
    // Convert between array of signals and array of interfaces
    generate
        for (genvar g_if = 0; g_if < N; g_if++) begin : g__if
-           assign aresetn[g_if] = axi4s_in[g_if].aresetn;
-           assign  tvalid[g_if] = axi4s_in[g_if].tvalid;
-           assign   tdata[g_if] = axi4s_in[g_if].tdata;
-           assign   tkeep[g_if] = axi4s_in[g_if].tkeep;
-           assign   tlast[g_if] = axi4s_in[g_if].tlast;
-           assign     tid[g_if] = axi4s_in[g_if].tid;
-           assign   tdest[g_if] = axi4s_in[g_if].tdest;
-           assign   tuser[g_if] = axi4s_in[g_if].tuser;
+           axi4s_tready_pipe in_pipe (.axi4s_if_from_tx(axi4s_in[g_if]), .axi4s_if_to_rx(axi4s_in_p[g_if]));
 
-           assign axi4s_in[g_if].tready = (sel == g_if) ? axi4s_out_p.tready : 1'b0;
+           assign aresetn[g_if] = axi4s_in_p[g_if].aresetn;
+           assign  tvalid[g_if] = axi4s_in_p[g_if].tvalid;
+           assign   tdata[g_if] = axi4s_in_p[g_if].tdata;
+           assign   tkeep[g_if] = axi4s_in_p[g_if].tkeep;
+           assign   tlast[g_if] = axi4s_in_p[g_if].tlast;
+           assign     tid[g_if] = axi4s_in_p[g_if].tid;
+           assign   tdest[g_if] = axi4s_in_p[g_if].tdest;
+           assign   tuser[g_if] = axi4s_in_p[g_if].tuser;
+
+           assign axi4s_in_p[g_if].tready = (sel == g_if) ? axi4s_out_p.tready : 1'b0;
        end
    endgenerate
 
    always_comb begin
-       // all interfaces must be synchronous to axi4s_in[0].
-       axi4s_out_p.aclk    = axi4s_in[0].aclk;
+       // all interfaces must be synchronous to axi4s_in_p[0].
+       axi4s_out_p.aclk    = axi4s_in_p[0].aclk;
 
        // mux logic
        axi4s_out_p.aresetn = aresetn [sel];
@@ -90,8 +92,8 @@ module axi4s_mux
    // req logic (signals valid data) and ack logic (signals last pkt byte).
    generate
        for (genvar g_req = 0; g_req < N; g_req++) begin : g__req
-           assign axi4s_in_req[g_req] = axi4s_in[g_req].tvalid;
-           assign axi4s_in_ack[g_req] = axi4s_in[g_req].tvalid && axi4s_in[g_req].tlast && axi4s_in[g_req].tready;
+           assign axi4s_in_req[g_req] = axi4s_in_p[g_req].tvalid;
+           assign axi4s_in_ack[g_req] = axi4s_in_p[g_req].tvalid && axi4s_in_p[g_req].tlast && axi4s_in_p[g_req].tready;
        end
    endgenerate
 
@@ -106,11 +108,6 @@ module axi4s_mux
     .sel   (  sel )
    );
 
-   generate
-      if (OUT_PIPE)
-         axi4s_full_pipe out_pipe_0 (.axi4s_if_from_tx(axi4s_out_p), .axi4s_if_to_rx(axi4s_out));
-      else
-         axi4s_intf_connector out_intf_connector_0 (.axi4s_from_tx(axi4s_out_p), .axi4s_to_rx(axi4s_out));
-   endgenerate
+   axi4s_intf_pipe out_pipe (.axi4s_if_from_tx(axi4s_out_p), .axi4s_if_to_rx(axi4s_out));
 
 endmodule // axi4s_mux
