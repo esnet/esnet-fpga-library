@@ -9,7 +9,7 @@ module axi4s_trunc
 #(
    parameter logic BIGENDIAN = 0,  // Little endian by default.
    parameter logic IN_PIPE  = 0,
-   parameter logic OUT_PIPE = 0
+   parameter logic OUT_PIPE = 1
 ) (
    axi4s_intf.rx axi4s_in,
    axi4s_intf.tx axi4s_out,
