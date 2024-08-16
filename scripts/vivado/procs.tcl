@@ -58,11 +58,10 @@ namespace eval vivadoProcs {
         create_ip_proj $part $proj_name $proj_dir 1
     }
 
-    proc create_proj {part top {proj_name "proj"} {proj_dir "[file join [pwd] proj]"}} {
+    proc create_proj {part {proj_name "proj"} {proj_dir "[file join [pwd] proj]"} {in_memory 0}} {
         if {
             [catch {
-                __create_proj $part $proj_name $proj_dir 0
-                set_property top $top [current_fileset]
+                __create_proj $part $proj_name $proj_dir 0 $in_memory
             } msg options]
         } {
             puts stderr "unexpected script error: $msg"
@@ -75,6 +74,10 @@ namespace eval vivadoProcs {
             # Reserve code 1 for "expected" error exits...
             exit 2
         }
+    }
+
+    proc create_proj_in_memory {part {proj_name "proj"} {proj_dir "[file join [pwd] proj]"}} {
+        create_proj $part $proj_name $proj_dir 1
     }
 
     proc open_proj {{proj_name "proj"} {proj_dir "[file join [pwd] proj]"}} {

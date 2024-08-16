@@ -39,7 +39,7 @@ get_component_src_path_from_ref = $(strip $(if $(call is_regio_component,$(1)),\
 ))
 
 # IP component identification
-is_ip_component = $(filter $(call get_subcomponent_from_ref,$(1)),ip)
+is_ip_component = $(or $(filter $(call get_subcomponent_from_ref,$(1)),ip), $(filter $(call get_subcomponent_from_ref,$(1)),bd))
 is_build_component = $(filter $(call get_component_parts_from_ref,$(1)),build)
 
 # Determine output path; handle ip as special case
