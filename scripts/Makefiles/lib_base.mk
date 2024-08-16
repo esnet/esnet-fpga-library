@@ -124,7 +124,7 @@ else
 
 # If component is in local library, check that it exists
 ifneq ($(wildcard $(COMPONENT_SRC_PATH)/Makefile),)
-# If so, run compile target for component
+# If so, run target for component
 define LIB_OP_RULE
 _$(target): __$(target) | $(OUTPUT_ROOT)
 	@$(MAKE) -s -C $(COMPONENT_SRC_PATH) $(target) OUTPUT_ROOT=$(OUTPUT_ROOT) $(COMMON_ENV) $(LIB_ENV) $(USER_ENV)

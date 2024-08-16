@@ -95,8 +95,7 @@ $(COMPONENT_OUT_PATH):
 #   be copied from the 'Tcl Console' in the GUI)
 # - ip creation targets generate XCI descriptions of IP from Tcl scripts
 # - XCI file is generated in a temp directory, and then compared
-#   compared to the existing XCI file already tracked by the
-#   manage IP project (if one exists)
+#   to the existing XCI file already tracked by the manage IP project (if one exists)
 # - if the XCI description has changed (for any reason, including
 #   change to the underlying Tcl source, change to the Vivado version,
 #   parameter change, etc.) the new XCI file replaces the existing one,
@@ -222,7 +221,7 @@ _ip_clean: _vivado_clean_logs _ip_proj_clean _compile_clean
 	@rm -rf $(COMPONENT_OUT_PATH)
 	@-find $(OUTPUT_ROOT) -type d -empty -delete 2>/dev/null
 
-.PHONY: _ip _ip_exdes _ip_reset _ip_status _ip_upgrade _ip_compile _ip_synth _ip_clean
+.PHONY: _ip_exdes _ip_reset _ip_status _ip_upgrade _ip_compile _ip_synth _ip_clean
 
 # -----------------------------------------------
 # Generate/manage synthesis products
@@ -335,7 +334,7 @@ _ip_config_info: _vivado_info
 
 _ip_info: _ip_config_info _compile_info
 
-.PHONY: ip_config_info _ip_info
+.PHONY: _ip_config_info _ip_info
 
 # -----------------------------------------------
 # Include compile targets
