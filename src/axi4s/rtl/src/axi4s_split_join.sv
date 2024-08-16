@@ -203,12 +203,6 @@ module axi4s_split_join
 
    axi4s_full_pipe from_pyld_fifo_pipe_0 (.axi4s_if_from_tx(axi4s_from_pyld_fifo), .axi4s_if_to_rx(axi4s_from_pyld_fifo_p));
 
-   // ILA instantiations (for lab debugging).
-   //axi4s_ila axi4s_ila_to_pyld_fifo   (.axis_in(axi4s_to_pyld_fifo));
-   //axi4s_ila axi4s_ila_from_pyld_fifo (.axis_in(axi4s_from_pyld_fifo));
-
-
-
 
    // payload joiner instantiation.
    axi4s_join #(

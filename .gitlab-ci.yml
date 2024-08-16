@@ -2,7 +2,6 @@ include:
   - template: 'Workflows/Branch-Pipelines.gitlab-ci.yml'
 
 stages:
-  - ip
   - sim
   - synth
 
@@ -25,16 +24,6 @@ variables:
     LANG: C.UTF-8
     GIT_SUBMODULE_STRATEGY: recursive
 
-ip:
-  stage: ip
-  extends: .common
-  tags:
-    - ht-sim
-  script:
-    - make -s -C src synth COMPONENT=axi4s.ip
-  artifacts:
-    paths: [.out]
-
 sim:
   stage: sim
   extends: .common
@@ -50,7 +39,7 @@ sim:
       junit:
         - src/**/tests/regression/run_$SEED/tests.xml
     when: always
-  needs: [ip]
+  needs:
   timeout: 3h
 
 synth:
@@ -70,5 +59,5 @@ synth:
     reports:
       junit:
         - .out/$COMPONENT/build/**/*.summary.xml
-  needs: [ip]
+  needs:
 
