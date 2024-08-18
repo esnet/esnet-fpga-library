@@ -27,7 +27,7 @@ get_component_base_path_from_ref = $(call get_component_path_from_ref,$(call get
 #   *.regio.rtl and *.regio.verif, respectively.
 # - since these libraries are auto-generated, they can't be compiled without
 #   first running regio; this is accomplished by executing the compile at the
-#   *.reg scope which requires special handling
+#   *.regio scope which requires special handling
 __component_is_base_regio = $(filter regio,$(lastword $(call get_component_parts_from_ref,$(call get_component_base_from_ref,$(1)))))
 __subcomponent_is_rtl_verif = $(filter $(call get_subcomponent_from_ref,$(1)),rtl verif)
 is_regio_component = $(and $(call __component_is_base_regio,$(1)),$(call __subcomponent_is_rtl_verif,$(1)))
@@ -42,11 +42,10 @@ get_component_src_path_from_ref = $(strip $(if $(call is_regio_component,$(1)),\
 is_ip_component = $(or $(filter $(call get_subcomponent_from_ref,$(1)),ip), $(filter $(call get_subcomponent_from_ref,$(1)),bd))
 is_build_component = $(filter $(call get_component_parts_from_ref,$(1)),build)
 
-# Determine output path; handle ip as special case
-get_component_out_path_from_ref = $(strip $(if $(or $(call is_ip_component,$(1)), $(call is_build_component,$(1))),\
-	$(2)/$(call get_component_path_from_ref,$(1))/$(3),\
-	$(2)/$(call get_component_path_from_ref,$(1))\
-))
+# Determine output path; append output subdir if one is specified
+# - arg 1: component ref
+# - arg 2: output root path
+get_component_out_path_from_ref = $(2)/$(call get_component_path_from_ref,$(1))
 
 # ----------------------------------------------------
 # Library reference functions
@@ -96,8 +95,7 @@ get_ref_without_lib = $(firstword $(call __get_lib_parts_from_ref,$(1)))
 reverse = $(if $(1),$(call reverse,$(wordlist 2,$(words $(1)),$(1)))) $(firstword $(1))
 get_lib_component_path_from_ref = $(call get_component_path_from_ref,$(call get_component_ref_from_parts,$(call reverse,$(call __get_lib_parts_from_ref,$(1)))))
 
-# Function: get output path from ref
-get_lib_component_out_path_from_ref = $(strip $(if $(call is_ip_component,$(1)),\
-	$(2)/$(call get_lib_component_path_from_ref,$(1))/$(3),\
-	$(2)/$(call get_lib_component_path_from_ref,$(1))\
-))
+# Function: get output path from ref; append output subdir if one is specified
+# - arg 1: component ref
+# - arg 2: output root path
+get_lib_component_out_path_from_ref = $(2)/$(call get_lib_component_path_from_ref,$(1))

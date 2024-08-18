@@ -219,7 +219,7 @@ _ip_synth: $(IP_DCP_FILES) _ip_synth_sources
 # Clean IP
 _ip_clean: _vivado_clean_logs _ip_proj_clean _compile_clean
 	@rm -rf $(COMPONENT_OUT_PATH)
-	@-find $(OUTPUT_ROOT) -type d -empty -delete 2>/dev/null
+	@-find $(LIB_OUTPUT_ROOT) -type d -empty -delete 2>/dev/null
 
 .PHONY: _ip_exdes _ip_reset _ip_status _ip_upgrade _ip_compile _ip_synth _ip_clean
 

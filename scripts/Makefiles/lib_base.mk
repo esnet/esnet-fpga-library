@@ -72,8 +72,6 @@ endif
 # e.g. ENV = VAR1_NAME=VAR1_VALUE VAR2_NAME=VAR2_VALUE
 #
 # Common environment
-BUILD_ID ?= $(shell date +"%s")
-
 COMMON_ENV = \
     CFG_ROOT=$(CFG_ROOT) \
     BUILD_ID=$(BUILD_ID)
@@ -83,7 +81,6 @@ LIB_ENV ?=
 
 # User-specific environment (optional)
 USER_ENV ?=
-
 # ----------------------------------------------------
 # Targets
 # ----------------------------------------------------
@@ -100,6 +97,7 @@ __info:
 	@echo "COMMON_ENV          : $(COMMON_ENV)"
 	@echo "LIB_ENV             : $(LIB_ENV)"
 	@echo "USER_ENV            : $(USER_ENV)"
+	@echo "LIB_OUTPUT_ROOT     : $(LIB_OUTPUT_ROOT)"
 
 # By default, prerequisite targets are empty
 $(foreach target,$(filter-out info,$(LIB_OPS)),$(eval __$(target):))
@@ -117,8 +115,8 @@ ifneq ($(SUBLIBRARY),)
 
 # If component is in sub-library, pass job to sub-library
 define LIB_OP_RULE
-_$(target): __$(target) | $(OUTPUT_ROOT)
-	@$(MAKE) -s -C $(SUBLIB_SRC_ROOT) $(target) COMPONENT=$(SUBLIB_COMPONENT) OUTPUT_ROOT=$(OUTPUT_ROOT)/$(SUBLIBRARY) $(COMMON_ENV) $(LIB_ENV) $(USER_ENV)
+_$(target): __$(target) | $(LIB_OUTPUT_ROOT)
+	@$(MAKE) -s -C $(SUBLIB_SRC_ROOT) $(target) COMPONENT=$(SUBLIB_COMPONENT) LIB_OUTPUT_ROOT=$(LIB_OUTPUT_ROOT)/$(SUBLIBRARY) $(COMMON_ENV)
 endef
 else
 
@@ -126,14 +124,14 @@ else
 ifneq ($(wildcard $(COMPONENT_SRC_PATH)/Makefile),)
 # If so, run target for component
 define LIB_OP_RULE
-_$(target): __$(target) | $(OUTPUT_ROOT)
-	@$(MAKE) -s -C $(COMPONENT_SRC_PATH) $(target) OUTPUT_ROOT=$(OUTPUT_ROOT) $(COMMON_ENV) $(LIB_ENV) $(USER_ENV)
+_$(target): __$(target) | $(LIB_OUTPUT_ROOT)
+	@$(MAKE) -s -C $(COMPONENT_SRC_PATH) $(target) LIB_OUTPUT_ROOT=$(LIB_OUTPUT_ROOT) $(COMMON_ENV) $(LIB_ENV) $(USER_ENV)
 endef
 
 # If not, print helpful error message
 else
 define LIB_OP_RULE
-_$(target): __$(target) | $(OUTPUT_ROOT)
+_$(target): __$(target)
 	$(error Component $(COMPONENT) could not be found)
 endef
 endif
@@ -141,7 +139,7 @@ endif
 else
 # If no component is specified, generate helpful error message
 define LIB_OP_RULE
-_$(target): __$(target) | $(OUTPUT_ROOT)
+_$(target): __$(target)
 	@echo "ERROR: no component specified."
 	@$(MAKE) -s _usage
 	@false
@@ -153,7 +151,7 @@ $(foreach target,$(LIB_OPS),$(eval $(LIB_OP_RULE)))
 
 _clean_all:
 	@echo -n "Removing all output products... "
-	@-rm -rf $(OUTPUT_ROOT)
+	@-rm -rf $(LIB_OUTPUT_ROOT)
 	@echo "Done."
 
 .PHONY: _clean_all
@@ -161,14 +159,14 @@ _clean_all:
 _refresh_ip:
 	@echo "----------------------------------------------------------"
 	@echo "Forcing refresh of IP output products for $(LIB_NAME) ..."
-	@find $(OUTPUT_ROOT) -type d -name .xci -prune -exec touch {}/.refresh \; 2> /dev/null || true
+	@find $(LIB_OUTPUT_ROOT) -type d -name .xci -prune -exec touch {}/.refresh \; 2> /dev/null || true
 	@echo
 	@echo "Done."
 
 _refresh_regio:
 	@echo "----------------------------------------------------------"
 	@echo "Forcing refresh of regio output products for $(LIB_NAME) ..."
-	@find $(OUTPUT_ROOT) -type d -name regio -prune -exec rm -rf {} \; 2> /dev/null || true
+	@find $(LIB_OUTPUT_ROOT) -type d -name regio -prune -exec rm -rf {} \; 2> /dev/null || true
 	@echo
 	@echo "Done."
 
@@ -176,5 +174,5 @@ _refresh: _refresh_ip _refresh_regio
 
 .PHONY: _refresh_ip _refresh_regio _refresh
 
-$(OUTPUT_ROOT):
+$(LIB_OUTPUT_ROOT):
 	@mkdir -p $@

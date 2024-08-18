@@ -19,13 +19,6 @@ $(foreach env,$(USER_ENV)  ,$(eval $(env)))
 include $(CFG_ROOT)/part.mk
 
 # ----------------------------------------------------
-# Default variables
-# ----------------------------------------------------
-# Subdirectory for IP outputs
-# (by default, all IP is maintained in a separate project per part)
-IP_OUT_SUBDIR ?= $(PART)
-
-# ----------------------------------------------------
 # Import functions for managing/manipulating component and library references
 # ----------------------------------------------------
 include $(SCRIPTS_ROOT)/Makefiles/component_funcs.mk
@@ -56,7 +49,7 @@ COMPONENT_PATH := $(call get_component_path_from_ref,$(COMPONENT_REF))
 COMPONENT_NAME := $(call get_component_name_from_ref,$(COMPONENT_REF))
 
 # Synthesize output paths
-COMPONENT_OUT_PATH := $(abspath $(call get_component_out_path_from_ref,$(COMPONENT_REF),$(OUTPUT_ROOT),$(IP_OUT_SUBDIR)))
+COMPONENT_OUT_PATH := $(abspath $(call get_component_out_path_from_ref,$(COMPONENT_REF),$(LIB_OUTPUT_ROOT)))
 
 COMPONENT_OUT_SYNTH_PATH := $(COMPONENT_OUT_PATH)/synth
 

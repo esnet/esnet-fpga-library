@@ -216,7 +216,7 @@ _bd_synth: $(BD_DCP_FILES) _bd_synth_sources
 # Clean IP
 _bd_clean: _vivado_clean_logs _bd_proj_clean _compile_clean
 	@rm -rf $(COMPONENT_OUT_PATH)
-	@-find $(OUTPUT_ROOT) -type d -empty -delete 2>/dev/null
+	@-find $(LIB_OUTPUT_ROOT) -type d -empty -delete 2>/dev/null
 
 .PHONY: _bd_reset _bd_status_bd_compile _bd_synth _bd_clean
 

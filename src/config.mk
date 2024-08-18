@@ -50,4 +50,14 @@ LIBRARIES =
 #   pairs, e.g.:
 #   LIB_ENV = VAR1_NAME=VAR1_VALUE VAR2_NAME=VAR2_VALUE
 # ----------------------------------------------------
+__CONFIGURED_VIVADO_VERSION=$(notdir $(shell echo $$XILINX_VIVADO))
+
+# Maintain separate output products per tool version
+OUTPUT_SUBDIR = $(__CONFIGURED_VIVADO_VERSION)
+
 LIB_ENV =
+
+# ----------------------------------------------------
+# Import base library config
+# ----------------------------------------------------
+include $(SCRIPTS_ROOT)/Makefiles/lib_config_base.mk

@@ -9,7 +9,7 @@
 #           - SCRIPTS_ROOT (location of common script library)
 #           - REGIO_ROOT (location of the regio tool)
 #           - LIB_ROOT (location of library root dir)
-#           - OUTPUT_ROOT (location of output root dir)
+#           - LIB_OUTPUT_ROOT (location of library output root dir)
 # ----------------------------------------------------
 __COMPONENT_BASE_NAME = $(subst .,_,$(COMPONENT_BASE))
 
@@ -20,7 +20,7 @@ REGIO_YAML_INC_DIR ?= $(LIB_ROOT)
 
 REGIO_TEMPLATES_DIR ?= $(LIB_ROOT)/src/reg/regio-templates
 
-REGIO_COMPONENT_ROOT := $(OUTPUT_ROOT)/$(COMPONENT_ROOT_PATH)
+REGIO_COMPONENT_ROOT := $(LIB_OUTPUT_ROOT)/$(COMPONENT_ROOT_PATH)
 
 REGIO_RTL_OUTPUT_DIR := $(COMPONENT_OUT_PATH)/rtl
 REGIO_RTL_SRC_OUTPUT_DIR := $(REGIO_RTL_OUTPUT_DIR)/src
@@ -94,7 +94,7 @@ _reg_verif: $(REG_VERIF_PACKAGE_OBJ)
 _reg_clean: _reg_compile_clean
 	@-rm -rf $(COMPONENT_OUT_PATH)
 	@-rm -f $(REGIO_COMPONENT_ROOT)/config.mk
-	@[ ! -d $(OUTPUT_ROOT) ] || find $(OUTPUT_ROOT) -type d -empty -delete 2>/dev/null
+	@[ ! -d $(LIB_OUTPUT_ROOT) ] || find $(LIB_OUTPUT_ROOT) -type d -empty -delete 2>/dev/null
 
 $(REGIO_RTL_SRC_OUTPUT_DIR)/%_reg_blk.sv: %.yaml | $(REGIO_RTL_SRC_OUTPUT_DIR)
 	@echo -n "Generating RTL for: $*.yaml ... "

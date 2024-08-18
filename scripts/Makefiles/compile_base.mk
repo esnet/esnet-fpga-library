@@ -96,7 +96,7 @@ SUBCOMPONENT_REFS = $(filter-out $(COMPONENT_REF), $(__SUBCOMPONENT_REFS_UNSAFE)
 SUBCOMPONENT_NAMES := $(foreach subcomponent, $(SUBCOMPONENT_REFS), $(call get_component_name_from_ref,$(call get_ref_without_lib,$(subcomponent))))
 
 # Synthesize component dependency paths
-SUBCOMPONENT_PATHS := $(foreach subcomponent, $(SUBCOMPONENT_REFS), $(call get_lib_component_out_path_from_ref,$(subcomponent),$(OUTPUT_ROOT),$(IP_OUT_SUBDIR)))
+SUBCOMPONENT_PATHS := $(foreach subcomponent, $(SUBCOMPONENT_REFS), $(call get_lib_component_out_path_from_ref,$(subcomponent),$(LIB_OUTPUT_ROOT)))
 
 # Format subcomponent dependencies as library specifications, in name=path format
 SUBCOMPONENT_LIBS := $(join $(addsuffix =,$(SUBCOMPONENT_NAMES)),$(addsuffix /$(SIMLIB_DIRNAME),$(SUBCOMPONENT_PATHS)))
