@@ -22,9 +22,7 @@ SRC_LIST_FILES =
 #   List subcomponent and external library dependencies
 #   (see $SCRIPTS_ROOT/Makefiles/templates/dependencies.mk)
 # ----------------------------------------------------
-SUBCOMPONENTS = \
-    xilinx.axi.rtl
-
+SUBCOMPONENTS =
 EXT_LIBS =
 
 # ----------------------------------------------------

@@ -23,7 +23,6 @@ SRC_LIST_FILES =
 #   (see $SCRIPTS_ROOT/Makefiles/templates/dependencies.mk)
 # ----------------------------------------------------
 SUBCOMPONENTS = \
-    xilinx.axi.rtl \
     sync.rtl \
     reg.rtl \
     reg.proxy.rtl \

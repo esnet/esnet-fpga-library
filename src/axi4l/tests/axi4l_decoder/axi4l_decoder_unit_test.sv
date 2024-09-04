@@ -69,20 +69,12 @@ module axi4l_decoder_unit_test;
     // Instantiate subdecoders
     generate
         for (genvar g_sd = 0; g_sd < SUBDECODERS; g_sd++) begin : g__subdecoder
-            axi4l_intf axil_subdecoder_if__demarc ();
             axi4l_intf axil_client_if [CLIENTS]   ();
-
-            axi4l_reg_slice #(
-                .CONFIG ( xilinx_axi_pkg::XILINX_AXI_REG_SLICE_SLR_CROSSING )
-            ) i_axi4l_reg_slice (
-                .axi4l_if_from_controller ( axil_subdecoder_if[g_sd] ),
-                .axi4l_if_to_peripheral   ( axil_subdecoder_if__demarc )
-            );
 
             axi4l_decoder #(
                 .MEM_MAP ( MEM_MAP_SUBDECODER )
             ) i_axi4l_subdecoder (
-                .axi4l_if        (axil_subdecoder_if__demarc),
+                .axi4l_if        (axil_subdecoder_if[g_sd]),
                 .axi4l_client_if (axil_client_if)
             );
     
