@@ -80,7 +80,7 @@ if {$PHASE == "create_proj"} {
         puts "ERROR: No part specified. Could not create project."
         exit 2
     }
-    vivadoProcs::create_proj $PART $TOP $PROJ_NAME $PROJ_DIR
+    vivadoProcs::create_proj $PART $PROJ_NAME $PROJ_DIR
     if {[string trim $BOARD_PART] != ""} {
         vivadoProcs::set_board_part $BOARD_PART
     }

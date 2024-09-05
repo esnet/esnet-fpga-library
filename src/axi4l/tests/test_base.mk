@@ -23,8 +23,8 @@ waves ?= OFF
 #   (see $SCRIPTS_ROOT/Makefiles/templates/dependencies.mk for details)
 # ----------------------------------------------------
 SUBCOMPONENTS = \
-    axi4l.rtl axi4l.verif \
-    xilinx.axi.rtl \
+    axi4l.rtl \
+    axi4l.verif \
     reg.rtl \
     reg.proxy.rtl \
     reg.proxy.verif \

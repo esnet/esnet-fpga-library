@@ -130,7 +130,7 @@ _compile_synth: .subcomponents_synth _synth_sources _synth_constraints
 
 _compile_clean: .subcomponents_clean
 	@[ ! -d $(OBJ_DIR) ] && [ ! -d $(COMPONENT_OUT_SYNTH_PATH) ] || (echo "Cleaning $(COMPONENT_NAME)..." && rm -rf $(OBJ_DIR) && rm -rf $(COMPONENT_OUT_SYNTH_PATH))
-	@-find $(OUTPUT_ROOT) -type d -empty -delete 2>/dev/null
+	@-find $(LIB_OUTPUT_ROOT) -type d -empty -delete 2>/dev/null
 	@rm -f xvlog.pb
 
 .PHONY: _compile_sim _compile_synth _compile_clean

@@ -52,4 +52,13 @@ COMMON_LIB_NAME = <common-lib-name>
 #   pairs, e.g.:
 #   LIB_ENV = VAR1_NAME=VAR1_VALUE VAR2_NAME=VAR2_VALUE
 # ----------------------------------------------------
+<custom-env-setup>
+
+OUTPUT_SUBDIR = <output-subdir>
+
 LIB_ENV = <lib-env>
+
+# ----------------------------------------------------
+# Import base library config
+# ----------------------------------------------------
+include $(SCRIPTS_ROOT)/Makefiles/lib_config_base.mk
