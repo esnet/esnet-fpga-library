@@ -100,8 +100,8 @@ module axi4s_join
       .sop_mismatch (sop_mismatch)
    );
 
-   axi4s_intf_pipe #(.MODE(PUSH)) sync_hdr_pipe  (.axi4s_if_from_tx (sync_hdr[0]),  .axi4s_if_to_rx   (drop_hdr[0]));
-   axi4s_intf_pipe #(.MODE(PUSH)) sync_pyld_pipe (.axi4s_if_from_tx (sync_pyld[0]), .axi4s_if_to_rx   (drop_pyld[0]));
+   axi4s_full_pipe #(.MODE(PUSH)) sync_hdr_pipe  (.axi4s_if_from_tx (sync_hdr[0]),  .axi4s_if_to_rx   (drop_hdr[0]));
+   axi4s_full_pipe #(.MODE(PUSH)) sync_pyld_pipe (.axi4s_if_from_tx (sync_pyld[0]), .axi4s_if_to_rx   (drop_pyld[0]));
 
    always @(posedge clk) drop_pkt <= sync_hdr[0].tvalid && sync_hdr[0].sop && sync_hdr[0].tlast && sync_hdr[0].tkeep == '0;
 

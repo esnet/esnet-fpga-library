@@ -39,7 +39,13 @@ module axi4s_split
                 .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) axi4s_to_trunc ();
 
    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T),
-                .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) __axi4s_hdr_out ();
+                .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) _axi4s_hdr_out_p ();
+
+   axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T),
+                .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) axi4s_hdr_out_p ();
+
+   axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T),
+                .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) axi4s_out_p ();
 
 
    // wr_ptr logic
@@ -57,8 +63,12 @@ module axi4s_split
    assign axi4s_to_copy.tdest            = axi4s_in.tdest;
    assign axi4s_to_copy.tid              = axi4s_in.tid;
    assign axi4s_to_copy.tlast            = axi4s_in.tlast;
-   assign axi4s_to_copy.tuser.pid        = {'0, wr_ptr};
-   assign axi4s_to_copy.tuser.hdr_tlast  = axi4s_hdr_out.tvalid && axi4s_hdr_out.tlast;
+
+   always_comb begin
+       axi4s_to_copy.tuser            = axi4s_in.tuser;
+       axi4s_to_copy.tuser.pid        = {'0, wr_ptr};
+       axi4s_to_copy.tuser.hdr_tlast  = axi4s_hdr_out_p.tvalid && axi4s_hdr_out_p.tlast;
+   end
 
    assign axi4s_in.tready                = axi4s_to_copy.tready;
 
@@ -67,32 +77,40 @@ module axi4s_split
    axi4s_copy axi4s_copy_0 (
       .axi4s_in     (axi4s_to_copy),
       .axi4s_out    (axi4s_to_trunc),
-      .axi4s_cp_out (axi4s_out)
+      .axi4s_cp_out (axi4s_out_p)
    );
 
    // axi4s_trunc instance.
    axi4s_trunc #(
-      .BIGENDIAN (BIGENDIAN)
+      .BIGENDIAN (BIGENDIAN),
+      .OUT_PIPE  (0)
    ) axi4s_trunc_0 (
       .axi4s_in   (axi4s_to_trunc),
-      .axi4s_out  (__axi4s_hdr_out),
+      .axi4s_out  (_axi4s_hdr_out_p),
       .length     (hdr_length)
    );
 
-   always @(posedge axi4s_in.aclk) pid <= (__axi4s_hdr_out.tvalid && __axi4s_hdr_out.sop) ? __axi4s_hdr_out.tuser.pid : pid;
+   always @(posedge axi4s_in.aclk) pid <= (_axi4s_hdr_out_p.tvalid && _axi4s_hdr_out_p.sop) ? _axi4s_hdr_out_p.tuser.pid : pid;
 
-   // axi4s_hdr_out interface signalling. assigns pid (sop wr_ptr) to hdr pkt.
-   assign axi4s_hdr_out.aclk             = __axi4s_hdr_out.aclk;
-   assign axi4s_hdr_out.aresetn          = __axi4s_hdr_out.aresetn;
-   assign axi4s_hdr_out.tvalid           = __axi4s_hdr_out.tvalid;
-   assign axi4s_hdr_out.tdata            = __axi4s_hdr_out.tdata;
-   assign axi4s_hdr_out.tkeep            = __axi4s_hdr_out.tkeep;
-   assign axi4s_hdr_out.tdest            = __axi4s_hdr_out.tdest;
-   assign axi4s_hdr_out.tid              = __axi4s_hdr_out.tid;
-   assign axi4s_hdr_out.tlast            = __axi4s_hdr_out.tlast;
-   assign axi4s_hdr_out.tuser.pid        = (__axi4s_hdr_out.tvalid && __axi4s_hdr_out.sop) ? __axi4s_hdr_out.tuser.pid : {'0, pid};
-   assign axi4s_hdr_out.tuser.hdr_tlast  = '0;
+   // axi4s_hdr_out_p interface signalling. assigns pid (sop wr_ptr) to hdr pkt.
+   assign axi4s_hdr_out_p.aclk             = _axi4s_hdr_out_p.aclk;
+   assign axi4s_hdr_out_p.aresetn          = _axi4s_hdr_out_p.aresetn;
+   assign axi4s_hdr_out_p.tvalid           = _axi4s_hdr_out_p.tvalid;
+   assign axi4s_hdr_out_p.tdata            = _axi4s_hdr_out_p.tdata;
+   assign axi4s_hdr_out_p.tkeep            = _axi4s_hdr_out_p.tkeep;
+   assign axi4s_hdr_out_p.tdest            = _axi4s_hdr_out_p.tdest;
+   assign axi4s_hdr_out_p.tid              = _axi4s_hdr_out_p.tid;
+   assign axi4s_hdr_out_p.tlast            = _axi4s_hdr_out_p.tlast;
 
-   assign __axi4s_hdr_out.tready         = axi4s_hdr_out.tready;
+   always_comb begin
+       axi4s_hdr_out_p.tuser            = _axi4s_hdr_out_p.tuser;
+       axi4s_hdr_out_p.tuser.pid        = (_axi4s_hdr_out_p.tvalid && _axi4s_hdr_out_p.sop) ? _axi4s_hdr_out_p.tuser.pid : {'0, pid};
+       axi4s_hdr_out_p.tuser.hdr_tlast  = '0;
+   end
+
+   assign _axi4s_hdr_out_p.tready         = axi4s_hdr_out_p.tready;
+
+   axi4s_intf_pipe axi4s_hdr_out_pipe (.axi4s_if_from_tx(axi4s_hdr_out_p), .axi4s_if_to_rx(axi4s_hdr_out));
+   axi4s_intf_pipe axi4s_out_pipe     (.axi4s_if_from_tx(axi4s_out_p),     .axi4s_if_to_rx(axi4s_out));
 
 endmodule // axi4s_split
