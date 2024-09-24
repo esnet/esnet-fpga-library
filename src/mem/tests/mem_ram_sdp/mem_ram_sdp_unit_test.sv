@@ -13,11 +13,12 @@ module mem_ram_sdp_unit_test #(
 );
     import svunit_pkg::svunit_testcase;
 
+    string async_str = ASYNC ? "async_" : "";
     string rst_str = RESET_FSM ? "rst_" : "";
     string model_str = RAM_MODEL ? "model_" : "";
 
     // Synthesize testcase name from parameters
-    string name = $sformatf("mem_ram_sdp_a%0db_d%0db_%s%sut", ADDR_WID, DATA_WID, rst_str, model_str);
+    string name = $sformatf("mem_ram_sdp_a%0db_d%0db_%s%s%sut", ADDR_WID, DATA_WID, async_str, rst_str, model_str);
 
     svunit_testcase svunit_ut;
 
@@ -169,10 +170,10 @@ endmodule : mem_ram_sdp_unit_test
 // 'Boilerplate' unit test wrapper code
 //  Builds unit test for a specific mem_ram_sdp configuration in a way
 //  that maintains SVUnit compatibility
-`define MEM_RAM_SDP_SYNC_UNIT_TEST(ADDR_WID,DATA_WID,RESET_FSM,RAM_MODEL)\
+`define MEM_RAM_SDP_UNIT_TEST(ADDR_WID,DATA_WID,ASYNC,RESET_FSM,RAM_MODEL)\
   import svunit_pkg::svunit_testcase;\
   svunit_testcase svunit_ut;\
-  mem_ram_sdp_unit_test #(ADDR_WID,DATA_WID,RESET_FSM,RAM_MODEL) test();\
+  mem_ram_sdp_unit_test #(ADDR_WID,DATA_WID,ASYNC,RESET_FSM,RAM_MODEL) test();\
   function void build();\
     test.build();\
     svunit_ut = test.svunit_ut;\
@@ -186,37 +187,47 @@ endmodule : mem_ram_sdp_unit_test
 
 // (Distributed RAM) 256-entry, 32-bit
 module mem_ram_sdp_a8b_d32b_unit_test;
-`MEM_RAM_SDP_SYNC_UNIT_TEST(8,32,0,0);
+`MEM_RAM_SDP_UNIT_TEST(8,32,0,0,0);
+endmodule
+
+// (Distributed RAM) 256-entry, 32-bit, async
+module mem_ram_sdp_a8b_d32b_async_unit_test;
+`MEM_RAM_SDP_UNIT_TEST(8,32,1,0,0);
 endmodule
 
 // (Distributed RAM) 256-entry, 32-bit, reset FSM
 module mem_ram_sdp_a8b_d32b_rst_unit_test;
-`MEM_RAM_SDP_SYNC_UNIT_TEST(8,32,1,0);
+`MEM_RAM_SDP_UNIT_TEST(8,32,0,1,0);
 endmodule
 
 // (Block RAM) 1024-entry, 32-bit
 module mem_ram_sdp_a10b_d32b_unit_test;
-`MEM_RAM_SDP_SYNC_UNIT_TEST(10,32,0,0);
+`MEM_RAM_SDP_UNIT_TEST(10,32,0,0,0);
+endmodule
+
+// (Block RAM) 1024-entry, 32-bit, async
+module mem_ram_sdp_a10b_d32b_async_unit_test;
+`MEM_RAM_SDP_UNIT_TEST(10,32,1,0,0);
 endmodule
 
 // (Block RAM) 1024-entry, 32-bit, reset FSM
 module mem_ram_sdp_a10b_d32b_rst_unit_test;
-`MEM_RAM_SDP_SYNC_UNIT_TEST(10,32,1,0);
+`MEM_RAM_SDP_UNIT_TEST(10,32,0,1,0);
 endmodule
 
 // (Ultra RAM) 4096-entry, 64-bit
 module mem_ram_sdp_a12b_d64b_unit_test;
-`MEM_RAM_SDP_SYNC_UNIT_TEST(12,64,0,0);
+`MEM_RAM_SDP_UNIT_TEST(12,64,0,0,0);
 endmodule
 
 // (Ultra RAM) 4096-entry, 64-bit, reset FSM
 module mem_ram_sdp_a12b_d64b_rst_unit_test;
-`MEM_RAM_SDP_SYNC_UNIT_TEST(12,64,1,0);
+`MEM_RAM_SDP_UNIT_TEST(12,64,0,1,0);
 endmodule
 
 // (Ultra RAM) 4096-entry, 64-bit, reset FSM, RAM model
 module mem_ram_sdp_a12b_d64b_rst_model_unit_test;
-`MEM_RAM_SDP_SYNC_UNIT_TEST(12,64,1,1);
+`MEM_RAM_SDP_UNIT_TEST(12,64,0,1,1);
 endmodule
 
 
