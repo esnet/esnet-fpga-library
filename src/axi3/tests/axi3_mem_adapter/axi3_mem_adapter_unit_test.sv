@@ -1,14 +1,13 @@
 `include "svunit_defines.svh"
 
-module mem_axi3_proxy_unit_test;
+module axi3_mem_adapter_unit_test;
 
     import svunit_pkg::svunit_testcase;
     import mem_pkg::*;
     import axi3_pkg::*;
-    import mem_verif_pkg::*;
     import mem_proxy_verif_pkg::*;
 
-    string name = "mem_axi3_proxy_ut";
+    string name = "axi3_mem_adapter_ut";
     svunit_testcase svunit_ut;
 
     //===================================
@@ -17,7 +16,6 @@ module mem_axi3_proxy_unit_test;
     localparam type ADDR_T = logic[32:0];
     localparam int DATA_BYTE_WID = 32;
     localparam type DATA_T = logic[DATA_BYTE_WID*8-1:0];
-    localparam int BURST_LEN = 1;
     localparam ACCESS_TYPE = ACCESS_READ_WRITE;
     localparam MEM_TYPE = MEM_TYPE_HBM;
 
@@ -40,15 +38,13 @@ module mem_axi3_proxy_unit_test;
 
     axi4l_intf axil_if ();
 
+    mem_intf    #(.ADDR_T(ADDR_T), .DATA_T(DATA_T)) mem_if (.clk(clk));
     mem_wr_intf #(.ADDR_WID(ADDR_WID), .DATA_WID(DATA_WID)) mem_wr_if (.clk(clk));
     mem_rd_intf #(.ADDR_WID(ADDR_WID), .DATA_WID(DATA_WID)) mem_rd_if (.clk(clk));
 
     axi3_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .ADDR_WID(ADDR_WID), .ID_T(logic[5:0])) axi3_if [NUM_CHANNELS] ();
 
     mem_proxy       #(
-        .ADDR_T      ( ADDR_T ),
-        .DATA_T      ( DATA_T ),
-        .BURST_LEN   ( BURST_LEN ),
         .ACCESS_TYPE ( ACCESS_TYPE ),
         .MEM_TYPE    ( MEM_TYPE )
     ) i_mem_proxy (
@@ -56,7 +52,11 @@ module mem_axi3_proxy_unit_test;
         .*
     );
 
-    mem_axi3_proxy #(
+    mem_sp_to_sdp_adapter i_mem_sp_to_sdp_adapter (
+        .*
+    );
+
+    axi3_mem_adapter #(
         .SIZE ( AXI_SIZE )
     ) DUT (
         .axi3_if ( axi3_if[ACTIVE_CHANNEL] ),
@@ -66,10 +66,10 @@ module mem_axi3_proxy_unit_test;
     //===================================
     // Testbench
     //===================================
-    mem_axi3_bfm #(
+    axi3_mem_bfm #(
         .CHANNELS ( NUM_CHANNELS ),
         .DEBUG    ( 0 )
-    ) i_mem_axi3_bfm (
+    ) i_axi3_mem_bfm (
         .*
     );
     
@@ -87,7 +87,7 @@ module mem_axi3_proxy_unit_test;
     
 
     // Agent
-    mem_reg_agent #(ADDR_T, DATA_T) agent;
+    mem_proxy_agent agent;
     axi4l_verif_pkg::axi4l_reg_agent reg_agent;
 
     // Reset
@@ -114,7 +114,7 @@ module mem_axi3_proxy_unit_test;
         // Build agent
         reg_agent = new();
         reg_agent.axil_vif = axil_if;
-        agent = new("mem_reg_agent", BURST_LEN, reg_agent);
+        agent = new("mem_reg_agent", SIZE, DATA_WID, reg_agent);
     endfunction
 
     //===================================
@@ -203,7 +203,7 @@ module mem_axi3_proxy_unit_test;
             `FAIL_UNLESS_EQUAL(num, DATA_BYTES);
             // Check max burst size
             agent.get_max_burst_size(num);
-            `FAIL_UNLESS_EQUAL(num, DATA_BYTES*BURST_LEN);
+            `FAIL_UNLESS_EQUAL(num, DATA_BYTES*agent.get_max_burst_len());
         `SVTEST_END
 
         //===================================
@@ -297,4 +297,4 @@ module mem_axi3_proxy_unit_test;
         reset_if.wait_ready(timeout, 0);
     endtask
 
-endmodule : mem_axi3_proxy_unit_test
+endmodule : axi3_mem_adapter_unit_test

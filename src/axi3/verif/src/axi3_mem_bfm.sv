@@ -1,4 +1,4 @@
-module mem_axi3_bfm #(
+module axi3_mem_bfm #(
     parameter int CHANNELS = 1,
     parameter bit DEBUG = 1'b0
 ) (
@@ -214,4 +214,4 @@ module mem_axi3_bfm #(
         end : g__if
     endgenerate
 
-endmodule : mem_axi3_bfm
+endmodule : axi3_mem_bfm

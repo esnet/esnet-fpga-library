@@ -1,7 +1,7 @@
 # -----------------------------------------------
 # Component setup
 # -----------------------------------------------
-COMPONENT_ROOT := ../..
+COMPONENT_ROOT := ..
 
 include $(COMPONENT_ROOT)/config.mk
 
@@ -23,10 +23,7 @@ SRC_LIST_FILES =
 #   (see $SCRIPTS_ROOT/Makefiles/templates/dependencies.mk)
 # ----------------------------------------------------
 SUBCOMPONENTS = \
-    mem.rtl \
-    axi3.rtl \
-    std.verif \
-    string.pkg
+    axi3.rtl
 
 EXT_LIBS =
 

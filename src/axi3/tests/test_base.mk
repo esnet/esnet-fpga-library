@@ -1,7 +1,7 @@
 # -----------------------------------------------
 # Component setup
 # -----------------------------------------------
-COMPONENT_ROOT := ../../..
+COMPONENT_ROOT := ../..
 
 include $(COMPONENT_ROOT)/config.mk
 
@@ -43,11 +43,10 @@ SUBCOMPONENTS = \
     axi4l.rtl \
     std.rtl \
     axi4l.verif \
-    mem.verif \
+    mem.rtl \
     mem.proxy.verif \
     axi3.rtl \
-    mem.axi3.rtl \
-    mem.axi3.verif
+    axi3.verif
 
 EXT_LIBS =
 

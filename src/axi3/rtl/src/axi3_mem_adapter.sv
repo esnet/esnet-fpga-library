@@ -1,4 +1,4 @@
-module mem_axi3_proxy
+module axi3_mem_adapter
     import axi3_pkg::*;
 #(
     parameter axsize_encoding_t SIZE = SIZE_64BYTES,
@@ -255,4 +255,4 @@ module mem_axi3_proxy
         else if (axi3_if.rvalid && axi3_if.rready) mem_rd_if.data <= axi3_if.rdata;
     end
 
-endmodule : mem_axi3_proxy
+endmodule : axi3_mem_adapter
