@@ -26,7 +26,9 @@ SUBCOMPONENTS = \
     std.rtl \
     fifo.rtl \
     mem.rtl \
-    packet.pkg
+    mem.proxy.rtl \
+    packet.pkg \
+    packet.regio.rtl
 
 EXT_LIBS =
 

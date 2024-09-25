@@ -26,6 +26,8 @@ SUBCOMPONENTS = \
     packet.pkg \
     packet.rtl \
     mem.rtl \
+    axi4l.rtl \
+    axi4l.verif \
     packet.verif
 
 EXT_LIBS =

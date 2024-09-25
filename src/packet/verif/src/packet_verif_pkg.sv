@@ -1,4 +1,7 @@
 package packet_verif_pkg;
+    import packet_reg_verif_pkg::*;
+    import mem_proxy_verif_pkg::*;
+
     `include "packet.svh"
     `include "packet_raw.svh"
     `include "packet_eth.svh"
@@ -12,6 +15,7 @@ package packet_verif_pkg;
     `include "packet_enqueue_model.svh"
     `include "packet_intf_driver.svh"
     `include "packet_intf_monitor.svh"
+    `include "packet_playback_driver.svh"
 
 endpackage : packet_verif_pkg
 
