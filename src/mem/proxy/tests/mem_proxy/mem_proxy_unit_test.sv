@@ -33,12 +33,9 @@ module mem_proxy_unit_test;
 
     axi4l_intf axil_if ();
 
-    mem_wr_intf #(.ADDR_WID(ADDR_WID), .DATA_WID(DATA_WID)) mem_wr_if (.clk(clk));
-    mem_rd_intf #(.ADDR_WID(ADDR_WID), .DATA_WID(DATA_WID)) mem_rd_if (.clk(clk));
+    mem_intf #(.ADDR_T(ADDR_T), .DATA_T(DATA_T)) mem_if (.clk(clk));
 
     mem_proxy       #(
-        .ADDR_T      ( ADDR_T ),
-        .DATA_T      ( DATA_T ),
         .BURST_LEN   ( BURST_LEN ),
         .ACCESS_TYPE ( ACCESS_TYPE ),
         .MEM_TYPE    ( MEM_TYPE )
@@ -58,13 +55,12 @@ module mem_proxy_unit_test;
         OPT_MODE: OPT_MODE_DEFAULT
     };
 
-    mem_ram_sdp        #(
+    mem_ram_sp         #(
         .SPEC           ( SPEC ),
         .SIM__FAST_INIT ( 0 ),
         .SIM__RAM_MODEL ( 1 )
     ) i_ram (
-        .mem_wr_if ( mem_wr_if ),
-        .mem_rd_if ( mem_rd_if )
+        .mem_if ( mem_if )
     );
 
     // Agent
@@ -210,8 +206,8 @@ module mem_proxy_unit_test;
             byte exp_data [64];
             byte got_data [];
             // Randomize access
-            std::randomize(addr);
-            std::randomize(exp_data);
+            void'(std::randomize(addr));
+            void'(std::randomize(exp_data));
             // Write
             agent.write(addr, exp_data, error, timeout);
             `FAIL_IF(error);

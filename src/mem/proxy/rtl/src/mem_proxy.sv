@@ -1,8 +1,6 @@
 module mem_proxy
     import mem_pkg::*;
 #(
-    parameter type ADDR_T = logic [8:0],
-    parameter type DATA_T = logic [31:0],
     parameter int BURST_LEN = 2,
     parameter access_t ACCESS_TYPE = ACCESS_UNSPECIFIED,  // See mem_pkg for supported values
     parameter mem_type_t MEM_TYPE = MEM_TYPE_UNSPECIFIED, // See mem_pkg for supported values
@@ -18,8 +16,7 @@ module mem_proxy
     axi4l_intf.peripheral      axil_if,
 
     // Memory interface
-    mem_wr_intf.controller     mem_wr_if,
-    mem_rd_intf.controller     mem_rd_if
+    mem_intf.controller        mem_if
 );
     // -----------------------------
     // Imports
@@ -29,12 +26,14 @@ module mem_proxy
     // -----------------------------
     // Parameters
     // -----------------------------
-    localparam int ADDR_WID = $bits(ADDR_T);
-    localparam int MEM_SIZE = 2**ADDR_WID;
+    localparam type ADDR_T = mem_if.ADDR_T;
+    localparam int  ADDR_WID = $bits(ADDR_T);
+    localparam int  MEM_SIZE = 2**ADDR_WID;
 
-    localparam int DATA_WID = $bits(DATA_T);
-    localparam bit DATA_WID_IS_N_BYTES = (DATA_WID % 8 == 0);
-    localparam int DATA_BYTES = DATA_WID % 8 == 0 ? DATA_WID / 8 : DATA_WID / 8 + 1;
+    localparam type DATA_T = mem_if.DATA_T;
+    localparam int  DATA_WID = $bits(DATA_T);
+    localparam bit  DATA_WID_IS_N_BYTES = (DATA_WID % 8 == 0);
+    localparam int  DATA_BYTES = DATA_WID % 8 == 0 ? DATA_WID / 8 : DATA_WID / 8 + 1;
 
     // Determine burst parameters (in bytes)
     localparam int BURST_SIZE_MIN = DATA_BYTES;
@@ -127,6 +126,12 @@ module mem_proxy
 
     logic      req;
     logic      rdy;
+
+    logic      mem_init;
+    logic      mem_wr_req;
+    logic      mem_rd_req;
+    ADDR_T     mem_addr;
+    DATA_T     mem_wr_data;
 
     command_t  command;
     ADDR_T     addr;
@@ -271,9 +276,9 @@ module mem_proxy
 
     always_comb begin
         nxt_state = state;
-        mem_wr_if.req = 1'b0;
-        mem_wr_if.rst = 1'b0;
-        mem_rd_if.req = 1'b0;
+        mem_wr_req = 1'b0;
+        mem_init = 1'b0;
+        mem_rd_req = 1'b0;
         reset_timer = 1'b0;
         inc_timer = 1'b0;
         reset_word = 1'b0;
@@ -287,7 +292,7 @@ module mem_proxy
             RESET : begin
                 init_done = 1'b0;
                 reset_timer = 1'b1;
-                mem_wr_if.rst = 1'b1;
+                mem_init = 1'b1;
                 nxt_state = INIT_DEBOUNCE;
             end
             INIT_DEBOUNCE : begin
@@ -297,7 +302,7 @@ module mem_proxy
             end
             INIT_PENDING : begin
                 init_done = 1'b0;
-                if (mem_wr_if.rdy) nxt_state = IDLE;
+                if (mem_if.rdy) nxt_state = IDLE;
             end
             IDLE : begin
                 rdy = 1'b1;
@@ -314,12 +319,12 @@ module mem_proxy
             end
             READ_REQ : begin
                 inc_timer = 1'b1;
-                mem_rd_if.req = 1'b1;
-                if (mem_rd_if.rdy) nxt_state = READ_PENDING;
+                mem_rd_req = 1'b1;
+                if (mem_if.rdy) nxt_state = READ_PENDING;
             end
             READ_PENDING : begin
                 inc_timer = 1'b1;
-                if (mem_rd_if.ack) begin
+                if (mem_if.rd_ack) begin
                     inc_word = 1'b1;
                     if (word < burst_len-1) nxt_state = READ_REQ;
                     else                    nxt_state = DONE;
@@ -327,12 +332,12 @@ module mem_proxy
             end
             WRITE_REQ : begin
                 inc_timer = 1'b1;
-                mem_wr_if.req = 1'b1;
-                if (mem_wr_if.rdy) nxt_state = WRITE_PENDING;
+                mem_wr_req = 1'b1;
+                if (mem_if.rdy) nxt_state = WRITE_PENDING;
             end
             WRITE_PENDING : begin
                 inc_timer = 1'b1;
-                if (mem_wr_if.ack) begin
+                if (mem_if.wr_ack) begin
                     inc_word = 1'b1;
                     if (word < burst_len-1) nxt_state = WRITE_REQ;
                     else                    nxt_state = DONE;
@@ -340,7 +345,7 @@ module mem_proxy
             end
             CLEAR_REQ : begin
                 inc_timer = 1'b1;
-                mem_wr_if.rst = 1'b1;
+                mem_init = 1'b1;
                 nxt_state = CLEAR_DEBOUNCE;
             end
             CLEAR_DEBOUNCE : begin
@@ -348,7 +353,7 @@ module mem_proxy
                 if (timer == INIT_DEBOUNCE_CYCLES) nxt_state = CLEAR_PENDING;
             end
             CLEAR_PENDING : begin
-                if (mem_wr_if.rdy) nxt_state = DONE;
+                if (mem_if.rdy) nxt_state = DONE;
             end
             DONE: begin
                 done = 1'b1;
@@ -380,21 +385,20 @@ module mem_proxy
     end
 
     // Drive write interface
-    assign mem_wr_if.en = 1'b1;
     always_comb begin
-        mem_wr_if.addr = addr + (word * DATA_BYTES);
-        mem_wr_if.data = wr_data[word];
+        mem_addr = addr + (word * DATA_BYTES);
+        mem_wr_data = wr_data[word];
     end
 
-    // Drive read interface
-    assign mem_rd_if.rst = 1'b0;
-    always_comb begin
-        mem_rd_if.addr = addr + (word * DATA_BYTES);
-    end
+    assign mem_if.rst = mem_init;
+    assign mem_if.req = mem_wr_req || mem_rd_req;
+    assign mem_if.wr = mem_wr_req;
+    assign mem_if.addr = mem_addr;
+    assign mem_if.wr_data = mem_wr_data;
 
     // Read response
     // -- Latch each word in burst
-    always @(posedge clk) if (mem_rd_if.ack) rd_data[word] <= mem_rd_if.data;
+    always @(posedge clk) if (mem_if.rd_ack) rd_data[word] <= mem_if.rd_data;
     // -- Unpack read data to registers
     generate
         for (genvar g_reg = 0; g_reg < DATA_REGS; g_reg++) begin : g__rd_data_reg
