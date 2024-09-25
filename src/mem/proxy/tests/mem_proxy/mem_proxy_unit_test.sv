@@ -4,7 +4,6 @@ module mem_proxy_unit_test;
 
     import svunit_pkg::svunit_testcase;
     import mem_pkg::*;
-    import mem_verif_pkg::*;
     import mem_proxy_verif_pkg::*;
 
     string name = "mem_proxy_ut";
@@ -15,7 +14,6 @@ module mem_proxy_unit_test;
     //===================================
     localparam type ADDR_T = logic[7:0];
     localparam type DATA_T = logic[511:0];
-    localparam int BURST_LEN = 2;
     localparam ACCESS_TYPE = ACCESS_READ_WRITE;
     localparam MEM_TYPE = MEM_TYPE_SRAM;
 
@@ -36,7 +34,6 @@ module mem_proxy_unit_test;
     mem_intf #(.ADDR_T(ADDR_T), .DATA_T(DATA_T)) mem_if (.clk(clk));
 
     mem_proxy       #(
-        .BURST_LEN   ( BURST_LEN ),
         .ACCESS_TYPE ( ACCESS_TYPE ),
         .MEM_TYPE    ( MEM_TYPE )
     ) DUT (
@@ -64,7 +61,7 @@ module mem_proxy_unit_test;
     );
 
     // Agent
-    mem_reg_agent #(ADDR_T, DATA_T) agent;
+    mem_proxy_agent agent;
     axi4l_verif_pkg::axi4l_reg_agent reg_agent;
 
     // Reset
@@ -87,11 +84,11 @@ module mem_proxy_unit_test;
     //===================================
     function void build();
         svunit_ut = new(name);
-        
+
         // Build agent
         reg_agent = new();
         reg_agent.axil_vif = axil_if;
-        agent = new("mem_reg_agent", BURST_LEN, reg_agent);
+        agent = new("mem_proxy_agent", SIZE, DATA_WID, reg_agent);
     endfunction
 
     //===================================
@@ -180,7 +177,7 @@ module mem_proxy_unit_test;
             `FAIL_UNLESS_EQUAL(num, DATA_BYTES);
             // Check max burst size
             agent.get_max_burst_size(num);
-            `FAIL_UNLESS_EQUAL(num, DATA_BYTES*BURST_LEN);
+            `FAIL_UNLESS_EQUAL(num, DATA_BYTES*agent.get_max_burst_len());
         `SVTEST_END
 
         //===================================
@@ -232,19 +229,20 @@ module mem_proxy_unit_test;
         // Desc:
         //===================================
         `SVTEST(write_read_burst)
+            localparam int SIZE=4096;
             ADDR_T addr;
-            byte exp_data [128];
+            byte exp_data [SIZE];
             byte got_data [];
 
             // Randomize access
-            std::randomize(exp_data);
-            std::randomize(addr);
+            void'(std::randomize(exp_data));
+            void'(std::randomize(addr));
             // Write
             agent.write(addr, exp_data, error, timeout);
             `FAIL_IF(error);
             `FAIL_IF(timeout);
             // Read
-            agent.read(addr, 128, got_data, error, timeout);
+            agent.read(addr, SIZE, got_data, error, timeout);
             `FAIL_IF(error);
             `FAIL_IF(timeout);
             // Check

@@ -43,7 +43,6 @@ SUBCOMPONENTS = \
     axi4l.rtl \
     std.rtl \
     axi4l.verif \
-    mem.verif \
     mem.proxy.verif
 
 EXT_LIBS =

@@ -26,7 +26,6 @@ SUBCOMPONENTS = \
     mem.rtl \
     mem.proxy.regio.verif \
     reg.verif \
-    mem.verif \
     string.pkg
 
 EXT_LIBS =

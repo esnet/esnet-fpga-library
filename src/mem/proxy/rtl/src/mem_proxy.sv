@@ -1,7 +1,6 @@
 module mem_proxy
     import mem_pkg::*;
 #(
-    parameter int BURST_LEN = 2,
     parameter access_t ACCESS_TYPE = ACCESS_UNSPECIFIED,  // See mem_pkg for supported values
     parameter mem_type_t MEM_TYPE = MEM_TYPE_UNSPECIFIED, // See mem_pkg for supported values
     parameter int TIMEOUT_CYCLES = 1000,
@@ -37,9 +36,10 @@ module mem_proxy
     localparam int  DATA_BYTES = DATA_WID % 8 == 0 ? DATA_WID / 8 : DATA_WID / 8 + 1;
 
     // Determine burst parameters (in bytes)
+    localparam int BURST_LEN_MAX = DATA_WID_IS_N_BYTES ? mem_proxy_reg_pkg::COUNT_WR_DATA * 4 / DATA_BYTES : 1;
     localparam int BURST_SIZE_MIN = DATA_BYTES;
-    localparam int BURST_SIZE_MAX = DATA_BYTES * BURST_LEN;
-    localparam int BURST_LEN_WID = $clog2(BURST_LEN+1);
+    localparam int BURST_SIZE_MAX = DATA_BYTES * BURST_LEN_MAX;
+    localparam int BURST_LEN_WID = $clog2(BURST_LEN_MAX+1);
     localparam int BURST_SIZE_WID = $clog2(BURST_SIZE_MAX+1);
 
     // Determine depth of write/read data arrays
@@ -53,7 +53,7 @@ module mem_proxy
     // -----------------------------
     initial begin
         // Enforce access size of N*8 bits when BURST_LEN > 1, i.e. when multi-cycle accesses are possible
-        if (BURST_LEN > 1) std_pkg::param_check(DATA_WID_IS_N_BYTES, 1, "DATA_WID_IS_N_BYTES");
+        if (BURST_LEN_MAX > 1) std_pkg::param_check(DATA_WID_IS_N_BYTES, 1, "DATA_WID_IS_N_BYTES");
     end
 
     // -----------------------------
@@ -137,10 +137,10 @@ module mem_proxy
     command_t  command;
     ADDR_T     addr;
 
-    logic [0:BURST_LEN-1][DATA_BYTES-1:0][7:0] wr_data_in;
-    logic [0:BURST_LEN-1][DATA_BYTES-1:0][7:0] wr_data;
+    logic [0:BURST_LEN_MAX-1][DATA_BYTES-1:0][7:0] wr_data_in;
+    logic [0:BURST_LEN_MAX-1][DATA_BYTES-1:0][7:0] wr_data;
 
-    logic [0:BURST_LEN-1][DATA_BYTES-1:0][7:0] rd_data;
+    logic [0:BURST_LEN_MAX-1][DATA_BYTES-1:0][7:0] rd_data;
 
     state_t    state;
     state_t    nxt_state;
