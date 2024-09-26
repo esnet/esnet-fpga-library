@@ -4,7 +4,8 @@ module mem_proxy
     parameter int BURST_LEN = 2,
     parameter access_t ACCESS_TYPE = ACCESS_UNSPECIFIED,  // See mem_pkg for supported values
     parameter mem_type_t MEM_TYPE = MEM_TYPE_UNSPECIFIED, // See mem_pkg for supported values
-    parameter int TIMEOUT_CYCLES = 1000
+    parameter int TIMEOUT_CYCLES = 1000,
+    parameter int BIGENDIAN = 0
 )(
     // Clock/reset
     input  logic               clk,
@@ -230,10 +231,11 @@ module mem_proxy
             reg_t wr_data_reg;
             assign wr_data_reg = reg_if.wr_data[g_reg];
             for (genvar g_reg_byte = 0; g_reg_byte < 4; g_reg_byte++) begin : g__byte
+                localparam int byte_idx = (g_reg * 4 + g_reg_byte);
                 localparam int word_idx = (g_reg * 4 + g_reg_byte) / DATA_BYTES;
-                localparam int byte_idx = (g_reg * 4 + g_reg_byte) % DATA_BYTES;
-                if (byte_idx < BURST_SIZE_MAX) assign wr_data_in[word_idx][byte_idx] = wr_data_reg[g_reg_byte];
-                else                           assign wr_data_in[word_idx][byte_idx] = 8'h0;
+                localparam int word_byte_idx = BIGENDIAN ? DATA_BYTES - (byte_idx % DATA_BYTES) - 1 : byte_idx % DATA_BYTES;
+                if (byte_idx < BURST_SIZE_MAX) assign wr_data_in[word_idx][word_byte_idx] = wr_data_reg[g_reg_byte];
+                else                           assign wr_data_in[word_idx][word_byte_idx] = 8'h0;
             end : g__byte
         end : g__wr_data_reg
     endgenerate
@@ -386,7 +388,7 @@ module mem_proxy
 
     // Drive write interface
     always_comb begin
-        mem_addr = addr + (word * DATA_BYTES);
+        mem_addr = addr + word;
         mem_wr_data = wr_data[word];
     end
 
@@ -404,9 +406,10 @@ module mem_proxy
         for (genvar g_reg = 0; g_reg < DATA_REGS; g_reg++) begin : g__rd_data_reg
             reg_t rd_data_reg;
             for (genvar g_reg_byte = 0; g_reg_byte < 4; g_reg_byte++) begin : g__byte
-                localparam int word_idx = (g_reg * 4 + g_reg_byte) / DATA_BYTES;
-                localparam int byte_idx = (g_reg * 4 + g_reg_byte) % DATA_BYTES;
-                if (byte_idx < BURST_SIZE_MAX) assign rd_data_reg[g_reg_byte] = rd_data[word_idx][byte_idx];
+                localparam int byte_idx = g_reg * 4 + g_reg_byte;
+                localparam int word_idx = byte_idx / DATA_BYTES;
+                localparam int word_byte_idx = BIGENDIAN ? DATA_BYTES - (byte_idx % DATA_BYTES) - 1 : byte_idx % DATA_BYTES;
+                if (byte_idx < BURST_SIZE_MAX) assign rd_data_reg[g_reg_byte] = rd_data[word_idx][word_byte_idx];
                 else                           assign rd_data_reg[g_reg_byte] = 8'h0;
             end : g__byte
             assign reg_if.rd_data_nxt_v[g_reg] = 1'b1;
