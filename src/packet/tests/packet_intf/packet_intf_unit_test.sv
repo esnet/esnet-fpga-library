@@ -42,10 +42,10 @@ module packet_intf_unit_test #(
     //===================================
     // Testbench
     //===================================
-    packet_component_env #(
-        DATA_BYTE_WID,
-        META_T
-    ) env;
+    packet_component_env #(META_T) env;
+
+    packet_intf_driver#(DATA_BYTE_WID, META_T) driver;
+    packet_intf_monitor#(DATA_BYTE_WID, META_T) monitor;
 
     // Model
     std_verif_pkg::wire_model#(PACKET_T) model;
@@ -66,13 +66,19 @@ module packet_intf_unit_test #(
 
         svunit_ut = new(name);
 
+        // Driver
+        driver = new(.BIGENDIAN(1));
+        driver.packet_vif = packet_in_if;
+
+        // Monitor
+        monitor = new(.BIGENDIAN(1));
+        monitor.packet_vif = packet_out_if;
+
         model = new();
         scoreboard = new();
 
-        env = new("env", model, scoreboard);
+        env = new("env", driver, monitor, model, scoreboard);
         env.reset_vif = reset_if;
-        env.packet_in_vif = packet_in_if;
-        env.packet_out_vif = packet_out_if;
         env.connect();
 
         env.set_debug_level(0);
@@ -95,8 +101,8 @@ module packet_intf_unit_test #(
         env.reset_dut();
 
         // Default settings for transmit and receive stall rate
-        env.monitor.set_stall_rate(0.0);
-        env.driver.set_stall_rate(0.0);
+        monitor.set_stall_rate(0.0);
+        driver.set_stall_rate(0.0);
 
         // Start environment
         env.start();

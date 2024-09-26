@@ -22,6 +22,7 @@ class packet_raw #(parameter type META_T = bit) extends packet#(META_T);
     );
         super.new(name, packet_pkg::PROTOCOL_NONE, meta, err);
         this.__len = len;
+        this.__data = new[len];
     endfunction
 
     // Configure trace output

@@ -66,7 +66,7 @@ class packet #(parameter type META_T = bit) extends std_verif_pkg::transaction;
     endfunction
 
     // Clone
-    virtual function automatic packet clone(input string name); endfunction
+    virtual function automatic packet#(META_T) clone(input string name); endfunction
 
     // Get string representation of transaction
     // [[ implements std_verif_pkg::transaction.to_string() ]]

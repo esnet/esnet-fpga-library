@@ -68,7 +68,7 @@ module packet_enqueue_unit_test;
     ) env;
 
     // Driver/monitor
-    packet_driver#(DATA_BYTE_WID,META_T) driver;
+    packet_intf_driver#(DATA_BYTE_WID,META_T) driver;
     packet_descriptor_monitor#(ADDR_T,META_T) monitor;
 
     // Model
