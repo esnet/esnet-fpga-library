@@ -38,6 +38,11 @@ virtual class scoreboard #(parameter type TRANSACTION_T = transaction) extends c
         return got_inbox.num();
     endfunction
 
+    // Return number of matched transactions
+    function automatic int got_matched();
+        return __match_cnt;
+    endfunction
+
     // Return number of received transactions processed
     function automatic int got_processed();
         return __got_cnt;
