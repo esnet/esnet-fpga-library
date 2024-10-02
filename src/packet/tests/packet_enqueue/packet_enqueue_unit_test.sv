@@ -1,11 +1,14 @@
 `include "svunit_defines.svh"
 
-module packet_enqueue_unit_test;
+module packet_enqueue_unit_test #(
+    parameter bit DROP_ERRORED = 1'b1
+);
     import svunit_pkg::svunit_testcase;
     import packet_verif_pkg::*;
 
+    localparam string drop_errored_str = DROP_ERRORED ? "_err_drops" : "_no_err_drops";
 
-    string name = "packet_enqueue_ut";
+    string name = $sformatf("packet_enqueue%s_ut", drop_errored_str);
     svunit_testcase svunit_ut;
 
     //===================================
@@ -37,16 +40,15 @@ module packet_enqueue_unit_test;
     PTR_T head_ptr;
     PTR_T tail_ptr;
 
-    packet_descriptor_intf #(.ADDR_T(ADDR_T), .META_T(META_T)) descriptor_if (.clk(clk));
+    packet_descriptor_intf #(.ADDR_T(ADDR_T), .META_T(META_T)) wr_descriptor_if (.clk(clk));
+    packet_descriptor_intf #(.ADDR_T(ADDR_T), .META_T(META_T)) rd_descriptor_if (.clk(clk));
     packet_event_intf event_if (.clk(clk));
 
     mem_wr_intf #(.ADDR_WID(ADDR_WID), .DATA_WID(DATA_WID)) mem_wr_if (.clk(clk));
 
     packet_enqueue #(
-        .DATA_BYTE_WID ( DATA_BYTE_WID ),
-        .BUFFER_WORDS ( BUFFER_WORDS ),
-        .META_T    ( META_T ),
         .IGNORE_RDY ( 1 ),
+        .DROP_ERRORED ( DROP_ERRORED ),
         .MIN_PKT_SIZE ( MIN_PKT_SIZE ),
         .MAX_PKT_SIZE ( MAX_PKT_SIZE )
     ) DUT (
@@ -70,6 +72,8 @@ module packet_enqueue_unit_test;
     // Driver/monitor
     packet_intf_driver#(DATA_BYTE_WID,META_T) driver;
     packet_descriptor_monitor#(ADDR_T,META_T) monitor;
+
+    packet_descriptor_driver#(ADDR_T,META_T) rd_completion_driver;
 
     // Model
     packet_enqueue_model#(DATA_BYTE_WID,ADDR_T,META_T) model;
@@ -95,7 +99,10 @@ module packet_enqueue_unit_test;
         driver.packet_vif = packet_if;
 
         monitor = new();
-        monitor.packet_descriptor_vif = descriptor_if;
+        monitor.packet_descriptor_vif = wr_descriptor_if;
+
+        rd_completion_driver = new();
+        rd_completion_driver.packet_descriptor_vif = rd_descriptor_if;
 
         model = new("model", MIN_PKT_SIZE, MAX_PKT_SIZE);
         scoreboard = new();
@@ -123,8 +130,7 @@ module packet_enqueue_unit_test;
 
         // Put interfaces in quiescent state
         env.idle();
-
-        tail_ptr = 1'b0;
+        rd_completion_driver.idle();
 
         // Issue reset
         env.reset_dut();
@@ -172,8 +178,8 @@ module packet_enqueue_unit_test;
         env.inbox.put(packet);
     endtask
 
-    task packet_stream();
-       for (int i = 0; i < 100; i++) begin
+    task packet_stream(input int NUM_PKTS);
+       for (int i = 0; i < NUM_PKTS; i++) begin
            one_packet(i);
        end
     endtask
@@ -183,14 +189,16 @@ module packet_enqueue_unit_test;
         `SVTEST(reset)
         `SVTEST_END
 
-        `SVTEST(one_packet_good)
+        `SVTEST(single_packet)
             len = $urandom_range(MIN_PKT_SIZE, MAX_PKT_SIZE);
             one_packet(0, len);
             #10us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
+            `FAIL_UNLESS_EQUAL(scoreboard.got_matched(), 1);
         `SVTEST_END
 
         `SVTEST(err_packet)
             packet_raw#(META_T) packet;
+            int exp_transactions = DROP_ERRORED ? 0 : 1;
             int id = 0;
             len = $urandom_range(MIN_PKT_SIZE, MAX_PKT_SIZE);
             void'(std::randomize(meta));
@@ -198,35 +206,56 @@ module packet_enqueue_unit_test;
             packet.randomize();
             env.inbox.put(packet);
             #10us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
+            `FAIL_UNLESS_EQUAL(scoreboard.got_processed(), exp_transactions);
         `SVTEST_END
 
         `SVTEST(short_packet)
             len = MIN_PKT_SIZE - 1;
             one_packet(0, len);
             #10us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
+            `FAIL_UNLESS_EQUAL(scoreboard.got_processed(), 0);
         `SVTEST_END
 
         `SVTEST(long_packet)
             len = MAX_PKT_SIZE + 1;
             one_packet(0, len);
             #10us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
+            `FAIL_UNLESS_EQUAL(scoreboard.got_processed(), 0);
         `SVTEST_END
 
         `SVTEST(overflow)
+            packet_descriptor#(ADDR_T,META_T) rd_descriptor;
             int words;
+            int rd_size;
             len = $urandom_range(MIN_PKT_SIZE, MAX_PKT_SIZE);
-            len = 209;
             words = $ceil(len * 1.0 / DATA_BYTE_WID);
+            rd_size = BUFFER_WORDS*DATA_BYTE_WID+(words-2)*DATA_BYTE_WID;
+            while (rd_size > 0) begin
+                if (rd_size > 2**16-1) begin
+                    rd_descriptor = new(.size(2**16-1));
+                    rd_completion_driver.send(rd_descriptor);
+                    rd_size -= 2**16-1;
+                end else begin
+                    rd_descriptor = new(.size(rd_size));
+                    rd_completion_driver.send(rd_descriptor);
+                    rd_size = 0;
+                end
+            end
+            //rd_descriptor = new(.size((words -1)*DATA_BYTE_WID + BUFFER_WORDS*DATA_BYTE_WID));
+            //rd_completion_driver.send(rd_descriptor);
             tail_ptr = BUFFER_WORDS + (words - 1);
             driver._wait(2);
             model.set_tail_ptr(tail_ptr);
             one_packet(0, len);
             #10us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
+            `FAIL_UNLESS_EQUAL(scoreboard.got_processed(), 0);
         `SVTEST_END
 
-        `SVTEST(packet_stream_good)
-            packet_stream();
+        `SVTEST(packet_burst)
+            localparam int NUM_PKTS = 100;
+            packet_stream(NUM_PKTS);
             #100us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
+            `FAIL_UNLESS_EQUAL(scoreboard.got_matched(), NUM_PKTS);
         `SVTEST_END
 
 
@@ -254,3 +283,32 @@ module packet_enqueue_unit_test;
     `SVUNIT_TESTS_END
 
 endmodule
+
+// 'Boilerplate' unit test wrapper code
+//  Builds unit test for a specific parameterization
+//  of the packet_enqueue module that maintains
+//  SVUnit compatibility
+`define PACKET_ENQUEUE_UNIT_TEST(DROP_ERRORED)\
+  import svunit_pkg::svunit_testcase;\
+  svunit_testcase svunit_ut;\
+  packet_enqueue_unit_test #(DROP_ERRORED) test();\
+  function void build();\
+    test.build();\
+    svunit_ut = test.svunit_ut;\
+  endfunction\
+  function void __register_tests();\
+    test.__register_tests();\
+  endfunction\
+  task run();\
+    test.run();\
+  endtask
+
+
+module packet_enqueue_err_drops_unit_test;
+`PACKET_ENQUEUE_UNIT_TEST(0);
+endmodule
+
+module packet_enqueue_no_err_drops_unit_test;
+`PACKET_ENQUEUE_UNIT_TEST(1);
+endmodule
+
