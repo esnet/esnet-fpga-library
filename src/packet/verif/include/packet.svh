@@ -58,7 +58,7 @@ class packet #(parameter type META_T = bit) extends std_verif_pkg::transaction;
 
     // Out-of-band error indication
     function automatic void mark_as_errored();
-        this._err = 1'b0;
+        this._err = 1'b1;
     endfunction
 
     function automatic bit is_errored();
