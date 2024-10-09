@@ -36,9 +36,9 @@ class reg_blk_agent #(
     endfunction
 
     // Reset agent
-    // [[ implements std_verif_pkg::agent.reset() ]]
-    function automatic void reset();
-        reg_agent.reset();
+    // [[ implements std_verif_pkg::agent._reset() ]]
+    protected virtual function automatic void _reset();
+        // Nothing to do
     endfunction
 
     // Reset client

@@ -19,13 +19,13 @@ class state_allocator_reg_agent extends state_allocator_reg_blk_agent;
     );
         super.new(name, BASE_OFFSET);
         this.reg_agent = reg_agent;
-        reset();
+        _reset();
     endfunction
  
     // Reset agent state
-    // [[ implements std_verif_pkg::agent.reset() virtual method ]]
-    function automatic void reset();
-        super.reset();
+    // [[ implements std_verif_pkg::agent._reset() virtual method ]]
+    protected virtual function automatic void _reset();
+        super._reset();
         this.__flags = '{default: 1'b0};
     endfunction
 

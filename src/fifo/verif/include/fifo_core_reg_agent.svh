@@ -24,9 +24,11 @@ class fifo_ctrl_reg_agent extends std_verif_pkg::agent;
     endfunction
  
     // Reset agent state
-    // [[ implements std_verif_pkg::agent.reset() virtual method ]]
-    function automatic void reset();
-        // Nothing extra to do
+    // [[ implements std_verif_pkg::agent._reset() virtual method ]]
+    protected virtual function automatic void _reset();
+        info_reg_blk_agent.reset();
+        wr_mon_reg_blk_agent.reset();
+        rd_mon_reg_blk_agent.reset();
     endfunction
 
     // Reset client

@@ -21,9 +21,9 @@ class state_notify_reg_agent extends state_notify_reg_blk_agent;
     endfunction
 
     // Reset agent state
-    // [[ implements std_verif_pkg::agent.reset() virtual method ]]
-    function automatic void reset();
-        super.reset();
+    // [[ implements std_verif_pkg::agent._reset() virtual method ]]
+    protected virtual function automatic void _reset();
+        super._reset();
         // Nothing extra to do
     endfunction
 

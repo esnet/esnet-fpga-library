@@ -65,6 +65,8 @@ virtual class agent extends component;
     // Virtual Methods
     // (to be implemented by derived class)
     //===================================
+    // Reset agent
+    protected virtual function automatic void _reset(); endfunction
     // Reset client
     virtual task reset_client(); endtask
     // Put all (driven) interfaces into idle state

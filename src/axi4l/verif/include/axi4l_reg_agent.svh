@@ -54,12 +54,13 @@ class axi4l_reg_agent #(
     endfunction
 
     // Reset agent
-    function automatic void reset();
-        // Nothing to do
+    protected virtual function automatic void _reset();
+        super._reset();
+        // Nothing else to do
     endfunction
 
     // Reset client
-    // [[ implements std_verif_pkg::agent.reset ]]
+    // [[ implements std_verif_pkg::agent.reset_client ]]
     task reset_client();
         // AXI-L controller can't reset client
     endtask

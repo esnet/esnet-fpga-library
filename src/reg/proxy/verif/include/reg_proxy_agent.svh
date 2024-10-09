@@ -40,9 +40,11 @@ class reg_proxy_agent #(
         _trace_msg(msg, __CLASS_NAME);
     endfunction
 
-    // Reset agent
-    function automatic void reset();
-        // Nothing to do
+    // Configure trace output
+    // [[ implements std_verif_pkg::agent._reset() ]]
+    protected virtual function automatic void _reset();
+        super._reset();
+        // Nothing else to do
     endfunction
 
     // Reset client

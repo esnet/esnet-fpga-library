@@ -21,10 +21,10 @@ class reg_agent #(
     // Virtual Methods
     // (to be implemented by subclass)
     //===================================
-    virtual task _write(input addr_t addr, input data_t data, output bit error, output bit timeout, output string msg); endtask
-    virtual task _write_byte(input addr_t addr, input byte data, output bit error, output bit timeout, output string msg); endtask
-    virtual task _read(input addr_t addr, output data_t data, output bit error, output bit timeout, output string msg); endtask
-    virtual task _read_byte(input addr_t addr, output byte data, output bit error, output bit timeout, output string msg); endtask
+    virtual protected task _write(input addr_t addr, input data_t data, output bit error, output bit timeout, output string msg); endtask
+    virtual protected task _write_byte(input addr_t addr, input byte data, output bit error, output bit timeout, output string msg); endtask
+    virtual protected task _read(input addr_t addr, output data_t data, output bit error, output bit timeout, output string msg); endtask
+    virtual protected task _read_byte(input addr_t addr, output byte data, output bit error, output bit timeout, output string msg); endtask
 
     //===================================
     // Methods
@@ -39,6 +39,12 @@ class reg_agent #(
     // [[ overrides std_verif_pkg::base.trace_msg() ]]
     function automatic void trace_msg(input string msg);
         _trace_msg(msg, __CLASS_NAME);
+    endfunction
+
+    // Configure trace output
+    // [[ implements std_verif_pkg::agent._reset() ]]
+    protected virtual function automatic void _reset();
+        // Nothing to do
     endfunction
 
     function void set_wr_timeout(input int WR_TIMEOUT);
