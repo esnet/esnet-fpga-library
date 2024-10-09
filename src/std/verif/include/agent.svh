@@ -6,17 +6,59 @@ virtual class agent extends component;
     local static const string __CLASS_NAME = "std_verif_pkg::agent";
 
     //===================================
+    // Properties
+    //===================================
+    local semaphore __LOCK;
+
+    //===================================
     // Methods
     //===================================
     // Constructor
     function new(input string name="agent");
         super.new(name);
+        init_lock();
     endfunction
 
     // Configure trace output
-    // [[ overrides std_verif_pkg::base.trace_msg() ]]
+    // [[ overrides std_verif_pkg::agent.trace_msg() ]]
     function automatic void trace_msg(input string msg);
         _trace_msg(msg, __CLASS_NAME);
+    endfunction
+
+    function automatic void init_lock();
+        __LOCK = new(1);
+    endfunction
+
+    task lock();
+        trace_msg("lock()");
+        __LOCK.get();
+        trace_msg("lock() Done.");
+    endtask
+
+    function automatic bit try_lock();
+        bit lock_result;
+        string lock_result_str;
+        trace_msg("try_lock()");
+        lock_result = __LOCK.try_get();
+        lock_result_str = lock_result ? "successful" : "unsuccessful";
+        trace_msg($sformatf("try_lock() Done. Lock %s.", lock_result_str));
+        return lock_result;
+    endfunction
+
+    function automatic void unlock();
+        trace_msg("unlock()");
+        if (__LOCK.try_get()) error_msg("Unlock attempted but no lock set.");
+        __LOCK.put();
+        trace_msg("unlock() Done.");
+    endfunction
+
+    // Reset agent
+    // [[ implements std_verif_pkg::component.reset() ]]
+    function automatic void reset();
+        trace_msg("reset()");
+        _reset();
+        init_lock();
+        trace_msg("reset() Done.");
     endfunction
 
     //===================================

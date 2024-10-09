@@ -62,8 +62,7 @@ class reg_agent #(
         string msg;
 
         trace_msg("write_reg()");
-
-        _write(addr, data, error, timeout, msg);
+        lock(); _write(addr, data, error, timeout, msg); unlock();
         if (error) handle_write_error(addr, msg);
         else if (timeout) handle_write_timeout(addr, msg);
 
@@ -76,7 +75,7 @@ class reg_agent #(
 
         trace_msg("write_byte()");
 
-        _write_byte(addr, data, error, timeout, msg);
+        lock(); _write_byte(addr, data, error, timeout, msg); unlock();
         if (error) handle_write_error(addr, msg);
         else if (timeout) handle_write_timeout(addr, msg);
 
@@ -89,7 +88,7 @@ class reg_agent #(
 
         trace_msg("read_reg()");
 
-        _read(addr, data, error, timeout, msg);
+        lock(); _read(addr, data, error, timeout, msg); unlock();
         if (error) handle_read_error(addr, msg);
         else if (timeout) handle_read_timeout(addr, msg);
 
@@ -102,7 +101,7 @@ class reg_agent #(
 
         trace_msg("read_byte()");
 
-        _read_byte(addr, data, error, timeout, msg);
+        lock(); _read_byte(addr, data, error, timeout, msg); unlock();
         if (error) handle_read_error(addr, msg);
         else if (timeout) handle_read_timeout(addr, msg);
 
@@ -126,7 +125,7 @@ class reg_agent #(
         );
         bit _error, timeout;
         string _msg;
-        _write(addr, 'h0, _error, timeout, _msg);
+        lock(); _write(addr, 'h0, _error, timeout, _msg); unlock();
          if (timeout) begin
             error = 1'b1;
             msg = $sformatf("Write to bad address (0x%0x) resulted in timeout\n%s", addr, _msg);
@@ -147,7 +146,7 @@ class reg_agent #(
         bit _error, timeout;
         string _msg;
         data_t rd_data_dummy;
-        _read(addr, rd_data_dummy, _error, timeout, _msg);
+        lock(); _read(addr, rd_data_dummy, _error, timeout, _msg); unlock();
         if (timeout) begin
             error = 1'b1;
             msg = $sformatf("Read from bad address (0x%0x) resulted in timeout\n%s", addr, _msg);
