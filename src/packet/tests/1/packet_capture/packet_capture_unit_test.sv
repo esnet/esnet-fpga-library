@@ -1,12 +1,12 @@
 `include "svunit_defines.svh"
 
-module packet_playback_unit_test;
+module packet_capture_unit_test;
 
     import svunit_pkg::svunit_testcase;
     import axi4l_verif_pkg::*;
     import packet_verif_pkg::*;
 
-    string name = "packet_playback_ut";
+    string name = "packet_capture_ut";
     svunit_testcase svunit_ut;
 
     //===================================
@@ -30,7 +30,7 @@ module packet_playback_unit_test;
     axi4l_intf axil_if ();
     packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_T(META_T)) packet_if (.clk(clk), .srst(srst));
 
-    packet_playback #() DUT (.*);
+    packet_capture #(.PACKET_MEM_SIZE(PACKET_MEM_SIZE)) DUT (.*);
 
     //===================================
     // Testbench
@@ -42,10 +42,10 @@ module packet_playback_unit_test;
     packet_component_env #(META_T) env;
 
     // Driver
-    packet_playback_driver#(META_T) driver;
+    packet_intf_driver#(DATA_BYTE_WID,META_T) driver;
 
     // Monitor
-    packet_intf_monitor#(DATA_BYTE_WID,META_T) monitor;
+    packet_capture_monitor#(META_T) monitor;
 
     // Model
     std_verif_pkg::wire_model#(PACKET_T) model;
@@ -78,11 +78,11 @@ module packet_playback_unit_test;
         reg_agent.axil_vif = axil_if;
 
         // Driver
-        driver = new("packet_playback_driver", PACKET_MEM_SIZE, DATA_WID, reg_agent);
+        driver = new(.BIGENDIAN(1));
+        driver.packet_vif = packet_if;
 
         // Monitor
-        monitor = new(.BIGENDIAN(1));
-        monitor.packet_vif = packet_if;
+        monitor = new("packet_capture_monitor", PACKET_MEM_SIZE, DATA_WID, reg_agent);
 
         // Model
         model = new();
@@ -106,20 +106,21 @@ module packet_playback_unit_test;
 
         // Reset environment
         env.reset();
-        reg_agent.reset();
 
         // Put interfaces in quiescent state
         env.idle();
 
         // Issue reset
         env.reset_dut();
+        reg_agent.reset();
+
+        // Wait for memory initialization to complete
+        monitor.enable();
+        monitor.wait_ready();
 
         // Start environment
         env.start();
 
-        // Wait for memory initialization to complete
-        driver.enable();
-        driver.wait_ready();
     endtask
 
 
@@ -156,7 +157,7 @@ module packet_playback_unit_test;
     int len;
 
     task one_packet(int id=0, int len=$urandom_range(64, 1500));
-        automatic packet_raw#(META_T) packet;
+        packet_raw#(META_T) packet;
         META_T meta;
         packet = new($sformatf("pkt_%0d", id), len);
         packet.randomize();
@@ -172,16 +173,16 @@ module packet_playback_unit_test;
 
         `SVTEST(info)
             // Check packet memory size
-            driver.read_mem_size(got_int);
+            monitor.read_mem_size(got_int);
             `FAIL_UNLESS_EQUAL(got_int, PACKET_MEM_SIZE);
 
             // Check metadata width
-            driver.read_meta_width(got_int);
+            monitor.read_meta_width(got_int);
             `FAIL_UNLESS_EQUAL(got_int, $bits(META_T));
         `SVTEST_END
 
         `SVTEST(nop)
-            driver.nop(error, timeout);
+            monitor.nop(error, timeout);
             `FAIL_IF(error);
             `FAIL_IF(timeout);
         `SVTEST_END
@@ -189,55 +190,43 @@ module packet_playback_unit_test;
         `SVTEST(single_packet)
             len = $urandom_range(64, 256);
             one_packet();
-            #100us`FAIL_IF_LOG(scoreboard.report(msg) > 0, msg );
+            `FAIL_IF(error);
+            `FAIL_IF(timeout);
+            fork
+                begin
+                    #1ms;
+                end
+                begin
+                    do
+                        #10us;
+                    while(scoreboard.got_processed() < 1);
+                    #10us;
+                end
+            join_any
+            disable fork;
+            `FAIL_IF_LOG(scoreboard.report(msg) > 0, msg );
             `FAIL_UNLESS_EQUAL(scoreboard.got_matched(), 1);
         `SVTEST_END
 
-        `SVTEST(packet_burst)
-            localparam int BURST_SIZE = 20;
-            int len=$urandom_range(64, 1500);
-            packet_raw#(META_T) packet;
-            META_T meta;
-            packet = new("pkt_0", len);
-            packet.randomize();
-            void'(std::randomize(meta));
-            packet.set_meta(meta);
-            for (int i = 0; i < BURST_SIZE; i++ ) begin
-                scoreboard.exp_inbox.put(packet);
-            end
-            driver.send_burst(packet, BURST_SIZE);
-            #100us `FAIL_IF_LOG(scoreboard.report(msg) > 0, msg);
-            `FAIL_UNLESS_EQUAL(scoreboard.got_matched(), BURST_SIZE);
-        `SVTEST_END
-
         `SVTEST(packet_stream)
-            localparam NUM_PKTS = 100;
+            localparam NUM_PKTS = 50;
             for (int i = 0; i < NUM_PKTS; i++) begin
                 one_packet(i);
             end
             fork
                 begin
-                    fork
-                        begin
-                            #10ms;
-                        end
-                        begin
-                            do
-                                #10us;
-                            while(scoreboard.got_processed() < NUM_PKTS);
-                            #10us;
-                        end
-                    join_any
-                    disable fork;
+                    #10ms;
                 end
-            join
+                begin
+                    do
+                        #10us;
+                    while(scoreboard.got_processed() < NUM_PKTS);
+                    #10us;
+                end
+            join_any
+            disable fork;
             `FAIL_IF_LOG(scoreboard.report(msg) > 0, msg );
             `FAIL_UNLESS_EQUAL(scoreboard.got_matched(), NUM_PKTS);
-        `SVTEST_END
-
-        `SVTEST(pcap)
-            driver.send_from_pcap("../../packet_playback/test.pcap");
-            // TODO: Add checks to make sure this actually works
         `SVTEST_END
 
     `SVUNIT_TESTS_END
