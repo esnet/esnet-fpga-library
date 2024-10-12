@@ -32,12 +32,12 @@ sim:
   script:
     - shopt -s globstar
     - for testsuite in src/**/tests/regression; do make -s -C $testsuite; done
-    - for testsuite in src/**/tests/regression; do grep -vqz '<failure' $testsuite/run_$SEED/tests.xml; done
+    - for testsuite in src/**/tests/regression; do grep -vqz '<failure' $testsuite/run_*/tests.xml; done
   artifacts:
     name: "artifacts.$CI_PROJECT_NAME.$CI_JOB_NAME.$CI_PIPELINE_ID"
     reports:
       junit:
-        - src/**/tests/regression/run_$SEED/tests.xml
+        - src/**/tests/regression/run_*/tests.xml
     when: always
   needs:
   timeout: 3h
