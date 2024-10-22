@@ -58,24 +58,26 @@ class packet_descriptor_monitor #(
         ADDR_T addr;
         int size;
         META_T meta;
+        bit err;
 
         trace_msg("_receive()");
 
         debug_msg("Waiting for transaction...");
 
         // Receive transaction
-        packet_descriptor_vif.receive(addr, size, meta);
+        packet_descriptor_vif.receive(addr, size, meta, err);
 
         // Build Rx packet descriptor transaction
-        transaction = new($sformatf("rx_packet_descriptor[%0d]", this.__id), addr, size, meta);
+        transaction = new($sformatf("rx_packet_descriptor[%0d]", this.__id), addr, size, meta, err);
 
         this.__id++;
 
         debug_msg(
-            $sformatf("Received %s (addr: 0x%0x, %0d bytes, meta: 0x%0x)",
+            $sformatf("Received %s (addr: 0x%0x, %0d bytes, err: %0b, meta: 0x%0x)",
                 transaction.get_name(),
                 transaction.get_addr(),
                 transaction.get_size(),
+                transaction.is_errored(),
                 transaction.get_meta()
             )
         );

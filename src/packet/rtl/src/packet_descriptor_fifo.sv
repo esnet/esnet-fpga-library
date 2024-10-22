@@ -30,6 +30,7 @@ module packet_descriptor_fifo
         ADDR_T addr;
         SIZE_T size;
         META_T meta;
+        logic  err;
     } desc_t;
 
     // -----------------------------
@@ -49,6 +50,7 @@ module packet_descriptor_fifo
     assign desc_in.addr = from_tx.addr;
     assign desc_in.size = from_tx.size;
     assign desc_in.meta = from_tx.meta;
+    assign desc_in.err  = from_tx.err;
 
     fifo_core #(
         .DATA_T ( desc_t ),
@@ -78,5 +80,6 @@ module packet_descriptor_fifo
     assign to_rx.addr = desc_out.addr;
     assign to_rx.size = desc_out.size;
     assign to_rx.meta = desc_out.meta;
+    assign to_rx.err  = desc_out.err;
 
 endmodule : packet_descriptor_fifo

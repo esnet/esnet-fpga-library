@@ -22,7 +22,9 @@ SRC_LIST_FILES =
 #   List subcomponent and external library dependencies
 #   (see $SCRIPTS_ROOT/Makefiles/templates/dependencies.mk)
 # ----------------------------------------------------
-SUBCOMPONENTS =
+SUBCOMPONENTS = \
+    mem.rtl
+
 EXT_LIBS =
 
 # ----------------------------------------------------

@@ -21,10 +21,10 @@ class reg_agent #(
     // Virtual Methods
     // (to be implemented by subclass)
     //===================================
-    virtual task _write(input addr_t addr, input data_t data, output bit error, output bit timeout, output string msg); endtask
-    virtual task _write_byte(input addr_t addr, input byte data, output bit error, output bit timeout, output string msg); endtask
-    virtual task _read(input addr_t addr, output data_t data, output bit error, output bit timeout, output string msg); endtask
-    virtual task _read_byte(input addr_t addr, output byte data, output bit error, output bit timeout, output string msg); endtask
+    virtual protected task _write(input addr_t addr, input data_t data, output bit error, output bit timeout, output string msg); endtask
+    virtual protected task _write_byte(input addr_t addr, input byte data, output bit error, output bit timeout, output string msg); endtask
+    virtual protected task _read(input addr_t addr, output data_t data, output bit error, output bit timeout, output string msg); endtask
+    virtual protected task _read_byte(input addr_t addr, output byte data, output bit error, output bit timeout, output string msg); endtask
 
     //===================================
     // Methods
@@ -39,6 +39,12 @@ class reg_agent #(
     // [[ overrides std_verif_pkg::base.trace_msg() ]]
     function automatic void trace_msg(input string msg);
         _trace_msg(msg, __CLASS_NAME);
+    endfunction
+
+    // Configure trace output
+    // [[ implements std_verif_pkg::agent._reset() ]]
+    protected virtual function automatic void _reset();
+        // Nothing to do
     endfunction
 
     function void set_wr_timeout(input int WR_TIMEOUT);
@@ -62,8 +68,7 @@ class reg_agent #(
         string msg;
 
         trace_msg("write_reg()");
-
-        _write(addr, data, error, timeout, msg);
+        lock(); _write(addr, data, error, timeout, msg); unlock();
         if (error) handle_write_error(addr, msg);
         else if (timeout) handle_write_timeout(addr, msg);
 
@@ -76,7 +81,7 @@ class reg_agent #(
 
         trace_msg("write_byte()");
 
-        _write_byte(addr, data, error, timeout, msg);
+        lock(); _write_byte(addr, data, error, timeout, msg); unlock();
         if (error) handle_write_error(addr, msg);
         else if (timeout) handle_write_timeout(addr, msg);
 
@@ -89,7 +94,7 @@ class reg_agent #(
 
         trace_msg("read_reg()");
 
-        _read(addr, data, error, timeout, msg);
+        lock(); _read(addr, data, error, timeout, msg); unlock();
         if (error) handle_read_error(addr, msg);
         else if (timeout) handle_read_timeout(addr, msg);
 
@@ -102,7 +107,7 @@ class reg_agent #(
 
         trace_msg("read_byte()");
 
-        _read_byte(addr, data, error, timeout, msg);
+        lock(); _read_byte(addr, data, error, timeout, msg); unlock();
         if (error) handle_read_error(addr, msg);
         else if (timeout) handle_read_timeout(addr, msg);
 
@@ -126,7 +131,7 @@ class reg_agent #(
         );
         bit _error, timeout;
         string _msg;
-        _write(addr, 'h0, _error, timeout, _msg);
+        lock(); _write(addr, 'h0, _error, timeout, _msg); unlock();
          if (timeout) begin
             error = 1'b1;
             msg = $sformatf("Write to bad address (0x%0x) resulted in timeout\n%s", addr, _msg);
@@ -147,7 +152,7 @@ class reg_agent #(
         bit _error, timeout;
         string _msg;
         data_t rd_data_dummy;
-        _read(addr, rd_data_dummy, _error, timeout, _msg);
+        lock(); _read(addr, rd_data_dummy, _error, timeout, _msg); unlock();
         if (timeout) begin
             error = 1'b1;
             msg = $sformatf("Read from bad address (0x%0x) resulted in timeout\n%s", addr, _msg);

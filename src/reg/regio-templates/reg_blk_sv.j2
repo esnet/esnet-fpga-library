@@ -1,5 +1,5 @@
 {#- Enumeration of SystemVerilog reserved keywords; when a register or field uses one of these keywords, the RTL representation will include a preceding "_". -#}
-{%- set SV_RESERVED_KEYWORDS=('var','bit','byte','int','ref','type','input','output','inout','inout','module','interface') -%}
+{%- set SV_RESERVED_KEYWORDS=('var','bit','byte','int','ref','type','input','output','inout','inout','module','interface','config') -%}
 
 {#- DEFINE MACROS -#}
 {#- Read-Only (ro) register instantiation -#}
@@ -7,7 +7,7 @@
 reg_ro #(reg_{{ reg.name_lower }}_t, INIT_{{ reg.name_upper }}) {{ reg.name_lower }}_reg (
     .clk (reg_if.clk), .srst (reg_if.srst),
     .upd_en (reg_blk_if.{{ reg.name_lower }}_nxt_v{{ "[i]" if reg.count > 1}}), .upd_data (reg_blk_if.{{ reg.name_lower }}_nxt{{ "[i]" if reg.count > 1 }}),
-    .rd_data (reg_blk_if.{{ reg.name_lower }}{{ "[i]" if reg.count > 1 }})
+    .rd_data (reg_blk_if.{{ "_" if reg.name_lower in SV_RESERVED_KEYWORDS }}{{ reg.name_lower }}{{ "[i]" if reg.count > 1 }})
 );
 {%- endmacro -%}
 
@@ -16,7 +16,7 @@ reg_ro #(reg_{{ reg.name_lower }}_t, INIT_{{ reg.name_upper }}) {{ reg.name_lowe
 reg_rw #(reg_{{ reg.name_lower }}_t, INIT_{{ reg.name_upper }}) {{ reg.name_lower }}_reg (
     .clk (reg_if.clk), .srst (reg_if.srst),
     .wr (reg_if.wr), .wr_en (reg_if.wr_addr == OFFSET_{{ reg.name_upper }}{{ "[i]" if reg.count > 1 }}), .wr_data (reg_if.wr_data), .wr_byte_en (reg_if.wr_byte_en),
-    .rd_data (reg_blk_if.{{ reg.name_lower }}{{ "[i]" if reg.count > 1 }})
+    .rd_data (reg_blk_if.{{ "_" if reg.name_lower in SV_RESERVED_KEYWORDS }}{{ reg.name_lower }}{{ "[i]" if reg.count > 1 }})
 );
 {%- endmacro -%}
 
@@ -34,7 +34,7 @@ reg_wo #(reg_{{ reg.name_lower }}_t, INIT_{{ reg.name_upper }}) {{ reg.name_lowe
 reg_wr_evt #(reg_{{ reg.name_lower }}_t, INIT_{{ reg.name_upper }}) {{ reg.name_lower }}_reg (
     .clk (reg_if.clk), .srst (reg_if.srst),
     .wr (reg_if.wr), .wr_en (reg_if.wr_addr == OFFSET_{{ reg.name_upper }}{{ "[i]" if reg.count > 1 }}), .wr_data (reg_if.wr_data), .wr_byte_en (reg_if.wr_byte_en),
-    .rd_data (reg_blk_if.{{ reg.name_lower }}{{ "[i]" if reg.count > 1 }}),
+    .rd_data (reg_blk_if.{{ "_" if reg.name_lower in SV_RESERVED_KEYWORDS }}{{ reg.name_lower }}{{ "[i]" if reg.count > 1 }}),
     .wr_evt (reg_blk_if.{{ reg.name_lower }}_wr_evt{{ "[i]" if reg.count > 1 }})
 );
 {%- endmacro -%}
@@ -45,7 +45,7 @@ reg_rd_evt #(reg_{{ reg.name_lower }}_t, INIT_{{ reg.name_upper }}) {{ reg.name_
     .clk (reg_if.clk), .srst (reg_if.srst),
     .rd (reg_if.rd), .rd_en (reg_if.rd_addr == OFFSET_{{ reg.name_upper }}{{ "[i]" if reg.count > 1 }}),
     .upd_en (reg_blk_if.{{ reg.name_lower }}_nxt_v{{ "[i]" if reg.count > 1 }}), .upd_data (reg_blk_if.{{ reg.name_lower }}_nxt{{ "[i]" if reg.count > 1 }}),
-    .rd_data (reg_blk_if.{{ reg.name_lower }}{{ "[i]" if reg.count > 1}}),
+    .rd_data (reg_blk_if.{{ "_" if reg.name_lower in SV_RESERVED_KEYWORDS }}{{ reg.name_lower }}{{ "[i]" if reg.count > 1}}),
     .rd_evt (reg_blk_if.{{ reg.name_lower }}_rd_evt{{ "[i]" if reg.count > 1 }})
 );
 {%- endmacro -%}

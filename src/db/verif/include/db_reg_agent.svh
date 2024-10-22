@@ -45,6 +45,12 @@ class db_reg_agent #(
         _trace_msg(msg, __CLASS_NAME);
     endfunction
 
+    // Reset agent state
+    // [[ implements std_verif_pkg::agent._reset() ]]
+    protected virtual function automatic void _reset();
+        reg_blk_agent.reset();
+    endfunction
+
     // Put all (driven) interfaces into idle state
     // [[ implements std_verif_pkg::agent.idle ]]
     task idle();

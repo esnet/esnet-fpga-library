@@ -58,7 +58,7 @@ class packet_descriptor_driver #(
         debug_msg($sformatf("Sending:\n%s", transaction.to_string()));
 
         // Send transaction
-        packet_descriptor_vif.send(transaction.get_addr(), transaction.get_size(), transaction.get_meta());
+        packet_descriptor_vif.send(transaction.get_addr(), transaction.get_size(), transaction.get_meta(), transaction.is_errored());
 
         debug_msg("Done.");
     endtask

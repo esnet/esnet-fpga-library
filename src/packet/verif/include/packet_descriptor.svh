@@ -8,6 +8,7 @@ class packet_descriptor #(parameter type ADDR_T = bit, parameter type META_T = b
     protected rand META_T _meta;
     protected rand ADDR_T _addr;
     protected rand int _size;
+    protected rand bit _err;
 
     local int __MIN_SIZE = 40;
     local int __MAX_SIZE = 16384;
@@ -22,11 +23,13 @@ class packet_descriptor #(parameter type ADDR_T = bit, parameter type META_T = b
             input string name = "packet_descriptor",
             input ADDR_T addr = '0,
             input int    size =  0,
-            input META_T meta = '0
+            input META_T meta = '0,
+            input bit    err = 1'b0
         );
         super.new(name);
         this._addr = addr;
         this._size = size;
+        this._err = err;
         this._meta = meta;
     endfunction
 
@@ -70,6 +73,14 @@ class packet_descriptor #(parameter type ADDR_T = bit, parameter type META_T = b
         return this.__MIN_SIZE;
     endfunction
 
+    function automatic void mark_as_errored();
+        this._err = 1'b1;
+    endfunction
+
+    function automatic bit is_errored();
+        return this._err;
+    endfunction
+
     // Metadata
     function automatic void set_meta(input META_T meta);
         this._meta = meta;
@@ -93,10 +104,11 @@ class packet_descriptor #(parameter type ADDR_T = bit, parameter type META_T = b
         str = {str, string_pkg::horiz_line()};
         str = {str,
                 $sformatf(
-                    "Packet descriptor '%s' (addr: 0x%0x, %0d bytes, meta: 0x%0x)",
+                    "Packet descriptor '%s' (addr: 0x%0x, %0d bytes, err: %0b, meta: 0x%0x)",
                     get_name(),
                     get_addr(),
                     get_size(),
+                    is_errored(),
                     get_meta()
                 )
               };
@@ -113,6 +125,9 @@ class packet_descriptor #(parameter type ADDR_T = bit, parameter type META_T = b
             return 0;
         end else if (this.get_meta() !== b.get_meta()) begin
             msg = $sformatf("Packet descriptor metadata mismatch. A: 0x%0x, B: 0x%0x.", this.get_meta(), b.get_meta());
+            return 0;
+        end else if (this.is_errored() != b.is_errored()) begin
+            msg = $sformatf("Packet descriptor error mismatch. A: %0b, B: %0b.", this.is_errored(), b.is_errored());
             return 0;
         end
         msg = "Packet descriptors match.";

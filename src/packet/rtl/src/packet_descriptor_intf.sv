@@ -13,6 +13,7 @@ interface packet_descriptor_intf #(
     wire logic        rdy;
     wire ADDR_T       addr;
     wire SIZE_T       size;
+    wire logic        err;
     wire META_T       meta;
     
     // Modports
@@ -23,6 +24,7 @@ interface packet_descriptor_intf #(
         input  rdy,
         output addr,
         output size,
+        output err,
         output meta
     );
 
@@ -33,18 +35,19 @@ interface packet_descriptor_intf #(
         output rdy,
         input  addr,
         input  size,
+        input  err,
         input  meta
     );
 
     clocking cb_tx @(posedge clk);
         default input #1step output #1step;
-        output valid, addr, size, meta;
+        output valid, addr, size, err, meta;
         input rdy;
     endclocking
 
     clocking cb_rx @(posedge clk);
         default input #1step output #1step;
-        input valid, addr, size, meta;
+        input valid, addr, size, err, meta;
         output rdy;
     endclocking
 
@@ -52,6 +55,7 @@ interface packet_descriptor_intf #(
         cb_tx.valid <= 1'b0;
         cb_tx.addr <= 'x;
         cb_tx.size <= 'x;
+        cb_tx.err  <= 1'bx;
         cb_tx.meta <= 'x;
     endtask
 
@@ -70,11 +74,13 @@ interface packet_descriptor_intf #(
     task send(
             input ADDR_T   _addr,
             input SIZE_T   _size,
-            input META_T   _meta = '0
+            input META_T   _meta = '0,
+            input logic    _err = 1'b0
         );
         cb_tx.valid  <= 1'b1;
         cb_tx.addr   <= _addr;
         cb_tx.size   <= _size;
+        cb_tx.err    <= _err;
         cb_tx.meta   <= _meta;
         @(cb_tx);
         wait (cb_tx.rdy);
@@ -84,7 +90,8 @@ interface packet_descriptor_intf #(
     task receive(
             output ADDR_T   _addr,
             output SIZE_T   _size,
-            output META_T   _meta
+            output META_T   _meta,
+            output logic    _err
         );
         cb_rx.rdy <= 1'b1;
         @(cb_rx);
@@ -93,6 +100,7 @@ interface packet_descriptor_intf #(
         _addr   = cb_rx.addr;
         _size   = cb_rx.size;
         _meta   = cb_rx.meta;
+        _err    = cb_rx.err;
     endtask
 
     task wait_ready(
@@ -129,6 +137,7 @@ module packet_descriptor_intf_connector (
     assign to_rx.valid  = from_tx.valid;
     assign to_rx.addr   = from_tx.addr;
     assign to_rx.size   = from_tx.size;
+    assign to_rx.err    = from_tx.err;
     assign to_rx.meta   = from_tx.meta;
 
     // Connect signals (rx -> tx)

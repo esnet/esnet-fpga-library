@@ -37,9 +37,10 @@ class state_reg_agent#(type ID_T = bit, type STATE_T = bit) extends state_reg_bl
     endfunction
 
     // Reset agent state
-    // [[ implements std_verif_pkg::agent.reset() virtual method ]]
-    function automatic void reset();
-        super.reset();
+    // [[ implements std_verif_pkg::agent._reset() virtual method ]]
+    protected virtual function automatic void _reset();
+        super._reset();
+        notify.reset();
     endfunction
 
     // Reset client

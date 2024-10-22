@@ -29,9 +29,13 @@ class state_cache_reg_agent#(type KEY_T = bit, type ID_T = bit) extends state_ca
     endfunction
 
     // Reset agent state
-    // [[ implements std_verif_pkg::agent.reset() virtual method ]]
-    function automatic void reset();
-        super.reset();
+    // [[ implements std_verif_pkg::agent._reset() virtual method ]]
+    protected virtual function automatic void _reset();
+        super._reset();
+        db_agent.reset();
+        cuckoo_agent.reset();
+        fast_update_agent.reset();
+        allocator_agent.reset();
     endfunction
 
     // Reset client

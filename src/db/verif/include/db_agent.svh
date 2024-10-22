@@ -28,12 +28,6 @@ class db_agent #(
         _trace_msg(msg, __CLASS_NAME);
     endfunction
 
-    // Reset agent state
-    // [[ implements std_verif_pkg::agent.reset() ]]
-    function automatic void reset();
-        // Nothing to do
-    endfunction
-
     // Set timeout (in cycles) for reset operation
     function automatic void set_reset_timeout(input int RESET_TIMEOUT);
         this._RESET_TIMEOUT = RESET_TIMEOUT;

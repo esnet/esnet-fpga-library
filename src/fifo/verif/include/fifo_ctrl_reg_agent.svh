@@ -13,8 +13,9 @@ class fifo_core_reg_agent extends fifo_core_reg_blk_agent;
     endfunction
  
     // Reset agent state
-    // [[ implements std_verif_pkg::agent.reset() virtual method ]]
-    function automatic void reset();
+    // [[ implements std_verif_pkg::agent._reset() virtual method ]]
+    protected virtual function automatic void _reset();
+        super._reset();
         // Nothing extra to do
     endfunction
 

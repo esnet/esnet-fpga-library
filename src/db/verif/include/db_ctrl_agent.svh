@@ -36,6 +36,12 @@ class db_ctrl_agent #(
         _trace_msg(msg, __CLASS_NAME);
     endfunction
 
+    // Reset agent state
+    // [[ implements std_verif_pkg::agent._reset() ]]
+    protected virtual function automatic void _reset();
+        // Nothing to do
+    endfunction
+
     function automatic void attach(
             input virtual db_ctrl_intf#(KEY_T, VALUE_T) v_ctrl_if,
             input virtual db_status_intf v_status_if = null,

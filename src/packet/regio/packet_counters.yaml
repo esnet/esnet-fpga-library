@@ -1,0 +1,57 @@
+name: packet_counters
+info: |
+    This register map describes a set of packet and byte counters.
+
+regs:
+  - default:
+      width  : 32
+      init   : 0
+  
+  - name: info
+    desc: Info (provides parameterization details).
+    access: ro
+    fields:
+        - name: pkt_count_wid
+          desc: Packet counter width (in bits).
+          width: 7
+        - name: byte_count_wid
+          desc: Byte counter width (in bits).
+          width: 7
+        - name: saturating
+          desc: Indicates saturating counters (when set), non-saturating (when not set).
+          width: 1
+
+  - name: pkt_count_upper
+    desc   : packet count latch (upper word).
+    access : ro
+
+  - name: pkt_count_lower
+    desc   : packet count latch (lower word).
+    access : ro
+
+  - name: byte_count_upper
+    desc   : byte count latch (upper word).
+    access : ro
+
+  - name: byte_count_lower
+    desc   : byte count latch (lower word).
+    access : ro
+
+  - name: control
+    desc   : controls the latching and clearing behaviour of the probe counters.
+    access : wr_evt
+    fields:
+        - name: latch
+          desc: 0 - latch regs track internal counts continuously. 1 - latch regs snapshot internal counts only on wr_evt.
+          width: 1
+          enum:
+              0 : LATCH_ON_CLK
+              1 : LATCH_ON_WR_EVT
+          init: 0
+        - name: clear
+          desc: 0 - internal counts NOT cleared by reg events.  1 - internal counts cleared upon wr_evt. 
+          width: 1
+          enum:
+              0 : NO_CLEAR
+              1 : CLEAR_ON_WR_EVT
+          init: 0

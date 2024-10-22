@@ -17,9 +17,10 @@ class htable_fast_update_reg_agent extends htable_fast_update_reg_blk_agent;
     endfunction
 
     // Reset agent state
-    // [[ implements std_verif_pkg::agent.reset() virtual method ]]
-    function automatic void reset();
-        super.reset();
+    // [[ implements std_verif_pkg::agent._reset() virtual method ]]
+    protected virtual function automatic void _reset();
+        super._reset();
+        // Nothing else to do
     endfunction
 
     // Reset client
