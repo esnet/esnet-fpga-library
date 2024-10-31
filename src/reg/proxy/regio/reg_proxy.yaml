@@ -4,6 +4,9 @@ info: |
   be used, e.g., for mapping large (or sparse) memory address spaces
   into a memory window that can be accommodated in a small register
   map.
+protocol:
+  name: reg_proxy
+  source: !include src/reg/proxy/regio/reg_proxy_protocol.py
 regs:
   - default:
       width: 32
