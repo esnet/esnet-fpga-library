@@ -5,7 +5,7 @@
 // variabes for reading expected pcap data
 pcap_pkg::pcap_t exp_pcap;
 
-string filename = {"../../../tests/axi4s_trunc/64B_to_319B_pkts.pcap"};
+string filename = {"../../axi4s_trunc/64B_to_319B_pkts.pcap"};
 
 
 // Send packets described in PCAP file on AXI-S input interface
