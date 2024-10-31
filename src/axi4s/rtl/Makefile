@@ -27,7 +27,8 @@ SUBCOMPONENTS = \
     arb.rtl \
     reg.rtl \
     fifo.rtl \
-    mem.rtl
+    mem.rtl \
+    packet.rtl
 
 EXT_LIBS =
 
