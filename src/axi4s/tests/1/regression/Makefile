@@ -6,7 +6,7 @@
 #       make waves=ON
 #       make SEED=29 waves=ON
 # -----------------------------------------------
-REGRESSION = 0
+REGRESSION = 1
 SEED ?= 0
 waves ?= OFF
 
@@ -39,4 +39,4 @@ SIM_OPTS =
 # -----------------------------------------------
 # Use common testcase Makefile
 # -----------------------------------------------
-include ../test_base.mk
+include ../../test_base.mk

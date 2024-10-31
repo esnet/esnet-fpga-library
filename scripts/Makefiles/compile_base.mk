@@ -112,7 +112,7 @@ __COMPILE_OPS = compile synth clean
 define SUBCOMPONENT_OP_RULE
 .subcomponents_$(op):
 	@-for subcomponent in $(SUBCOMPONENT_REFS); do \
-		$(MAKE) -s -C $(SRC_ROOT) $(op) COMPONENT=$$$$subcomponent $(COMMON_ENV) $(LIB_ENV) $(USER_ENV); \
+		set -e && $(MAKE) -s -C $(SRC_ROOT) $(op) COMPONENT=$$$$subcomponent $(COMMON_ENV) $(LIB_ENV) $(USER_ENV); \
 	done
 endef
 $(foreach op,$(__COMPILE_OPS),$(eval $(SUBCOMPONENT_OP_RULE)))

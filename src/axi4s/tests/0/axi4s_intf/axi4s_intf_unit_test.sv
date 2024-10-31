@@ -18,7 +18,8 @@ module axi4s_intf_unit_test #(
                                    DUT_SELECT ==  9 ? "axi4s_fifo_async_8192d" :
                                    DUT_SELECT == 10 ? "axi4s_pkt_fifo_async_default" :
                                    DUT_SELECT == 11 ? "axi4s_pkt_fifo_async_st_fwd" :
-                                   DUT_SELECT == 12 ? "axi4s_pkt_fifo_sync" : "undefined";
+                                   DUT_SELECT == 12 ? "axi4s_pkt_fifo_sync" :
+                                   DUT_SELECT == 13 ? "axi4s_packet_adapter" : "undefined";
 
     string name = $sformatf("axi4s_intf_dut_%s_ut", dut_string);
     svunit_testcase svunit_ut;
@@ -99,6 +100,23 @@ module axi4s_intf_unit_test #(
                                           .axil_to_probe(axil_to_probe), .axil_to_ovfl(axil_to_ovfl), .axil_if(axil_if),
                                           .oflow() );
             end
+         13: begin
+                localparam type META_T = struct packed {TID_T tid; TDEST_T tdest; TUSER_T tuser;};
+                bit err; META_T meta;
+                TID_T tid; TDEST_T tdest; TUSER_T tuser;
+
+                packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_T(META_T)) packet_if (.clk(axis_in_if.aclk), .srst(reset_if.reset));
+
+                assign err = 1'b0;
+                assign meta.tid = axis_in_if.tid;
+                assign meta.tdest = axis_in_if.tdest;
+                assign meta.tuser = axis_in_if.tuser;
+                axi4s_to_packet_adapter #(.META_T(META_T)) DUT_0 (.axis_if(axis_in_if), .*);
+                assign tid = packet_if.meta.tid;
+                assign tdest = packet_if.meta.tdest;
+                assign tuser = packet_if.meta.tuser;
+                axi4s_from_packet_adapter #(TID_T, TDEST_T, TUSER_T) DUT_1 (.axis_if(axis_out_if), .*);
+         end
       endcase
    endgenerate
 
@@ -328,7 +346,6 @@ endmodule
     test.run();\
   endtask
 
-
 module axi4s_intf_connector_unit_test;
 `AXI4S_UNIT_TEST(0)
 endmodule
@@ -379,4 +396,8 @@ endmodule
 
 module axi4s_pkt_fifo_sync_unit_test;
 `AXI4S_UNIT_TEST(12)
+endmodule
+
+module axi4s_packet_adapter_unit_test;
+`AXI4S_UNIT_TEST(13)
 endmodule

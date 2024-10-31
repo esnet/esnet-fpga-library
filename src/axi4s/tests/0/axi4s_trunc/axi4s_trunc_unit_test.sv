@@ -58,7 +58,7 @@ module axi4s_trunc_unit_test;
     //===================================
     // Import common testcase tasks
     //=================================== 
-    `include "../../tests/axi4s_trunc/tasks.svh"
+    `include "../axi4s_trunc/tasks.svh"
 
     //===================================
     // Build
