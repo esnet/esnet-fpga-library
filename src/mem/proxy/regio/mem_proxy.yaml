@@ -2,6 +2,9 @@ name: mem_proxy
 info: |
   This register map describes a register-indirect proxy interface
   for interacting with a generic memory.
+protocol:
+  name: mem_proxy
+  source: !include src/mem/proxy/regio/mem_proxy_protocol.py
 regs:
   - default:
       width: 32
