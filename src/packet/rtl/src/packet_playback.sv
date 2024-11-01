@@ -204,7 +204,7 @@ module packet_playback #(
             reg_t meta_reg;
             assign meta_reg = reg_if.meta[g_reg];
             for (genvar g_reg_byte = 0; g_reg_byte < 4; g_reg_byte++) begin : g__byte
-                localparam int byte_idx = (g_reg * 4 + g_reg_byte) % META_BYTES;
+                localparam int byte_idx = (g_reg * 4 + g_reg_byte);
                 if (byte_idx < META_BYTES) assign meta_in[byte_idx] = meta_reg[g_reg_byte];
                 else                       assign meta_in[byte_idx] = 8'h0;
             end : g__byte
