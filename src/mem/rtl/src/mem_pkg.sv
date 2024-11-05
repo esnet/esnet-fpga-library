@@ -38,12 +38,10 @@ package mem_pkg;
         MEM_TYPE_HBM
     } mem_type_t;
 
-    typedef enum logic [2:0] {
+    typedef enum logic [1:0] {
         COMMAND_NOP,
         COMMAND_READ,
-        COMMAND_READ_BURST,
         COMMAND_WRITE,
-        COMMAND_WRITE_BURST,
         COMMAND_CLEAR
     } command_t;
 

@@ -15,10 +15,8 @@ class Protocol(methods.Protocol):
     class CommandCode(enum.IntEnum):
         NOP = 0
         READ = 1
-        READ_BURST = 2
-        WRITE = 3
-        WRITE_BURST = 4
-        CLEAR = 5
+        WRITE = 2
+        CLEAR = 3
 
     class StatusCode(enum.IntEnum):
         RESET = 0

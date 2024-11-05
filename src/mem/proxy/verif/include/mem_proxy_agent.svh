@@ -134,9 +134,7 @@ class mem_proxy_agent extends mem_proxy_reg_blk_agent;
         // Issue command
         case (_command)
             mem_pkg::COMMAND_READ        : command.code = mem_proxy_reg_pkg::COMMAND_CODE_READ;
-            mem_pkg::COMMAND_READ_BURST  : command.code = mem_proxy_reg_pkg::COMMAND_CODE_READ_BURST;
             mem_pkg::COMMAND_WRITE       : command.code = mem_proxy_reg_pkg::COMMAND_CODE_WRITE;
-            mem_pkg::COMMAND_WRITE_BURST : command.code = mem_proxy_reg_pkg::COMMAND_CODE_WRITE_BURST;
             mem_pkg::COMMAND_CLEAR       : command.code = mem_proxy_reg_pkg::COMMAND_CODE_CLEAR;
             default                      : command.code = mem_proxy_reg_pkg::COMMAND_CODE_NOP;
         endcase

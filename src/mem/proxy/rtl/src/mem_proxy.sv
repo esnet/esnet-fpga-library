@@ -80,9 +80,7 @@ module mem_proxy
     function automatic command_t getCommandFromReg(input fld_command_code_t command_code);
         case (command_code)
             COMMAND_CODE_READ        : return COMMAND_READ;
-            COMMAND_CODE_READ_BURST  : return COMMAND_READ_BURST;
             COMMAND_CODE_WRITE       : return COMMAND_WRITE;
-            COMMAND_CODE_WRITE_BURST : return COMMAND_WRITE_BURST;
             COMMAND_CODE_CLEAR       : return COMMAND_CLEAR;
             default                  : return COMMAND_NOP;
         endcase
@@ -259,7 +257,7 @@ module mem_proxy
 
     // Latch burst length
     initial burst_len = '0;
-    always @(posedge clk) if (command_evt) burst_len <= reg_if.burst.len[BURST_LEN_WID-1:0];
+    always @(posedge clk) if (command_evt) burst_len <= reg_if.burst.len[BURST_LEN_WID-1:0] > 0 ? reg_if.burst.len[BURST_LEN_WID-1:0] : 1;
 
     // Latch address
     initial addr = '0;
