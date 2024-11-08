@@ -200,7 +200,7 @@ module mem_proxy
     assign reg_if.info_nxt.alignment = DATA_BYTES;
 
     assign reg_if.info_size_nxt_v = 1'b1;
-    assign reg_if.info_size_nxt = MEM_SIZE;
+    assign reg_if.info_size_nxt = MEM_SIZE*DATA_BYTES;
 
     assign reg_if.info_burst_nxt_v = 1'b1;
     assign reg_if.info_burst_nxt.min = BURST_SIZE_MIN;
