@@ -31,7 +31,7 @@ module packet_read
     // -----------------------------
     localparam int  DATA_BYTE_WID = packet_if.DATA_BYTE_WID;
     localparam int  DATA_WID = DATA_BYTE_WID*8;
-    localparam type DATA_T = logic[DATA_BYTE_WID-1:0][7:0];
+    localparam type DATA_T = logic[0:DATA_BYTE_WID-1][7:0];
     localparam int  MTY_WID  = $clog2(DATA_BYTE_WID);
     localparam type MTY_T    = logic[MTY_WID-1:0];
 
@@ -269,7 +269,7 @@ module packet_read
             );
 
             // Ready
-            assign prefetch_rdy = (__prefetch_cnt <= PREFETCH_DEPTH / 2);
+            assign prefetch_rdy = (__prefetch_cnt < PREFETCH_DEPTH / 2);
 
         end : g__obey_rdy
     endgenerate

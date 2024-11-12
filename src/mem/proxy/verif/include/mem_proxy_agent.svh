@@ -352,6 +352,13 @@ class mem_proxy_agent extends mem_proxy_reg_blk_agent;
         _alignment = reg_info.alignment;
     endtask
 
+    // Get depth
+    task get_depth(output int _depth);
+        mem_proxy_reg_pkg::reg_info_depth_t reg_info_depth;
+        this.read_info_depth(reg_info_depth);
+        _depth = reg_info_depth;
+    endtask
+
     // Get size
     task get_size(output int _size);
         mem_proxy_reg_pkg::reg_info_size_t reg_info_size;

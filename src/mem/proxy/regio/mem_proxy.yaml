@@ -34,6 +34,14 @@ regs:
           desc: alignment (in bytes) for memory accesses.
           width: 12
 
+  - name: info_depth
+    desc: Info (depth)
+    access: ro
+    fields:
+        - name:  words
+          desc:  memory depth in words
+          width: 32
+
   - name: info_size
     desc: Info (size)
     access: ro

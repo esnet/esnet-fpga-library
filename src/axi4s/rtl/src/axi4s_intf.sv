@@ -1,4 +1,4 @@
-interface axi4s_intf 
+interface axi4s_intf
     import axi4s_pkg::*;
 #(
     parameter axi4s_mode_t MODE = STANDARD,
@@ -326,7 +326,7 @@ endmodule : axi4s_intf_monitor
 
 
 // AXI4-Stream pipeline helper module
-module axi4s_intf_pipe 
+module axi4s_intf_pipe
     import axi4s_pkg::*;
 #(
     parameter axi4s_pipe_mode_t MODE = PULL
@@ -409,7 +409,7 @@ module axi4s_tready_pipe (
 
     assign fwft = axi4s_if_from_tx.tvalid && !axi4s_if_from_tx_p.tvalid && !axi4s_if_to_rx_tready_p;
 
-    assign tready_falling = axi4s_if_to_rx_tready_p && !axi4s_if_to_rx.tready;  
+    assign tready_falling = axi4s_if_to_rx_tready_p && !axi4s_if_to_rx.tready;
 
     // sample data flops if rx is deasserting tready, or if sample flops can receive next valid word (first-word-fall-through).
     assign sample_enable  = tready_falling || (fwft && !axi4s_if_to_rx.tready);
@@ -557,7 +557,7 @@ module axi4s_intf_2to1_mux (
 );
     // All interfaces must be synchronous
     assign axi4s_out_if.aclk    = axi4s_in_if_0.aclk;
-    assign axi4s_out_if.aresetn = mux_sel ? axi4s_in_if_1.aresetn : axi4s_in_if_0.aresetn; 
+    assign axi4s_out_if.aresetn = mux_sel ? axi4s_in_if_1.aresetn : axi4s_in_if_0.aresetn;
 
     // Mux
     assign axi4s_out_if.tvalid = mux_sel ? axi4s_in_if_1.tvalid : axi4s_in_if_0.tvalid;

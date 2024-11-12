@@ -18,9 +18,10 @@ module mem_proxy_unit_test;
     localparam MEM_TYPE = MEM_TYPE_SRAM;
 
     localparam int ADDR_WID = $bits(ADDR_T);
-    localparam int SIZE = 2**ADDR_WID;
+    localparam int DEPTH = 2**ADDR_WID;
     localparam int DATA_WID = $bits(DATA_T);
     localparam int DATA_BYTES = DATA_WID % 8 == 0 ? DATA_WID / 8 : DATA_WID / 8 + 1;
+    localparam int SIZE = DEPTH * DATA_BYTES;
 
     //===================================
     // DUT
@@ -169,6 +170,9 @@ module mem_proxy_unit_test;
             // Check alignment
             agent.get_alignment(num);
             `FAIL_UNLESS_EQUAL(num, DATA_BYTES);
+            // Check depth
+            agent.get_depth(num);
+            `FAIL_UNLESS_EQUAL(num, DEPTH);
             // Check size
             agent.get_size(num);
             `FAIL_UNLESS_EQUAL(num, SIZE);

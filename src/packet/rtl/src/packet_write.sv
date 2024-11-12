@@ -187,7 +187,7 @@ module packet_write
     always_comb begin
         addr = addr_reg;
         if (state == SOP) addr = nxt_descriptor_if.addr;
-        else if (state == MOP && packet_if.valid) addr <= addr + 1;
+        else if (state == MOP && packet_if.valid) addr = addr + 1;
     end
 
     // Descriptor word count
