@@ -14,7 +14,6 @@ package std_verif_pkg;
 
     // Basic implementation classes
     `include "event_scoreboard.svh"
-    `include "table_scoreboard.svh"
 
     `include "raw_transaction.svh"
     `include "raw_driver.svh"
@@ -23,6 +22,7 @@ package std_verif_pkg;
     `include "raw_predictor.svh"
     `include "raw_scoreboard.svh"
 
+    `include "basic_env.svh"
     `include "component_env.svh"
     `include "component_ctrl_env.svh"
 

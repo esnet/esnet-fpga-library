@@ -13,18 +13,16 @@ class event_scoreboard #(parameter type TRANSACTION_T = transaction) extends sco
         super.new(name);
     endfunction
 
+    // Destructor
+    // [[ implements std_verif_pkg::base.destroy() ]]
+    virtual function automatic void destroy();
+        super.destroy();
+    endfunction
+
     // Configure trace output
     // [[ overrides std_verif_pkg::base.trace_msg() ]]
     function automatic void trace_msg(input string msg);
         _trace_msg(msg, __CLASS_NAME);
-    endfunction
-
-    // Reset scoreboard state
-    // [[ implements std_verif_pkg::scoreboard._reset() ]]
-    protected function automatic void _reset();
-        trace_msg("_reset()");
-        // Nothing to do (stateless)
-        trace_msg(" _reset() Done.--- ");
     endfunction
 
     // Post-process results
@@ -36,10 +34,10 @@ class event_scoreboard #(parameter type TRANSACTION_T = transaction) extends sco
         trace_msg("_postprocess() Done.");
     endfunction
 
-    // Start scoreboard
-    // [[ implements std_verif_pkg::component._start() ]]
-    task _start();
-        trace_msg("_start()");
+    // Start scoreboard (run loop)
+    // [[ implements std_verif_pkg::component._run() ]]
+    task _run();
+        trace_msg("_run()");
         forever begin
             TRANSACTION_T got_transaction;
             TRANSACTION_T exp_transaction;
@@ -61,7 +59,7 @@ class event_scoreboard #(parameter type TRANSACTION_T = transaction) extends sco
                 _mismatched(1);
             end
         end
-        trace_msg("_start() Done.");
+        trace_msg("_run() Done.");
     endtask
 
 endclass : event_scoreboard

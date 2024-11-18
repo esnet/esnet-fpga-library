@@ -1,18 +1,17 @@
 // Base environment class for verification
-// - abstract class (not to be implemented directly)
-// - describes interface for 'generic' environments, where methods are to be
-//   implemented by derived class
-class env extends component;
+// - abstract class (can't be instantiated directly)
+// - describes interface for 'generic' environments, where methods are to be implemented by derived class
+virtual class env extends component;
 
     local static const string __CLASS_NAME = "std_verif_pkg::env";
 
     //===================================
-    // Properties
+    // Pure Virtual Methods
+    // (must be implemented by derived class)
     //===================================
-    // Reset interface
-    virtual std_reset_intf reset_vif;
-
-    local int __RESET_TIMEOUT = 0;
+    pure virtual task assert_dut_reset();
+    pure virtual task deassert_dut_reset();
+    pure virtual task wait_dut_ready();
 
     //===================================
     // Methods
@@ -20,6 +19,13 @@ class env extends component;
     // Constructor
     function new(input string name="env");
         super.new(name);
+        _reset();
+    endfunction
+
+    // Destructor
+    // [[ implements std_verif_pkg::base.destroy() ]]
+    virtual function automatic void destroy();
+        super.destroy();
     endfunction
 
     // Configure trace output
@@ -28,48 +34,51 @@ class env extends component;
         _trace_msg(msg, __CLASS_NAME);
     endfunction
 
-    // Set reset timeout
-    function automatic void set_reset_timeout(input int TIMEOUT);
-        this.__RESET_TIMEOUT = TIMEOUT;
+    // Reset environment
+    // [[ implements std_verif_pkg::component._reset() ]]
+    virtual protected function automatic void _reset();
+        // Nothing to do typically
     endfunction
 
-    // Apply reset pulse to DUT and wait for reset done
-    task reset_dut();
+    // Quiesce all interfaces
+    // [[ implements std_verif_pkg::component._idle() ]]
+    virtual protected task _idle();
+        // Nothing to do typically
+    endtask
+
+    // Reset DUT and block until ready
+    virtual task reset_dut();
         trace_msg("reset_dut()");
         debug_msg("Applying DUT reset...");
-        reset_vif.pulse(8);
-        wait_ready();
+        assert_dut_reset();
+        deassert_dut_reset();
+        wait_dut_ready();
         debug_msg("Done. DUT reset completed successfully.");
         trace_msg("reset_dut() Done.");
     endtask
 
-    // Assert DUT reset
-    task assert_dut_reset();
-        trace_msg("assert_dut_reset()");
-        reset_vif.assert_sync();
-        trace_msg("assert_dut_reset() Done.");
+    // Initialize environment
+    // [[ implements std_verif_pkg::component._init() ]]
+    virtual protected task _init();
+        trace_msg("_init()");
+        reset_dut();
+        trace_msg("_init() Done.");
     endtask
 
-    // Deassert DUT reset
-    task deassert_dut_reset();
-        automatic bit timeout;
-        trace_msg("deassert_dut_reset()");
-        reset_vif.deassert_sync();
-        reset_vif.wait_ready(timeout, this.__RESET_TIMEOUT);
-        if (timeout) error_msg("TIMEOUT. deassert_dut_reset() not complete.");
-        else         trace_msg("deassert_dut_reset() Done.");
+    // Start environment execution (run loop)
+    virtual protected task _run();
+        trace_msg("_run()");
+        info_msg("Starting environment...");
+        trace_msg("_run() Done.");
     endtask
 
-    // Wait for reset/initialization to complete
-    virtual task wait_ready();
-        automatic bit timeout;
-        trace_msg("wait_ready()");
-        reset_vif.wait_ready(timeout, this.__RESET_TIMEOUT);
-        if (timeout) error_msg("TIMEOUT. wait_ready() not complete.");
-        else         debug_msg("wait_ready() Done.");
+    // [[ overrides std_verif_pkg::component.run ]]
+    virtual task run();
+        idle();
+        reset();
+        init();
+        super.run();
     endtask
 
-    // Put all (driven) interfaces into quiescent state
-    virtual task idle(); endtask
 
 endclass : env

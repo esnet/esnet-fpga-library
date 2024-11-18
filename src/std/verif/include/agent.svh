@@ -1,14 +1,9 @@
 // Base agent class for verification
-// - interface class (not to be implemented directly)
+// - abstract class (can't to be implemented directly)
 // - describes interface for 'generic' agents, where methods are to be implemented by derived class
 virtual class agent extends component;
 
     local static const string __CLASS_NAME = "std_verif_pkg::agent";
-
-    //===================================
-    // Properties
-    //===================================
-    local semaphore __LOCK;
 
     //===================================
     // Methods
@@ -16,7 +11,12 @@ virtual class agent extends component;
     // Constructor
     function new(input string name="agent");
         super.new(name);
-        init_lock();
+    endfunction
+
+    // Destructor
+    // [[ implements std_verif_pkg::base.destroy() ]]
+    virtual function automatic void destroy();
+        super.destroy();
     endfunction
 
     // Configure trace output
@@ -25,55 +25,33 @@ virtual class agent extends component;
         _trace_msg(msg, __CLASS_NAME);
     endfunction
 
-    function automatic void init_lock();
-        __LOCK = new(1);
+    // Build component
+    // [[ implements std_verif_pkg::component._build() ]]
+    virtual protected function automatic void _build();
+        // Nothing to do typically
     endfunction
 
-    task lock();
-        trace_msg("lock()");
-        __LOCK.get();
-        trace_msg("lock() Done.");
+    // Reset agent state
+    // [[ implements std_verif_pkg::component._reset() ]]
+    virtual protected function automatic void _reset();
+        // Nothing to do typically
+    endfunction
+
+    // Quiesce all interfaces
+    virtual protected task _idle();
+        // Nothing to do typically
     endtask
 
-    function automatic bit try_lock();
-        bit lock_result;
-        string lock_result_str;
-        trace_msg("try_lock()");
-        lock_result = __LOCK.try_get();
-        lock_result_str = lock_result ? "successful" : "unsuccessful";
-        trace_msg($sformatf("try_lock() Done. Lock %s.", lock_result_str));
-        return lock_result;
-    endfunction
+    // Perform any necessary initialization, etc. and block until agent is ready for processing
+    // [[ implements std_verif_pkg::component._init() ]]
+    virtual protected task _init();
+        // Nothing to do typically
+    endtask
 
-    function automatic void unlock();
-        trace_msg("unlock()");
-        if (__LOCK.try_get()) error_msg("Unlock attempted but no lock set.");
-        __LOCK.put();
-        trace_msg("unlock() Done.");
-    endfunction
-
-    // Reset agent
-    // [[ implements std_verif_pkg::component.reset() ]]
-    function automatic void reset();
-        trace_msg("reset()");
-        _reset();
-        init_lock();
-        trace_msg("reset() Done.");
-    endfunction
-
-    //===================================
-    // Virtual Methods
-    // (to be implemented by derived class)
-    //===================================
-    // Reset agent
-    protected virtual function automatic void _reset(); endfunction
-    // Reset client
-    virtual task reset_client(); endtask
-    // Put all (driven) interfaces into idle state
-    virtual task idle(); endtask
-    // Wait for specified number of 'cycles', where the definition of 'cycle' is agent-specific
-    virtual task _wait(input int cycles); endtask
-    // Wait for client to be ready (after init/reset for example)
-    virtual task wait_ready(); endtask
+    // Start agent (run loop)
+    // [[ implements std_verif_pkg::component._start() ]]
+    virtual protected task _run();
+        // Nothing to do typically
+    endtask
 
 endclass : agent

@@ -1,4 +1,6 @@
 // Base class for verif components
+// - abstract class (can't be instantiated directly)
+// - describes interface for 'base' components, where methods are to be implemented by subclass
 virtual class base;
 
     local static const string __CLASS_NAME = "std_verif_pkg::base";
@@ -13,8 +15,15 @@ virtual class base;
     //===================================
     // Methods
     //===================================
-    function new(input string name="component");
+    // Constructor
+    function new(input string name="base");
         this.__obj_name = name;
+    endfunction
+
+    // Configure trace output
+    // (should be overriden by derived classes)
+    function automatic void trace_msg(input string msg);
+        _trace_msg(msg, __CLASS_NAME);
     endfunction
 
     function automatic string get_name();
@@ -54,10 +63,11 @@ virtual class base;
         else                 $display("%s [%0t][%s][%s]: %s", label, $time, name, hier_path, msg);
     endfunction
 
-    // Configure trace output
-    // (should be overriden by derived classes)
-    function automatic void trace_msg(input string msg);
-        _trace_msg(msg, __CLASS_NAME);
-    endfunction
+    //===================================
+    // Virtual Methods
+    // (to be implemented by derived class)
+    //===================================
+    // Destructor
+    pure virtual function automatic void destroy();
 
 endclass

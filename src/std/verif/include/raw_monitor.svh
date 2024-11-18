@@ -19,6 +19,13 @@ class raw_monitor #(
         super.new(name);
     endfunction
 
+    // Destructor
+    // [[ implements std_verif_pkg::base.destroy() ]]
+    virtual function automatic void destroy();
+        raw_vif = null;
+        super.destroy();
+    endfunction
+
     // Configure trace output
     // [[ overrides std_verif_pkg::base.trace_msg() ]]
     function automatic void trace_msg(input string msg);
@@ -30,28 +37,10 @@ class raw_monitor #(
         this.__rx_mode = rx_mode;
     endfunction
 
-    // Reset monitor state
-    // [[ implements std_verif_pkg::monitor._reset() ]]
-    function automatic void _reset();
-        trace_msg("_reset()");
-        // Nothing to do
-        trace_msg("_reset() Done.");
-    endfunction
-
-    // Put monitor interface in idle state
-    // [[ implements std_verif_pkg::monitor.idle() ]]
-    task idle();
-        trace_msg("idle()");
-        raw_vif.idle_rx;
-        trace_msg("idle() Done.");
-    endtask
-
-    // Wait for specified number of 'cycles' on the driven interface
-    // [[ implements std_verif_pkg::monitor._wait() ]]
-    task _wait(input int cycles);
-        trace_msg("wait_ready()");
-        raw_vif._wait(cycles);
-        trace_msg("wait_ready() Done.");
+    // Quiesce monitored interface
+    // [[ implements std_verif_pkg::component._idle() ]]
+    protected task _idle();
+        raw_vif.idle_rx();
     endtask
 
     // Receive raw data from interface
@@ -71,7 +60,7 @@ class raw_monitor #(
 
     // Receive raw transaction
     // [[ implements std_verif_pkg::monitor._receive ]]
-    task _receive(output TRANSACTION_T transaction);
+    protected task _receive(output TRANSACTION_T transaction);
         DATA_T rx_data;
 
         trace_msg("_receive()");
