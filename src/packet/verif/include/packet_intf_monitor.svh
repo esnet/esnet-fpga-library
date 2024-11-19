@@ -8,8 +8,8 @@ class packet_intf_monitor #(
     //===================================
     // Properties
     //===================================
-    protected bit _BIGENDIAN;
-    protected real _stall_rate;
+    local bit __BIGENDIAN;
+    local real __stall_rate;
 
     //===================================
     // Interfaces
@@ -28,8 +28,15 @@ class packet_intf_monitor #(
     // Constructor
     function new(input string name="packet_intf_monitor", input bit BIGENDIAN=1);
         super.new(name);
-        this._BIGENDIAN = BIGENDIAN;
-        this._stall_rate = 0.0;
+        this.__BIGENDIAN = BIGENDIAN;
+        _reset();
+    endfunction
+
+    // Destructor
+    // [[ implements std_verif_pkg::base.destroy() ]]
+    virtual function automatic void destroy();
+        packet_vif = null;
+        super.destroy();
     endfunction
 
     // Configure trace output
@@ -40,38 +47,33 @@ class packet_intf_monitor #(
 
     // Set stall ratio value used by driver (for stalling transmit transactions)
     function automatic void set_stall_rate(input real stall_rate);
-        if (stall_rate > 1.0)      this._stall_rate = 1.0;
-        else if (stall_rate < 0.0) this._stall_rate = 0.0;
-        else                       this._stall_rate = stall_rate;
+        if (stall_rate > 1.0)      this.__stall_rate = 1.0;
+        else if (stall_rate < 0.0) this.__stall_rate = 0.0;
+        else                       this.__stall_rate = stall_rate;
     endfunction
 
     // Evaluate stall
     function automatic bit stall();
-        int _stall_val = $ceil(this._stall_rate * 32'hffffffff);
+        int _stall_val = $ceil(this.__stall_rate * 32'hffffffff);
         int _rand_val = $urandom();
         return _rand_val < _stall_val;
     endfunction
 
-    // Reset monitor state
-    // [[ implements _reset() virtual method of std_verif_pkg::monitor parent class ]]
-    function automatic void _reset();
-        // Nothing to do
+    // Reset state
+    // [[ overrides std_verif_pkg::monitor._reset() ]]
+    virtual protected function automatic void _reset();
+        set_stall_rate(0.0);
+        super._reset();
     endfunction
 
     // Put packet monitor interface in idle state
-    // [[ implements std_verif_pkg::monitor.idle() ]]
-    task idle();
+    // [[ implements std_verif_pkg::component._idle() ]]
+    virtual protected task _idle();
         packet_vif.idle_rx();
     endtask
 
-    // Wait for specified number of 'cycles' on the monitored interface
-    // [[ implements std_verif_pkg::monitor._wait() ]]
-    task _wait(input int cycles);
-        packet_vif._wait(cycles);
-    endtask
-
     // Receive transaction (represented as raw byte array with associated metadata)
-    task receive_raw(
+    protected task _receive_raw(
             output byte    data[],
             output META_T  meta,
             output bit     err
@@ -91,7 +93,7 @@ class packet_intf_monitor #(
         while (!eop) begin
             packet_vif.receive(_data, eop, mty, err, meta);
             trace_msg($sformatf("receive_raw: Received word %0d.", word_idx));
-            if (_BIGENDIAN) begin
+            if (this.__BIGENDIAN) begin
                 _data = {<<byte{_data}};
             end
             while (byte_idx < DATA_BYTE_WID) begin
@@ -103,6 +105,7 @@ class packet_intf_monitor #(
             byte_cnt += byte_idx;
             byte_idx = 0;
             word_idx++;
+            while (stall()) packet_vif._wait(1);
         end
         data = __data;
         __data.delete();

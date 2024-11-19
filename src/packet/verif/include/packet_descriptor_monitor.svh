@@ -5,8 +5,6 @@ class packet_descriptor_monitor #(
 
     local static const string __CLASS_NAME = "packet_verif_pkg::packet_descriptor_monitor";
 
-    local int __id = 0;
-
     //===================================
     // Interfaces
     //===================================
@@ -23,35 +21,28 @@ class packet_descriptor_monitor #(
         super.new(name);
     endfunction
 
+    // Destructor
+    // [[ implements std_verif_pkg::base.destroy() ]]
+    virtual function automatic void destroy();
+        packet_descriptor_vif = null;
+        super.destroy();
+    endfunction
+
     // Configure trace output
     // [[ overrides std_verif_pkg::base.trace_msg() ]]
     function automatic void trace_msg(input string msg);
         _trace_msg(msg, __CLASS_NAME);
     endfunction
 
-    // Reset monitor state
-    // [[ implements _reset() virtual method of std_verif_pkg::monitor parent class ]]
-    function automatic void _reset();
-        this.__id = 0;
-    endfunction
-
     // Put packet monitor interface in idle state
-    // [[ implements std_verif_pkg::monitor.idle() ]]
-    task idle();
-        trace_msg("idle()");
+    // [[ implements std_verif_pkg::component._idle() ]]
+    virtual protected task _idle();
         packet_descriptor_vif.idle_rx();
-        trace_msg("idle() Done.");
-    endtask
-
-    // Wait for specified number of 'cycles' on the monitored interface
-    // [[ implements std_verif_pkg::monitor._wait() ]]
-    task _wait(input int cycles);
-        packet_descriptor_vif._wait(cycles);
     endtask
 
     // Receive packet descriptor transaction from packet descriptor interface
     // [[ implements std_verif_pkg::monitor._receive() ]]
-    task _receive(
+    protected task _receive(
             output packet_descriptor#(ADDR_T,META_T) transaction
         );
         // Signals
@@ -68,9 +59,7 @@ class packet_descriptor_monitor #(
         packet_descriptor_vif.receive(addr, size, meta, err);
 
         // Build Rx packet descriptor transaction
-        transaction = new($sformatf("rx_packet_descriptor[%0d]", this.__id), addr, size, meta, err);
-
-        this.__id++;
+        transaction = new($sformatf("rx_packet_descriptor[%0d]", num_transactions()), addr, size, meta, err);
 
         debug_msg(
             $sformatf("Received %s (addr: 0x%0x, %0d bytes, err: %0b, meta: 0x%0x)",

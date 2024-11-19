@@ -5,11 +5,23 @@ virtual class packet_driver#(
     local static const string __CLASS_NAME = "packet_verif_pkg::packet_driver";
 
     //===================================
+    // Pure Virtual Methods
+    // (must be implemented by derived class)
+    //===================================
+    pure protected virtual task _send_raw(input byte data[], input META_T meta = '0, input bit err = 1'b0);
+
+    //===================================
     // Methods
     //===================================
     // Constructor
     function new(input string name="packet_driver");
         super.new(name);
+    endfunction
+
+    // Destructor
+    // [[ implements std_verif_pkg::base.destroy() ]]
+    virtual function automatic void destroy();
+        super.destroy();
     endfunction
 
     // Configure trace output
@@ -18,21 +30,19 @@ virtual class packet_driver#(
         _trace_msg(msg, __CLASS_NAME);
     endfunction
 
-    // Send packet transaction
+    // Send packet
     // [[ implements std_verif_pkg::driver._send() ]]
-    protected task _send(
-            input packet#(META_T) transaction
-        );
+    protected task _send(input packet#(META_T) transaction);
 
         debug_msg($sformatf("Sending:\n%s", transaction.to_string()));
 
-        // Send transaction
-        send_raw(transaction.to_bytes(), transaction.get_meta(), transaction.is_errored());
+        // Send packet transaction
+        _send_raw(transaction.to_bytes(), transaction.get_meta(), transaction.is_errored());
 
         debug_msg("Done.");
     endtask
 
-    // Send packets from PCAP file as transactions on packet bus
+    // Send packets from PCAP file on packet bus
     task send_from_pcap(
             input string pcap_filename,
             input int num_pkts=0,
@@ -68,27 +78,23 @@ virtual class packet_driver#(
         pkt_idx = 0;
         for (int i = start_idx; i < num_pkts; i++) begin
 
-            // Create new packet transaction from next PCAP record
+            // Create new packet from next PCAP record
             packet_verif_pkg::packet_raw#(META_T) packet = packet_verif_pkg::packet_raw#(META_T)::create_from_bytes(
                 $sformatf("Packet %0d", pkt_idx),
-                pcap.records[i].pkt_data
+                pcap.records[i].pkt_data,
+                meta,
+                1'b0
             );
 
             info_msg($sformatf("Sending packet # %0d (of %0d)...", pkt_idx+1, num_pkts));
 
-            // Send transaction
-            _send(packet);
+            // Send
+            send(packet);
 
             info_msg($sformatf("Done. Packet # %0d (of %0d) sent.", pkt_idx+1, num_pkts));
 
             pkt_idx++;
         end
     endtask
-
-    //===================================
-    // Virtual Methods
-    // (to be implemented by derived class)
-    //===================================
-    virtual task send_raw(input byte data[], input META_T meta = '0, input bit err = 1'b0); endtask
 
 endclass : packet_driver

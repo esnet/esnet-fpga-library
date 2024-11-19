@@ -8,8 +8,8 @@ class packet_playback_driver #(parameter type META_T=bit) extends packet_driver#
     //===================================
     // Parameters
     //===================================
-    protected int _RESET_TIMEOUT=0;
-    protected int _OP_TIMEOUT=0;
+    local int __OP_TIMEOUT;
+    local int __RESET_TIMEOUT;
 
     localparam int META_BITS = $bits(META_T);
     localparam int META_BYTES = META_BITS % 8 == 0 ? META_BITS / 8 : META_BITS / 8 + 1;
@@ -27,15 +27,19 @@ class packet_playback_driver #(parameter type META_T=bit) extends packet_driver#
         super.new(name);
         this.set_reset_timeout(2*mem_size);
         this.set_op_timeout(128);
+        mem_agent = new("packet_mem_agent", mem_size, data_wid, reg_agent, 'h400);
+        register_subcomponent(mem_agent);
         control_agent = new("packet_playback_reg_blk_agent", 'h0);
         control_agent.reg_agent = reg_agent;
-        mem_agent = new("packet_mem_agent", mem_size, data_wid, reg_agent, 'h400);
+        register_subcomponent(control_agent);
     endfunction
     
-    function set_debug_level(input int DEBUG_LEVEL);
-        super.set_debug_level(DEBUG_LEVEL);
-        control_agent.set_debug_level(DEBUG_LEVEL);
-        mem_agent.set_debug_level(DEBUG_LEVEL);
+    // Destructor
+    // [[ implements std_verif_pkg::base.destroy() ]]
+    virtual function automatic void destroy();
+        control_agent = null;
+        mem_agent = null;
+        super.destroy();
     endfunction
 
     // Configure trace output
@@ -44,58 +48,72 @@ class packet_playback_driver #(parameter type META_T=bit) extends packet_driver#
         _trace_msg(msg, __CLASS_NAME);
     endfunction
 
-    // Set timeout (in cycles) for reset operation
+    // Set timeout (in cycles) for reset operations
     function automatic void set_reset_timeout(input int RESET_TIMEOUT);
-        this._RESET_TIMEOUT = RESET_TIMEOUT;
+        this.__RESET_TIMEOUT = RESET_TIMEOUT;
+    endfunction
+
+    // Get timeout (in cycles) for reset operations
+    function automatic int get_reset_timeout();
+        return this.__RESET_TIMEOUT;
     endfunction
 
     // Set timeout (in cycles) for non-reset operations
     function automatic void set_op_timeout(input int OP_TIMEOUT);
-        this._OP_TIMEOUT = OP_TIMEOUT;
-    endfunction
-
-    // Get timeout (in cycles) for reset operation
-    function automatic int get_reset_timeout();
-        return this._RESET_TIMEOUT;
+        this.__OP_TIMEOUT = OP_TIMEOUT;
     endfunction
 
     // Get timeout (in cycles) for non-reset operations
     function automatic int get_op_timeout();
-        return this._OP_TIMEOUT;
-    endfunction
-
-    // Reset driver state
-    // [[ implements std_verif_pkg::driver._reset() ]]
-    protected function automatic void _reset();
-        control_agent.reset();
-        mem_agent.reset();
+        return this.__OP_TIMEOUT;
     endfunction
 
     // Put (driven) packet interface in idle state
-    // [[ implements std_verif_pkg::driver.idle() ]]
-    task idle();
-        control_agent.idle();
-        mem_agent.idle();
+    // [[ implements std_verif_pkg::component._idle() ]]
+    virtual protected task _idle();
+        control_agent.reg_agent.idle();
+    endtask
+
+    // Perform initialization, and block until ready
+    // [[ overrides std_verif_pkg::driver._init() ]]
+    virtual protected task _init();
+        enable();
+        wait_ready();
     endtask
 
     // Wait for specified number of 'cycles' on the driven interface
-    // [[ implements std_verif_pkg::driver._wait() ]]
-    protected task _wait(input int cycles);
-        control_agent._wait(cycles);
+    task wait_n(input int cycles);
+        control_agent.reg_agent.wait_n(cycles);
     endtask
 
     task enable();
         packet_playback_reg_pkg::reg_control_t reg_control;
+
+        // Acquire lock
+        control_agent.lock();
+
+        // RMW to set enable bit
         control_agent.read_control(reg_control);
         reg_control.enable = 1'b1;
         control_agent.write_control(reg_control);
+
+        // Return lock
+        control_agent.unlock();
     endtask
 
     task _disable();
         packet_playback_reg_pkg::reg_control_t reg_control;
+
+        // Acquire lock
+        control_agent.lock();
+
+        // RMW to clear enable bit
         control_agent.read_control(reg_control);
         reg_control.enable = 1'b0;
         control_agent.write_control(reg_control);
+
+        // Return lock
+        control_agent.unlock();
     endtask
 
     // Wait for interface to be ready to accept transactions
@@ -103,10 +121,23 @@ class packet_playback_driver #(parameter type META_T=bit) extends packet_driver#
     task wait_ready();
         packet_playback_reg_pkg::reg_status_t reg_status;
         trace_msg("--- wait_ready() ---");
-        do
-            control_agent.read_status(reg_status);
-        while (reg_status.code != packet_playback_reg_pkg::STATUS_CODE_READY);
-        mem_agent.wait_ready();
+        fork begin
+            fork
+                begin
+                    do
+                        control_agent.read_status(reg_status);
+                    while (reg_status.code != packet_playback_reg_pkg::STATUS_CODE_READY);
+                    mem_agent.wait_ready();
+                end
+                begin
+                    if (get_reset_timeout() > 0) begin
+                        wait_n(get_reset_timeout());
+                        error_msg("TIMEOUT. wait_ready() not complete.");
+                    end else wait(0);
+                end
+            join_any
+            disable fork;
+        end join
         trace_msg("--- wait_ready() Done. ---");
     endtask
 
@@ -120,6 +151,9 @@ class packet_playback_driver #(parameter type META_T=bit) extends packet_driver#
         packet_playback_reg_pkg::reg_command_t command;
 
         trace_msg("_transact()");
+
+        // Acquire lock
+        control_agent.lock();
 
         // Clear status register
         trace_msg("_transact() -- Read status.");
@@ -137,6 +171,9 @@ class packet_playback_driver #(parameter type META_T=bit) extends packet_driver#
         while ((status.done == 1'b0) && (status.error == 1'b0) && (status.timeout == 1'b0));
 
         _error = status.error || status.timeout;
+
+        // Return lock
+        control_agent.unlock();
 
         trace_msg("_transact() Done.");
     endtask
@@ -159,9 +196,9 @@ class packet_playback_driver #(parameter type META_T=bit) extends packet_driver#
                     begin
                         _timeout = 1'b0;
                         if (TIMEOUT > 0) begin
-                            _wait(TIMEOUT);
+                            wait_n(TIMEOUT);
                             _timeout = 1'b1;
-                        end else forever _wait(1);
+                        end else wait(0);
                     end
                 join_any
                 disable fork;
@@ -179,41 +216,7 @@ class packet_playback_driver #(parameter type META_T=bit) extends packet_driver#
         trace_msg("nop() Done.");
     endtask
 
-    // Send packet as raw byte array, with support for bursts
-    protected task _send_raw(input byte data[], input META_T meta='0, input bit err=1'b0, input int burst=1);
-        automatic bit error, timeout;
-        if (data.size() < 1) begin
-            debug_msg("Zero-length packet. Nothing to send.");
-            return;
-        end
-        trace_msg("_send_raw() -- Configure.");
-        // Configure transaction
-        __set_config(data.size(), burst);
-        __set_meta(meta);
-        // Write packet data
-        trace_msg("_send_raw() -- Write packet mem.");
-        mem_agent.write(0, data, error, timeout);
-        // Issue transaction
-        trace_msg("_send_raw() -- Issue transaction.");
-        if (burst > 1)
-            transact(packet_playback_reg_pkg::COMMAND_CODE_SEND_BURST, error, timeout, burst*get_op_timeout());
-        else
-            transact(packet_playback_reg_pkg::COMMAND_CODE_SEND_ONE, error, timeout, get_op_timeout());
-    endtask
-
-    // Send single packet from raw byte array
-    // [[ implements packet_verif_pkg::packet_driver.send_raw ]]
-    task send_raw(input byte data[], input META_T meta='0, input bit err=1'b0);
-        trace_msg("send_raw()");
-        _send_raw(data, meta, err, 1);
-        trace_msg("send_raw() Done.");
-    endtask
-
-    // Send a burst of the same packet
-    task send_burst(input packet#(META_T) packet, input int burst=1);
-        _send_raw(packet.to_bytes(), packet.get_meta(), packet.is_errored(), burst);
-    endtask
-
+    // Write config register
     local task __set_config(input int packet_bytes, input int burst_size=1);
         packet_playback_reg_pkg::reg_config_t reg_config;
         reg_config.packet_bytes = packet_bytes;
@@ -221,6 +224,7 @@ class packet_playback_driver #(parameter type META_T=bit) extends packet_driver#
         control_agent.write_config(reg_config);
     endtask
 
+    // Write metadata registers
     local task __set_meta(input META_T _meta);
         automatic int byte_idx;
         bit [0:META_BYTES-1][7:0] meta_bytes = _meta;
@@ -234,6 +238,49 @@ class packet_playback_driver #(parameter type META_T=bit) extends packet_driver#
             control_agent.write_meta(i, meta_reg);
             debug_msg($sformatf("_set_meta: Wrote 0%0x to meta reg %0d", meta_reg, i));
         end
+    endtask
+
+    // Configure transaction
+    local task __setup_transfer(input byte data[], input META_T meta='0, input bit err=1'b0, input int burst=1);
+        automatic bit error, timeout;
+        if (data.size() < 1) begin
+            debug_msg("Zero-length packet. Nothing to send.");
+            return;
+        end
+        trace_msg("__setup_transfer() -- Configure.");
+        // Configure transaction
+        __set_config(data.size(), burst);
+        __set_meta(meta);
+        // Write packet data
+        trace_msg("__setup_transfer() -- Write packet mem.");
+        mem_agent.write(0, data, error, timeout);
+        trace_msg("__setup_transfer() Done.");
+    endtask
+
+    // Send packet as raw byte array
+    // [[ implements packet_verif_pkg::packet_driver._send_raw ]]
+    task _send_raw(input byte data[], input META_T meta='0, input bit err=1'b0);
+        automatic bit error, timeout;
+        trace_msg("_send_raw()");
+        __setup_transfer(data, meta, err, 1);
+        transact(packet_playback_reg_pkg::COMMAND_CODE_SEND_ONE, error, timeout, get_op_timeout());
+        trace_msg("_send_raw() Done.");
+    endtask
+
+    // Send single packet
+    task send_one(input packet#(META_T) packet, output bit error, output bit timeout);
+        trace_msg("send_one()");
+        __setup_transfer(packet.to_bytes(), packet.get_meta(), packet.is_errored(), 1);
+        transact(packet_playback_reg_pkg::COMMAND_CODE_SEND_ONE, error, timeout, get_op_timeout());
+        trace_msg("send_one() Done.");
+    endtask
+
+    // Send a burst of the same packet
+    task send_burst(input packet#(META_T) packet, input int burst=1, output bit error, output bit timeout);
+        trace_msg("send_burst()");
+        __setup_transfer(packet.to_bytes(), packet.get_meta(), packet.is_errored(), burst);
+        transact(packet_playback_reg_pkg::COMMAND_CODE_SEND_BURST, error, timeout, burst*get_op_timeout());
+        trace_msg("send_burst() Done.");
     endtask
 
     // Get packet memory size (read block parameterization value)

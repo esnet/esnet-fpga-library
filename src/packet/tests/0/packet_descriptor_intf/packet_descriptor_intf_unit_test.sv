@@ -78,11 +78,8 @@ module packet_descriptor_intf_unit_test #(
         env.monitor = monitor;
         env.model = model;
         env.scoreboard = scoreboard;
-        env.connect();
-
-        env.set_debug_level(0);
+        env.build();
     endfunction
-
 
     //===================================
     // Setup for running the Unit Tests
@@ -90,17 +87,8 @@ module packet_descriptor_intf_unit_test #(
     task setup();
         svunit_ut.setup();
 
-        // Reset environment
-        env.reset();
-
-        // Put interfaces in quiescent state
-        env.idle();
-
-        // Issue reset
-        env.reset_dut();
-
         // Start environment
-        env.start();
+        env.run();
     endtask
 
 
@@ -109,10 +97,10 @@ module packet_descriptor_intf_unit_test #(
     // need after running the Unit Tests
     //===================================
     task teardown();
-        svunit_ut.teardown();
-
         // Stop environment
         env.stop();
+
+        svunit_ut.teardown();
     endtask
 
 
@@ -179,6 +167,10 @@ module packet_descriptor_intf_unit_test #(
                 scoreboard.report(msg),
                 "Passed unexpectedly."
             );
+        `SVTEST_END
+
+        `SVTEST(finalize)
+            env.finalize();
         `SVTEST_END
 
     `SVUNIT_TESTS_END

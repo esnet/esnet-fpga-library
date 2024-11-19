@@ -93,10 +93,9 @@ module packet_playback_unit_test;
         // Environment
         env = new("env", driver, monitor, model, scoreboard);
         env.reset_vif = reset_if;
-        env.connect();
+        env.build();
 
     endfunction
-
 
     //===================================
     // Setup for running the Unit Tests
@@ -104,22 +103,8 @@ module packet_playback_unit_test;
     task setup();
         svunit_ut.setup();
 
-        // Reset environment
-        env.reset();
-        reg_agent.reset();
-
-        // Put interfaces in quiescent state
-        env.idle();
-
-        // Issue reset
-        env.reset_dut();
-
         // Start environment
-        env.start();
-
-        // Wait for memory initialization to complete
-        driver.enable();
-        driver.wait_ready();
+        env.run();
     endtask
 
 
@@ -128,10 +113,10 @@ module packet_playback_unit_test;
     // need after running the Unit Tests
     //===================================
     task teardown();
-        svunit_ut.teardown();
-
         // Stop environment
         env.stop();
+
+        svunit_ut.teardown();
     endtask
 
 
@@ -148,6 +133,7 @@ module packet_playback_unit_test;
     //     <test code>
     //   `SVTEST_END
     //===================================
+    META_T meta;
     bit error;
     bit timeout;
     int got_int;
@@ -156,8 +142,7 @@ module packet_playback_unit_test;
     int len;
 
     task one_packet(int id=0, int len=$urandom_range(64, 1500));
-        automatic packet_raw#(META_T) packet;
-        META_T meta;
+        packet_raw#(META_T) packet;
         packet = new($sformatf("pkt_%0d", id), len);
         packet.randomize();
         void'(std::randomize(meta));
@@ -194,9 +179,9 @@ module packet_playback_unit_test;
         `SVTEST_END
 
         `SVTEST(packet_burst)
+            packet_raw#(META_T) packet;
             localparam int BURST_SIZE = 20;
             int len=$urandom_range(64, 1500);
-            packet_raw#(META_T) packet;
             META_T meta;
             packet = new("pkt_0", len);
             packet.randomize();
@@ -205,7 +190,9 @@ module packet_playback_unit_test;
             for (int i = 0; i < BURST_SIZE; i++ ) begin
                 scoreboard.exp_inbox.put(packet);
             end
-            driver.send_burst(packet, BURST_SIZE);
+            driver.send_burst(packet, BURST_SIZE, error, timeout);
+            `FAIL_IF(error);
+            `FAIL_IF(timeout);
             #100us `FAIL_IF_LOG(scoreboard.report(msg) > 0, msg);
             `FAIL_UNLESS_EQUAL(scoreboard.got_matched(), BURST_SIZE);
         `SVTEST_END
@@ -238,6 +225,10 @@ module packet_playback_unit_test;
         `SVTEST(pcap)
             driver.send_from_pcap("../../packet_playback/test.pcap");
             // TODO: Add checks to make sure this actually works
+        `SVTEST_END
+
+        `SVTEST(finalize)
+            env.finalize();
         `SVTEST_END
 
     `SVUNIT_TESTS_END

@@ -8,8 +8,8 @@ class packet_capture_monitor #(parameter type META_T=bit) extends packet_monitor
     //===================================
     // Parameters
     //===================================
-    protected int _RESET_TIMEOUT=0;
-    protected int _OP_TIMEOUT=0;
+    local int __OP_TIMEOUT;
+    local int __RESET_TIMEOUT;
 
     localparam int META_BITS = $bits(META_T);
     localparam int META_BYTES = META_BITS % 8 == 0 ? META_BITS / 8 : META_BITS / 8 + 1;
@@ -30,6 +30,16 @@ class packet_capture_monitor #(parameter type META_T=bit) extends packet_monitor
         control_agent = new("packet_capture_reg_blk_agent", 'h0);
         control_agent.reg_agent = reg_agent;
         mem_agent = new("packet_mem_agent", mem_size, data_wid, reg_agent, 'h400);
+        register_subcomponent(control_agent);
+        register_subcomponent(mem_agent);
+    endfunction
+
+    // Destructor
+    // [[ implements std_verif_pkg::base.destroy() ]]
+    virtual function automatic void destroy();
+        control_agent = null;
+        mem_agent = null;
+        super.destroy();
     endfunction
 
     // Configure trace output
@@ -38,75 +48,95 @@ class packet_capture_monitor #(parameter type META_T=bit) extends packet_monitor
         _trace_msg(msg, __CLASS_NAME);
     endfunction
 
-    virtual function automatic void set_debug_level(input int DEBUG_LEVEL);
-        super.set_debug_level(DEBUG_LEVEL);
-        control_agent.set_debug_level(DEBUG_LEVEL);
-        mem_agent.set_debug_level(DEBUG_LEVEL);
+    // Set timeout (in cycles) for reset operations
+    function automatic void set_reset_timeout(input int RESET_TIMEOUT);
+        this.__RESET_TIMEOUT = RESET_TIMEOUT;
     endfunction
 
-    // Set timeout (in cycles) for reset operation
-    function automatic void set_reset_timeout(input int RESET_TIMEOUT);
-        this._RESET_TIMEOUT = RESET_TIMEOUT;
+    // Get timeout (in cycles) for reset operations
+    function automatic int get_reset_timeout();
+        return this.__RESET_TIMEOUT;
     endfunction
 
     // Set timeout (in cycles) for non-reset operations
     function automatic void set_op_timeout(input int OP_TIMEOUT);
-        this._OP_TIMEOUT = OP_TIMEOUT;
-    endfunction
-
-    // Get timeout (in cycles) for reset operation
-    function automatic int get_reset_timeout();
-        return this._RESET_TIMEOUT;
+        this.__OP_TIMEOUT = OP_TIMEOUT;
     endfunction
 
     // Get timeout (in cycles) for non-reset operations
     function automatic int get_op_timeout();
-        return this._OP_TIMEOUT;
+        return this.__OP_TIMEOUT;
     endfunction
 
-    // Reset driver state
-    // [[ implements std_verif_pkg::driver._reset() ]]
-    function automatic void _reset();
-        control_agent.reset();
-        mem_agent.reset();
-    endfunction
+    // Put (monitored) packet interface in idle state
+    // [[ implements std_verif_pkg::component._idle() ]]
+    virtual protected task _idle();
+        control_agent.reg_agent.idle();
+    endtask
 
-    // Put (driven) packet interface in idle state
-    // [[ implements std_verif_pkg::driver.idle() ]]
-    task idle();
-        control_agent.idle();
-        mem_agent.idle();
+    // Perform initialization, and block until ready
+    // [[ overrides std_verif_pkg::monitor._init() ]]
+    virtual protected task _init();
+        enable();
+        wait_ready();
     endtask
 
     // Wait for specified number of 'cycles' on the driven interface
-    // [[ implements std_verif_pkg::driver._wait() ]]
-    task _wait(input int cycles);
-        control_agent._wait(cycles);
+    task wait_n(input int cycles);
+        control_agent.reg_agent.wait_n(cycles);
     endtask
 
     task enable();
         packet_capture_reg_pkg::reg_control_t reg_control;
+
+        // Acquire lock
+        control_agent.lock();
+
+        // RMW to set enable bit
         control_agent.read_control(reg_control);
         reg_control.enable = 1'b1;
         control_agent.write_control(reg_control);
+
+        // Return lock
+        control_agent.unlock();
     endtask
 
     task _disable();
         packet_capture_reg_pkg::reg_control_t reg_control;
+
+        // Acquire lock
+        control_agent.lock();
+
+        // RMW to clear enable bit
         control_agent.read_control(reg_control);
         reg_control.enable = 1'b0;
         control_agent.write_control(reg_control);
+
+        // Return lock
+        control_agent.unlock();
     endtask
 
     // Wait for interface to be ready to accept transactions
-    // [[ implements std_verif_pkg::monitor.wait_ready() ]]
     task wait_ready();
         packet_capture_reg_pkg::reg_status_t reg_status;
         trace_msg("--- wait_ready() ---");
-        do
-            control_agent.read_status(reg_status);
-        while (reg_status.code != packet_capture_reg_pkg::STATUS_CODE_READY);
-        mem_agent.wait_ready();
+        fork begin
+            fork
+                begin
+                    do
+                        control_agent.read_status(reg_status);
+                    while (reg_status.code != packet_capture_reg_pkg::STATUS_CODE_READY);
+                    mem_agent.wait_ready();
+                end
+                begin
+                    if (get_reset_timeout() > 0) begin
+                        wait_n(get_reset_timeout());
+                        error_msg("TIMEOUT. wait_ready() not complete.");
+                    end else wait(0);
+                end
+            join_any
+            disable fork;
+        end join
         trace_msg("--- wait_ready() Done. ---");
     endtask
 
@@ -162,9 +192,12 @@ class packet_capture_monitor #(parameter type META_T=bit) extends packet_monitor
                     begin
                         _timeout = 1'b0;
                         if (TIMEOUT > 0) begin
-                            _wait(TIMEOUT);
+                            wait_n(TIMEOUT);
                             _timeout = 1'b1;
-                        end else forever _wait(1);
+                        end else wait (0);
+                    end
+                    begin
+                        wait(__stop.triggered);
                     end
                 join_any
                 disable fork;
@@ -207,7 +240,7 @@ class packet_capture_monitor #(parameter type META_T=bit) extends packet_monitor
 
     // Receive packet as raw byte array
     // [[ implements packet_verif_pkg::packet_monitor.receive_raw ]]
-    task receive_raw(output byte data[], output META_T meta, output bit err);
+    protected task _receive_raw(output byte data[], output META_T meta, output bit err);
         packet#(META_T) packet;
         automatic bit error, timeout;
         automatic int mem_window_size;
@@ -251,7 +284,7 @@ class packet_capture_monitor #(parameter type META_T=bit) extends packet_monitor
         _size = reg_info.mem_size;
         trace_msg($sformatf("read_mem_size() Done. Got: %0d.", _size));
     endtask
-    
+
     // Get packet metadata width (read block parameterization value)
     task read_meta_width(output int _meta_width);
         packet_capture_reg_pkg::reg_info_t reg_info;
