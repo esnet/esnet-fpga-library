@@ -40,36 +40,16 @@ class reg_proxy_agent #(
         _trace_msg(msg, __CLASS_NAME);
     endfunction
 
-    // Configure trace output
-    // [[ implements std_verif_pkg::agent._reset() ]]
-    protected virtual function automatic void _reset();
-        super._reset();
-        // Nothing else to do
-    endfunction
-
-    // Reset client
-    // [[ implements std_verif_pkg::agent.reset ]]
-    task reset_client();
-        // AXI-L controller can't reset client
-    endtask
-
     // Put all (driven) interfaces into idle state
-    // [[ implements std_verif_pkg::agent.idle ]]
-    task idle();
+    // [[ implements std_verif_pkg::component._idle ]]
+    virtual protected task _idle();
         __reg_agent.idle();
     endtask
 
-    // Wait for specified number of 'cycles', where the definition of a cycle
-    // is defined by the client
-    // [[ implements std_verif_pkg::agent._wait ]]
-    task _wait(input int cycles);
-        __reg_agent._wait(cycles);
-    endtask
-
-    // Wait for client reset/init to complete
-    // [[ implements std_verif_pkg::agent.wait_ready ]]
-    task wait_ready();
-        __reg_agent.wait_ready();
+    // Wait for specified number of 'cycles'
+    // [[ implements std_verif_pkg::agent.wait_n ]]
+    virtual task wait_n(input int cycles);
+        __reg_agent.wait_n(cycles);
     endtask
 
     // Base register access
@@ -252,9 +232,9 @@ class reg_proxy_agent #(
                     begin
                         timeout = 1'b0;
                         if (TIMEOUT > 0) begin
-                            _wait(TIMEOUT);
+                            wait_n(TIMEOUT);
                             timeout = 1'b1;
-                        end else forever _wait(1);
+                        end else wait(0);
                     end
                 join_any
                 disable fork;
