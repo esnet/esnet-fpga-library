@@ -37,6 +37,7 @@ class axi4l_reg_agent #(
         super.new(name);
         set_wr_timeout(WR_TIMEOUT);
         set_rd_timeout(RD_TIMEOUT);
+        set_random_aw_w_alignment(0);
     endfunction
 
     // Configure trace output
@@ -53,36 +54,16 @@ class axi4l_reg_agent #(
         return this.__randomize_aw_w_alignment;
     endfunction
 
-    // Reset agent
-    protected virtual function automatic void _reset();
-        super._reset();
-        // Nothing else to do
-    endfunction
-
-    // Reset client
-    // [[ implements std_verif_pkg::agent.reset_client ]]
-    task reset_client();
-        // AXI-L controller can't reset client
-    endtask
-
-    // Put all (driven) interfaces into idle state
-    // [[ implements std_verif_pkg::agent.idle ]]
-    task idle();
+    // Quiesce AXI-L interface
+    // [[ implements std_verif_pkg::component._idle ]]
+    task _idle();
         axil_vif.idle_controller();
     endtask
 
-    // Wait for specified number of 'cycles', where the definition of a cycle
-    // is defined by the client
+    // Block for specified number of AXI-L cycles
     // [[ implements std_verif_pkg::agent._wait ]]
-    task _wait(input int cycles);
+    task wait_n(input int cycles);
         axil_vif._wait(cycles);
-    endtask
-
-    // Wait for client reset/init to complete
-    // [[ implements std_verif_pkg::agent.wait_ready ]]
-    task wait_ready();
-        // No mechanism for client to report readiness; assume
-        // ready when out of reset
     endtask
 
     task _write(input addr_t addr, input data_t data, output bit error, output bit timeout, output string msg="");
@@ -134,11 +115,11 @@ class axi4l_reg_agent #(
 
         axil_vif.read_byte(addr, data, resp, timeout, get_rd_timeout());
         if (resp != axi4l_pkg::RESP_OKAY) error = 1'b1;
-        else                             error = 1'b0;
+        else                              error = 1'b0;
         if (timeout) msg = $sformatf("AXI-L read from address 0x%0x resulted in timeout.", addr);
         else         msg = $sformatf("AXI-L read from address 0x%0x returned with response '%s'.", addr, resp.encoded.name());
 
         trace_msg("_read_byte() Done.");
     endtask
 
-endclass
+endclass : axi4l_reg_agent
