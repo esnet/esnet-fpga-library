@@ -63,7 +63,7 @@ module axi4s_pad_unit_test;
         env.reset_vif = reset_if;
         env.axis_in_vif = axis_in_if;
         env.axis_out_vif = axis_out_if;
-        env.connect();
+        env.build();
 
         env.set_debug_level(0);
     endfunction
@@ -75,21 +75,8 @@ module axi4s_pad_unit_test;
     task setup();
         svunit_ut.setup();
 
-        // Reset environment
-        env.reset();
-
-        // Put interfaces in quiescent state
-        env.idle();
-
-        // Issue reset
-        env.reset_dut();
-
-        // Default settings for tpause and twait
-        env.monitor.set_tpause(0);
-        env.driver.set_twait(0);
-
         // Start environment
-        env.start();
+        env.run();
     endtask
 
 
@@ -98,10 +85,10 @@ module axi4s_pad_unit_test;
     // need after running the Unit Tests
     //===================================
     task teardown();
-        svunit_ut.teardown();
-
         // Stop environment
         env.stop();
+
+        svunit_ut.teardown();
     endtask
 
 
@@ -156,7 +143,8 @@ module axi4s_pad_unit_test;
 
         `SVTEST(packet_stream_good)
             packet_stream();
-            #100us `FAIL_IF_LOG( scoreboard.report(msg), msg );
+            #100us `FAIL_IF_LOG(scoreboard.report(msg), msg);
+            `FAIL_UNLESS_EQUAL(scoreboard.got_matched(), 255);
         `SVTEST_END
 
     `SVUNIT_TESTS_END

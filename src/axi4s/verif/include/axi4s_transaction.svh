@@ -24,6 +24,12 @@ class axi4s_transaction #(
         this.set_tuser(tuser);
     endfunction
 
+    // Destructor
+    // [[ implements std_verif_pkg::base.destroy() ]]
+    virtual function automatic void destroy();
+        super.destroy();
+    endfunction
+
     // Configure trace output
     // [[ overrides std_verif_pkg::base.trace_msg() ]]
     function automatic void trace_msg(input string msg);
@@ -64,7 +70,7 @@ class axi4s_transaction #(
     endfunction
 
     // Construct raw packet from array of bytes
-    static function axi4s_transaction#(TID_T,TDEST_T,TUSER_T) create_from_bytes(
+    static function axi4s_transaction#(TID_T, TDEST_T, TUSER_T) create_from_bytes(
             input string name = "axi4s_transaction",
             input byte data[],
             input TID_T tid = '0,
@@ -72,14 +78,14 @@ class axi4s_transaction #(
             input TUSER_T tuser = '0,
             input bit err = 1'b0
         );
-        axi4s_transaction#(TID_T,TDEST_T,TUSER_T) new_transaction = new(name, data.size(), tid, tdest, tuser, err);
+        axi4s_transaction#(TID_T, TDEST_T, TUSER_T) new_transaction = new(name, data.size(), tid, tdest, tuser, err);
         new_transaction.set_from_bytes(data);
         return new_transaction;
     endfunction
 
-    function automatic axi4s_transaction#(TID_T,TDEST_T,TUSER_T) clone(input string name);
-        axi4s_transaction#(TID_T,TDEST_T,TUSER_T) cloned_transaction =
-            axi4s_transaction#(TID_T,TDEST_T,TUSER_T)::create_from_bytes(
+    function automatic axi4s_transaction#(TID_T, TDEST_T, TUSER_T) clone(input string name);
+        axi4s_transaction#(TID_T, TDEST_T, TUSER_T) cloned_transaction =
+            axi4s_transaction#(TID_T, TDEST_T, TUSER_T)::create_from_bytes(
                 name,
                 this.to_bytes,
                 this.get_tid(),
@@ -103,7 +109,7 @@ class axi4s_transaction #(
 
     // Compare transaction to a reference transaction
     // [[ implements std_verif_pkg::transaction.compare() ]]
-    virtual function bit _compare(input axi4s_transaction#(TID_T,TDEST_T,TUSER_T) b, output string msg);
+    virtual function bit _compare(input axi4s_transaction#(TID_T, TDEST_T, TUSER_T) b, output string msg);
         if (this.get_tid() !== b.get_tid()) begin
             msg = $sformatf("Mismatch in 'tid' field. A: %x, B: %x.", this.get_tid(), b.get_tid());
             return 0;

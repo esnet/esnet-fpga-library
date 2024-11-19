@@ -120,7 +120,8 @@ module axi4s_packet_playback_unit_test;
         env.model = model;
         env.scoreboard = scoreboard;
         env.reset_vif = reset_if;
-        env.connect();
+        env.register_subcomponent(reg_agent);
+        env.build();
 
     endfunction
 
@@ -131,24 +132,8 @@ module axi4s_packet_playback_unit_test;
     task setup();
         svunit_ut.setup();
 
-        // Reset environment
-        env.reset();
-        reg_agent.reset();
-
-        // Put interfaces in quiescent state
-        env.idle();
-        driver.idle();
-        monitor.idle();
-
-        // Issue reset
-        env.reset_dut();
-
         // Start environment
-        env.start();
-
-        // Wait for memory initialization to complete
-        driver.enable();
-        driver.wait_ready();
+        env.run();
     endtask
 
 
@@ -157,10 +142,10 @@ module axi4s_packet_playback_unit_test;
     // need after running the Unit Tests
     //===================================
     task teardown();
-        svunit_ut.teardown();
-
         // Stop environment
         env.stop();
+
+        svunit_ut.teardown();
     endtask
 
 
@@ -267,6 +252,10 @@ module axi4s_packet_playback_unit_test;
         `SVTEST(pcap)
             driver.send_from_pcap("../../axi4s_packet_playback/test.pcap");
             // TODO: Add checks to make sure this actually works
+        `SVTEST_END
+
+        `SVTEST(finalize)
+            env.finalize();
         `SVTEST_END
 
     `SVUNIT_TESTS_END

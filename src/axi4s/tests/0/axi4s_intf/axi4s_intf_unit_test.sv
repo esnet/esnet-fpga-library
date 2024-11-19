@@ -174,9 +174,8 @@ module axi4s_intf_unit_test #(
         env.reset_vif = reset_if;
         env.axis_in_vif = axis_in_if;
         env.axis_out_vif = axis_out_if;
-        env.connect();
+        env.build();
 
-        env.set_debug_level(0);
     endfunction
 
 
@@ -186,21 +185,8 @@ module axi4s_intf_unit_test #(
     task setup();
         svunit_ut.setup();
 
-        // Reset environment
-        env.reset();
-
-        // Put interfaces in quiescent state
-        env.idle();
-
-        // Issue reset
-        env.reset_dut();
-
-        // Default settings for tpause and twait
-        env.monitor.set_tpause(0);
-        env.driver.set_twait(0);
-
         // Start environment
-        env.start();
+        env.run();
     endtask
 
 
@@ -209,10 +195,10 @@ module axi4s_intf_unit_test #(
     // need after running the Unit Tests
     //===================================
     task teardown();
-        svunit_ut.teardown();
-
         // Stop environment
         env.stop();
+
+        svunit_ut.teardown();
     endtask
 
 
@@ -250,6 +236,7 @@ module axi4s_intf_unit_test #(
     `SVUNIT_TESTS_BEGIN
 
         `SVTEST(reset)
+            axis_in_if._wait(1);
         `SVTEST_END
 
         `SVTEST(one_packet_good)
@@ -321,6 +308,10 @@ module axi4s_intf_unit_test #(
                 scoreboard.report(msg),
                 "Passed unexpectedly."
             );
+        `SVTEST_END
+
+        `SVTEST(finalize)
+            env.finalize();
         `SVTEST_END
 
     `SVUNIT_TESTS_END

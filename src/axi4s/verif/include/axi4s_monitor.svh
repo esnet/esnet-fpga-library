@@ -10,9 +10,8 @@ class axi4s_monitor #(
     //===================================
     // Properties
     //===================================
-    protected bit _BIGENDIAN;
-
-    local int _tpause;
+    local bit __BIGENDIAN;
+    local int __tpause;
 
     //===================================
     // Interfaces
@@ -33,7 +32,14 @@ class axi4s_monitor #(
     // Constructor
     function new(input string name="axi4s_monitor", input bit BIGENDIAN=1);
         super.new(name);
-        this._BIGENDIAN = BIGENDIAN;
+        this.__BIGENDIAN = BIGENDIAN;
+    endfunction
+
+    // Destructor
+    // [[ implements std_verif_pkg::base.destroy() ]]
+    virtual function automatic void destroy();
+        axis_vif = null;
+        super.destroy();
     endfunction
 
     // Configure trace output
@@ -42,28 +48,22 @@ class axi4s_monitor #(
         _trace_msg(msg, __CLASS_NAME);
     endfunction
 
-    // Reset monitor state
-    // [[ implements _reset() virtual method of std_verif_pkg::monitor parent class ]]
-    function automatic void _reset();
-        // Nothing to do
-    endfunction
-
-    // Put AXI-S monitor interface in idle state
-    // [[ implements std_verif_pkg::monitor.idle() ]]
-    task idle();
-        axis_vif.idle_rx();
-    endtask
-
-    // Wait for specified number of 'cycles' on the monitored interface
-    // [[ implements std_verif_pkg::monitor._wait() ]]
-    task _wait(input int cycles);
-        axis_vif._wait(cycles);
-    endtask
-
     // Set tpause value used by monitor (for stalling receive transactions)
     function automatic void set_tpause(input int tpause);
-        this._tpause = tpause;
+        this.__tpause = tpause;
     endfunction
+
+    // Reset monitor
+    // [[ overrides std_verif_pkg::monitor._reset() ]]
+    virtual protected function automatic void _reset();
+        this.set_tpause(0);
+    endfunction
+
+    // Quiesce AXI-S interface
+    // [[ implements std_verif_pkg::component._idle() ]]
+    virtual protected task _idle();
+        axis_vif.idle_rx();
+    endtask
 
     // Receive transaction (represented as raw byte array with associated metadata)
     task receive_raw(
@@ -89,7 +89,7 @@ class axi4s_monitor #(
         while (!tlast) begin
             axis_vif.receive(tdata, tkeep, tlast, tid, tdest, tuser, tpause);
             trace_msg($sformatf("receive_raw: Received word %0d.", word_idx));
-            if (_BIGENDIAN) begin
+            if (this.__BIGENDIAN) begin
                 tdata = {<<byte{tdata}};
                 tkeep = {<<{tkeep}};
             end
@@ -110,11 +110,8 @@ class axi4s_monitor #(
 
 
     // Receive AXI-S transaction from AXI-S bus
-    // [[ implements _receive() virtual method of std_verif_pkg::monitor parent class ]]
     // [[ implements std_verif_pkg::monitor._receive() ]]
-    task _receive(
-            output axi4s_transaction#(TID_T, TDEST_T, TUSER_T) transaction
-        );
+    protected task _receive(output axi4s_transaction#(TID_T, TDEST_T, TUSER_T) transaction);
         // Signals
         byte data [];
         TID_T tid;
@@ -124,10 +121,10 @@ class axi4s_monitor #(
         debug_msg("Waiting for transaction...");
 
         // Receive transaction
-        receive_raw(data, tid, tdest, tuser, _tpause);
+        receive_raw(data, tid, tdest, tuser, this.__tpause);
 
         // Build Rx AXI-S transaction
-        transaction = axi4s_transaction#(TID_T,TDEST_T,TUSER_T)::create_from_bytes(
+        transaction = axi4s_transaction#(TID_T, TDEST_T, TUSER_T)::create_from_bytes(
             "rx_axi4s_transaction",
             data,
             tid,
