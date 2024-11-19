@@ -24,6 +24,15 @@ class db_model #(
         this.__CAPACITY = capacity;
     endfunction
 
+    // Destructor
+    // [[ implements std_verif_pkg::base.destroy() ]]
+    virtual function automatic void destroy();
+        trace_msg("destroy()");
+        __db.delete();
+        super.destroy();
+        trace_msg("destroy() Done.");
+    endfunction
+
     // Configure trace output
     // [[ overrides std_verif_pkg::base.trace_msg() ]]
     function automatic void trace_msg(input string msg);
@@ -31,10 +40,11 @@ class db_model #(
     endfunction
 
     // Reset model
-    // [[ implements std_verif_pkg::model._reset() ]]
-    function automatic void _reset();
+    // [[ overrides std_verif_pkg::model._reset() ]]
+    protected function automatic void _reset();
         trace_msg("_reset()");
         if (__db.size() > 0) __db.delete();
+        super._reset();
         trace_msg("_reset() Done.");
     endfunction
 

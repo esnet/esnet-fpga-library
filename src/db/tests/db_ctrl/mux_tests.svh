@@ -465,7 +465,7 @@
                         `FAIL_UNLESS_EQUAL(got_valid, exp_valid);
                         `FAIL_UNLESS_EQUAL(got_value, exp_value);
                     end
-                    agent[1]._wait($urandom() % 1000);
+                    agent[1].wait_n($urandom() % 1000);
                 end
             end
         join
@@ -526,7 +526,7 @@
                         `FAIL_UNLESS_EQUAL(got_valid, exp_valid);
                         `FAIL_UNLESS_EQUAL(got_value, exp_value);
                     end
-                    agent[0]._wait($urandom() % 1000);
+                    agent[0].wait_n($urandom() % 1000);
                 end
             end
             begin
