@@ -2,7 +2,7 @@ class tb_env #(
     parameter type ID_T = logic[7:0],
     parameter type STATE_T = logic,
     parameter type UPDATE_T = logic
-) extends std_verif_pkg::env;
+) extends std_verif_pkg::basic_env;
 
     // Parameters
     localparam int NUM_IDS = 2**$bits(ID_T);
@@ -27,17 +27,13 @@ class tb_env #(
         set_reset_timeout(RESET_TIMEOUT);
     endfunction
 
-    function void connect();
-        super.connect();
-    endfunction
-
     task idle();
         db_agent.idle();
         update_vif.idle();
         ctrl_vif.idle();
     endtask
 
-    task _wait(input int num_cycles);
+    task wait_n(input int num_cycles);
         update_vif._wait(num_cycles);
     endtask
 

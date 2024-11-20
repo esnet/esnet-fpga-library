@@ -21,6 +21,15 @@ virtual class state_model #(
     local const int __NUM_IDS = 2**$bits(ID_T);
 
     //===================================
+    // Pure Virtual Methods
+    // (must be implemented by derived class)
+    //===================================
+    // Calculate next state after datapath update, given previous state and update vectors
+    pure virtual function automatic STATE_T get_next_state(input update_ctxt_t ctxt, input STATE_T prev_state, input UPDATE_T update, input bit init);
+    // Calculate return state, given previous state and update
+    pure virtual function automatic STATE_T get_return_state(input STATE_T prev_state, input STATE_T next_state);
+
+    //===================================
     // Methods
     //===================================
     // Constructor
@@ -31,6 +40,15 @@ virtual class state_model #(
         this.__db_model = new("db_model", __NUM_IDS);
     endfunction
 
+    // Destructor
+    // [[ implements std_verif_pkg::base.destroy() ]]
+    virtual function automatic void destroy();
+        trace_msg("destroy()");
+        __db_model = null;
+        super.destroy();
+        trace_msg("destroy() Done.");
+    endfunction
+
     // Configure trace output
     // [[ overrides std_verif_pkg::base.trace_msg() ]]
     function automatic void trace_msg(input string msg);
@@ -39,9 +57,10 @@ virtual class state_model #(
 
     // Reset model
     // [[ implements std_verif_pkg::model._reset() ]]
-    function automatic void _reset();
+    virtual protected function automatic void _reset();
         trace_msg("_reset()");
         __db_model.reset();
+        super._reset();
         trace_msg("_reset() Done.");
     endfunction
 
@@ -91,7 +110,6 @@ virtual class state_model #(
         return __db_model.clear_all();
     endfunction
 
-
     // Update (from data plane)
     function automatic STATE_T update(
             input update_ctxt_t ctxt,
@@ -135,13 +153,5 @@ virtual class state_model #(
         return transaction_out;
 
     endfunction : predict
-
-    //===================================
-    // Virtual Methods
-    //===================================
-    // Calculate next state after datapath update, given previous state and update vectors
-    virtual function automatic STATE_T get_next_state(input update_ctxt_t ctxt, input STATE_T prev_state, input UPDATE_T update, input bit init); endfunction
-    // Calculate return state, given previous state and update
-    virtual function automatic STATE_T get_return_state(input STATE_T prev_state, input STATE_T next_state); endfunction
 
 endclass : state_model

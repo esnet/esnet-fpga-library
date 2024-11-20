@@ -109,7 +109,7 @@ module state_cache_core_unit_test;
         end
     endgenerate
 
-    std_verif_pkg::env env;
+    std_verif_pkg::basic_env env;
 
     axi4l_verif_pkg::axi4l_reg_agent #() reg_agent;
     state_cache_reg_agent#(KEY_T, ID_T) agent;

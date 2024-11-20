@@ -25,26 +25,13 @@ class state_driver #(
         _trace_msg(msg, __CLASS_NAME);
     endfunction
 
-    // Reset driver state
-    // [[ implements std_verif_pkg::driver._reset() ]]
-    function automatic void _reset();
-        // Nothing to do
-    endfunction
-
     // Put (driven) state update interface in idle state
-    // [[ implements std_verif_pkg::.driver.idle() ]]
-    task idle();
+    // [[ implements std_verif_pkg::.component._idle() ]]
+    virtual protected task _idle();
         update_vif.idle_tx();
     endtask
 
-    // Wait for specified number of 'cycles' on the driven interface
-    // [[ implements std_verif_pkg::driver._wait() ]]
-    task _wait(input int cycles);
-        update_vif._wait(cycles);
-    endtask
-
     // Wait for interface to be ready to accept transactions (after reset/init, for example)
-    // [[ implements std_verif_pkg::driver.wait_ready() ]]
     task wait_ready();
         trace_msg("wait_ready()");
         update_vif.wait_ready();
@@ -64,7 +51,7 @@ class state_driver #(
 
     // Send transaction to interface
     // [[ implements std_verif_pkg::driver._send() ]]
-    task _send(
+    protected task _send(
             input state_req#(ID_T, UPDATE_T) transaction
         );
         trace_msg("_send()");

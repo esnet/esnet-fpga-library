@@ -126,7 +126,7 @@ module state_element_core_write_n_times_unit_test;
         env.model = model;
         env.db_agent = db_agent;
 
-        env.connect();
+        env.build();
 
     endfunction
 
@@ -144,7 +144,7 @@ module state_element_core_write_n_times_unit_test;
         // HW reset
         env.reset_dut();
 
-        env._wait(1);
+        env.wait_n(1);
 
     endtask
 

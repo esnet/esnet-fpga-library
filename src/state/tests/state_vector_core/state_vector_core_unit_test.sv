@@ -109,7 +109,7 @@ module state_vector_core_unit_test
         env.model = model;
         env.db_agent = db_agent;
 
-        env.connect();
+        env.build();
 
     endfunction
 

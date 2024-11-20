@@ -7,8 +7,8 @@
 // Can `include into _unit_test modules.
 // ============================================================================
 
-task _wait(input int num_cycles);
-    env._wait(num_cycles);
+task wait_n(input int num_cycles);
+    env.wait_n(num_cycles);
 endtask
 
 task update_req(input ID_T id, input UPDATE_T update, input bit init=1'b0);
