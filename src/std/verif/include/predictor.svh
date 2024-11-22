@@ -10,11 +10,24 @@ virtual class predictor #(
     local static const string __CLASS_NAME = "std_verif_pkg::predictor";
 
     //===================================
+    // Pure Virtual Methods
+    // (must be implemented by derived class)
+    //===================================
+    // Predict output transaction, given input transaction
+    pure virtual function automatic TRANSACTION_OUT_T predict(input TRANSACTION_IN_T transaction);
+
+    //===================================
     // Methods
     //===================================
     // Constructor
     function new(input string name="predictor");
         super.new(name);
+    endfunction
+
+    // Destructor
+    // [[ implements std_verif_pkg::base.destroy() ]]
+    virtual function automatic void destroy();
+        super.destroy();
     endfunction
 
     // Configure trace output
@@ -24,7 +37,7 @@ virtual class predictor #(
     endfunction
 
     // Process input transaction
-    // [[ implements _process() virtual task of model base class ]]
+    // [[ implements std_verif_pkg::model._process() ]]
     protected task _process(input TRANSACTION_IN_T transaction);
         TRANSACTION_OUT_T transaction_out;
         trace_msg("_process()");
@@ -34,11 +47,5 @@ virtual class predictor #(
         debug_msg(transaction_out.to_string());
         trace_msg("_process() Done.");
     endtask
-
-    //===================================
-    // Virtual Methods
-    //===================================
-    // Predict output transaction, given input transaction
-    virtual function automatic TRANSACTION_OUT_T predict(input TRANSACTION_IN_T transaction); endfunction
 
 endclass : predictor

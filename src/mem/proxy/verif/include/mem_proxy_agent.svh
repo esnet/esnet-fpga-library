@@ -5,8 +5,8 @@ class mem_proxy_agent extends mem_proxy_reg_blk_agent;
     //===================================
     // Parameters
     //===================================
-    protected int _RESET_TIMEOUT=0;
-    protected int _OP_TIMEOUT=0;
+    local int __RESET_TIMEOUT;
+    local int __OP_TIMEOUT;
 
     local const int __SIZE;
     local const int __DATA_WID;
@@ -36,13 +36,6 @@ class mem_proxy_agent extends mem_proxy_reg_blk_agent;
         _trace_msg(msg, __CLASS_NAME);
     endfunction
 
-    // Reset agent state
-    // [[ implements std_verif_pkg::agent._reset() ]]
-    protected virtual function automatic void _reset();
-        super._reset();
-        // Nothing else to do
-    endfunction
-
     // Get data width (in bits)
     function automatic int get_data_wid();
         return this.__DATA_WID;
@@ -66,22 +59,22 @@ class mem_proxy_agent extends mem_proxy_reg_blk_agent;
 
     // Set timeout (in cycles) for reset operation
     function automatic void set_reset_timeout(input int RESET_TIMEOUT);
-        this._RESET_TIMEOUT = RESET_TIMEOUT;
+        this.__RESET_TIMEOUT = RESET_TIMEOUT;
     endfunction
 
     // Set timeout (in cycles) for non-reset operations
     function automatic void set_op_timeout(input int OP_TIMEOUT);
-        this._OP_TIMEOUT = OP_TIMEOUT;
+        this.__OP_TIMEOUT = OP_TIMEOUT;
     endfunction
 
     // Get timeout (in cycles) for reset operation
     function automatic int get_reset_timeout();
-        return this._RESET_TIMEOUT;
+        return this.__RESET_TIMEOUT;
     endfunction
 
     // Get timeout (in cycles) for non-reset operations
     function automatic int get_op_timeout();
-        return this._OP_TIMEOUT;
+        return this.__OP_TIMEOUT;
     endfunction
 
     // Calculate burst length from size in bytes
@@ -107,14 +100,16 @@ class mem_proxy_agent extends mem_proxy_reg_blk_agent;
         trace_msg("--- wait_ready() Done. ---");
     endtask
 
-    // Reset client
-    // [[ implements std_verif_pkg::agent.reset_client() ]]
-    task reset_client();
+    // Perform any necessary initialization, etc. and block until agent is ready for processing
+    // [[ overrides std_verif_pkg::agent._init() ]]
+    protected virtual task _init();
         automatic bit error;
         automatic bit timeout;
+        trace_msg("init()");
         clear_all(error, timeout);
-        assert (error == 0)   else error_msg("Error detected during RESET_CLIENT operation.");
-        assert (timeout == 0) else error_msg("RESET_CLIENT operation timed out.");
+        if (error) error_msg("Init failed with error.");
+        else if (timeout) error_msg("Init failed with timeout.");
+        trace_msg("init() Done.");
     endtask
 
     // Generic transaction (no timeout protection)
@@ -168,9 +163,9 @@ class mem_proxy_agent extends mem_proxy_reg_blk_agent;
                     begin
                         _timeout = 1'b0;
                         if (TIMEOUT > 0) begin
-                            _wait(TIMEOUT);
+                            this.reg_agent.wait_n(TIMEOUT);
                             _timeout = 1'b1;
-                        end else forever _wait(1);
+                        end else wait (0);
                     end
                 join_any
                 disable fork;
@@ -184,14 +179,14 @@ class mem_proxy_agent extends mem_proxy_reg_blk_agent;
     // Clear all database entries
     task clear_all(output bit error, output bit timeout);
         trace_msg("clear_all()");
-        transact(mem_pkg::COMMAND_CLEAR, error, timeout, this._RESET_TIMEOUT);
+        transact(mem_pkg::COMMAND_CLEAR, error, timeout, get_reset_timeout());
         trace_msg("clear_all() Done.");
     endtask
 
     // NOP (null operation; perform req/ack handshake only)
     task nop(output bit error, output bit timeout);
         trace_msg("nop()");
-        transact(mem_pkg::COMMAND_NOP, error, timeout, this._OP_TIMEOUT);
+        transact(mem_pkg::COMMAND_NOP, error, timeout, get_op_timeout());
         trace_msg("nop() Done.");
     endtask
 
@@ -228,7 +223,7 @@ class mem_proxy_agent extends mem_proxy_reg_blk_agent;
             burst_len = _get_burst_len(burst_bytes);
             _set_burst_len(burst_len);
             // Execute transaction
-            transact(mem_pkg::COMMAND_WRITE, error, timeout, this._OP_TIMEOUT);
+            transact(mem_pkg::COMMAND_WRITE, error, timeout, get_op_timeout());
             if (error || timeout) return;
             // Increment address
             addr += burst_len;
@@ -256,7 +251,7 @@ class mem_proxy_agent extends mem_proxy_reg_blk_agent;
             burst_len = _get_burst_len(burst_bytes);
             _set_burst_len(burst_len);
             // Execute transaction
-            transact(mem_pkg::COMMAND_READ, error, timeout, this._OP_TIMEOUT);
+            transact(mem_pkg::COMMAND_READ, error, timeout, get_op_timeout());
             if (error || timeout) return;
             // Read data from memory proxy window
             _get_rd_data(burst_bytes, __rd_data);

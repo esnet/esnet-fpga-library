@@ -22,7 +22,7 @@ class packet_write_model #(
     //===================================
     // Properties
     //===================================
-    local packet_descriptor#(ADDR_T,META_T) descriptors[$];
+    local packet_descriptor#(ADDR_T,META_T) __descriptors[$];
 
     //===================================
     // Methods
@@ -40,6 +40,13 @@ class packet_write_model #(
         this.__DROP_ERRORED = DROP_ERRORED;
     endfunction
 
+    // Destructor
+    // [[ implements std_verif_pkg::base.destroy() ]]
+    virtual function automatic void destroy();
+        __descriptors.delete();
+        super.destroy();
+    endfunction
+
     // Configure trace output
     // [[ overrides std_verif_pkg::base.trace_msg() ]]
     function automatic void trace_msg(input string msg);
@@ -51,25 +58,25 @@ class packet_write_model #(
     protected function automatic void _reset();
         trace_msg("_reset()");
         // Delete pending descriptors
-        descriptors.delete();
+        __descriptors.delete();
         trace_msg("_reset() Done.");
     endfunction
 
     // Set up descriptor
     function automatic void add_descriptor(input packet_descriptor#(ADDR_T,META_T) descriptor);
-        descriptors.push_back(descriptor);
+        __descriptors.push_back(descriptor);
     endfunction
 
     function automatic packet_descriptor#(ADDR_T,META_T) get_next_descriptor ();
-        return descriptors.pop_front();
+        return __descriptors.pop_front();
     endfunction
 
     function automatic bit is_descriptor_available();
-        return (descriptors.size() > 0);
+        return (__descriptors.size() > 0);
     endfunction
 
     function automatic int get_next_descriptor_size();
-        if (is_descriptor_available()) return descriptors[0].get_size();
+        if (is_descriptor_available()) return __descriptors[0].get_size();
         else return 0;
     endfunction
 

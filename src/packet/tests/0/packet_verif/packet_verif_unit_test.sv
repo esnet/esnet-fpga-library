@@ -49,7 +49,7 @@ module packet_verif_unit_test;
     //   `SVTEST_END
     //===================================
     // Payload
-    byte payload_data [] = '{"H", "e", "l", "l", "o", ",", " ", "W", "o", "r", "l", "d", "!", "!", "!", "!"};        
+    byte payload_data [] = '{"H", "e", "l", "l", "o", ",", " ", "W", "o", "r", "l", "d", "!", "!", "!", "!"};
 
     // Ethernet header
     packet_eth_pkg::hdr_t eth_hdr = '{
@@ -63,7 +63,7 @@ module packet_verif_unit_test;
         `SVTEST(packet_raw)
             import packet_verif_pkg::*;
             int exp_size = payload_data.size();
-        
+
             // Create new raw packet from payload data
             packet_raw#() the_raw_packet = packet_raw#()::create_from_bytes("raw packet", payload_data);
 
@@ -97,10 +97,10 @@ module packet_verif_unit_test;
             packet_raw#() the_payload;
             packet_eth the_eth_packet;
             int exp_size = packet_eth_pkg::HDR_BYTES + payload_data.size();
- 
+
             // Create new payload (raw packet)
             the_payload = packet_raw#()::create_from_bytes("the payload", payload_data);
-            
+
             // Create new Ethernet packet
             the_eth_packet = new("the eth packet", eth_hdr, the_payload);
 
@@ -128,7 +128,7 @@ module packet_verif_unit_test;
             );
 
         `SVTEST_END
-    
+
     `SVUNIT_TESTS_END
 
 endmodule

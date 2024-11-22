@@ -265,7 +265,7 @@ module htable_cuckoo_fast_update_core_unit_test;
         `FAIL_UNLESS(got_valid);
         `FAIL_UNLESS_EQUAL(got_value, exp_value);
         // Wait for cuckoo insertion
-        agent._wait(100);
+        #500ns;
         exp_cuckoo_stats.insert_ok += 1;
         exp_cuckoo_stats.active += 1;
          // Read back and check

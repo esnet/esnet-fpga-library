@@ -28,15 +28,20 @@ class state_vector_model #(
         foreach (__model[i]) __model[i] = new(.SPEC(SPEC.ELEMENTS[i]));
     endfunction
 
+    // Destructor
+    // [[ implements std_verif_pkg::base.destroy() ]]
+    virtual function automatic void destroy();
+        trace_msg("destroy()");
+        __model.delete();
+        super.destroy();
+        trace_msg("destroy() Done.");
+    endfunction
+
     // Configure trace output
     // [[ overrides std_verif_pkg::base.trace_msg() ]]
     function automatic void trace_msg(input string msg);
         _trace_msg(msg, __CLASS_NAME);
     endfunction
-
-    //===================================
-    // Functions
-    //===================================
 
     // Calculate next state, given previous state and update (datapath updates)
     // [[ implements get_next_state() virtual task of state_model base class ]]

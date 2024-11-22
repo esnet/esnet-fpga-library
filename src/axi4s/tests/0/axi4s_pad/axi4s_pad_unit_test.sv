@@ -37,8 +37,26 @@ module axi4s_pad_unit_test;
         TUSER_T
     ) env;
 
+    class axi4s_pad_model#(parameter int MIN_PKT_SIZE=60) extends std_verif_pkg::model#(AXI4S_TRANSACTION_T,AXI4S_TRANSACTION_T);
+        function new(string name="axi4s_pad_model");
+            super.new(name);
+        endfunction
+        protected task _process(input AXI4S_TRANSACTION_T transaction);
+            AXI4S_TRANSACTION_T padded_transaction;
+            if (transaction.size() < MIN_PKT_SIZE) begin
+                padded_transaction = new(
+                    .name($sformatf("trans_%0d_out", num_input_transactions())), .len(MIN_PKT_SIZE),
+                    .tid(transaction.get_tid()), .tdest(transaction.get_tdest()), .tuser(transaction.get_tuser())
+                );
+                for (int i = 0; i < transaction.size(); i++) padded_transaction.set_byte(i, transaction.get_byte(i));
+                for (int i = transaction.size(); i < MIN_PKT_SIZE; i++) padded_transaction.set_byte(i, 8'h0);
+                _enqueue(padded_transaction);
+            end else _enqueue(transaction);
+        endtask
+    endclass
+
     // Model
-    std_verif_pkg::wire_model#(AXI4S_TRANSACTION_T) model;
+    axi4s_pad_model model;
     std_verif_pkg::event_scoreboard#(AXI4S_TRANSACTION_T) scoreboard;
 
     // Reset
@@ -63,7 +81,7 @@ module axi4s_pad_unit_test;
         env.reset_vif = reset_if;
         env.axis_in_vif = axis_in_if;
         env.axis_out_vif = axis_out_if;
-        env.connect();
+        env.build();
 
         env.set_debug_level(0);
     endfunction
@@ -75,21 +93,8 @@ module axi4s_pad_unit_test;
     task setup();
         svunit_ut.setup();
 
-        // Reset environment
-        env.reset();
-
-        // Put interfaces in quiescent state
-        env.idle();
-
-        // Issue reset
-        env.reset_dut();
-
-        // Default settings for tpause and twait
-        env.monitor.set_tpause(0);
-        env.driver.set_twait(0);
-
         // Start environment
-        env.start();
+        env.run();
     endtask
 
 
@@ -98,10 +103,10 @@ module axi4s_pad_unit_test;
     // need after running the Unit Tests
     //===================================
     task teardown();
-        svunit_ut.teardown();
-
         // Stop environment
         env.stop();
+
+        svunit_ut.teardown();
     endtask
 
 
@@ -118,32 +123,17 @@ module axi4s_pad_unit_test;
     //     <test code>
     //   `SVTEST_END
     //===================================
-
-    AXI4S_TRANSACTION_T  axis_transaction_in, axis_transaction_out;
-
     string msg;
 
-    task one_packet(input int len=64);
-       // Create 'input' transaction.
-       axis_transaction_in = new("trans_0_in", len);
-       axis_transaction_in.randomize();
-
-       // Create 'output' transaction.
-       if (len < 60) begin // output pkt is zero padded to 60B.
-          axis_transaction_out = new("trans_0_out", .len(60));
-          axis_transaction_out.randomize();
-          for (int i=0;   i<len; i++) axis_transaction_out.set_byte(i, axis_transaction_in.get_byte(i));
-          for (int i=len; i<60;  i++) axis_transaction_out.set_byte(i, 8'h00);
-       end else begin // output pkt = input pkt.
-          axis_transaction_out = axis_transaction_in.clone("trans_0_out");
-       end
-
-       // Put 'input' and 'output' transactions.
-       env.model.inbox.put(axis_transaction_out);
-       env.driver.inbox.put(axis_transaction_in);
+    // Create and send input transaction
+    task automatic one_packet(input int len=64);
+        AXI4S_TRANSACTION_T  axis_transaction_in;
+        axis_transaction_in = new("trans_0_in", len);
+        axis_transaction_in.randomize();
+        env.inbox.put(axis_transaction_in);
     endtask
 
-    task packet_stream();
+    task automatic packet_stream();
        for (int i = 1; i < 256; i++) begin
            one_packet(i);
        end
@@ -156,7 +146,8 @@ module axi4s_pad_unit_test;
 
         `SVTEST(packet_stream_good)
             packet_stream();
-            #100us `FAIL_IF_LOG( scoreboard.report(msg), msg );
+            #100us `FAIL_IF_LOG(scoreboard.report(msg), msg);
+            `FAIL_UNLESS_EQUAL(scoreboard.got_matched(), 255);
         `SVTEST_END
 
     `SVUNIT_TESTS_END

@@ -58,12 +58,14 @@ module packet_enqueue_unit_test #(
     //===================================
     // Testbench
     //===================================
+    // Memory stand-in
     assign mem_wr_if.rdy = 1'b1;
     always @(posedge clk) begin
         if (mem_wr_if.req && mem_wr_if.en) mem_wr_if.ack <= 1'b1;
         else                               mem_wr_if.ack <= 1'b0;
     end
 
+    // Environment
     std_verif_pkg::component_env #(
         PACKET_T,
         PACKET_DESCRIPTOR_T
@@ -113,11 +115,8 @@ module packet_enqueue_unit_test #(
         env.monitor = monitor;
         env.model = model;
         env.scoreboard = scoreboard;
-        env.connect();
-
-        env.set_debug_level(0);
+        env.build();
     endfunction
-
 
     //===================================
     // Setup for running the Unit Tests
@@ -125,18 +124,8 @@ module packet_enqueue_unit_test #(
     task setup();
         svunit_ut.setup();
 
-        // Reset environment
-        env.reset();
-
-        // Put interfaces in quiescent state
-        env.idle();
-        rd_completion_driver.idle();
-
-        // Issue reset
-        env.reset_dut();
-
         // Start environment
-        env.start();
+        env.run();
     endtask
 
 
@@ -145,10 +134,10 @@ module packet_enqueue_unit_test #(
     // need after running the Unit Tests
     //===================================
     task teardown();
-        svunit_ut.teardown();
-
         // Stop environment
         env.stop();
+
+        svunit_ut.teardown();
     endtask
 
 
@@ -192,7 +181,7 @@ module packet_enqueue_unit_test #(
         `SVTEST(single_packet)
             len = $urandom_range(MIN_PKT_SIZE, MAX_PKT_SIZE);
             one_packet(0, len);
-            #10us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
+            #10us `FAIL_IF_LOG(scoreboard.report(msg) > 0, msg);
             `FAIL_UNLESS_EQUAL(scoreboard.got_matched(), 1);
         `SVTEST_END
 
@@ -205,21 +194,21 @@ module packet_enqueue_unit_test #(
             packet = new($sformatf("pkt_%0d", id), len, meta, 1'b1);
             packet.randomize();
             env.inbox.put(packet);
-            #10us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
+            #10us `FAIL_IF_LOG(scoreboard.report(msg) > 0, msg);
             `FAIL_UNLESS_EQUAL(scoreboard.got_processed(), exp_transactions);
         `SVTEST_END
 
         `SVTEST(short_packet)
             len = MIN_PKT_SIZE - 1;
             one_packet(0, len);
-            #10us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
+            #10us `FAIL_IF_LOG(scoreboard.report(msg) > 0, msg);
             `FAIL_UNLESS_EQUAL(scoreboard.got_processed(), 0);
         `SVTEST_END
 
         `SVTEST(long_packet)
             len = MAX_PKT_SIZE + 1;
             one_packet(0, len);
-            #10us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
+            #10us `FAIL_IF_LOG(scoreboard.report(msg) > 0, msg);
             `FAIL_UNLESS_EQUAL(scoreboard.got_processed(), 0);
         `SVTEST_END
 
@@ -241,20 +230,17 @@ module packet_enqueue_unit_test #(
                     rd_size = 0;
                 end
             end
-            //rd_descriptor = new(.size((words -1)*DATA_BYTE_WID + BUFFER_WORDS*DATA_BYTE_WID));
-            //rd_completion_driver.send(rd_descriptor);
             tail_ptr = BUFFER_WORDS + (words - 1);
-            driver._wait(2);
             model.set_tail_ptr(tail_ptr);
             one_packet(0, len);
-            #10us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
+            #10us `FAIL_IF_LOG(scoreboard.report(msg) > 0, msg);
             `FAIL_UNLESS_EQUAL(scoreboard.got_processed(), 0);
         `SVTEST_END
 
         `SVTEST(packet_burst)
             localparam int NUM_PKTS = 100;
             packet_stream(NUM_PKTS);
-            #100us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
+            #100us `FAIL_IF_LOG(scoreboard.report(msg) > 0, msg);
             `FAIL_UNLESS_EQUAL(scoreboard.got_matched(), NUM_PKTS);
         `SVTEST_END
 
@@ -273,11 +259,15 @@ module packet_enqueue_unit_test #(
             bad_packet = packet.clone("pkt_0_bad");
             bad_packet.set_meta(packet.get_meta()+1);
             env.driver.inbox.put(bad_packet);
-            driver._wait(1000);
+            repeat (1000) @(posedge clk);
             `FAIL_UNLESS_LOG(
                 scoreboard.report(msg),
                 "Passed unexpectedly."
             );
+        `SVTEST_END
+
+        `SVTEST(finalize)
+            env.finalize();
         `SVTEST_END
 
     `SVUNIT_TESTS_END

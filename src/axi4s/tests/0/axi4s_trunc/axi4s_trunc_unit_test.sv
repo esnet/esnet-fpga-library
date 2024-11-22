@@ -104,7 +104,6 @@ module axi4s_trunc_unit_test;
     //===================================
     task teardown();
         svunit_ut.teardown();
-        /* Place Teardown Code Here */
        $display("Tearing down");       
     endtask
 

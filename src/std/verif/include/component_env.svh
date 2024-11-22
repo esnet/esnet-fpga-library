@@ -8,7 +8,7 @@ class component_env #(
     parameter type MONITOR_T=monitor#(TRANSACTION_OUT_T),
     parameter type MODEL_T=model#(TRANSACTION_IN_T,TRANSACTION_OUT_T),
     parameter type SCOREBOARD_T=scoreboard#(TRANSACTION_OUT_T)
-) extends env;
+) extends basic_env;
 
     local static const string __CLASS_NAME = "std_verif_pkg::component_env";
 
@@ -27,8 +27,6 @@ class component_env #(
     local mailbox #(TRANSACTION_OUT_T) __mon_outbox;
     local mailbox #(TRANSACTION_OUT_T) __model_outbox;
 
-    local event __stop;
-
     //===================================
     // Methods
     //===================================
@@ -42,106 +40,57 @@ class component_env #(
         __model_outbox = new();
     endfunction
 
+    // Destructor
+    // [[ implements std_verif_pkg::base.destroy() ]]
+    function automatic void destroy();
+        driver = null;
+        monitor = null;
+        model = null;
+        scoreboard = null;
+        inbox = null;
+        __drv_inbox = null;
+        __model_inbox = null;
+        __mon_outbox = null;
+        __model_outbox = null;
+        super.destroy();
+    endfunction
+
     // Configure trace output
     // [[ overrides std_verif_pkg::base.trace_msg() ]]
     function automatic void trace_msg(input string msg);
         _trace_msg(msg, __CLASS_NAME);
     endfunction
 
-    // Set debug level (verbosity)
-    // [[ overrides std_verif_pkg::base.set_debug_level() ]]
-    function automatic void set_debug_level(input int DEBUG_LEVEL);
-        super.set_debug_level(DEBUG_LEVEL);
-        driver.set_debug_level(DEBUG_LEVEL);
-        monitor.set_debug_level(DEBUG_LEVEL);
-        model.set_debug_level(DEBUG_LEVEL);
-        scoreboard.set_debug_level(DEBUG_LEVEL);
-    endfunction
-
-    // Connect environment objects
-    // [[ implements std_verif_pkg::component.connect() ]]
-    function automatic void connect();
-        trace_msg("connect()");
+    // Build environment
+    // [[ implements std_verif_pkg::env._build() ]]
+    virtual protected function automatic void _build();
+        trace_msg("_build()");
         driver.inbox = __drv_inbox;
         model.inbox = __model_inbox;
         model.outbox = __model_outbox;
         monitor.outbox = __mon_outbox;
         scoreboard.got_inbox = __mon_outbox;
         scoreboard.exp_inbox = __model_outbox;
-        trace_msg("connect() Done.");
+        register_subcomponent(driver);
+        register_subcomponent(monitor);
+        register_subcomponent(model);
+        register_subcomponent(scoreboard);
+        trace_msg("_build() Done.");
     endfunction
 
-    // Reset environment
-    // [[ implements std_verif_pkg::component.reset() ]]
-    function automatic void reset();
-        trace_msg("reset()");
-        driver.reset();
-        monitor.reset();
-        model.reset();
-        scoreboard.reset();
-        trace_msg("reset() Done.");
-    endfunction
-
-    // Put all (driven) interfaces into quiescent state
-    // [[ implements env.idle() ]]
-    task idle();
-        trace_msg("idle()");
-        fork
-            driver.idle();
-            monitor.idle();
-        join
-        trace_msg("idle() Done.");
-    endtask
-
-    // Start environment execution
-    // [[ implements std_verif_pkg::component._start() ]]
-    task _start();
-        trace_msg("start()");
-        info_msg("Starting environment...");
-        fork
-            begin
-                driver.start();
-            end
-            begin
-                monitor.start();
-            end
-            begin
-                model.start();
-            end
-            begin
-                scoreboard.start();
-            end
-            begin
-                fork
-                    begin
-                        forever begin
-                            TRANSACTION_IN_T transaction;
-                            inbox.get(transaction);
-                            __drv_inbox.put(transaction);
-                            __model_inbox.put(transaction);
-                        end
-                    end
-                    begin
-                        wait(__stop.triggered);
-                    end
-                join_any
-                disable fork;
-            end
-        join_none
-        trace_msg("_start() Done.");
-    endtask
-
-    // Stop environment execution
-    // [[ overrides std_verif_pkg::component.stop() ]]
-    task stop();
-        trace_msg("stop()");
-        info_msg("Stopping environment...");
-        super.stop();
-        driver.stop();
-        monitor.stop();
-        model.stop();
-        scoreboard.stop();
-        trace_msg("stop() Done.");
+    // Start environment execution (run loop)
+    // [[ implements std_verif_pkg::component._run() ]]
+    protected task _run();
+        trace_msg("_run()");
+        super._run();
+        forever begin
+            TRANSACTION_IN_T transaction;
+            trace_msg("Running...");
+            inbox.get(transaction);
+            __drv_inbox.put(transaction);
+            __model_inbox.put(transaction);
+        end
+        trace_msg("_run() Done.");
     endtask
 
 endclass : component_env

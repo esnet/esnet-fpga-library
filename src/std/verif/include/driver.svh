@@ -1,10 +1,7 @@
 // Base driver class for verification
-// - abstract class (not to be implemented directly)
-// - describes interface for 'generic' driver, where methods are to be
-//   implemented by derived class
-virtual class driver #(
-    parameter type TRANSACTION_T = transaction
-) extends component;
+// - abstract class (can't be instantiated directly)
+// - describes interface for 'generic' driver, where methods are to be implemented by derived class
+virtual class driver #(parameter type TRANSACTION_T = transaction) extends component;
 
     local static const string __CLASS_NAME = "std_verif_pkg::driver";
 
@@ -12,9 +9,14 @@ virtual class driver #(
     // Properties
     //===================================
     local int __cnt;
-    local event __stop;
 
     mailbox #(TRANSACTION_T) inbox;
+
+    //===================================
+    // Pure Virtual Methods
+    // (must be implemented by derived class)
+    //===================================
+    pure virtual protected task _send(input TRANSACTION_T transaction); // Send transaction on interface
 
     //===================================
     // Methods
@@ -22,6 +24,13 @@ virtual class driver #(
     // Constructor
     function new(input string name="driver");
         super.new(name);
+    endfunction
+
+    // Destructor
+    // [[ implements std_verif_pkg::base.destroy() ]]
+    virtual function automatic void destroy();
+        inbox = null;
+        super.destroy();
     endfunction
 
     // Configure trace output
@@ -35,14 +44,23 @@ virtual class driver #(
         return __cnt;
     endfunction
 
-    // Reset driver state
-    // [[ implements std_verif_pkg::component.reset() ]]
-    function automatic void reset();
-        trace_msg("reset()");
-        __cnt = 0;
-        _reset();
-        trace_msg("reset() Done.");
+    // Build component
+    // [[ implements std_verif_pkg::component._build() ]]
+    virtual protected function automatic void _build();
+        // Nothing to do typically
     endfunction
+
+    // Reset driver
+    // [[ implements std_verif_pkg::component._reset() ]]
+    virtual protected function automatic void _reset();
+        __cnt = 0;
+    endfunction
+
+    // Initialize component for processing
+    // [[ implements std_verif_pkg::component._init() ]]
+    virtual protected task _init();
+        // Nothing to do typically
+    endtask
 
     // Send transaction
     task send(input TRANSACTION_T transaction);
@@ -53,9 +71,9 @@ virtual class driver #(
     endtask
 
     // Driver process - receive transactions from inbox and send to interface
-    // [[ implements std_verif_pkg::component._start() ]]
-    task _start();
-        trace_msg("_start()");
+    // [[ implements std_verif_pkg::component._run() ]]
+    protected task _run();
+        trace_msg("_run()");
         info_msg("Starting...");
         forever begin
             TRANSACTION_T transaction;
@@ -64,22 +82,7 @@ virtual class driver #(
             debug_msg($sformatf("Sending transaction '%s'. ---", transaction.get_name()));
             send(transaction);
         end
-        trace_msg("_start() Done.");
+        trace_msg("_run() Done.");
     endtask
-
-    //===================================
-    // Virtual Methods
-    // (to be implemented by derived class)
-    //===================================
-    // Reset driver state
-    protected virtual function automatic void _reset(); endfunction
-    // Put (driven) interface in idle state
-    virtual task idle(); endtask
-    // Wait for specified number of 'cycles' on the driven interface
-    protected virtual task _wait(input int cycles); endtask
-    // Wait for interface to be ready to accept transactions (after reset/init, for example)
-    virtual task wait_ready(); endtask
-    // Send transaction
-    protected virtual task _send(input TRANSACTION_T transaction); endtask
 
 endclass : driver

@@ -17,33 +17,30 @@ class state_monitor #(
         super.new(name);
     endfunction
 
-    // Reset monitor state
-    // [[ implements _reset() virtual method of std_verif_pkg::monitor parent class ]]
-    function automatic void _reset();
-        // Nothing to do
+    // Destructor
+    // [[ implements std_verif_pkg::base.destroy() ]]
+    virtual function automatic void destroy();
+        trace_msg("destroy()");
+        update_vif = null;
+        super.destroy();
+        trace_msg("destroy() Done.");
     endfunction
 
-    // Put (monitored) state update interface in idle state
-    // [[ implements idle() virtual method of std_verif_pkg::monitor parent class ]]
-    task idle();
-        // Nothing to do
-    endtask
 
-    // Wait for specified number of 'cycles' on the driven interface
-    // [[ implements _wait() virtual method of std_verif_pkg::monitor parent class ]]
-    task _wait(input int cycles);
-        update_vif._wait(cycles);
+    // Put (driven) state update interface in idle state
+    // [[ implements std_verif_pkg::.component._idle() ]]
+    virtual protected task _idle();
+        // Nothing to do
     endtask
 
     // Wait for interface to be ready to accept transactions (after reset/init, for example)
-    // [[ implements wait_ready() virtual method of std_verif_pkg::monitor parent class ]]
     task wait_ready();
         update_vif.wait_ready();
     endtask
 
     // Receive transaction from interface
     // [[ implements _receive() virtual method of std_verif_pkg::monitor parent class ]]
-    task _receive(
+    protected task _receive(
             output state_resp#(ID_T, STATE_T) transaction
         );
         STATE_T rx_state;

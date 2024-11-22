@@ -5,12 +5,12 @@ class axi4s_component_env #(
     parameter type TDEST_T = bit,
     parameter type TUSER_T = bit
 ) extends std_verif_pkg::component_env#(
-    axi4s_transaction#(TID_T,TDEST_T,TUSER_T),
-    axi4s_transaction#(TID_T,TDEST_T,TUSER_T),
-    axi4s_driver#(DATA_BYTE_WID,TID_T,TDEST_T,TUSER_T),
-    axi4s_monitor#(DATA_BYTE_WID,TID_T,TDEST_T,TUSER_T),
-    std_verif_pkg::model#(axi4s_transaction#(TID_T,TDEST_T,TUSER_T)),
-    std_verif_pkg::scoreboard#(axi4s_transaction#(TID_T,TDEST_T,TUSER_T))
+    axi4s_transaction#(TID_T, TDEST_T, TUSER_T),
+    axi4s_transaction#(TID_T, TDEST_T, TUSER_T),
+    axi4s_driver#(DATA_BYTE_WID,TID_T, TDEST_T, TUSER_T),
+    axi4s_monitor#(DATA_BYTE_WID,TID_T, TDEST_T, TUSER_T),
+    std_verif_pkg::model#(axi4s_transaction#(TID_T, TDEST_T, TUSER_T)),
+    std_verif_pkg::scoreboard#(axi4s_transaction#(TID_T, TDEST_T, TUSER_T))
 );
 
     local static const string __CLASS_NAME = "axi4s_verif_pkg::axi4s_component_env";
@@ -38,8 +38,8 @@ class axi4s_component_env #(
     // Constructor
     function new(
             input string name="axi4s_component_env",
-            const ref std_verif_pkg::model#(axi4s_transaction#(TID_T,TDEST_T,TUSER_T)) model,
-            const ref std_verif_pkg::scoreboard#(axi4s_transaction#(TID_T,TDEST_T,TUSER_T)) scoreboard,
+            const ref std_verif_pkg::model#(axi4s_transaction#(TID_T, TDEST_T, TUSER_T)) model,
+            const ref std_verif_pkg::scoreboard#(axi4s_transaction#(TID_T, TDEST_T, TUSER_T)) scoreboard,
             input bit BIGENDIAN=1
         );
         super.new(name);
@@ -56,13 +56,13 @@ class axi4s_component_env #(
     endfunction
 
     // Connect environment objects
-    // [[ implements std_verif_pkg::component.connect() ]]
-    function automatic void connect();
-        trace_msg("connect()");
-        super.connect();
+    // [[ overrides std_verif_pkg::component_env._build() ]]
+    function automatic void _build();
+        trace_msg("_build()");
+        super._build();
         this.driver.axis_vif = axis_in_vif;
         this.monitor.axis_vif = axis_out_vif;
-        trace_msg("connect() Done.");
+        trace_msg("_build() Done.");
     endfunction
 
 endclass : axi4s_component_env

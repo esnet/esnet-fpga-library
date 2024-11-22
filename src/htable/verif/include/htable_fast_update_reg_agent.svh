@@ -16,21 +16,12 @@ class htable_fast_update_reg_agent extends htable_fast_update_reg_blk_agent;
         this.reg_agent = reg_agent;
     endfunction
 
-    // Reset agent state
-    // [[ implements std_verif_pkg::agent._reset() virtual method ]]
-    protected virtual function automatic void _reset();
-        super._reset();
-        // Nothing else to do
-    endfunction
-
     // Reset client
-    // [[ implements std_verif_pkg::agent.reset_client ]]
     task reset_client();
         soft_reset();
     endtask
 
     // Poll register block for ready status
-    // [[ implements std_verif_pkg::agent.wait_ready() virtual method ]]
     task wait_ready();
         htable_fast_update_reg_pkg::reg_status_t reg_status;
         do

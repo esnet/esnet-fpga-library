@@ -159,7 +159,7 @@ module axi4s_split_join_unit_test
         env.reset_vif = reset_if;
         env.axis_in_vif = axi4s_in;
         env.axis_out_vif = axi4s_out;
-        env.connect();
+        env.build();
 
         env.set_debug_level(0);
     endfunction
@@ -171,17 +171,8 @@ module axi4s_split_join_unit_test
     task setup();
         svunit_ut.setup();
 
-        // Reset environment
-        env.reset();
-
-        // Put interfaces in quiescent state
-        env.idle();
-
-        // Issue reset
-        env.reset_dut();
-
         // Start environment
-        env.start();
+        env.run();
 
         // empty prefix array (size = 0)
         prefix.delete();
@@ -192,7 +183,6 @@ module axi4s_split_join_unit_test
         env.driver.set_min_gap(INTER_PKT_GAP);
 
         drop_hdr_mode = 0; // default drop hdr mode = 0 i.e. First hdr transaction asserts tkeep='0 and tlast=1.
-
 
         repeat(100) @(posedge axi4s_in.aclk); // init buffers and fifos
     endtask

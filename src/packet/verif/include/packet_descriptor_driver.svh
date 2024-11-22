@@ -18,40 +18,28 @@ class packet_descriptor_driver #(
         super.new(name);
     endfunction
 
+    // Destructor
+    // [[ implements std_verif_pkg::base.destroy() ]]
+    virtual function automatic void destroy();
+        packet_descriptor_vif = null;
+        super.destroy();
+    endfunction
+
     // Configure trace output
     // [[ overrides std_verif_pkg::base.trace_msg() ]]
     function automatic void trace_msg(input string msg);
         _trace_msg(msg, __CLASS_NAME);
     endfunction
 
-    // Reset driver state
-    // [[ implements std_verif_pkg::driver._reset() ]]
-    function automatic void _reset();
-        // Nothing to do
-    endfunction
-
     // Put (driven) packet interface in idle state
-    // [[ implements std_verif_pkg::driver.idle() ]]
-    task idle();
+    // [[ implements std_verif_pkg::component._idle() ]]
+    virtual protected task _idle();
         packet_descriptor_vif.idle_tx();
-    endtask
-
-    // Wait for specified number of 'cycles' on the driven interface
-    // [[ implements std_verif_pkg::driver._wait() ]]
-    task _wait(input int cycles);
-        packet_descriptor_vif._wait(cycles);
-    endtask
-
-    // Wait for interface to be ready to accept transactions (after reset/init, for example)
-    // [[ implements std_verif_pkg::driver.wait_ready() ]]
-    task wait_ready();
-        bit timeout;
-        packet_descriptor_vif.wait_ready(timeout, 0);
     endtask
 
     // Send packet descriptor transaction on packet descriptor interface
     // [[ implements std_verif_pkg::driver._send() ]]
-    task _send(
+    protected task _send(
             input packet_descriptor#(ADDR_T,META_T) transaction
         );
 

@@ -8,9 +8,9 @@ class packet_intf_driver #(
     //===================================
     // Properties
     //===================================
-    protected bit _BIGENDIAN;
-    protected int _min_pkt_gap;
-    protected real _stall_rate;
+    local bit __BIGENDIAN;
+    local int __min_pkt_gap;
+    local real __stall_rate;
 
     //===================================
     // Interfaces
@@ -32,8 +32,15 @@ class packet_intf_driver #(
     // Constructor
     function new(input string name="packet_intf_driver", input bit BIGENDIAN=1);
         super.new(name);
-        this._BIGENDIAN = BIGENDIAN;
-        this._stall_rate = 0.0;
+        this.__BIGENDIAN = BIGENDIAN;
+        this.__stall_rate = 0.0;
+    endfunction
+
+    // Destructor
+    // [[ implements std_verif_pkg::base.destroy() ]]
+    virtual function automatic void destroy();
+        packet_vif = null;
+        super.destroy();
     endfunction
 
     // Configure trace output
@@ -44,51 +51,39 @@ class packet_intf_driver #(
 
     // Set minimum inter-packet gap (in clock cycles)
     function automatic void set_min_gap(input int min_pkt_gap);
-        this._min_pkt_gap = min_pkt_gap;
+        this.__min_pkt_gap = min_pkt_gap;
     endfunction
 
     // Set stall ratio value used by driver (for stalling transmit transactions)
     function automatic void set_stall_rate(input real stall_rate);
-        if (stall_rate > 1.0)      this._stall_rate = 1.0;
-        else if (stall_rate < 0.0) this._stall_rate = 0.0;
-        else                       this._stall_rate = stall_rate;
+        if (stall_rate > 1.0)      this.__stall_rate = 1.0;
+        else if (stall_rate < 0.0) this.__stall_rate = 0.0;
+        else                       this.__stall_rate = stall_rate;
     endfunction
 
     // Evaluate stall
     function automatic bit stall();
-        int _stall_val = $ceil(this._stall_rate * 32'hffffffff);
+        int _stall_val = $ceil(this.__stall_rate * 32'hffffffff);
         int _rand_val = $urandom();
         return _rand_val < _stall_val;
     endfunction
 
-    // Reset driver state
-    // [[ implements std_verif_pkg::driver._reset() ]]
-    function automatic void _reset();
-        // Nothing to do
+    // Reset state
+    // [[ overrides std_verif_pkg::driver._reset() ]]
+    protected virtual function automatic void _reset();
+        set_stall_rate(0.0);
+        super._reset();
     endfunction
 
     // Put (driven) packet interface in idle state
-    // [[ implements std_verif_pkg::driver.idle() ]]
-    task idle();
+    // [[ implements std_verif_pkg::component._idle() ]]
+    virtual protected task _idle();
         packet_vif.idle_tx();
-    endtask
-
-    // Wait for specified number of 'cycles' on the driven interface
-    // [[ implements std_verif_pkg::driver._wait() ]]
-    task _wait(input int cycles);
-        packet_vif._wait(cycles);
-    endtask
-
-    // Wait for interface to be ready to accept transactions (after reset/init, for example)
-    // [[ implements std_verif_pkg::driver.wait_ready() ]]
-    task wait_ready();
-        bit timeout;
-        packet_vif.wait_ready(timeout, 0);
     endtask
 
     // Send packet (represented as raw byte array with associated metadata)
     // [[ implements packet_verif_pkg::packet_driver._send_raw() ]]
-    task send_raw(
+    protected task _send_raw(
             input byte    data[],
             input META_T  meta = '0,
             input bit     err = 1'b0
@@ -109,7 +104,7 @@ class packet_intf_driver #(
             mty = 0;
             byte_idx++;
             if ((byte_idx == DATA_BYTE_WID) || (__data.size() == 0)) begin
-                if (_BIGENDIAN) begin
+                if (this.__BIGENDIAN) begin
                     _data = {<<byte{_data}};
                 end
                 if (__data.size() == 0) begin
@@ -121,12 +116,12 @@ class packet_intf_driver #(
                 _data = '0;
                 byte_idx = 0;
                 word_idx++;
-                while (stall()) _wait(1);
+                while (stall()) packet_vif._wait(1);
             end
         end
         debug_msg("send_raw: Done.");
         idle();
-        _wait(this._min_pkt_gap);
+        packet_vif._wait(this.__min_pkt_gap);
     endtask
 
 endclass : packet_intf_driver

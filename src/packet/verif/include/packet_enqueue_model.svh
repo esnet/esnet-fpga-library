@@ -28,6 +28,12 @@ class packet_enqueue_model #(
         this.__MIN_PKT_SIZE = MIN_PKT_SIZE;
         this.__MAX_PKT_SIZE = MAX_PKT_SIZE;
     endfunction
+ 
+    // Destructor
+    // [[ implements std_verif_pkg::base.destroy() ]]
+    virtual function automatic void destroy();
+        super.destroy();
+    endfunction
 
     // Configure trace output
     // [[ overrides std_verif_pkg::base.trace_msg() ]]

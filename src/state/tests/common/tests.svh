@@ -53,7 +53,7 @@
         // Issue another (different) SET operation
         set(id^ID_T'('1), exp_state^STATE_T'('1));
         // Wait for write to happen
-        _wait(8);
+        wait_n(8);
         // Check state
         get(id, got_state);
         `FAIL_UNLESS_EQUAL(got_state, exp_state);
@@ -72,13 +72,13 @@
         // Issue another (different) SET operation
         set(id^ID_T'('1), exp_state^STATE_T'('1));
         // Wait for writes to happen
-        _wait(8);
+        wait_n(8);
         // Clear state
         clear(id, got_state);
         // Check that previous value of state is returned
         `FAIL_UNLESS_EQUAL(got_state, exp_state);
         // Wait for clear to happen
-        _wait(8);
+        wait_n(8);
         // Check that state is now cleared
         get(id, got_state);
         `FAIL_UNLESS_EQUAL(got_state, 0);
@@ -105,7 +105,7 @@
             exp_state[i] = __exp_state;
         end
         // Wait for write to happen
-        _wait(8);
+        wait_n(8);
         // Check
         foreach (ids[i]) begin
             // Get state
@@ -325,7 +325,7 @@
                 for (int i = 0; i < NUM_UPDATES; i++) begin
                     // Send update
                     update_req(id, updates[i]);
-                    _wait(GAP_CYCLES);
+                    wait_n(GAP_CYCLES);
                 end
             end
             begin
@@ -370,7 +370,7 @@
                 for (int i = 0; i < NUM_UPDATES; i++) begin
                     // Send update
                     update_req(id, updates[i]);
-                    _wait(GAP_CYCLES);
+                    wait_n(GAP_CYCLES);
                 end
             end
             begin

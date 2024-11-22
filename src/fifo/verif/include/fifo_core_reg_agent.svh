@@ -24,35 +24,17 @@ class fifo_ctrl_reg_agent extends std_verif_pkg::agent;
     endfunction
  
     // Reset agent state
-    // [[ implements std_verif_pkg::agent._reset() virtual method ]]
+    // [[ overrides std_verif_pkg::agent._reset() virtual method ]]
     protected virtual function automatic void _reset();
         info_reg_blk_agent.reset();
         wr_mon_reg_blk_agent.reset();
         rd_mon_reg_blk_agent.reset();
     endfunction
 
-    // Reset client
-    // [[ implements std_verif_pkg::agent.reset_client ]]
-    task reset_client();
-        // Nothing to do
-    endtask
-
-    // Poll register block for ready status
-    // [[ implements std_verif_pkg::agent.wait_ready() virtual method ]]
-    task wait_ready();
-        info_reg_blk_agent.wait_ready();
-    endtask
-
     // Put all (driven) interfaces into idle state
-    // [[ implements std_verif_pkg::agent.idle ]]
-    task idle();
+    // [[ overrides std_verif_pkg::agent._idle ]]
+    virtual protected task _idle();
         info_reg_blk_agent.idle();
-    endtask
-
-    // Wait for specified number of 'cycles', where the definition of 'cycle' is agent-specific
-    // [[ implements std_verif_pkg::agent._wait ]]
-    task _wait(input int cycles);
-        info_reg_blk_agent._wait(cycles);
     endtask
 
     task get_depth(output int depth);

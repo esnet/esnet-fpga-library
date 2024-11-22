@@ -153,7 +153,7 @@ module fifo_async_axil_unit_test #(
 
         // Create testbench environment
         env = new("tb_env", reset_if, wr_if, rd_if);
-        env.connect();
+        env.build();
 
     endfunction
 
@@ -163,8 +163,6 @@ module fifo_async_axil_unit_test #(
     //===================================
     task setup();
         svunit_ut.setup();
-        /* Place Setup Code Here */
-        env.reset();
 
         // Set clk frequencies
         clk_ratio = 1; rd_clk_period = 5; wr_clk_period = 5;
@@ -174,9 +172,10 @@ module fifo_async_axil_unit_test #(
 
         ctrl_reg_agent.idle();
         env.idle();
-        env.reset_dut();
+        env.reset();
+        env.init();
 
-        env.driver._wait(10);
+        #50ns;
 
     endtask
 
@@ -315,7 +314,7 @@ module fifo_async_axil_unit_test #(
             unused_flag = ctrl_model_write();
 
             // Wait
-            env.driver._wait(FIFO_ASYNC_LATENCY);
+            wr_if._wait(FIFO_ASYNC_LATENCY);
 
             // Check register status
             check_status();
@@ -325,7 +324,7 @@ module fifo_async_axil_unit_test #(
             unused_flag = ctrl_model_read();
 
             // Wait
-            env.driver._wait(FIFO_ASYNC_LATENCY);
+            wr_if._wait(FIFO_ASYNC_LATENCY);
 
             // Check register status
             check_status();
@@ -362,7 +361,7 @@ module fifo_async_axil_unit_test #(
             unused_flag = ctrl_model_write();
 
             // Wait
-            env.driver._wait(FIFO_ASYNC_LATENCY);
+            wr_if._wait(FIFO_ASYNC_LATENCY);
 
             // Check status as reported from regs
             check_status();
@@ -372,7 +371,7 @@ module fifo_async_axil_unit_test #(
             unused_flag = ctrl_model_read();
 
             // Wait
-            env.driver._wait(FIFO_ASYNC_LATENCY);
+            wr_if._wait(FIFO_ASYNC_LATENCY);
 
             // Check register status
             check_status();
@@ -391,7 +390,7 @@ module fifo_async_axil_unit_test #(
             unused_flag = ctrl_model_write();
 
             // Wait
-            env.driver._wait(FIFO_ASYNC_LATENCY);
+            wr_if._wait(FIFO_ASYNC_LATENCY);
 
             // Check status as reported from regs
             check_status();
@@ -574,8 +573,8 @@ module fifo_async_axil_unit_test #(
             @(cb_wr);
 
             // Check that empty is deasserted immediately (once write transaction is registered by FIFO)
-            env.monitor._wait(FIFO_ASYNC_LATENCY);
-            if (FWFT) env.monitor._wait(MEM_RD_LATENCY);
+            rd_if._wait(FIFO_ASYNC_LATENCY);
+            if (FWFT) rd_if._wait(MEM_RD_LATENCY);
             `FAIL_UNLESS(cb_rd.empty == 0);
 
             // Receive transaction
@@ -640,7 +639,7 @@ module fifo_async_axil_unit_test #(
             @(cb_rd);
 
             // Allow read transaction to be registered by FIFO
-            env.driver._wait(FIFO_ASYNC_LATENCY);
+            wr_if._wait(FIFO_ASYNC_LATENCY);
 
             // Check that full is once again deasserted
             `FAIL_UNLESS(cb_wr.full == 0);

@@ -126,7 +126,7 @@ module fifo_async_unit_test #(
 
         // Create testbench environment
         env = new("tb_env", reset_if, wr_if, rd_if);
-        env.connect();
+        env.build();
 
         env.set_debug_level(0);
 
@@ -147,7 +147,7 @@ module fifo_async_unit_test #(
         env.idle();
         env.reset_dut();
 
-        env.driver._wait(10);
+        #50ns;
     endtask
 
 
@@ -393,8 +393,8 @@ module fifo_async_unit_test #(
             @(cb_wr);
 
             // Check that empty is deasserted immediately (once write transaction is registered by FIFO)
-            env.monitor._wait(FIFO_ASYNC_LATENCY);
-            if (FWFT) env.monitor._wait(MEM_RD_LATENCY);
+            rd_if._wait(FIFO_ASYNC_LATENCY);
+            if (FWFT) rd_if._wait(MEM_RD_LATENCY);
             `FAIL_UNLESS(cb_rd.empty == 0);
 
             // Receive transaction
@@ -454,7 +454,7 @@ module fifo_async_unit_test #(
             @(cb_rd);
 
             // Allow read transaction to be registered by FIFO
-            env.driver._wait(FIFO_ASYNC_LATENCY);
+            wr_if._wait(FIFO_ASYNC_LATENCY);
 
             // Check that full is once again deasserted
             `FAIL_UNLESS(cb_wr.full == 0);

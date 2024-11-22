@@ -1,10 +1,7 @@
 // Base monitor class for verification
-// - abstract class (not to be implemented directly)
-// - describes interface for 'generic' monitor, where methods are to be
-//   implemented by derived class
-virtual class monitor #(
-    parameter type TRANSACTION_T = transaction
-) extends component;
+// - abstract class (can't be instantiated directly)
+// - describes interface for 'generic' monitor, where methods are to be implemented by derived class
+virtual class monitor #(parameter type TRANSACTION_T = transaction) extends component;
 
     local static const string __CLASS_NAME = "std_verif_pkg::monitor";
 
@@ -17,12 +14,25 @@ virtual class monitor #(
     mailbox #(TRANSACTION_T) outbox;
 
     //===================================
+    // Pure Virtual Methods
+    // (to be implemented by derived class)
+    //===================================
+    pure virtual protected task _receive(output TRANSACTION_T transaction); // Receive transaction on interface
+
+    //===================================
     // Methods
     //===================================
     // Constructor
     function new(input string name="monitor");
         super.new(name);
         this.__rx_transaction_prefix = $sformatf("%s_rx", name);
+    endfunction
+
+    // Destructor
+    // [[ implements std_verif_pkg::base.destroy() ]]
+    virtual function automatic void destroy();
+        outbox = null;
+        super.destroy();
     endfunction
 
     // Configure trace output
@@ -41,14 +51,23 @@ virtual class monitor #(
         this.__rx_transaction_prefix = prefix;
     endfunction
 
-    // Reset monitor state
-    // [[ implements std_verif_pkg::component.reset() ]]
-    function automatic void reset();
-        trace_msg("reset()");
-        __cnt = 0;
-        _reset();
-        trace_msg("reset() Done.");
+    // Build component
+    // [[ implements std_verif_pkg::component._build() ]]
+    virtual protected function automatic void _build();
+        // Nothing to do typically
     endfunction
+
+    // Reset monitor
+    // [[ implements std_verif_pkg::component._reset() ]]
+    virtual protected function automatic void _reset();
+        __cnt = 0;
+    endfunction
+
+    // Initialize component for processing
+    // [[ implements std_verif_pkg::component._init() ]]
+    virtual protected task _init();
+        // Nothing to do typically
+    endtask
 
     // Receive (single) transaction
     task receive(output TRANSACTION_T transaction);
@@ -60,29 +79,17 @@ virtual class monitor #(
     endtask
 
     // Monitor process - receive transactions from interface and send to outbox
-    // [[ implements std_verif_pkg::component._start() ]]
-    task _start();
-        trace_msg("_start()");
+    // [[ implements std_verif_pkg::component._run() ]]
+    protected task _run();
+        trace_msg("_run()");
         info_msg("Running...");
         forever begin
             TRANSACTION_T transaction;
             receive(transaction);
+            debug_msg($sformatf("Received transaction '%s'. ---", transaction.get_name()));
             outbox.put(transaction);
         end
-        trace_msg("_start() Done.");
+        trace_msg("_run() Done.");
     endtask
-
-    //===================================
-    // Virtual Methods
-    // (to be implemented by derived class)
-    //===================================
-    // Reset monitor state
-    virtual function automatic void _reset(); endfunction
-    // Put interface in idle state
-    virtual task idle(); endtask
-    // Wait for specified number of 'cycles' on the monitored interface
-    virtual task _wait(input int cycles); endtask
-    // Receive transaction
-    virtual task _receive(output TRANSACTION_T transaction); endtask
 
 endclass : monitor

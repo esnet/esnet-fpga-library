@@ -47,6 +47,10 @@ class tb_env #(
         else      this.monitor.set_rx_mode(std_verif_pkg::RX_MODE_FETCH_VAL);
     endfunction
 
+    task wait_n(input int cycles);
+        wr_vif._wait(cycles);
+    endtask
+
     automatic function void reset();
         trace_msg("reset()");
         super.reset();

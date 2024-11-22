@@ -65,20 +65,19 @@ class db_ctrl_agent #(
     endfunction
 
     // Put all (driven) interfaces into idle state
-    // [[ implements std_verif_pkg::agent.idle ]]
-    task idle();
+    // [[ implements std_verif_pkg::component._idle ]]
+    virtual protected task _idle();
         ctrl_vif.idle();
     endtask
 
     // Wait for specified number of 'cycles', where a cycle is defined by
     // the reg_blk_agent (e.g. AXI-L aclk cycles for an AXI-L reg agent)
-    // [[ implements std_verif_pkg::agent._wait ]]
-    task _wait(input int cycles);
+    // [[ implements std_verif_pkg::db_agent.wait_n ]]
+    virtual task wait_n(input int cycles);
         ctrl_vif._wait(cycles);
     endtask
 
     // Wait for client init/reset to complete
-    // [[ implements std_verif_pkg::agent.wait_ready ]]
     task wait_ready();
         bit timeout;
         ctrl_vif.wait_ready(timeout, this._RESET_TIMEOUT);

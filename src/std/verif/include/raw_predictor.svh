@@ -10,11 +10,24 @@ class raw_predictor #(
     local static const string __CLASS_NAME = "std_verif_pkg::raw_predictor";
 
     //===================================
+    // Pure Virtual Methods
+    // (must be implemented by derived class)
+    //===================================
+    // Process (raw) input data transaction
+    pure virtual function DATA_OUT_T predict_raw(input DATA_IN_T data_in);
+
+    //===================================
     // Methods
     //===================================
     // Constructor
     function new(input string name="raw_predictor");
         super.new(name);
+    endfunction
+
+    // Destructor
+    // [[ implements std_verif_pkg::base.destroy() ]]
+    virtual function automatic void destroy();
+        super.destroy();
     endfunction
 
     // Configure trace output
@@ -44,12 +57,5 @@ class raw_predictor #(
         _enqueue_raw(data_out);
         trace_msg(" _process_raw() Done.");
     endtask
-
-    //===================================
-    // Virtual Methods
-    // (to be implemented by derived classes)
-    //===================================
-    // Process (raw) input data transaction
-    virtual function DATA_OUT_T predict_raw(input DATA_IN_T data_in); endfunction
 
 endclass : raw_predictor

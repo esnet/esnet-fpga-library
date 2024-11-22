@@ -83,6 +83,7 @@ module packet_capture_unit_test;
 
         // Monitor
         monitor = new("packet_capture_monitor", PACKET_MEM_SIZE, DATA_WID, reg_agent);
+        monitor.disable_autostart();
 
         // Model
         model = new();
@@ -93,10 +94,12 @@ module packet_capture_unit_test;
         // Environment
         env = new("env", driver, monitor, model, scoreboard);
         env.reset_vif = reset_if;
-        env.connect();
+        env.register_subcomponent(reg_agent);
+        env.build();
+
+        env.set_debug_level(3);
 
     endfunction
-
 
     //===================================
     // Setup for running the Unit Tests
@@ -104,23 +107,8 @@ module packet_capture_unit_test;
     task setup();
         svunit_ut.setup();
 
-        // Reset environment
-        env.reset();
-
-        // Put interfaces in quiescent state
-        env.idle();
-
-        // Issue reset
-        env.reset_dut();
-        reg_agent.reset();
-
-        // Wait for memory initialization to complete
-        monitor.enable();
-        monitor.wait_ready();
-
         // Start environment
-        env.start();
-
+        env.run();
     endtask
 
 
@@ -129,10 +117,10 @@ module packet_capture_unit_test;
     // need after running the Unit Tests
     //===================================
     task teardown();
-        svunit_ut.teardown();
-
         // Stop environment
         env.stop();
+
+        svunit_ut.teardown();
     endtask
 
 
@@ -188,6 +176,7 @@ module packet_capture_unit_test;
         `SVTEST_END
 
         `SVTEST(single_packet)
+            monitor.start();
             len = $urandom_range(64, 256);
             one_packet();
             `FAIL_IF(error);
@@ -210,6 +199,7 @@ module packet_capture_unit_test;
 
         `SVTEST(packet_stream)
             localparam NUM_PKTS = 50;
+            monitor.start();
             for (int i = 0; i < NUM_PKTS; i++) begin
                 one_packet(i);
             end
@@ -227,6 +217,10 @@ module packet_capture_unit_test;
             disable fork;
             `FAIL_IF_LOG(scoreboard.report(msg) > 0, msg );
             `FAIL_UNLESS_EQUAL(scoreboard.got_matched(), NUM_PKTS);
+        `SVTEST_END
+
+        `SVTEST(finalize)
+            env.finalize();
         `SVTEST_END
 
     `SVUNIT_TESTS_END

@@ -1,4 +1,4 @@
-class packet_eth extends packet;
+class packet_eth#(parameter type META_T = bit) extends packet#(META_T);
 
     local static const string __CLASS_NAME = "packet_verif_pkg::packet_eth";
 
@@ -6,7 +6,7 @@ class packet_eth extends packet;
     // Properties
     //===================================
     packet_eth_pkg::hdr_t __hdr;
-    packet __payload;
+    packet#() __payload;
 
     //===================================
     // Methods
@@ -15,11 +15,18 @@ class packet_eth extends packet;
     function new(
             input string name = "packet",
             input packet_eth_pkg::hdr_t hdr,
-            input packet payload
+            input packet#() payload
         );
         super.new(name, packet_pkg::PROTOCOL_ETHERNET);
         this.__hdr = hdr;
         this.__payload = payload;
+    endfunction
+
+    // Destructor
+    // [[ implements std_verif_pkg::base.destroy() ]]
+    virtual function automatic void destroy();
+        __payload.destroy();
+        super.destroy();
     endfunction
 
     // Configure trace output
@@ -51,6 +58,11 @@ class packet_eth extends packet;
 
     function automatic protocol_t payload_protocol();
         return this.__payload.protocol();
+    endfunction
+
+    function automatic packet_eth#(META_T) clone(input string name);
+        // TODO: not supported
+        return null;
     endfunction
 
 endclass

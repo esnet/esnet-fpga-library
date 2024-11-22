@@ -4,9 +4,24 @@ virtual class packet_monitor #(
 
     local static const string __CLASS_NAME = "packet_verif_pkg::packet_monitor";
 
+    //===================================
+    // Pure Virtual Methods
+    // (to be implemented by derived class)
+    //===================================
+    pure protected virtual task _receive_raw(output byte data[], output META_T meta, output bit err);
+
+    //===================================
+    // Methods
+    //===================================
     // Constructor
     function new(input string name="packet_monitor");
         super.new(name);
+    endfunction
+
+    // Destructor
+    // [[ implements std_verif_pkg::base.destroy() ]]
+    virtual function automatic void destroy();
+        super.destroy();
     endfunction
 
     // Configure trace output
@@ -17,7 +32,7 @@ virtual class packet_monitor #(
 
     // Receive packet transaction from packet interface
     // [[ implements _receive() virtual method of std_verif_pkg::monitor parent class ]]
-    task _receive(
+    protected task _receive(
             output packet#(META_T) transaction
         );
         // Signals
@@ -30,18 +45,12 @@ virtual class packet_monitor #(
         debug_msg("Waiting for transaction...");
 
         // Receive transaction
-        receive_raw(data, meta, err);
+        _receive_raw(data, meta, err);
 
         // Build Rx packet transaction
         transaction = packet_verif_pkg::packet_raw#(META_T)::create_from_bytes("rx_packet", data, meta, err);
 
         debug_msg($sformatf("Received %s (%0d bytes).", transaction.get_name(), transaction.size()));
     endtask
-
-    //===================================
-    // Virtual Methods
-    // (to be implemented by derived class)
-    //===================================
-    virtual task receive_raw(output byte data[], output META_T meta, output bit err); endtask
 
 endclass

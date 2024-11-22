@@ -19,6 +19,13 @@ class raw_driver #(
         super.new(name);
     endfunction
 
+    // Destructor
+    // [[ implements std_verif_pkg::base.destroy() ]]
+    virtual function automatic void destroy();
+        raw_vif = null;
+        super.destroy();
+    endfunction
+
     // Configure trace output
     // [[ overrides std_verif_pkg::base.trace_msg() ]]
     function automatic void trace_msg(input string msg);
@@ -30,34 +37,10 @@ class raw_driver #(
         this.__tx_mode = tx_mode;
     endfunction
 
-    // Reset driver state
-    // [[ implements std_verif_pkg::driver._reset() ]]
-    function automatic void _reset();
-        trace_msg("_reset()");
-        // Nothing to do
-        trace_msg("_reset() Done.");
-    endfunction
-
-    // Put (driven) stats update interface in idle state
-    // [[ implements std_verif_pkg::driver.idle() ]]
-    task idle();
-        trace_msg("idle()");
+    // Quiesce driven interface
+    // [[ implements std_verif_pkg::component._idle() ]]
+    protected task _idle();
         raw_vif.idle_tx();
-        trace_msg("idle() Done.");
-    endtask
-
-    // Wait for specified number of 'cycles' on the driven interface
-    // [[ implements std_verif_pkg::driver._wait() ]]
-    task _wait(input int cycles);
-        raw_vif._wait(cycles);
-    endtask
-
-    // Wait for interface to be ready to accept transactions (after reset/init, for example)
-    // [[ implements std_verif_pkg::driver.wait_ready() ]]
-    task wait_ready();
-        trace_msg("wait_ready()");
-        raw_vif.wait_ready();
-        trace_msg("wait_ready() Done.");
     endtask
 
     // Send raw data to interface
@@ -75,7 +58,7 @@ class raw_driver #(
 
     // Send raw transaction
     // [[ implements std_verif_pkg::driver._send() ]]
-    task _send(input TRANSACTION_T transaction);
+    protected task _send(input TRANSACTION_T transaction);
         trace_msg("_send()");
         info_msg($sformatf("Sending transaction '%s'", transaction.get_name()));
         debug_msg($sformatf("\t%s", transaction.to_string));

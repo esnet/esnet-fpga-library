@@ -55,12 +55,14 @@ module packet_write_unit_test #(
     //===================================
     // Testbench
     //===================================
+    // Memory stand-in
     assign mem_wr_if.rdy = 1'b1;
     always @(posedge clk) begin
         if (mem_wr_if.req && mem_wr_if.en) mem_wr_if.ack <= 1'b1;
         else                               mem_wr_if.ack <= 1'b0;
     end
 
+    // Environment
     std_verif_pkg::component_env #(
         PACKET_T,
         PACKET_DESCRIPTOR_T
@@ -109,11 +111,8 @@ module packet_write_unit_test #(
         env.monitor = monitor;
         env.model = model;
         env.scoreboard = scoreboard;
-        env.connect();
-
-        env.set_debug_level(0);
+        env.build();
     endfunction
-
 
     //===================================
     // Setup for running the Unit Tests
@@ -121,17 +120,8 @@ module packet_write_unit_test #(
     task setup();
         svunit_ut.setup();
 
-        // Reset environment
-        env.reset();
-
-        // Put interfaces in quiescent state
-        env.idle();
-
-        // Issue reset
-        env.reset_dut();
-
         // Start environment
-        env.start();
+        env.run();
     endtask
 
 
@@ -140,12 +130,11 @@ module packet_write_unit_test #(
     // need after running the Unit Tests
     //===================================
     task teardown();
-        svunit_ut.teardown();
-
         // Stop environment
         env.stop();
-    endtask
 
+        svunit_ut.teardown();
+    endtask
 
     //===================================
     // All tests are defined between the
@@ -348,6 +337,10 @@ module packet_write_unit_test #(
                 scoreboard.report(msg),
                 "Passed unexpectedly."
             );
+        `SVTEST_END
+
+        `SVTEST(finalize)
+            env.finalize();
         `SVTEST_END
 
     `SVUNIT_TESTS_END

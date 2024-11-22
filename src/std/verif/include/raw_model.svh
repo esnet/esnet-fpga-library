@@ -7,6 +7,13 @@ class raw_model #(
     local static const string __CLASS_NAME = "std_verif_pkg::raw_model";
 
     //===================================
+    // Pure Virtual Methods
+    // (must be implemented by derived class)
+    //===================================
+    // Process (raw) input data transaction
+    pure protected virtual task _process_raw(input DATA_IN_T data_in);
+
+    //===================================
     // Methods
     //===================================
     // Constructor
@@ -14,18 +21,16 @@ class raw_model #(
         super.new(name);
     endfunction
 
+    // Destructor
+    // [[ implements std_verif_pkg::base.destroy() ]]
+    virtual function automatic void destroy();
+        super.destroy();
+    endfunction
+
     // Configure trace output
     // [[ overrides std_verif_pkg::base.trace_msg() ]]
     function automatic void trace_msg(input string msg);
         _trace_msg(msg, __CLASS_NAME);
-    endfunction
-
-    // Reset model state
-    // [[ implements std_verif_pkg::model._reset() ]]
-    protected function automatic void _reset();
-        trace_msg("_reset()");
-        // Nothing to do
-        trace_msg("_reset() Done.");
     endfunction
 
     // Process input transaction
@@ -55,12 +60,5 @@ class raw_model #(
     function automatic DATA_OUT_T output_transaction_to_raw(input TRANSACTION_OUT_T transaction_out);
         return transaction_out.data;
     endfunction
-
-    //===================================
-    // Virtual Methods
-    // (to be implemented by derived classes)
-    //===================================
-    // Process (raw) input data transaction
-    protected virtual task _process_raw(input DATA_IN_T data_in); endtask
 
 endclass : raw_model

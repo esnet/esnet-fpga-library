@@ -1,4 +1,7 @@
-class reg_agent #(
+// Base register agent class for verification
+// - interface class (can't be instantiated directly)
+// - describes interface for 'generic' register agents, where methods are to be implemented by derived class
+virtual class reg_agent #(
     parameter int ADDR_WID = 32,
     parameter int DATA_WID = 32
 ) extends std_verif_pkg::agent;
@@ -18,13 +21,14 @@ class reg_agent #(
     typedef bit[DATA_WID-1:0] data_t;
 
     //===================================
-    // Virtual Methods
+    // Pure Virtual Methods
     // (to be implemented by subclass)
     //===================================
-    virtual protected task _write(input addr_t addr, input data_t data, output bit error, output bit timeout, output string msg); endtask
-    virtual protected task _write_byte(input addr_t addr, input byte data, output bit error, output bit timeout, output string msg); endtask
-    virtual protected task _read(input addr_t addr, output data_t data, output bit error, output bit timeout, output string msg); endtask
-    virtual protected task _read_byte(input addr_t addr, output byte data, output bit error, output bit timeout, output string msg); endtask
+    pure virtual protected task _write(input addr_t addr, input data_t data, output bit error, output bit timeout, output string msg);
+    pure virtual protected task _write_byte(input addr_t addr, input byte data, output bit error, output bit timeout, output string msg);
+    pure virtual protected task _read(input addr_t addr, output data_t data, output bit error, output bit timeout, output string msg);
+    pure virtual protected task _read_byte(input addr_t addr, output byte data, output bit error, output bit timeout, output string msg);
+    pure virtual task wait_n(input int cycles); // Wait specified number of cycles, where cycles is determined by specific instance.
 
     //===================================
     // Methods
@@ -35,16 +39,16 @@ class reg_agent #(
         super.new(name);
     endfunction
 
+    // Destructor
+    // [[ implements std_verif_pkg::base.destroy() ]]
+    virtual function automatic void destroy();
+        super.destroy();
+    endfunction
+
     // Configure trace output
     // [[ overrides std_verif_pkg::base.trace_msg() ]]
     function automatic void trace_msg(input string msg);
         _trace_msg(msg, __CLASS_NAME);
-    endfunction
-
-    // Configure trace output
-    // [[ implements std_verif_pkg::agent._reset() ]]
-    protected virtual function automatic void _reset();
-        // Nothing to do
     endfunction
 
     function void set_wr_timeout(input int WR_TIMEOUT);

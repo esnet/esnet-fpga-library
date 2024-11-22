@@ -108,7 +108,7 @@ module fifo_sync_unit_test #(
 
         // Create testbench environment
         env = new("tb_env", reset_if, wr_if, rd_if);
-        env.connect();
+        env.build();
 
     endfunction
 
@@ -124,7 +124,7 @@ module fifo_sync_unit_test #(
 
         env.reset_dut();
 
-        env.driver._wait(10);
+        #50ns;
     endtask
 
 
@@ -220,8 +220,8 @@ module fifo_sync_unit_test #(
             env.driver.send(exp_transaction);
 
             // Allow write transaction to be registered by FIFO
-            env.driver._wait(MEM_WR_LATENCY+1);
-            if (FWFT) env.monitor._wait(MEM_RD_LATENCY);
+            wr_if._wait(MEM_WR_LATENCY+1);
+            if (FWFT) rd_if._wait(MEM_RD_LATENCY);
 
             // Check that empty is deasserted
             repeat (2) @(cb);
@@ -348,7 +348,7 @@ module fifo_sync_unit_test #(
             env.driver.send(exp_transaction);
             `FAIL_UNLESS(cb.oflow == 0);
 
-            env.driver._wait(1);
+            wr_if._wait(1);
 
             env.monitor.receive(got_transaction);
             match = exp_transaction.compare(got_transaction, msg);

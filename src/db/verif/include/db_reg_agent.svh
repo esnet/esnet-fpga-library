@@ -52,16 +52,16 @@ class db_reg_agent #(
     endfunction
 
     // Put all (driven) interfaces into idle state
-    // [[ implements std_verif_pkg::agent.idle ]]
-    task idle();
+    // [[ overrides std_verif_pkg::component._idle ]]
+    virtual protected task _idle();
         reg_blk_agent.idle();
     endtask
 
     // Wait for specified number of 'cycles', where a cycle is defined by
     // the reg_blk_agent (e.g. AXI-L aclk cycles for an AXI-L reg agent)
-    // [[ implements std_verif_pkg::agent._wait ]]
-    task _wait(input int cycles);
-        reg_blk_agent._wait(cycles);
+    // [[ implements std_verif_pkg::db_agent.wait_n ]]
+    task wait_n(input int cycles);
+        reg_blk_agent.reg_agent.wait_n(cycles);
     endtask
 
     // Wait for client init/reset to complete
@@ -128,6 +128,25 @@ class db_reg_agent #(
             debug_msg($sformatf("_set_key: Wrote 0%0x to key reg %0d", key_reg, i));
         end
     endtask
+
+    // Read key from registers
+    // - requires conversion from array dwords (with little-endian byte ordering) to array of bytes
+    // [[ implements db_agent::_set_key ]]
+    task _get_key(output KEY_T _key);
+        int byte_idx;
+        bit [0:KEY_BYTES-1][7:0] key_bytes;
+        bit [3:0][7:0] key_reg;
+        for (int i = 0; i < KEY_REGS; i++) begin
+            reg_blk_agent.read_key(i, key_reg);
+            for (int j = 0; j < 4; j++) begin
+                byte_idx = i * 4 + j;
+                if (byte_idx < KEY_BYTES) key_bytes[byte_idx] = key_reg[j];
+            end
+            _key = key_bytes;
+            debug_msg($sformatf("_get_key() Done. (value=0x%0x)", _key));
+        end
+    endtask
+
 
     // Write value to registers
     // - requires conversion from array of bytes to array of dwords (with little-endian byte ordering)

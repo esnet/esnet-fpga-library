@@ -16,20 +16,12 @@ class htable_cuckoo_reg_agent extends htable_cuckoo_reg_blk_agent;
         this.reg_agent = reg_agent;
     endfunction
 
-    // Reset agent state
-    // [[ implements std_verif_pkg::agent.reset() virtual method ]]
-    function automatic void reset();
-        super.reset();
-    endfunction
-
     // Reset client
-    // [[ implements std_verif_pkg::agent.reset_client ]]
     task reset_client();
         soft_reset();
     endtask
 
     // Poll register block for ready status
-    // [[ implements std_verif_pkg::agent.wait_ready() virtual method ]]
     task wait_ready();
         htable_cuckoo_reg_pkg::reg_status_t reg_status;
         do

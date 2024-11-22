@@ -52,7 +52,7 @@ module timer_expiry_unit_test;
     // Testbench
     //===================================
     // Environment
-    std_verif_pkg::env env;
+    std_verif_pkg::basic_env env;
 
     // Assign clock (200MHz)
     `SVUNIT_CLK_GEN(clk, 2.5ns);
@@ -205,7 +205,7 @@ module timer_expiry_unit_test;
         // Advance timer
         ticks(num_ticks);
         // Wait for ticks to be generated/counted
-        reg_agent._wait(5);
+        #50ns;
         // Check timer
         reg_agent.get_timer_value(__timer);
         `FAIL_UNLESS_LOG(

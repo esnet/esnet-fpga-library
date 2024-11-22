@@ -49,7 +49,7 @@ module packet_transaction_unit_test;
     //   `SVTEST_END
     //===================================
     // Payload
-    byte payload_data [] = '{"H", "e", "l", "l", "o", ",", " ", "W", "o", "r", "l", "d", "!", "!", "!", "!"};        
+    byte payload_data [] = '{"H", "e", "l", "l", "o", ",", " ", "W", "o", "r", "l", "d", "!", "!", "!", "!"};
 
     // Ethernet header
     packet_eth_pkg::hdr_t eth_hdr = '{

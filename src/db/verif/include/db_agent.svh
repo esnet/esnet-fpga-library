@@ -1,4 +1,4 @@
-class db_agent #(
+virtual class db_agent #(
     parameter type KEY_T = bit[7:0],
     parameter type VALUE_T = bit[31:0]
 ) extends std_verif_pkg::agent;
@@ -15,17 +15,57 @@ class db_agent #(
     protected int _OP_TIMEOUT=0;
 
     //===================================
+    // Virtual Methods
+    // (to be implemented by derived class)
+    //===================================
+    // Generic transaction (no timeout protection)
+    pure virtual protected task _transact(input db_pkg::command_t _command, output bit _error);
+    // Set key (for request)
+    pure virtual protected task _set_key(input KEY_T _key);
+    // Set value (for request)
+    pure virtual protected task _set_value(input VALUE_T _value);
+    // Read valid (from response)
+    pure virtual protected task _get_valid(output bit _valid);
+    // Read key (from response)
+    pure virtual protected task _get_key(output KEY_T _key);
+    // Read value (from response)
+    pure virtual protected task _get_value(output VALUE_T _value);
+    // Get database type
+    pure virtual task get_type(output db_pkg::type_t _type);
+    // Get database subtype
+    pure virtual task get_subtype(output db_pkg::subtype_t _subtype);
+    // Query database for reported size
+    pure virtual task get_size(output int _size);
+    // Query database for reported fill
+    pure virtual task get_fill(output int _fill);
+    // Wait specified number of cycles, where cycles is determined by specific instance.
+    pure virtual task wait_n(input int cycles);
+
+    //===================================
     // Methods
     //===================================
+    // Constructor
     function new(input string name="db_agent", input int _max_capacity=0);
         super.new(name);
         set_max_capacity(_max_capacity);
+    endfunction
+
+    // Destructor
+    // [[ implements std_verif_pkg::base.destroy() ]]
+    virtual function automatic void destroy();
+        super.destroy();
     endfunction
 
     // Configure trace output
     // [[ overrides std_verif_pkg::base.trace_msg() ]]
     function automatic void trace_msg(input string msg);
         _trace_msg(msg, __CLASS_NAME);
+    endfunction
+
+    // Reset agent state
+    // [[ implements std_verif_pkg::agent._reset() ]]
+    virtual protected function automatic void _reset();
+        // Nothing to do
     endfunction
 
     // Set timeout (in cycles) for reset operation
@@ -59,8 +99,7 @@ class db_agent #(
     endfunction
 
     // Reset client
-    // [[ implements std_verif_pkg::agent.reset_client() ]]
-    task reset_client();
+    virtual protected task _init();
         automatic bit error;
         automatic bit timeout;
         clear_all(error, timeout);
@@ -86,9 +125,9 @@ class db_agent #(
                     begin
                         _timeout = 1'b0;
                         if (TIMEOUT > 0) begin
-                            _wait(TIMEOUT);
+                            wait_n(TIMEOUT);
                             _timeout = 1'b1;
-                        end else forever _wait(1);
+                        end else wait(0);
                     end
                 join_any
                 disable fork;
@@ -188,39 +227,5 @@ class db_agent #(
         _get_value(value);
         trace_msg("unset_next() Done.");
     endtask
-
-    //===================================
-    // Virtual Methods
-    // (to be implemented by derived class)
-    //===================================
-    // Generic transaction (no timeout protection)
-    virtual task _transact(input db_pkg::command_t _command, output bit _error); endtask
-
-    // Set key (for request)
-    virtual task _set_key(input KEY_T _key); endtask
-
-    // Set value (for request)
-    virtual task _set_value(input VALUE_T _value); endtask
-
-    // Read valid (from response)
-    virtual task _get_valid(output bit _valid); endtask
-
-    // Read key (from response)
-    virtual task _get_key(output KEY_T _key); endtask
-
-    // Read value (from response)
-    virtual task _get_value(output VALUE_T _value); endtask
-
-    // Get database type
-    virtual task get_type(output db_pkg::type_t _type); endtask
-
-    // Get database subtype
-    virtual task get_subtype(output db_pkg::subtype_t _subtype); endtask
-
-    // Query database for reported size
-    virtual task get_size(output int _size); endtask
-
-    // Query database for reported fill
-    virtual task get_fill(output int _fill); endtask
 
 endclass : db_agent

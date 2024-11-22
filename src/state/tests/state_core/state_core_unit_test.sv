@@ -104,7 +104,6 @@ module state_core_unit_test
 
         // Model
         model = new($sformatf("state_vector_model[%s]", NAME), SPEC);
-
         // Database agent
         axil_reg_agent = new();
         axil_reg_agent.axil_vif = axil_if;
@@ -119,7 +118,7 @@ module state_core_unit_test
         env.model = model;
         env.db_agent = agent.db;
 
-        env.connect();
+        env.build();
 
     endfunction
 
@@ -194,7 +193,7 @@ endmodule
     test.run();\
   endtask
 
-// READ
+// Histogram
 module state_core_histogram_unit_test;
     import state_pkg::*;
     localparam element_t STATE_ELEMENT_HIST_BIN_64B = '{

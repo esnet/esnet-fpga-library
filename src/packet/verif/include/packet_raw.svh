@@ -1,4 +1,4 @@
-class packet_raw #(parameter type META_T = bit) extends packet#(META_T);
+class packet_raw#(parameter type META_T = bit) extends packet#(META_T);
 
     local static const string __CLASS_NAME = "packet_verif_pkg::packet_raw";
 
@@ -25,6 +25,13 @@ class packet_raw #(parameter type META_T = bit) extends packet#(META_T);
         this.__data = new[len];
     endfunction
 
+    // Destructor
+    // [[ implements std_verif_pkg::base.destroy() ]]
+    virtual function automatic void destroy();
+        __data.delete();
+        super.destroy();
+    endfunction
+
     // Configure trace output
     // [[ overrides std_verif_pkg::base.trace_msg() ]]
     function automatic void trace_msg(input string msg);
@@ -43,13 +50,15 @@ class packet_raw #(parameter type META_T = bit) extends packet#(META_T);
         return new_packet;
     endfunction
 
+    // Clone packet
+    // [[ implements std_verif_pkg::packet.clone() ]]
     function automatic packet_raw#(META_T) clone(input string name);
         packet_raw#(META_T) cloned_packet = packet_raw#(META_T)::create_from_bytes(name, this.to_bytes, this.get_meta(), this.is_errored());
         return cloned_packet;
     endfunction
 
     // Get string representation of packet
-    // [[ overrides std_verif_pkg::transaction.to_string() extended class ]]
+    // [[ overrides std_verif_pkg::transaction.to_string() ]]
     function string to_string();
         string str = super.to_string();
         str = {str, string_pkg::horiz_line()};
@@ -58,10 +67,6 @@ class packet_raw #(parameter type META_T = bit) extends packet#(META_T);
         return str;
     endfunction
 
-    //===================================
-    // Virtual Methods
-    // (to be implemented by derived class)
-    //===================================
     // Get data as byte array
     function automatic byte_array_t to_bytes();
         return this.__data;

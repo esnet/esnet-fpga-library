@@ -1,4 +1,7 @@
-class packet #(parameter type META_T = bit) extends std_verif_pkg::transaction;
+// Base packet transaction class for verification
+// - abstract class (can't be instantiated directly)
+// - describes interface for 'generic' packet transactions, where methods are to be implemented by subclass
+virtual class packet #(parameter type META_T = bit) extends std_verif_pkg::transaction;
 
     local static const string __CLASS_NAME = "packet_verif_pkg::packet";
 
@@ -16,6 +19,16 @@ class packet #(parameter type META_T = bit) extends std_verif_pkg::transaction;
     protected bit    _err;
 
     //===================================
+    // Pure Virtual Methods
+    // (must be implemented by derived class)
+    //===================================
+    pure virtual function automatic packet#(META_T) clone(input string name);
+    pure virtual function automatic byte_array_t to_bytes();
+    pure virtual function automatic byte_array_t header();
+    pure virtual function automatic byte_array_t payload();
+    pure virtual function automatic protocol_t   payload_protocol();
+
+    //===================================
     // Methods
     //===================================
     // Constructor
@@ -29,6 +42,12 @@ class packet #(parameter type META_T = bit) extends std_verif_pkg::transaction;
         this.__protocol = protocol;
         this._meta = meta;
         this._err = err;
+    endfunction
+
+    // Destructor
+    // [[ implements std_verif_pkg::base.destroy() ]]
+    virtual function automatic void destroy();
+        super.destroy();
     endfunction
 
     // Configure trace output
@@ -65,9 +84,6 @@ class packet #(parameter type META_T = bit) extends std_verif_pkg::transaction;
         return this._err;
     endfunction
 
-    // Clone
-    virtual function automatic packet#(META_T) clone(input string name); endfunction
-
     // Get string representation of transaction
     // [[ implements std_verif_pkg::transaction.to_string() ]]
     virtual function automatic string to_string();
@@ -87,7 +103,7 @@ class packet #(parameter type META_T = bit) extends std_verif_pkg::transaction;
     endfunction
 
     // Compare packets
-    virtual function automatic bit _compare(input packet#(META_T) b, output string msg);
+    protected virtual function automatic bit _compare(input packet#(META_T) b, output string msg);
         if (this.size() != b.size()) begin
             msg = $sformatf("Packet size mismatch. A: %0d bytes, B: %0d bytes.", this.size(), b.size());
             return 0;
@@ -119,15 +135,6 @@ class packet #(parameter type META_T = bit) extends std_verif_pkg::transaction;
     function bit compare(input packet#(META_T) t2, output string msg);
         return this._compare(t2, msg);
     endfunction
-
-    //===================================
-    // Virtual Methods
-    // (to be implemented by derived class)
-    //===================================
-    virtual function automatic byte_array_t to_bytes(); endfunction
-    virtual function automatic byte_array_t header(); endfunction
-    virtual function automatic byte_array_t payload(); endfunction
-    virtual function automatic protocol_t   payload_protocol(); endfunction
 
 endclass : packet
 

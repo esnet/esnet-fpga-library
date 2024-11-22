@@ -6,7 +6,7 @@ module packet_intf_unit_test #(
     import svunit_pkg::svunit_testcase;
     import packet_verif_pkg::*;
 
-    localparam string dut_string = DUT_SELECT == 0 ? "packet_intf_connector" : 
+    localparam string dut_string = DUT_SELECT == 0 ? "packet_intf_connector" :
                                                  1 ? "packet_fifo" :
                                                      "undefined";
 
@@ -79,11 +79,8 @@ module packet_intf_unit_test #(
 
         env = new("env", driver, monitor, model, scoreboard);
         env.reset_vif = reset_if;
-        env.connect();
-
-        env.set_debug_level(0);
+        env.build();
     endfunction
-
 
     //===================================
     // Setup for running the Unit Tests
@@ -91,21 +88,8 @@ module packet_intf_unit_test #(
     task setup();
         svunit_ut.setup();
 
-        // Reset environment
-        env.reset();
-
-        // Put interfaces in quiescent state
-        env.idle();
-
-        // Issue reset
-        env.reset_dut();
-
-        // Default settings for transmit and receive stall rate
-        monitor.set_stall_rate(0.0);
-        driver.set_stall_rate(0.0);
-
         // Start environment
-        env.start();
+        env.run();
     endtask
 
 
@@ -114,10 +98,10 @@ module packet_intf_unit_test #(
     // need after running the Unit Tests
     //===================================
     task teardown();
-        svunit_ut.teardown();
-
         // Stop environment
         env.stop();
+
+        svunit_ut.teardown();
     endtask
 
 
@@ -229,6 +213,10 @@ module packet_intf_unit_test #(
                 scoreboard.report(msg),
                 "Passed unexpectedly."
             );
+        `SVTEST_END
+
+        `SVTEST(finalize)
+            env.finalize();
         `SVTEST_END
 
     `SVUNIT_TESTS_END

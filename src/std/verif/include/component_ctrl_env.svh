@@ -26,48 +26,26 @@ class component_ctrl_env #(
         super.new(name);
     endfunction
 
+    // Destructor
+    // [[ implements std_verif_pkg::base.destroy() ]]
+    virtual function automatic void destroy();
+        agent = null;
+        super.destroy();
+    endfunction
+
     // Configure trace output
     // [[ overrides std_verif_pkg::base.trace_msg() ]]
     function automatic void trace_msg(input string msg);
         _trace_msg(msg, __CLASS_NAME);
     endfunction
 
-    // Set debug level (verbosity)
-    // [[ overrides std_verif_pkg::base.set_debug_level() ]]
-    function automatic void set_debug_level(input int DEBUG_LEVEL);
-        super.set_debug_level(DEBUG_LEVEL);
-        agent.set_debug_level(DEBUG_LEVEL);
+    // Build environment
+    // [[ implements std_verif_pkg::env._build() ]]
+    protected virtual function automatic void _build();
+        trace_msg("_build()");
+        register_subcomponent(agent);
+        super._build();
+        trace_msg("_build() Done.");
     endfunction
-
-    // Reset environment
-    // [[ overrides component_env.reset() ]]
-    virtual function automatic void reset();
-        trace_msg("reset()");
-        super.reset();
-        agent.reset();
-        trace_msg("reset() Done.");
-    endfunction
-
-    // Put all (driven) interfaces into quiescent state
-    // [[ overrides component_env.idle() ]]
-    virtual task idle();
-        trace_msg("idle()");
-        fork
-            super.idle();
-            agent.idle();
-        join
-        trace_msg("idle() Done.");
-    endtask
-
-    // Wait for environment to be ready for transactions (after init/reset for example)
-    // [[ overrides component_env.wait_ready() method ]]
-    virtual task wait_ready();
-        trace_msg("wait_ready()");
-        fork
-            super.wait_ready();
-            agent.wait_ready();
-        join
-        trace_msg("wait_ready() Done.");
-    endtask
 
 endclass

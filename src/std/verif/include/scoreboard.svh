@@ -20,17 +20,39 @@ virtual class scoreboard #(parameter type TRANSACTION_T = transaction) extends c
     mailbox #(TRANSACTION_T) exp_inbox;
 
     //===================================
+    // Pure Virtual Methods
+    // (must be implemented by derived class)
+    //===================================
+    // Post-process results
+    pure protected virtual function automatic void _postprocess();
+
+    //===================================
     // Methods
     //===================================
     // Constructor
     function new(input string name="scoreboard");
         super.new(name);
+        reset();
+    endfunction
+
+    // Destructor
+    // [[ implements std_verif_pkg::base.destroy() ]]
+    virtual function automatic void destroy();
+        got_inbox = null;
+        exp_inbox = null;
+        super.destroy();
     endfunction
 
     // Configure trace output
     // [[ overrides std_verif_pkg::base.trace_msg() ]]
     function automatic void trace_msg(input string msg);
         _trace_msg(msg, __CLASS_NAME);
+    endfunction
+
+    // Build component
+    // [[ implements std_verif_pkg::component._build() ]]
+    virtual protected function automatic void _build();
+        // Nothing to do typically
     endfunction
 
     // Return number of received transactions pending
@@ -74,23 +96,22 @@ virtual class scoreboard #(parameter type TRANSACTION_T = transaction) extends c
         this.__unmatched_cnt += num;
     endfunction
 
-    // Reset scoreboard state (public 'wrapper' method with common accounting/reporting functions)
-    // (calls _reset() method of derived class to allow for application-specific behaviour)
-    // [[ implements std_verif_pkg::component.reset() ]]
-    function automatic void reset();
-        TRANSACTION_T transaction;
-        trace_msg("reset()");
-        _reset();
-        while (got_inbox.try_get(transaction));
-        while (exp_inbox.try_get(transaction));
+    // Reset scoreboard
+    // [[ implements std_verif_pkg::component._reset() ]]
+    virtual protected function automatic void _reset();
         __processed_cnt = 0;
         __match_cnt = 0;
         __mismatch_cnt = 0;
         __unmatched_cnt = 0;
         __got_cnt = 0;
         __exp_cnt = 0;
-        trace_msg("reset() Done.");
     endfunction
+
+    // Quiesce all interfaces
+    // [[ implements std_verif_pkg::component._idle() ]]
+    virtual protected task _idle();
+        // Nothing to do typically
+    endtask
 
     // Pull next 'actual' (received) transaction (blocking)
     protected task _got_next(output TRANSACTION_T transaction);
@@ -129,12 +150,15 @@ virtual class scoreboard #(parameter type TRANSACTION_T = transaction) extends c
         return error_cnt;
     endfunction
 
-    //===================================
-    // Virtual Methods
-    //===================================
-    // Reset scoreboard state
-    protected virtual function automatic void _reset(); endfunction
-    // Post-process results
-    protected virtual function automatic void _postprocess(); endfunction
+    // Initialize scoreboard for processing
+    // [[ implements std_verif_pkg::component._init() ]]
+    virtual protected task _init();
+        TRANSACTION_T transaction;
+        // Flush unprocessed transactions
+        while (got_inbox.try_get(transaction));
+        while (exp_inbox.try_get(transaction));
+        // Reset state
+        reset();
+    endtask
 
 endclass : scoreboard

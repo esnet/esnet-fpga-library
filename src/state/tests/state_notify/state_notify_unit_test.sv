@@ -207,7 +207,7 @@ module state_notify_unit_test;
         env.model = model;
         env.db_agent = db_agent;
 
-        env.connect();
+        env.build();
 
         axil_reg_agent = new();
         axil_reg_agent.axil_vif = axil_if;

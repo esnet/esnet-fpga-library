@@ -10,9 +10,9 @@ class axi4s_driver #(
     //===================================
     // Properties
     //===================================
-    protected bit _BIGENDIAN;
-    protected int _min_pkt_gap;
-    protected int _twait;
+    local bit __BIGENDIAN;
+    local int __min_pkt_gap;
+    local int __twait;
 
     //===================================
     // Interfaces
@@ -36,7 +36,16 @@ class axi4s_driver #(
     // Constructor
     function new(input string name="axi4s_driver", input bit BIGENDIAN=1);
         super.new(name);
-        this._BIGENDIAN = BIGENDIAN;
+        this.__BIGENDIAN = BIGENDIAN;
+        this.__min_pkt_gap = 0;
+        this.__twait = 0;
+    endfunction
+
+    // Destructor
+    // [[ implements std_verif_pkg::base.destroy() ]]
+    virtual function automatic void destroy();
+        axis_vif = null;
+        super.destroy();
     endfunction
 
     // Configure trace output
@@ -47,47 +56,36 @@ class axi4s_driver #(
 
     // Set minimum inter-packet gap (in clock cycles)
     function automatic void set_min_gap(input int min_pkt_gap);
-        this._min_pkt_gap = min_pkt_gap;
+        this.__min_pkt_gap = min_pkt_gap;
     endfunction
 
     // Set twait value used by driver (for stalling transmit transactions)
     function automatic void set_twait(input int twait);
-        this._twait = twait;
+        this.__twait = twait;
     endfunction
 
-    // Reset driver state
-    // [[ implements std_verif_pkg::driver._reset() ]]
-    function automatic void _reset();
-        // Nothing to do
+    // Reset driver
+    // [[ overrides std_verif_pkg::driver._reset() ]]
+    virtual protected function automatic void _reset();
+        this.set_twait(0);
+        this.set_min_gap(0);
+        super._reset();
     endfunction
 
-    // Put (driven) AXI-S interface in idle state
-    // [[ implements std_verif_pkg::driver.idle() ]]
-    task idle();
+    // Quiesce AXI-S interface
+    // [[ implements std_verif_pkg::component._idle() ]]
+    virtual protected task _idle();
         axis_vif.idle_tx();
     endtask
 
-    // Wait for specified number of 'cycles' on the driven interface
-    // [[ implements std_verif_pkg::driver._wait() ]]
-    task _wait(input int cycles);
-        axis_vif._wait(cycles);
-    endtask
-
-    // Wait for interface to be ready to accept transactions (after reset/init, for example)
-    // [[ implements std_verif_pkg::driver.wait_ready() ]]
-    task wait_ready();
-        bit timeout;
-        axis_vif.wait_ready(timeout, 0);
-    endtask
-
     // Send transaction (represented as raw byte array with associated metadata)
-    task send_raw(
-            input byte    data[$],
+    protected task _send_raw(
+            input byte    data[],
             input TID_T   id=0,
             input TDEST_T dest=0,
-            input TUSER_T user=0,
-            input int     twait=0
+            input TUSER_T user=0
         );
+        byte __data[$] = data;
         // Signals
         tdata_t tdata = '1;
         tkeep_t tkeep = 0;
@@ -97,18 +95,18 @@ class axi4s_driver #(
 
         debug_msg($sformatf("send_raw: Sending %0d bytes...", data.size()));
         // Send
-        while (data.size() > 0) begin
-            tdata[byte_idx] = data.pop_front();
+        while (__data.size() > 0) begin
+            tdata[byte_idx] = __data.pop_front();
             tkeep[byte_idx] = 1'b1;
             byte_idx++;
-            if ((byte_idx == DATA_BYTE_WID) || (data.size() == 0)) begin
-                if (_BIGENDIAN) begin
+            if ((byte_idx == DATA_BYTE_WID) || (__data.size() == 0)) begin
+                if (this.__BIGENDIAN) begin
                     tdata = {<<byte{tdata}};
                     tkeep = {<<{tkeep}};
                 end
-                if (data.size() == 0) tlast = 1'b1;
+                if (__data.size() == 0) tlast = 1'b1;
                 trace_msg($sformatf("send_raw: Sending word %0d.", word_idx));
-                axis_vif.send(tdata, tkeep, tlast, id, dest, user, twait);
+                axis_vif.send(tdata, tkeep, tlast, id, dest, user, this.__twait);
                 tdata = '1;
                 tkeep = 0;
                 byte_idx = 0;
@@ -116,20 +114,18 @@ class axi4s_driver #(
             end
         end
         debug_msg("send_raw: Done.");
-        idle();
-        _wait(this._min_pkt_gap);
+        axis_vif.idle_tx();
+        axis_vif._wait(this.__min_pkt_gap);
     endtask
 
-    // Send AXI-S transaction on AXI-S bus
+    // Send packet
     // [[ implements std_verif_pkg::driver._send() ]]
-    task _send(
-            input axi4s_transaction#(TID_T, TDEST_T, TUSER_T) transaction
-        );
+    protected task _send(input axi4s_transaction#(TID_T, TDEST_T, TUSER_T) transaction);
 
         debug_msg($sformatf("Sending:\n%s", transaction.to_string()));
 
-        // Send transaction
-        send_raw(transaction.to_bytes(), transaction.get_tid(), transaction.get_tdest(), transaction.get_tuser(), _twait);
+        // Send packet transaction
+        _send_raw(transaction.to_bytes(), transaction.get_tid(), transaction.get_tdest(), transaction.get_tuser());
 
         debug_msg("Done.");
     endtask
@@ -174,8 +170,8 @@ class axi4s_driver #(
         for (int i = start_idx; i < num_pkts; i++) begin
 
             // Generate new AXI-S transaction from next PCAP record
-            axi4s_transaction#(TID_T,TDEST_T,TUSER_T) transaction =
-                axi4s_transaction#(TID_T,TDEST_T,TUSER_T)::create_from_bytes(
+            axi4s_transaction#(TID_T, TDEST_T, TUSER_T) transaction =
+                axi4s_transaction#(TID_T, TDEST_T, TUSER_T)::create_from_bytes(
                     $sformatf("Packet %0d", pkt_idx),
                     pcap.records[i].pkt_data,
                     id,
@@ -186,12 +182,12 @@ class axi4s_driver #(
             info_msg($sformatf("TID %d: Sending packet # %0d (of %0d)...", id, pkt_idx+1, num_pkts));
 
             // Send transaction
-            _send(transaction);
+            send(transaction);
 
             info_msg($sformatf("TID %d: Done. Packet # %0d (of %0d) sent.", id, pkt_idx+1, num_pkts));
 
             pkt_idx++;
         end
     endtask
-
+  
 endclass : axi4s_driver
