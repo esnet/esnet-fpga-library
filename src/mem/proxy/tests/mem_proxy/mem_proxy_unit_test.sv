@@ -14,8 +14,8 @@ module mem_proxy_unit_test;
     //===================================
     localparam type ADDR_T = logic[7:0];
     localparam type DATA_T = logic[511:0];
-    localparam ACCESS_TYPE = ACCESS_READ_WRITE;
-    localparam MEM_TYPE = MEM_TYPE_SRAM;
+    localparam access_t   ACCESS_TYPE = ACCESS_READ_WRITE;
+    localparam mem_type_t MEM_TYPE = MEM_TYPE_SRAM;
 
     localparam int ADDR_WID = $bits(ADDR_T);
     localparam int DEPTH = 2**ADDR_WID;
