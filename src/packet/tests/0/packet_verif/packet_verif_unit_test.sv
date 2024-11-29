@@ -63,6 +63,7 @@ module packet_verif_unit_test;
         `SVTEST(packet_raw)
             import packet_verif_pkg::*;
             int exp_size = payload_data.size();
+            packet_pkg::protocol_t exp_protocol = packet_pkg::PROTOCOL_NONE;
 
             // Create new raw packet from payload data
             packet_raw#() the_raw_packet = packet_raw#()::create_from_bytes("raw packet", payload_data);
@@ -72,11 +73,11 @@ module packet_verif_unit_test;
 
             // Check protocol
             `FAIL_UNLESS_LOG(
-                the_raw_packet.protocol() == packet_pkg::PROTOCOL_NONE,
+                the_raw_packet.protocol() == exp_protocol,
                 $sformatf(
                     "Protocol mismatch. Exp: %s, Got: %s",
+                    exp_protocol.name,
                     the_raw_packet.protocol().name,
-                    packet_pkg::PROTOCOL_NONE.name
                 )
             );
 
@@ -97,6 +98,7 @@ module packet_verif_unit_test;
             packet_raw#() the_payload;
             packet_eth the_eth_packet;
             int exp_size = packet_eth_pkg::HDR_BYTES + payload_data.size();
+            packet_pkg::protocol_t exp_protocol = packet_pkg::PROTOCOL_ETHERNET;
 
             // Create new payload (raw packet)
             the_payload = packet_raw#()::create_from_bytes("the payload", payload_data);
@@ -109,11 +111,11 @@ module packet_verif_unit_test;
 
             // Check protocol
             `FAIL_UNLESS_LOG(
-                the_eth_packet.protocol() == packet_pkg::PROTOCOL_ETHERNET,
+                the_eth_packet.protocol() == exp_protocol,
                 $sformatf(
                     "Protocol mismatch. Exp: %s, Got: %s",
-                    the_eth_packet.protocol().name,
-                    packet_pkg::PROTOCOL_ETHERNET.name
+                    exp_protocol.name,
+                    the_eth_packet.protocol().name
                 )
             );
 
