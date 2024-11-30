@@ -97,7 +97,7 @@ module packet_capture_unit_test;
         env.register_subcomponent(reg_agent);
         env.build();
 
-        env.set_debug_level(3);
+        env.set_debug_level(0);
 
     endfunction
 
