@@ -14,7 +14,8 @@ virtual class component extends base;
     local semaphore __LOCK;
     local bit __FINALIZE = 1'b0;
     local bit __AUTOSTART = 1'b1;
-    local bit __RUNNING;
+
+    local enum {STOPPED, RUNNING, DEFUNCT} __state;
 
     //===================================
     // Pure Virtual Methods
@@ -37,7 +38,8 @@ virtual class component extends base;
     // Constructor
     function new(input string name="component");
         super.new(name);
-        __reset();
+        __state = STOPPED;
+        __init_lock();
     endfunction
 
     // Destructor
@@ -48,6 +50,7 @@ virtual class component extends base;
         __SUBCOMPONENTS.delete();
         __LOCK = null;
         super.destroy();
+        __state = DEFUNCT;
         trace_msg("destroy() Done.");
     endfunction
 
@@ -106,9 +109,22 @@ virtual class component extends base;
         __FINALIZE = 1'b1;
     endfunction
 
+    function automatic bit is_running();
+        return (__state == RUNNING);
+    endfunction
+
+    function automatic bit is_stopped();
+        return (__state == STOPPED);
+    endfunction
+
+    function automatic bit is_defunct();
+        return (__state == DEFUNCT);
+    endfunction
+
     // Reset base component object state
     local function automatic void __reset();
-        __init_lock();
+        if (is_running()) stop();
+        if (!is_defunct()) __init_lock();
     endfunction
 
     // Reset component state
@@ -139,7 +155,7 @@ virtual class component extends base;
     // Start component execution (run loop)
     virtual task run();
         trace_msg("run()");
-        if (__RUNNING) stop();
+        if (is_running()) stop();
         fork
             begin
                 fork
@@ -164,7 +180,7 @@ virtual class component extends base;
     function automatic void start();
         trace_msg("start()");
         -> __start;
-        __RUNNING = 1'b1;
+        __state = RUNNING;
         trace_msg("start() Done.");
     endfunction
 
@@ -181,7 +197,7 @@ virtual class component extends base;
         trace_msg("stop()");
         -> __stop;
         foreach (__SUBCOMPONENTS[i]) __SUBCOMPONENTS[i].stop();
-        __RUNNING = 1'b0;
+        __state = STOPPED;
         if (__FINALIZE) destroy();
         trace_msg("stop() Done.");
     endfunction
