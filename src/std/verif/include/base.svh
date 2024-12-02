@@ -27,6 +27,12 @@ virtual class base;
         this.__obj_name = name;
     endfunction
 
+    // Copy
+    function automatic void copy(input base obj);
+        this.set_name(obj.get_name());
+        this.set_debug_level(obj.get_debug_level());
+    endfunction
+
     // Configure trace output
     // (should be overriden by derived classes)
     function automatic void trace_msg(input string msg);

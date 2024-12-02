@@ -42,7 +42,7 @@ class component_env #(
 
     // Destructor
     // [[ implements std_verif_pkg::base.destroy() ]]
-    function automatic void destroy();
+    virtual function automatic void destroy();
         driver = null;
         monitor = null;
         model = null;
