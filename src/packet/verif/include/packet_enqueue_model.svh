@@ -28,7 +28,7 @@ class packet_enqueue_model #(
         this.__MIN_PKT_SIZE = MIN_PKT_SIZE;
         this.__MAX_PKT_SIZE = MAX_PKT_SIZE;
     endfunction
- 
+
     // Destructor
     // [[ implements std_verif_pkg::base.destroy() ]]
     virtual function automatic void destroy();
@@ -65,50 +65,50 @@ class packet_enqueue_model #(
     // Process input transaction
     // [[ implements std_verif_pkg::model._process() ]]
     protected task _process(input packet#(META_T) transaction);
-        packet_descriptor#(ADDR_T,META_T) descriptor;
+        packet_descriptor#(ADDR_T,META_T) desc;
         trace_msg("_process()");
-        if (__enqueue_packet(transaction, descriptor)) _enqueue(descriptor);
+        desc = __enqueue_packet(transaction);
+        if (desc) _enqueue(desc);
         trace_msg("_process() Done.");
     endtask
 
-    protected function automatic bit __enqueue_packet(input packet#(META_T) packet, output packet_descriptor#(ADDR_T,META_T) descriptor);
-        bit __enqueue_ok = 1'b0;
+    local function automatic packet_descriptor#(ADDR_T,META_T) __enqueue_packet(ref packet#(META_T) pkt);
+        packet_descriptor#(ADDR_T,META_T) desc = null;
         trace_msg("__enqueue_packet()");
-        if (packet.is_errored()) begin
+        if (pkt.is_errored()) begin
             debug_msg(
                 $sformatf("Failed to enqueue %s. Packet marked as errored.",
-                    packet.get_name()
+                    pkt.get_name()
                 )
             );
-        end else if (check_oflow(packet.size())) begin
+        end else if (check_oflow(pkt.size())) begin
             debug_msg(
                 $sformatf("Failed to enqueue %s. Overflow detected.",
-                    packet.get_name()
+                    pkt.get_name()
                 )
             );
-        end else if (packet.size() > this.__MAX_PKT_SIZE) begin
+        end else if (pkt.size() > this.__MAX_PKT_SIZE) begin
             debug_msg(
                 $sformatf("Failed to enqueue %s. Packet length (%0d) exceeds max (%0d).",
-                    packet.get_name(),
-                    packet.size(),
+                    pkt.get_name(),
+                    pkt.size(),
                     this.__MAX_PKT_SIZE
                 )
             );
-        end else if (packet.size() < this.__MIN_PKT_SIZE) begin
+        end else if (pkt.size() < this.__MIN_PKT_SIZE) begin
             debug_msg(
                 $sformatf("Failed to enqueue %s. Packet length (%0d) is less than min (%0d).",
-                    packet.get_name(),
-                    packet.size(),
+                    pkt.get_name(),
+                    pkt.size(),
                     this.__MIN_PKT_SIZE
                 )
             );
         end else begin
-            descriptor = new(packet.get_name(), this.__head_ptr, packet.size(), packet.get_meta());
-            this.__head_ptr += packet.size() % DATA_BYTE_WID == 0 ? packet.size() / DATA_BYTE_WID : packet.size() / DATA_BYTE_WID + 1;
-            __enqueue_ok = 1'b1;
+            desc = packet_descriptor#(ADDR_T,META_T)::create_from_packet(pkt, this.__head_ptr);
+            this.__head_ptr += pkt.size() % DATA_BYTE_WID == 0 ? pkt.size() / DATA_BYTE_WID : pkt.size() / DATA_BYTE_WID + 1;
         end
         trace_msg("__enqueue_packet() Done.");
-        return __enqueue_ok;
+        return desc;
     endfunction
 
 endclass : packet_enqueue_model

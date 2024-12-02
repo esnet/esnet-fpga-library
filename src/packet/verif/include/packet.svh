@@ -1,7 +1,7 @@
 // Base packet transaction class for verification
 // - abstract class (can't be instantiated directly)
 // - describes interface for 'generic' packet transactions, where methods are to be implemented by subclass
-virtual class packet #(parameter type META_T = bit) extends std_verif_pkg::transaction;
+virtual class packet#(parameter type META_T = bit) extends std_verif_pkg::transaction;
 
     local static const string __CLASS_NAME = "packet_verif_pkg::packet";
 
@@ -22,8 +22,8 @@ virtual class packet #(parameter type META_T = bit) extends std_verif_pkg::trans
     // Pure Virtual Methods
     // (must be implemented by derived class)
     //===================================
-    pure virtual function automatic packet#(META_T) clone(input string name);
     pure virtual function automatic byte_array_t to_bytes();
+    pure virtual function automatic void         from_bytes(input byte_array_t data);
     pure virtual function automatic byte_array_t header();
     pure virtual function automatic byte_array_t payload();
     pure virtual function automatic protocol_t   payload_protocol();
@@ -50,15 +50,45 @@ virtual class packet #(parameter type META_T = bit) extends std_verif_pkg::trans
         super.destroy();
     endfunction
 
+    // Copy from reference
+    // [[ implements std_verif_pkg::transaction._copy() ]]
+    virtual protected function automatic void _copy(input std_verif_pkg::transaction t2);
+        packet#(META_T) pkt;
+        if (!$cast(pkt, t2)) begin
+            // Impossible to continue; raise fatal exception.
+            $fatal(2, $sformatf("Type mismatch while copying '%s' to '%s'", t2.get_name(), this.get_name()));
+        end
+        this.__set_protocol(pkt.protocol());
+        this.set_meta(pkt.get_meta());
+        this._err = pkt.is_errored();
+    endfunction
+
+    // Duplicate packet
+    //  - enhanced version of clone() that includes the upcast to packet type and
+    //    allows for transaction renaming
+    virtual function automatic packet#(META_T) dup(input string name=get_name());
+        packet#(META_T) pkt;
+        if (!$cast(pkt, this.clone())) begin
+            // Impossible to continue; raise fatal exception.
+            $fatal(2, "Dynamic cast failure during object duplication. This should never happen.");
+        end
+        pkt.set_name(name);
+        return pkt;
+    endfunction
+
     // Configure trace output
     // [[ overrides std_verif_pkg::base.trace_msg() ]]
     function automatic void trace_msg(input string msg);
         _trace_msg(msg, __CLASS_NAME);
     endfunction
 
-    // Packet type
+    // Protocol
     function automatic protocol_t protocol();
         return this.__protocol;
+    endfunction
+
+    local function automatic void __set_protocol(input protocol_t protocol);
+        this.__protocol = protocol;
     endfunction
 
     // Size
@@ -84,6 +114,26 @@ virtual class packet #(parameter type META_T = bit) extends std_verif_pkg::trans
         return this._err;
     endfunction
 
+    // Get specified byte
+    function automatic byte get_byte(input int idx);
+        if (idx < this.size()) begin
+            byte_array_t __data = this.to_bytes();
+            return __data[idx];
+        end else begin
+            error_msg($sformatf("Attempted to read byte %0d in packet of length %0d bytes.", idx, this.size()));
+            return 0;
+        end
+    endfunction
+
+    // Set specified byte
+    function automatic void set_byte(input int idx, input byte data);
+        if (idx < this.size()) begin
+            byte_array_t __pkt_as_bytes = this.to_bytes();
+            __pkt_as_bytes[idx] = data;
+            this.from_bytes(__pkt_as_bytes);
+        end else error_msg($sformatf("Attempted to write byte %0d in packet of length %0d bytes.", idx, this.size()));
+    endfunction
+
     // Get string representation of transaction
     // [[ implements std_verif_pkg::transaction.to_string() ]]
     virtual function automatic string to_string();
@@ -93,24 +143,32 @@ virtual class packet #(parameter type META_T = bit) extends std_verif_pkg::trans
                 $sformatf(
                     "Packet '%s' (%s, %0d bytes, err: %0b, meta: 0x%0x):\n",
                     get_name(),
-                    packet_pkg::get_protocol_name(protocol()),
+                    packet_pkg::get_protocol_name(__protocol),
                     size(),
-                    this.is_errored(),
-                    this._meta
+                    _err,
+                    _meta
                 )
               };
         return str;
     endfunction
 
     // Compare packets
-    protected virtual function automatic bit _compare(input packet#(META_T) b, output string msg);
-        if (this.size() != b.size()) begin
+    // [[ implements std_verif_pkg::transaction.compare() ]]
+    virtual function automatic bit compare(input std_verif_pkg::transaction t2, output string msg);
+        packet#(META_T) b;
+        // Cast generic transaction as packet type
+        if (!$cast(b, t2)) begin
+            msg = $sformatf("Transaction type mismatch. Transaction '%s' is not of type %s or has unexpected parameterization.", t2.get_name(), __CLASS_NAME);
+            return 0;
+        end
+        // Compare packets
+        if (this.size() !== b.size()) begin
             msg = $sformatf("Packet size mismatch. A: %0d bytes, B: %0d bytes.", this.size(), b.size());
             return 0;
-        end else if (this.get_meta() != b.get_meta()) begin
+        end else if (this.get_meta() !== b.get_meta()) begin
             msg = $sformatf("Packet metadata mismatch. A: 0x%0x, B: 0x%0x.", this.get_meta(), b.get_meta());
             return 0;
-        end else if (this.is_errored() != b.is_errored()) begin
+        end else if (this.is_errored() !== b.is_errored()) begin
             msg = $sformatf("Packet error indication mismatch. A: %b, B: %b.", this.is_errored(), b.is_errored());
             return 0;
         end else begin
@@ -128,12 +186,6 @@ virtual class packet #(parameter type META_T = bit) extends std_verif_pkg::trans
         end
         msg = "Packets match.";
         return 1;
-    endfunction
-
-    // Compare packet transactions
-    // [[ implements std_verif_pkg::transaction.compare() ]]
-    function bit compare(input packet#(META_T) t2, output string msg);
-        return this._compare(t2, msg);
     endfunction
 
 endclass : packet

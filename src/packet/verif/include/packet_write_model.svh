@@ -76,7 +76,7 @@ class packet_write_model #(
     endfunction
 
     function automatic int get_next_descriptor_size();
-        if (is_descriptor_available()) return __descriptors[0].get_size();
+        if (is_descriptor_available()) return __descriptors[0].size;
         else return 0;
     endfunction
 
@@ -128,9 +128,9 @@ class packet_write_model #(
             );
         end else begin
             descriptor = get_next_descriptor();
-            descriptor.set_size(packet.size());
-            descriptor.set_meta(packet.get_meta());
-            if (packet.is_errored()) descriptor.mark_as_errored();
+            descriptor.size = packet.size();
+            descriptor.meta = packet.get_meta();
+            descriptor.err = packet.is_errored();
             __write_ok = 1'b1;
         end
         trace_msg("__write_packet() Done.");
