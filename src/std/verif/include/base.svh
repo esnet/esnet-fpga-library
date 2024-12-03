@@ -8,7 +8,18 @@ virtual class base;
     //===================================
     // Properties
     //===================================
-    local string __obj_name;
+    // WORKAROUND-STRING-PROP {
+    //     Store object name as array of bytes instead of string to
+    //     work around copy constructor issue, i.e. unexpected
+    //     interaction between original and copied object through
+    //     the __obj_name property (new string object not allocated
+    //     or improperly allocated for copied object?).
+    //
+    //     Interface for accessing this value as a string is unchanged
+    //     (i.e. get_name/set_name return/accept string variables).
+    // local string __obj_name;
+    local byte __obj_name [];
+    // } WORKAROUND-STRING-PROP
 
     local int __DEBUG_LEVEL = 0;
 
@@ -24,7 +35,7 @@ virtual class base;
     //===================================
     // Constructor
     function new(input string name="base");
-        this.__obj_name = name;
+        set_name(name);
         // WORKAROUND-INIT-PROPS {
         //     Provide/repeat default assignments for all remaining instance properties here.
         //     Works around an apparent object initialization bug (as of Vivado 2024.2)
@@ -47,11 +58,33 @@ virtual class base;
     endfunction
 
     function automatic string get_name();
-        return this.__obj_name;
+        // WORKAROUND-STRING-PROP {
+        //     Store object name as array of bytes instead of string to
+        //     work around copy constructor issue, i.e. unexpected
+        //     interaction between original and copied object through
+        //     the __obj_name property (new string object not allocated
+        //     or improperly allocated for copied object?).
+        //
+        //     Interface for accessing this value as a string is unchanged
+        //     (i.e. get_name/set_name return/accept string variables).
+        // return this.__obj_name;
+        return {<<byte{this.__obj_name}};
+        // } WORKAROUND-STRING-PROP
     endfunction
 
     function automatic void set_name(input string name);
-        this.__obj_name = name;
+        // WORKAROUND-STRING-PROP {
+        //     Store object name as array of bytes instead of string to
+        //     work around copy constructor issue, i.e. unexpected
+        //     interaction between original and copied object through
+        //     the __obj_name property (new string object not allocated
+        //     or improperly allocated for copied object?).
+        //
+        //     Interface for accessing this value as a string is unchanged
+        //     (i.e. get_name/set_name return/accept string variables).
+        // this.__obj_name = name;
+        this.__obj_name = {<<byte{name}};
+        // } WORKAROUND-STRING-PROP
     endfunction
 
     function automatic void set_debug_level(input int DEBUG_LEVEL);
