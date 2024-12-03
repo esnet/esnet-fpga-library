@@ -160,11 +160,11 @@ module packet_enqueue_unit_test #(
     int len;
 
     task one_packet(int id=0, int len=$urandom_range(MIN_PKT_SIZE, MAX_PKT_SIZE));
-        packet_raw#(META_T) packet;
+        packet_raw#(META_T) pkt;
         void'(std::randomize(meta));
-        packet = new($sformatf("pkt_%0d", id), len, meta);
-        packet.randomize();
-        env.inbox.put(packet);
+        pkt = new($sformatf("pkt_%0d", id), len, meta);
+        pkt.randomize();
+        env.inbox.put(pkt);
     endtask
 
     task packet_stream(input int NUM_PKTS);
@@ -246,19 +246,19 @@ module packet_enqueue_unit_test #(
 
 
         `SVTEST(one_packet_bad)
-            packet_raw#(META_T) packet;
-            packet_raw#(META_T) bad_packet;
+            packet_raw#(META_T) pkt;
+            packet#(META_T) bad_pkt;
             // Create 'expected' transaction
             len = $urandom_range(MIN_PKT_SIZE, MAX_PKT_SIZE);
             void'(std::randomize(meta));
-            packet = new("pkt_0", len, meta);
-            packet.randomize();
-            env.model.inbox.put(packet);
+            pkt = new("pkt_0", len, meta);
+            pkt.randomize();
+            env.model.inbox.put(pkt);
             // Create 'actual' transaction and modify one byte of packet
             // so that it generates a mismatch wrt the expected packet
-            bad_packet = packet.clone("pkt_0_bad");
-            bad_packet.set_meta(packet.get_meta()+1);
-            env.driver.inbox.put(bad_packet);
+            bad_pkt = pkt.dup("pkt_0_bad");
+            bad_pkt.set_meta(pkt.get_meta() + 1);
+            env.driver.inbox.put(bad_pkt);
             repeat (1000) @(posedge clk);
             `FAIL_UNLESS_LOG(
                 scoreboard.report(msg),

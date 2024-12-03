@@ -159,8 +159,8 @@ module packet_descriptor_intf_unit_test #(
             env.model.inbox.put(packet);
             // Create 'actual' transaction and modify one byte of packet
             // so that it generates a mismatch wrt the expected packet
-            bad_packet = packet.clone("trans_0_bad");
-            bad_packet.set_addr(packet.get_addr()+1);
+            bad_packet = packet.dup("trans_0_bad");
+            bad_packet.addr++;
             env.driver.inbox.put(bad_packet);
             packet_descriptor_in_if._wait(1000);
             `FAIL_UNLESS_LOG(
