@@ -160,7 +160,7 @@ virtual class component extends base;
             begin
                 fork
                     begin
-                        autostart();
+                        __autostart();
                         wait(__start.triggered);
                         _run();
                         wait(0); 
@@ -185,11 +185,8 @@ virtual class component extends base;
     endfunction
 
     // Auto-start for component and subcomponents
-    function automatic void autostart();
-        if (__AUTOSTART) begin
-            start();
-            foreach (__SUBCOMPONENTS[i]) __SUBCOMPONENTS[i].autostart();
-        end
+    function automatic void __autostart();
+        if (__AUTOSTART) start();
     endfunction
 
     // Stop component execution
