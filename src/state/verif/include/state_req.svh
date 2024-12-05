@@ -1,16 +1,13 @@
-class state_req#(
-    parameter type ID_T = bit,
-    parameter type UPDATE_T = bit
-) extends std_verif_pkg::transaction;
+class state_req#(parameter type ID_T = bit, parameter type UPDATE_T = bit) extends std_verif_pkg::transaction;
 
     local static const string __CLASS_NAME = "state_verif_pkg::state_req";
 
     //===================================
     // Properties
     //===================================
-    const ID_T id;
-    const update_ctxt_t ctxt;
-    const bit init;
+    ID_T id;
+    update_ctxt_t ctxt;
+    bit init;
     rand UPDATE_T update;
 
     //===================================
@@ -41,6 +38,20 @@ class state_req#(
         _trace_msg(msg, __CLASS_NAME);
     endfunction
 
+    // Copy from reference
+    // [[ implements std_verif_pkg::transaction._copy() ]]
+    virtual protected function automatic void _copy(input std_verif_pkg::transaction t2);
+        state_req#(ID_T, UPDATE_T) req;
+        if (!$cast(req, t2)) begin
+            // Impossible to continue; raise fatal exception.
+            $fatal(2, $sformatf("Type mismatch while copying '%s' to '%s'", t2.get_name(), this.get_name()));
+        end
+        this.id = req.id;
+        this.ctxt = req.ctxt;
+        this.init = req.init;
+        this.update = req.update;
+    endfunction
+
     static function state_req#(ID_T,UPDATE_T) create_from_update(
             input string name, input ID_T id, input update_ctxt_t ctxt, input bit init, input UPDATE_T update
         );
@@ -54,7 +65,7 @@ class state_req#(
     endfunction
 
     // Get string representation of transaction
-    // [[ implements to_string virtual method of std_verif_pkg::transaction ]]
+    // [[ implements std_verif_pkg::transaction.to_string() ]]
     function automatic string to_string();
         string str;
         str = $sformatf("State update request '%s':\n", get_name());
@@ -66,36 +77,42 @@ class state_req#(
     endfunction
 
     // Compare transaction against another
-    // [[ implements compare virtual method of std_verif_pkg::transaction ]]
-    function automatic bit compare(input state_req#(ID_T,UPDATE_T) t2, output string msg);
-        if (this.ctxt !== t2.ctxt) begin
+    // [[ implements std_verif_pkg::transaction.compare() ]]
+    function automatic bit compare(input std_verif_pkg::transaction t2, output string msg);
+        state_req#(ID_T, UPDATE_T) b;
+        // Upcast generic transaction to raw transaction type
+        if (!$cast(b, t2)) begin
+            msg = $sformatf("Transaction type mismatch. Transaction '%s' is not of type %s or has unexpected parameterization.", t2.get_name(), __CLASS_NAME);
+            return 0;
+        end
+        if (this.ctxt !== b.ctxt) begin
             msg = $sformatf(
                 "Mismatch while comparing contexts. A: %s, B: %s.",
                 this.ctxt.name(),
-                t2.ctxt.name()
+                b.ctxt.name()
             );
             return 0;
         end
-        if (this.id !== t2.id) begin
+        if (this.id !== b.id) begin
             msg = $sformatf(
                 "Mismatch while comparing ID values. A: %d, B: %d.",
                 this.id,
-                t2.id
+                b.id
             );
             return 0;
         end
-        if (this.update !== t2.update) begin
+        if (this.update !== b.update) begin
             msg = $sformatf(
                 "Mismatch while comparing UPDATE values. A: 0x%0x, B: 0x%0x.",
                 this.update,
-                t2.update
+                b.update
             );
             return 0;
-        end else if (this.init !== t2.init) begin
+        end else if (this.init !== b.init) begin
             msg = $sformatf(
                 "Mismatch while comparing INIT values. A: %b, B: %b.",
                 this.init,
-                t2.init
+                b.init
             );
             return 0;
         end

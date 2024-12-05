@@ -1,13 +1,11 @@
-class state_resp#(
-    parameter type STATE_T = bit
-) extends std_verif_pkg::transaction;
+class state_resp#(parameter type STATE_T = bit) extends std_verif_pkg::transaction;
 
     local static const string __CLASS_NAME = "state_verif_pkg::state_resp";
 
     //===================================
     // Properties
     //===================================
-    const STATE_T state;
+    STATE_T state;
 
     //===================================
     // Methods
@@ -33,8 +31,19 @@ class state_resp#(
         _trace_msg(msg, __CLASS_NAME);
     endfunction
 
+    // Copy from reference
+    // [[ implements std_verif_pkg::transaction._copy() ]]
+    virtual protected function automatic void _copy(input std_verif_pkg::transaction t2);
+        state_resp#(STATE_T) resp;
+        if (!$cast(resp, t2)) begin
+            // Impossible to continue; raise fatal exception.
+            $fatal(2, $sformatf("Type mismatch while copying '%s' to '%s'", t2.get_name(), this.get_name()));
+        end
+        this.state = resp.state;
+    endfunction
+
     // Get string representation of transaction
-    // [[ implements to_string virtual method of std_verif_pkg::transaction ]]
+    // [[ implements std_verif_pkg::transaction.to_string() ]]
     function automatic string to_string();
         string str;
         str = $sformatf("State update response '%s':\n", get_name());
@@ -43,13 +52,19 @@ class state_resp#(
     endfunction
 
     // Compare transaction against another
-    // [[ implements compare virtual method of std_verif_pkg::transaction ]]
-    function automatic bit compare(input state_resp#(STATE_T) t2, output string msg);
-        if (this.state !== t2.state) begin
+    // [[ implements std_verif_pkg::transaction.compare() ]]
+    function automatic bit compare(input std_verif_pkg::transaction t2, output string msg);
+        state_resp#(STATE_T) b;
+        // Upcast generic transaction to raw transaction type
+        if (!$cast(b, t2)) begin
+            msg = $sformatf("Transaction type mismatch. Transaction '%s' is not of type %s or has unexpected parameterization.", t2.get_name(), __CLASS_NAME);
+            return 0;
+        end
+        if (this.state !== b.state) begin
             msg = $sformatf(
                 "Mismatch while comparing STATE values. A: 0x%0x, B: 0x%0x.",
                 this.state,
-                t2.state
+                b.state
             );
             return 0;
         end
