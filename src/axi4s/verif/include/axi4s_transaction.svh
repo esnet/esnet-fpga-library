@@ -1,8 +1,10 @@
 class axi4s_transaction #(
     parameter type TID_T = bit,
     parameter type TDEST_T = bit,
-    parameter type TUSER_T = bit
-) extends packet_verif_pkg::packet_raw#(struct packed {TID_T tid; TDEST_T tdest; TUSER_T tuser;});
+    parameter type TUSER_T = bit,
+    // Derived parameters (don't override)
+    parameter type META_T = struct packed {TID_T tid; TDEST_T tdest; TUSER_T tuser;}
+) extends packet_verif_pkg::packet_raw#(META_T);
 
     local static const string __CLASS_NAME = "axi4s_verif_pkg::axi4s_transaction";
 
@@ -28,6 +30,17 @@ class axi4s_transaction #(
     // [[ implements std_verif_pkg::base.destroy() ]]
     virtual function automatic void destroy();
         super.destroy();
+    endfunction
+
+    // Copy from reference
+    // [[ implements std_verif_pkg::transaction._copy() ]]
+    virtual protected function automatic void _copy(input std_verif_pkg::transaction t2);
+        axi4s_transaction#(TID_T, TDEST_T, TUSER_T) trans;
+        super._copy(t2);
+        if (!$cast(trans, t2)) begin
+            // Impossible to continue; raise fatal exception.
+            $fatal(2, "Transaction type mismatch during object copy operation.");
+        end
     endfunction
 
     // Configure trace output
@@ -79,21 +92,21 @@ class axi4s_transaction #(
             input bit err = 1'b0
         );
         axi4s_transaction#(TID_T, TDEST_T, TUSER_T) new_transaction = new(name, data.size(), tid, tdest, tuser, err);
-        new_transaction.set_from_bytes(data);
+        new_transaction.from_bytes(data);
         return new_transaction;
     endfunction
 
-    function automatic axi4s_transaction#(TID_T, TDEST_T, TUSER_T) clone(input string name);
-        axi4s_transaction#(TID_T, TDEST_T, TUSER_T) cloned_transaction =
-            axi4s_transaction#(TID_T, TDEST_T, TUSER_T)::create_from_bytes(
-                name,
-                this.to_bytes,
-                this.get_tid(),
-                this.get_tdest(),
-                this.get_tuser(),
-                this.is_errored()
-            );
-        return cloned_transaction;
+    // Duplicate transaction
+    //  - enhanced version of clone() that includes the upcast to packet type and
+    //    allows for transaction renaming
+    virtual function automatic axi4s_transaction#(TID_T, TDEST_T, TUSER_T) dup(input string name=get_name());
+        axi4s_transaction#(TID_T, TDEST_T, TUSER_T) trans;
+        if (!$cast(trans, this.clone())) begin
+            // Impossible to continue; raise fatal exception.
+            $fatal(2, "Dynamic cast failure during object duplication. This should never happen.");
+        end
+        trans.set_name(name);
+        return trans;
     endfunction
 
     // Get string representation of transaction
@@ -109,16 +122,23 @@ class axi4s_transaction #(
 
     // Compare transaction to a reference transaction
     // [[ implements std_verif_pkg::transaction.compare() ]]
-    virtual function bit _compare(input axi4s_transaction#(TID_T, TDEST_T, TUSER_T) b, output string msg);
+    virtual function automatic bit compare(input std_verif_pkg::transaction t2, output string msg);
+        axi4s_transaction#(TID_T, TDEST_T, TUSER_T) b;
+        // Cast generic transaction as AXI-S transaction type
+        if (!$cast(b, t2)) begin
+            msg = $sformatf("Transaction type mismatch. Transaction '%s' is not of type %s or has unexpected parameterization.", t2.get_name(), __CLASS_NAME);
+            return 0;
+        end
+        // Compare packets
         if (this.get_tid() !== b.get_tid()) begin
             msg = $sformatf("Mismatch in 'tid' field. A: %x, B: %x.", this.get_tid(), b.get_tid());
             return 0;
         end else if (this.get_tdest() !== b.get_tdest()) begin
             msg = $sformatf("Mismatch in 'tdest' field. A: %x, B: %x.", this.get_tdest(), b.get_tdest());
             return 0;
-        end else if (this.get_tuser() != b.get_tuser()) begin
+        end else if (this.get_tuser() !== b.get_tuser()) begin
             msg = $sformatf("Mismatch in 'tuser' field. A: %x, B: %x.", this.get_tuser(), b.get_tuser());
             return 0;
-        end else return super._compare(b, msg);
+        end else return super.compare(b, msg);
     endfunction
 endclass
