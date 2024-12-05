@@ -8,7 +8,7 @@ virtual class driver #(parameter type TRANSACTION_T = transaction) extends compo
     //===================================
     // Properties
     //===================================
-    local int __cnt;
+    local int __cnt = 0;
 
     mailbox #(TRANSACTION_T) inbox;
 

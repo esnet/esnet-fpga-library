@@ -8,7 +8,7 @@ virtual class monitor #(parameter type TRANSACTION_T = transaction) extends comp
     //===================================
     // Properties
     //===================================
-    local int __cnt;
+    local int __cnt = 0;
     local string __rx_transaction_prefix;
 
     mailbox #(TRANSACTION_T) outbox;

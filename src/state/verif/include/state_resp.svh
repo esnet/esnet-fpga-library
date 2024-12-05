@@ -21,6 +21,12 @@ class state_resp#(
         this.state = state;
     endfunction
 
+    // Destructor
+    // [[ implements std_verif_pkg::base.destroy() ]]
+    virtual function automatic void destroy();
+        super.destroy();
+    endfunction
+
     // Configure trace output
     // [[ overrides std_verif_pkg::base.trace_msg() ]]
     function automatic void trace_msg(input string msg);

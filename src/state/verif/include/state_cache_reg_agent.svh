@@ -25,7 +25,16 @@ class state_cache_reg_agent#(type KEY_T = bit, type ID_T = bit) extends state_ca
         this.db_agent = new("db_agent", NUM_IDS, reg_agent, BASE_OFFSET + 'h400);
         this.db_agent.set_reset_timeout(4*NUM_IDS);
         this.db_agent.set_op_timeout(128);
-        reset();
+    endfunction
+
+    // Destructor
+    // [[ implements std_verif_pkg::base.destroy() ]]
+    virtual function automatic void destroy();
+        db_agent = null;
+        cuckoo_agent = null;
+        fast_update_agent = null;
+        allocator_agent = null;
+        super.destroy();
     endfunction
 
     // Reset agent state

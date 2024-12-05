@@ -19,7 +19,6 @@ virtual class env extends component;
     // Constructor
     function new(input string name="env");
         super.new(name);
-        _reset();
     endfunction
 
     // Destructor
@@ -65,11 +64,11 @@ virtual class env extends component;
         trace_msg("_init() Done.");
     endtask
 
-    // Start environment execution (run loop)
+    // Environment process
     virtual protected task _run();
-        trace_msg("_run()");
+        // Nothing to do typically
+        // (all interesting processes are implemented by subcomponents)
         info_msg("Starting environment...");
-        trace_msg("_run() Done.");
     endtask
 
     // [[ overrides std_verif_pkg::component.run ]]

@@ -11,8 +11,8 @@ virtual class model #(
     //===================================
     // Properties
     //===================================
-    local int __cnt_in;
-    local int __cnt_out;
+    local int __cnt_in = 0;
+    local int __cnt_out = 0;
 
     mailbox #(TRANSACTION_IN_T)  inbox;
     mailbox #(TRANSACTION_OUT_T) outbox;
@@ -29,8 +29,6 @@ virtual class model #(
     // Constructor
     function new(input string name="model");
         super.new(name);
-        __cnt_in = 0;
-        __cnt_out = 0;
     endfunction
 
     // Destructor

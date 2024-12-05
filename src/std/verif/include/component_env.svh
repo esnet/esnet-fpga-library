@@ -78,7 +78,7 @@ class component_env #(
         trace_msg("_build() Done.");
     endfunction
 
-    // Start environment execution (run loop)
+    // Environment process (run loop)
     // [[ implements std_verif_pkg::component._run() ]]
     protected task _run();
         trace_msg("_run()");

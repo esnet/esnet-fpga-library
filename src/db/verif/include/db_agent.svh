@@ -15,8 +15,8 @@ virtual class db_agent #(
     protected int _OP_TIMEOUT=0;
 
     //===================================
-    // Virtual Methods
-    // (to be implemented by derived class)
+    // Pure Virtual Methods
+    // (must be implemented by derived class)
     //===================================
     // Generic transaction (no timeout protection)
     pure virtual protected task _transact(input db_pkg::command_t _command, output bit _error);

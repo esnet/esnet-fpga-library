@@ -48,8 +48,8 @@ virtual class agent extends component;
         // Nothing to do typically
     endtask
 
-    // Start agent (run loop)
-    // [[ implements std_verif_pkg::component._start() ]]
+    // Agent process
+    // [[ implements std_verif_pkg::component._run() ]]
     virtual protected task _run();
         // Nothing to do typically
     endtask

@@ -20,10 +20,8 @@ class state_monitor #(
     // Destructor
     // [[ implements std_verif_pkg::base.destroy() ]]
     virtual function automatic void destroy();
-        trace_msg("destroy()");
         update_vif = null;
         super.destroy();
-        trace_msg("destroy() Done.");
     endfunction
 
 
@@ -40,9 +38,7 @@ class state_monitor #(
 
     // Receive transaction from interface
     // [[ implements _receive() virtual method of std_verif_pkg::monitor parent class ]]
-    protected task _receive(
-            output state_resp#(ID_T, STATE_T) transaction
-        );
+    protected task _receive(output state_resp#(ID_T, STATE_T) transaction);
         STATE_T rx_state;
         bit __timeout;
         static int __rx_count = 0;

@@ -41,7 +41,7 @@ class component_ctrl_env #(
 
     // Build environment
     // [[ implements std_verif_pkg::env._build() ]]
-    protected virtual function automatic void _build();
+    virtual protected function automatic void _build();
         trace_msg("_build()");
         register_subcomponent(agent);
         super._build();
