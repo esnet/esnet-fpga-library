@@ -47,6 +47,14 @@ class axi4s_component_env #(
         this.monitor = new(.BIGENDIAN(BIGENDIAN));
         this.model = model;
         this.scoreboard = scoreboard;
+        // WORKAROUND-INIT-PROPS {
+        //     Provide/repeat default assignments for all remaining instance properties here.
+        //     Works around an apparent object initialization bug (as of Vivado 2024.2)
+        //     where properties are not properly allocated when they are not assigned
+        //     in the constructor.
+        this.axis_in_vif = null;
+        this.axis_out_vif = null;
+        // } WORKAROUND-INIT-PROPS
     endfunction
 
     // Configure trace output

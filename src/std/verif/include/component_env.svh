@@ -38,6 +38,16 @@ class component_env #(
         __mon_outbox = new();
         __model_inbox = new();
         __model_outbox = new();
+        // WORKAROUND-INIT-PROPS {
+        //     Provide/repeat default assignments for all remaining instance properties here.
+        //     Works around an apparent object initialization bug (as of Vivado 2024.2)
+        //     where properties are not properly allocated when they are not assigned
+        //     in the constructor.
+        driver = null;
+        monitor = null;
+        model = null;
+        scoreboard = null;
+        // } WORKAROUND-INIT-PROPS
     endfunction
 
     // Destructor

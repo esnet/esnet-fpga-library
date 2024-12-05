@@ -27,6 +27,13 @@ class reg_blk_agent #(
     function new(input string name, input int BASE_ADDR=0);
         super.new(name);
         this._BASE_ADDR = BASE_ADDR;
+        // WORKAROUND-INIT-PROPS {
+        //     Provide/repeat default assignments for all remaining instance properties here.
+        //     Works around an apparent object initialization bug (as of Vivado 2024.2)
+        //     where properties are not properly allocated when they are not assigned
+        //     in the constructor.
+        this.reg_agent = null;
+        // } WORKAROUND-INIT-PROPS
     endfunction
 
     // Destructor

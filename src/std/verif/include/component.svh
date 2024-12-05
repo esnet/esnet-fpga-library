@@ -43,6 +43,15 @@ virtual class component extends base;
         super.new(name);
         __state = STOPPED;
         __init_lock();
+        // WORKAROUND-INIT-PROPS {
+        //     Provide/repeat default assignments for all remaining instance properties here.
+        //     Works around an apparent object initialization bug (as of Vivado 2024.2)
+        //     where properties are not properly allocated when they are not assigned
+        //     in the constructor.
+        __SUBCOMPONENTS = {};
+        __FINALIZE = 1'b0;
+        __AUTOSTART = 1'b1;
+        // } WORKAROUND-INIT-PROPS
     endfunction
 
     // Destructor

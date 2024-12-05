@@ -32,6 +32,20 @@ virtual class scoreboard #(parameter type TRANSACTION_T = transaction) extends c
     // Constructor
     function new(input string name="scoreboard");
         super.new(name);
+        // WORKAROUND-INIT-PROPS {
+        //     Provide/repeat default assignments for all remaining instance properties here.
+        //     Works around an apparent object initialization bug (as of Vivado 2024.2)
+        //     where properties are not properly allocated when they are not assigned
+        //     in the constructor.
+        this.__got_cnt = 0;
+        this.__exp_cnt = 0;
+        this.__processed_cnt = 0;
+        this.__match_cnt = 0;
+        this.__mismatch_cnt = 0;
+        this.__unmatched_cnt = 0;
+        this.got_inbox = null;
+        this.exp_inbox = null;
+        // } WORKAROUND-INIT-PROPS
     endfunction
 
     // Destructor

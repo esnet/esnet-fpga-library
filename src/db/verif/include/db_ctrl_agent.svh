@@ -28,6 +28,15 @@ class db_ctrl_agent #(
         super.new(name, _size);
         this.set_reset_timeout(32+2*_size);
         this.set_op_timeout(32);
+        // WORKAROUND-INIT-PROPS {
+        //     Provide/repeat default assignments for all remaining instance properties here.
+        //     Works around an apparent object initialization bug (as of Vivado 2024.2)
+        //     where properties are not properly allocated when they are not assigned
+        //     in the constructor.
+        this.ctrl_vif = null;
+        this.info_vif = null;
+        this.status_vif = null;
+        // } WORKAROUND-INIT-PROPS
     endfunction
 
     // Configure trace output

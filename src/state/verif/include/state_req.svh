@@ -24,6 +24,13 @@ class state_req#(parameter type ID_T = bit, parameter type UPDATE_T = bit) exten
         this.ctxt = ctxt;
         this.id = id;
         this.init = init;
+        // WORKAROUND-INIT-PROPS {
+        //     Provide/repeat default assignments for all remaining instance properties here.
+        //     Works around an apparent object initialization bug (as of Vivado 2024.2)
+        //     where properties are not properly allocated when they are not assigned
+        //     in the constructor.
+        this.update = 0;
+        // } WORKAROUND-INIT-PROPS
     endfunction
 
     // Destructor

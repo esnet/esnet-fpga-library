@@ -37,6 +37,13 @@ class axi4s_driver #(
     function new(input string name="axi4s_driver", input bit BIGENDIAN=1);
         super.new(name);
         this.__BIGENDIAN = BIGENDIAN;
+        // WORKAROUND-INIT-PROPS {
+        //     Provide/repeat default assignments for all remaining instance properties here.
+        //     Works around an apparent object initialization bug (as of Vivado 2024.2)
+        //     where properties are not properly allocated when they are not assigned
+        //     in the constructor.
+        this.axis_vif = null;
+        // } WORKAROUND-INIT-PROPS
     endfunction
 
     // Destructor

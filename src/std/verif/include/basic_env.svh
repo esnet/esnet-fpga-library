@@ -17,6 +17,14 @@ class basic_env#(parameter bit RESET_ACTIVE_LOW = 1'b0) extends env;
     // Constructor
     function new(input string name="basic_env");
         super.new(name);
+        // WORKAROUND-INIT-PROPS {
+        //     Provide/repeat default assignments for all remaining instance properties here.
+        //     Works around an apparent object initialization bug (as of Vivado 2024.2)
+        //     where properties are not properly allocated when they are not assigned
+        //     in the constructor.
+        this.__RESET_TIMEOUT = 0;
+        this.reset_vif = null;
+        // } WORKAROUND-INIT-PROPS
     endfunction
 
     // Destructor
