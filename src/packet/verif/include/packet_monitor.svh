@@ -1,4 +1,4 @@
-virtual class packet_monitor #(
+virtual class packet_monitor#(
     parameter type META_T = bit
 ) extends std_verif_pkg::monitor#(packet#(META_T));
 

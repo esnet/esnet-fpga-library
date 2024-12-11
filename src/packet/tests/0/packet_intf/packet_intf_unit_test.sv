@@ -195,19 +195,19 @@ module packet_intf_unit_test #(
         `SVTEST(one_packet_bad)
             int bad_byte_idx;
             byte bad_byte_data;
-            packet_raw#(META_T) packet;
-            packet_raw#(META_T) bad_packet;
+            packet_raw#(META_T) pkt;
+            packet#(META_T) bad_pkt;
             // Create 'expected' transaction
-            packet = new();
-            packet.randomize();
-            env.model.inbox.put(packet);
+            pkt = new();
+            pkt.randomize();
+            env.model.inbox.put(pkt);
             // Create 'actual' transaction and modify one byte of packet
             // so that it generates a mismatch wrt the expected packet
-            bad_packet = packet.clone("trans_0_bad");
-            bad_byte_idx = $urandom % bad_packet.size();
-            bad_byte_data = 8'hFF ^ bad_packet.get_byte(bad_byte_idx);
-            bad_packet.set_byte(bad_byte_idx, bad_byte_data);
-            env.driver.inbox.put(bad_packet);
+            bad_pkt = pkt.dup("trans_0_bad");
+            bad_byte_idx = $urandom % bad_pkt.size();
+            bad_byte_data = 8'hFF ^ bad_pkt.get_byte(bad_byte_idx);
+            bad_pkt.set_byte(bad_byte_idx, bad_byte_data);
+            env.driver.inbox.put(bad_pkt);
             packet_in_if._wait(1000);
             `FAIL_UNLESS_LOG(
                 scoreboard.report(msg),

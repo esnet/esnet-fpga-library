@@ -5,15 +5,15 @@ class packet_descriptor #(parameter type ADDR_T = bit, parameter type META_T = b
     //===================================
     // Properties
     //===================================
-    protected rand META_T _meta;
-    protected rand ADDR_T _addr;
-    protected rand int _size;
-    protected rand bit _err;
+    rand META_T meta;
+    rand ADDR_T addr;
+    rand int size;
+    rand bit err;
 
     local int __MIN_SIZE = 40;
     local int __MAX_SIZE = 16384;
 
-    constraint c_pkt_size { _size >= __MIN_SIZE; _size <= __MAX_SIZE; }
+    constraint c_pkt_size { size >= __MIN_SIZE; size <= __MAX_SIZE; }
 
     //===================================
     // Methods
@@ -27,10 +27,10 @@ class packet_descriptor #(parameter type ADDR_T = bit, parameter type META_T = b
             input bit    err = 1'b0
         );
         super.new(name);
-        this._addr = addr;
-        this._size = size;
-        this._err = err;
-        this._meta = meta;
+        this.addr = addr;
+        this.size = size;
+        this.err = err;
+        this.meta = meta;
     endfunction
 
     // Destructor
@@ -39,28 +39,40 @@ class packet_descriptor #(parameter type ADDR_T = bit, parameter type META_T = b
         super.destroy();
     endfunction
 
+    // Copy
+    // [[ implements std_verif_pkg::transaction._copy() ]]
+    virtual protected function automatic void _copy(input std_verif_pkg::transaction t2);
+        packet_descriptor#(ADDR_T,META_T) desc;
+        super._copy(t2);
+        if (!$cast(desc, t2)) begin
+            // Impossible to continue; raise fatal exception.
+            $fatal(2, "Transaction type mismatch during object copy operation.");
+        end
+        this.addr = desc.addr;
+        this.size = desc.size;
+        this.err = desc.err;
+        this.meta = desc.meta;
+    endfunction
+
+    // Clone
+    // [[ implements std_verif_pkg::transaction.clone() ]]
+    virtual function automatic std_verif_pkg::transaction clone();
+        // Use explicit constructor here instead of copy constructor to avoid
+        // apparent Vivado simulator bugs (as of Vivado v2024.2)
+        packet_descriptor#(ADDR_T,META_T) desc = new(
+            get_name(),
+            addr,
+            size,
+            meta,
+            err
+        );
+        return desc;
+    endfunction
+
     // Configure trace output
     // [[ overrides std_verif_pkg::base.trace_msg() ]]
     function automatic void trace_msg(input string msg);
         _trace_msg(msg, __CLASS_NAME);
-    endfunction
-
-    // Address
-    function automatic ADDR_T get_addr();
-        return this._addr;
-    endfunction
-
-    function automatic void set_addr(input ADDR_T addr);
-        this._addr = addr;
-    endfunction
-
-    // Size
-    function automatic int get_size();
-        return this._size;
-    endfunction
-
-    function automatic void set_size(input int size);
-        this._size = size;
     endfunction
 
     function automatic void set_max_size(input int MAX_SIZE);
@@ -79,28 +91,20 @@ class packet_descriptor #(parameter type ADDR_T = bit, parameter type META_T = b
         return this.__MIN_SIZE;
     endfunction
 
-    function automatic void mark_as_errored();
-        this._err = 1'b1;
+    static function automatic packet_descriptor#(ADDR_T,META_T) create_from_packet(ref packet#(META_T) pkt, input ADDR_T addr);
+        packet_descriptor#(ADDR_T,META_T) desc = new(pkt.get_name(), addr, pkt.size(), pkt.get_meta(), pkt.is_errored());
+        return desc;
     endfunction
 
-    function automatic bit is_errored();
-        return this._err;
-    endfunction
-
-    // Metadata
-    function automatic void set_meta(input META_T meta);
-        this._meta = meta;
-    endfunction
-
-    function automatic META_T get_meta();
-        return this._meta;
-    endfunction
-
-    function automatic packet_descriptor#(ADDR_T,META_T) clone(input string name);
-        packet_descriptor#(ADDR_T,META_T) cloned_packet_descriptor = new(name, this.get_addr(), this.get_size(), this.get_meta());
-        cloned_packet_descriptor.set_min_size(this.__MIN_SIZE);
-        cloned_packet_descriptor.set_max_size(this.__MAX_SIZE);
-        return cloned_packet_descriptor;
+    // Duplicate descriptor
+    function automatic packet_descriptor#(ADDR_T,META_T) dup(input string name=get_name());
+        packet_descriptor#(ADDR_T,META_T) desc;
+        if (!$cast(desc, this.clone())) begin
+            // Impossible to continue; raise fatal exception.
+            $fatal(2, "Dynamic cast failure during object duplication. This should never happen.");
+        end
+        desc.set_name(name);
+        return desc;
     endfunction
 
     // Get string representation of packet descriptor
@@ -112,38 +116,40 @@ class packet_descriptor #(parameter type ADDR_T = bit, parameter type META_T = b
                 $sformatf(
                     "Packet descriptor '%s' (addr: 0x%0x, %0d bytes, err: %0b, meta: 0x%0x)",
                     get_name(),
-                    get_addr(),
-                    get_size(),
-                    is_errored(),
-                    get_meta()
+                    addr,
+                    size,
+                    err,
+                    meta
                 )
               };
         return str;
     endfunction
 
     // Compare packet descriptors
-    virtual function automatic bit _compare(input packet_descriptor#(ADDR_T,META_T) b, output string msg);
-        if (this.get_addr() !== b.get_addr()) begin
-            msg = $sformatf("Packet descriptor address mismatch. A: 0x%0x, B: 0x0%0x.", this.get_addr(), b.get_addr());
+    // [[ implements std_verif_pkg::transaction.compare() ]]
+    virtual function automatic bit compare(input std_verif_pkg::transaction t2, output string msg);
+        packet_descriptor#(ADDR_T,META_T) b;
+        // Cast generic transaction as packet_descriptor type
+        if (!$cast(b, t2)) begin
+            msg = $sformatf("Transaction type mismatch. Transaction '%s' is not of type %s or has unexpected parameterization.", t2.get_name(), __CLASS_NAME);
             return 0;
-        end else if (this.get_size() !== b.get_size()) begin
-            msg = $sformatf("Packet descriptor size mismatch. A: %0d bytes, B: %0d bytes.", this.get_size(), b.get_size());
+        end
+        // Compare packet descriptors
+        if (this.addr !== b.addr) begin
+            msg = $sformatf("Packet descriptor address mismatch. A: 0x%0x, B: 0x0%0x.", this.addr, b.addr);
             return 0;
-        end else if (this.get_meta() !== b.get_meta()) begin
-            msg = $sformatf("Packet descriptor metadata mismatch. A: 0x%0x, B: 0x%0x.", this.get_meta(), b.get_meta());
+        end else if (this.size !== b.size) begin
+            msg = $sformatf("Packet descriptor size mismatch. A: %0d bytes, B: %0d bytes.", this.size, b.size);
             return 0;
-        end else if (this.is_errored() != b.is_errored()) begin
-            msg = $sformatf("Packet descriptor error mismatch. A: %0b, B: %0b.", this.is_errored(), b.is_errored());
+        end else if (this.meta !== b.meta) begin
+            msg = $sformatf("Packet descriptor metadata mismatch. A: 0x%0x, B: 0x%0x.", this.meta, b.meta);
+            return 0;
+        end else if (this.err != b.err) begin
+            msg = $sformatf("Packet descriptor error mismatch. A: %0b, B: %0b.", this.err, b.err);
             return 0;
         end
         msg = "Packet descriptors match.";
         return 1;
-    endfunction
-
-    // Compare packet descriptors
-    // [[ implements std_verif_pkg::transaction.compare() ]]
-    virtual function automatic bit compare(input packet_descriptor#(ADDR_T,META_T) t2, output string msg);
-        return this._compare(t2, msg);
     endfunction
 
 endclass : packet_descriptor

@@ -29,7 +29,8 @@ module htable_multi_stash_core_unit_test;
     parameter type KEY_T = logic [KEY_WID-1:0];
     parameter type VALUE_T = logic [VALUE_WID-1:0];
     parameter type HASH_T = logic [HASH_WID-1:0];
-    parameter type ENTRY_T = struct packed {KEY_T key; VALUE_T value;};
+    parameter type __ENTRY_T = struct packed {KEY_T key; VALUE_T value;};
+    parameter type ENTRY_T = logic[$bits(__ENTRY_T)-1:0];
 
     //===================================
     // DUT

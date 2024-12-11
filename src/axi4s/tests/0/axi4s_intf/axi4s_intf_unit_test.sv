@@ -298,7 +298,7 @@ module axi4s_intf_unit_test #(
             env.model.inbox.put(axis_transaction);
             // Create 'actual' transaction and modify one byte of packet
             // so that it generates a mismatch wrt the expected packet
-            bad_transaction = axis_transaction.clone("trans_0_bad");
+            bad_transaction = axis_transaction.dup("trans_0_bad");
             bad_byte_idx = $urandom % bad_transaction.size();
             bad_byte_data = 8'hFF ^ bad_transaction.get_byte(bad_byte_idx);
             bad_transaction.set_byte(bad_byte_idx, bad_byte_data);

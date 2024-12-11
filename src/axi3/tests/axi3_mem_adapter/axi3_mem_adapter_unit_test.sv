@@ -3,9 +3,7 @@
 module axi3_mem_adapter_unit_test;
 
     import svunit_pkg::svunit_testcase;
-    import mem_pkg::*;
     import axi3_pkg::*;
-    import mem_proxy_verif_pkg::*;
 
     string name = "axi3_mem_adapter_ut";
     svunit_testcase svunit_ut;
@@ -16,8 +14,8 @@ module axi3_mem_adapter_unit_test;
     localparam type ADDR_T = logic[32:0];
     localparam int DATA_BYTE_WID = 32;
     localparam type DATA_T = logic[DATA_BYTE_WID*8-1:0];
-    localparam ACCESS_TYPE = ACCESS_READ_WRITE;
-    localparam MEM_TYPE = MEM_TYPE_HBM;
+    localparam mem_pkg::access_t   ACCESS_TYPE = mem_pkg::ACCESS_READ_WRITE;
+    localparam mem_pkg::mem_type_t MEM_TYPE = mem_pkg::MEM_TYPE_HBM;
 
     localparam axsize_encoding_t AXI_SIZE = SIZE_32BYTES;
 
@@ -87,7 +85,7 @@ module axi3_mem_adapter_unit_test;
     
 
     // Agent
-    mem_proxy_agent agent;
+    mem_proxy_verif_pkg::mem_proxy_agent agent;
     axi4l_verif_pkg::axi4l_reg_agent reg_agent;
 
     // Reset

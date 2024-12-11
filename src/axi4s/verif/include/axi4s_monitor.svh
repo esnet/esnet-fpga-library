@@ -11,7 +11,7 @@ class axi4s_monitor #(
     // Properties
     //===================================
     local bit __BIGENDIAN;
-    local int __tpause;
+    local int __tpause = 0;
 
     //===================================
     // Interfaces
@@ -56,12 +56,14 @@ class axi4s_monitor #(
     // Reset monitor
     // [[ overrides std_verif_pkg::monitor._reset() ]]
     virtual protected function automatic void _reset();
+        super._reset();
         this.set_tpause(0);
     endfunction
 
     // Quiesce AXI-S interface
     // [[ implements std_verif_pkg::component._idle() ]]
     virtual protected task _idle();
+        super._idle();
         axis_vif.idle_rx();
     endtask
 

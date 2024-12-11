@@ -27,7 +27,14 @@ class state_reg_agent#(type ID_T = bit, type STATE_T = bit) extends state_reg_bl
         this.db = new($sformatf("%s[db]", name), NUM_IDS, reg_agent, BASE_OFFSET + 'h400);
         this.db.set_reset_timeout(4*NUM_IDS);
         this.db.set_op_timeout(128);
-        reset();
+    endfunction
+
+    // Destructor
+    // [[ implements std_verif_pkg::base.destroy() ]]
+    virtual function automatic void destroy();
+        db = null;
+        notify = null;
+        super.destroy();
     endfunction
 
     // Configure trace output

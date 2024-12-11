@@ -19,14 +19,14 @@ class state_allocator_reg_agent extends state_allocator_reg_blk_agent;
     );
         super.new(name, BASE_OFFSET);
         this.reg_agent = reg_agent;
-        _reset();
+        __clear_flags();
     endfunction
  
     // Reset agent state
     // [[ implements std_verif_pkg::agent._reset() virtual method ]]
     protected virtual function automatic void _reset();
         super._reset();
-        this.__flags = '{default: 1'b0};
+        __clear_flags();
     endfunction
 
     // Reset client
@@ -97,6 +97,10 @@ class state_allocator_reg_agent extends state_allocator_reg_blk_agent;
         reg_control.allocate_en = 0;
         this.write_control(reg_control);
     endtask
+
+    local function automatic void __clear_flags();
+        this.__flags = '{default: 1'b0};
+    endfunction
 
     // Read flags; store result in __flags for subsequent inspection
     task update_flags();

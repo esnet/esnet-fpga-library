@@ -5,10 +5,7 @@ class packet_raw#(parameter type META_T = bit) extends packet#(META_T);
     //===================================
     // Properties
     //===================================
-    local const int __len;
     local rand byte __data [];
-
-    constraint c_length { __data.size() == __len; }
 
     //===================================
     // Methods
@@ -21,7 +18,6 @@ class packet_raw#(parameter type META_T = bit) extends packet#(META_T);
         input bit err = 1'b0
     );
         super.new(name, packet_pkg::PROTOCOL_NONE, meta, err);
-        this.__len = len;
         this.__data = new[len];
     endfunction
 
@@ -30,6 +26,18 @@ class packet_raw#(parameter type META_T = bit) extends packet#(META_T);
     virtual function automatic void destroy();
         __data.delete();
         super.destroy();
+    endfunction
+
+    // Copy from reference
+    // [[ implements std_verif_pkg::transaction._copy() ]]
+    virtual protected function automatic void _copy(input std_verif_pkg::transaction t2);
+        packet_raw#(META_T) pkt;
+        super._copy(t2);
+        if (!$cast(pkt, t2)) begin
+            // Impossible to continue; raise fatal exception.
+            $fatal(2, "Transaction type mismatch during object copy operation.");
+        end
+        from_bytes(pkt.to_bytes());
     endfunction
 
     // Configure trace output
@@ -46,20 +54,13 @@ class packet_raw#(parameter type META_T = bit) extends packet#(META_T);
             input bit err = 1'b0
         );
         packet_raw#(META_T) new_packet = new(name, data.size(), meta, err);
-        new_packet.set_from_bytes(data);
+        new_packet.from_bytes(data);
         return new_packet;
     endfunction
 
-    // Clone packet
-    // [[ implements std_verif_pkg::packet.clone() ]]
-    function automatic packet_raw#(META_T) clone(input string name);
-        packet_raw#(META_T) cloned_packet = packet_raw#(META_T)::create_from_bytes(name, this.to_bytes, this.get_meta(), this.is_errored());
-        return cloned_packet;
-    endfunction
-
     // Get string representation of packet
-    // [[ overrides std_verif_pkg::transaction.to_string() ]]
-    function string to_string();
+    // [[ overrides std_verif_pkg::packet.to_string() ]]
+    virtual function automatic string to_string();
         string str = super.to_string();
         str = {str, string_pkg::horiz_line()};
         str = {str, string_pkg::byte_array_to_string(this.__data)};
@@ -68,42 +69,32 @@ class packet_raw#(parameter type META_T = bit) extends packet#(META_T);
     endfunction
 
     // Get data as byte array
-    function automatic byte_array_t to_bytes();
+    // [[ implements packet_verif_pkg::packet.to_bytes ]]
+    virtual function automatic byte_array_t to_bytes();
         return this.__data;
     endfunction
 
     // Set from byte array
-    function automatic void set_from_bytes(input byte data[]);
+    // [[ implements packet_verif_pkg::packet.from_bytes ]]
+    virtual function automatic void from_bytes(input byte_array_t data);
         this.__data = data;
     endfunction
 
-    // Get specified byte
-    function automatic byte get_byte(input int idx);
-        if (idx < this.size()) return this.__data[idx];
-        else begin
-            error_msg($sformatf("Attempted to read byte %0d in packet of length %0d bytes.", idx, this.size()));
-            return 0;
-        end
-    endfunction
-
-    // Set specified byte
-    function automatic void set_byte(input int idx, input byte data);
-        if (idx < this.size()) this.__data[idx] = data;
-        else error_msg($sformatf("Attempted to write byte %0d in packet of length %0d bytes.", idx, this.size()));
-    endfunction
-
     // Header
-    function automatic byte_array_t header();
+    // [[ implements packet_verif_pkg::packet.header ]]
+    virtual function automatic byte_array_t header();
         return {};
     endfunction
 
     // Payload
-    function automatic byte_array_t payload();
+    // [[ implements packet_verif_pkg::packet.payload ]]
+    virtual function automatic byte_array_t payload();
         return this.__data;
     endfunction
 
     // Payload protocol
-    function automatic protocol_t payload_protocol();
+    // [[ implements packet_verif_pkg::packet.payload_protocol ]]
+    virtual function automatic protocol_t payload_protocol();
         return packet_pkg::PROTOCOL_NONE;
     endfunction
 

@@ -11,8 +11,8 @@ class axi4s_driver #(
     // Properties
     //===================================
     local bit __BIGENDIAN;
-    local int __min_pkt_gap;
-    local int __twait;
+    local int __min_pkt_gap = 0;
+    local int __twait = 0;
 
     //===================================
     // Interfaces
@@ -37,8 +37,6 @@ class axi4s_driver #(
     function new(input string name="axi4s_driver", input bit BIGENDIAN=1);
         super.new(name);
         this.__BIGENDIAN = BIGENDIAN;
-        this.__min_pkt_gap = 0;
-        this.__twait = 0;
     endfunction
 
     // Destructor
@@ -67,14 +65,15 @@ class axi4s_driver #(
     // Reset driver
     // [[ overrides std_verif_pkg::driver._reset() ]]
     virtual protected function automatic void _reset();
+        super._reset();
         this.set_twait(0);
         this.set_min_gap(0);
-        super._reset();
     endfunction
 
     // Quiesce AXI-S interface
     // [[ implements std_verif_pkg::component._idle() ]]
     virtual protected task _idle();
+        super._idle();
         axis_vif.idle_tx();
     endtask
 

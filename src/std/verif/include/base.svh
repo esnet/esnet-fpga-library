@@ -10,7 +10,14 @@ virtual class base;
     //===================================
     local string __obj_name;
 
-    local int __DEBUG_LEVEL=0;
+    local int __DEBUG_LEVEL = 0;
+
+    //===================================
+    // Pure Virtual Methods
+    // (must be implemented by derived class)
+    //===================================
+    // Destructor
+    pure virtual function automatic void destroy();
 
     //===================================
     // Methods
@@ -18,6 +25,12 @@ virtual class base;
     // Constructor
     function new(input string name="base");
         this.__obj_name = name;
+    endfunction
+
+    // Copy
+    function automatic void copy(input base obj);
+        this.set_name(obj.get_name());
+        this.set_debug_level(obj.get_debug_level());
     endfunction
 
     // Configure trace output
@@ -62,12 +75,5 @@ virtual class base;
         if (hier_path == "") $display("%s [%0t][%s]: %s", label, $time, name, msg);
         else                 $display("%s [%0t][%s][%s]: %s", label, $time, name, hier_path, msg);
     endfunction
-
-    //===================================
-    // Virtual Methods
-    // (to be implemented by derived class)
-    //===================================
-    // Destructor
-    pure virtual function automatic void destroy();
 
 endclass

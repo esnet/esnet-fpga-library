@@ -8,8 +8,8 @@ virtual class scoreboard #(parameter type TRANSACTION_T = transaction) extends c
     //===================================
     // Properties
     //===================================
-    local int __got_cnt;
-    local int __exp_cnt;
+    local int __got_cnt = 0;
+    local int __exp_cnt = 0;
 
     local int __processed_cnt = 0;
     local int __match_cnt = 0;
@@ -32,7 +32,6 @@ virtual class scoreboard #(parameter type TRANSACTION_T = transaction) extends c
     // Constructor
     function new(input string name="scoreboard");
         super.new(name);
-        reset();
     endfunction
 
     // Destructor

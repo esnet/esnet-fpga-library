@@ -64,10 +64,10 @@ class packet_descriptor_monitor #(
         debug_msg(
             $sformatf("Received %s (addr: 0x%0x, %0d bytes, err: %0b, meta: 0x%0x)",
                 transaction.get_name(),
-                transaction.get_addr(),
-                transaction.get_size(),
-                transaction.is_errored(),
-                transaction.get_meta()
+                transaction.addr,
+                transaction.size,
+                transaction.err,
+                transaction.meta
             )
         );
         trace_msg("_receive() Done.");

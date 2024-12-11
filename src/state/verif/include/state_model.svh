@@ -6,10 +6,7 @@ virtual class state_model #(
     parameter type ID_T = bit,
     parameter type STATE_T = bit,
     parameter type UPDATE_T = bit
-) extends std_verif_pkg::predictor#(
-    state_req#(ID_T,UPDATE_T),
-    state_resp#(STATE_T)
-);
+) extends std_verif_pkg::predictor#(state_req#(ID_T,UPDATE_T), state_resp#(STATE_T));
 
     local static const string __CLASS_NAME = "state_verif_pkg::state_model";
 
@@ -43,10 +40,8 @@ virtual class state_model #(
     // Destructor
     // [[ implements std_verif_pkg::base.destroy() ]]
     virtual function automatic void destroy();
-        trace_msg("destroy()");
         __db_model = null;
         super.destroy();
-        trace_msg("destroy() Done.");
     endfunction
 
     // Configure trace output

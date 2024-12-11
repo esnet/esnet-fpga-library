@@ -196,9 +196,6 @@ class packet_capture_monitor #(parameter type META_T=bit) extends packet_monitor
                             _timeout = 1'b1;
                         end else wait (0);
                     end
-                    begin
-                        wait(__stop.triggered);
-                    end
                 join_any
                 disable fork;
             end

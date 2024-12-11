@@ -34,7 +34,7 @@ class event_scoreboard #(parameter type TRANSACTION_T = transaction) extends sco
         trace_msg("_postprocess() Done.");
     endfunction
 
-    // Start scoreboard (run loop)
+    // Scoreboard process
     // [[ implements std_verif_pkg::component._run() ]]
     task _run();
         trace_msg("_run()");

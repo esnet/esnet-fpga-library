@@ -304,28 +304,28 @@ module packet_write_unit_test #(
         `SVTEST_END
 
         `SVTEST(single_packet_bad)
-            packet_raw#(META_T) exp_packet;
-            packet_raw#(META_T) bad_packet;
+            packet_raw#(META_T) exp_pkt;
+            packet#(META_T) bad_pkt;
             packet_descriptor#(ADDR_T,META_T) raw_descriptor;
             // Create 'expected' transaction
             len = $urandom_range(MIN_PKT_SIZE, MAX_PKT_SIZE);
             void'(std::randomize(meta));
-            exp_packet = new("pkt_0", len, meta);
-            exp_packet.randomize();
-            model.inbox.put(exp_packet);
+            exp_pkt = new("pkt_0", len, meta);
+            exp_pkt.randomize();
+            model.inbox.put(exp_pkt);
             // Configure new (empty) descriptor
             raw_descriptor = new(.addr(addr), .size(MAX_PKT_SIZE + DATA_BYTE_WID));
             model.add_descriptor(raw_descriptor);
             // Create 'actual' transaction and modify one byte of packet
             // so that it generates a mismatch wrt the expected packet
-            bad_packet = exp_packet.clone("pkt_0_bad");
-            bad_packet.set_meta(exp_packet.get_meta() + 1);
+            bad_pkt = exp_pkt.dup("pkt_0_bad");
+            bad_pkt.set_meta(exp_pkt.get_meta()+1);
             // Send (bad) packet
             fork
                 begin
                     fork
                         nxt_descriptor_driver.send(raw_descriptor);
-                        driver.inbox.put(bad_packet);
+                        driver.inbox.put(bad_pkt);
                     join
                 end
                 begin

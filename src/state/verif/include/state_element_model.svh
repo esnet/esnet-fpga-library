@@ -27,9 +27,7 @@ class state_element_model #(
     // Destructor
     // [[ implements std_verif_pkg::base.destroy() ]]
     virtual function automatic void destroy();
-        trace_msg("destroy()");
         super.destroy();
-        trace_msg("destroy() Done.");
     endfunction
 
     // Configure trace output

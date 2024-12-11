@@ -8,9 +8,9 @@ class db_req_transaction #(
     //===================================
     // Properties
     //===================================
-    const KEY_T key;
-    const command_t command;
-    const VALUE_T value;
+    KEY_T key;
+    command_t command;
+    VALUE_T value;
 
     //===================================
     // Methods
@@ -28,10 +28,29 @@ class db_req_transaction #(
         this.value = value;
     endfunction
 
+    // Destructor
+    // [[ implements std_verif_pkg::base.destroy() ]]
+    virtual function automatic void destroy();
+        super.destroy();
+    endfunction
+
     // Configure trace output
     // [[ overrides std_verif_pkg::base.trace_msg() ]]
     function automatic void trace_msg(input string msg);
         _trace_msg(msg, __CLASS_NAME);
+    endfunction
+
+    // Copy from reference
+    // [[ implements std_verif_pkg::transaction._copy() ]]
+    virtual protected function automatic void _copy(input std_verif_pkg::transaction t2);
+        db_req_transaction#(KEY_T, VALUE_T) trans;
+        if (!$cast(trans, t2)) begin
+            // Impossible to continue; raise fatal exception.
+            $fatal(2, $sformatf("Type mismatch while copying '%s' to '%s'", t2.get_name(), this.get_name()));
+        end
+        this.key = trans.key;
+        this.command = trans.command;
+        this.value = trans.value;
     endfunction
 
     // Get string representation of transaction
@@ -48,15 +67,22 @@ class db_req_transaction #(
 
     // Compare transactions
     // [[ implements std_verif_pkg::transaction.compare() ]]
-    function bit compare(input db_req_transaction#(KEY_T, VALUE_T) t2, output string msg);
-        if (this.key !== t2.key) begin
-            msg = $sformatf("KEY mismatch: A: 0x%x, B: 0x%x.", this.key, t2.key);
+    function automatic bit compare(input std_verif_pkg::transaction t2, output string msg);
+        db_req_transaction#(KEY_T, VALUE_T) b;
+        // Upcast generic transaction to raw transaction type
+        if (!$cast(b, t2)) begin
+            msg = $sformatf("Transaction type mismatch. Transaction '%s' is not of type %s or has unexpected parameterization.", t2.get_name(), __CLASS_NAME);
             return 0;
-        end else if (this.command !== t2.command) begin
-            msg = $sformatf("COMMAND mismatch: A: %s, B: %s.", this.command.name(), t2.command.name());
+        end
+        // Compare transactions
+        if (this.key !== b.key) begin
+            msg = $sformatf("KEY mismatch: A: 0x%x, B: 0x%x.", this.key, b.key);
             return 0;
-        end else if (this.value !== t2.value) begin
-            msg = $sformatf("VALUE mismatch: A: 0x%0x, B: 0x%0x.", this.value, t2.value);
+        end else if (this.command !== b.command) begin
+            msg = $sformatf("COMMAND mismatch: A: %s, B: %s.", this.command.name(), b.command.name());
+            return 0;
+        end else if (this.value !== b.value) begin
+            msg = $sformatf("VALUE mismatch: A: 0x%0x, B: 0x%0x.", this.value, b.value);
             return 0;
         end else begin
             msg = "Transactions match.";

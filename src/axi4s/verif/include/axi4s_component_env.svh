@@ -38,8 +38,8 @@ class axi4s_component_env #(
     // Constructor
     function new(
             input string name="axi4s_component_env",
-            const ref std_verif_pkg::model#(axi4s_transaction#(TID_T, TDEST_T, TUSER_T)) model,
-            const ref std_verif_pkg::scoreboard#(axi4s_transaction#(TID_T, TDEST_T, TUSER_T)) scoreboard,
+            std_verif_pkg::model#(axi4s_transaction#(TID_T, TDEST_T, TUSER_T)) model,
+            std_verif_pkg::scoreboard#(axi4s_transaction#(TID_T, TDEST_T, TUSER_T)) scoreboard,
             input bit BIGENDIAN=1
         );
         super.new(name);
@@ -55,9 +55,9 @@ class axi4s_component_env #(
         _trace_msg(msg, __CLASS_NAME);
     endfunction
 
-    // Connect environment objects
+    // Build and connect environment object
     // [[ overrides std_verif_pkg::component_env._build() ]]
-    function automatic void _build();
+    virtual protected function automatic void _build();
         trace_msg("_build()");
         super._build();
         this.driver.axis_vif = axis_in_vif;

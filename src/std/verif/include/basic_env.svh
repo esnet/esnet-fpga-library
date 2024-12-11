@@ -9,7 +9,7 @@ class basic_env#(parameter bit RESET_ACTIVE_LOW = 1'b0) extends env;
     // Reset interface
     virtual std_reset_intf#(.ACTIVE_LOW(RESET_ACTIVE_LOW)) reset_vif;
 
-    local int __RESET_TIMEOUT;
+    local int __RESET_TIMEOUT = 0;
 
     //===================================
     // Methods
@@ -17,7 +17,6 @@ class basic_env#(parameter bit RESET_ACTIVE_LOW = 1'b0) extends env;
     // Constructor
     function new(input string name="basic_env");
         super.new(name);
-        __RESET_TIMEOUT = 0;
     endfunction
 
     // Destructor
@@ -33,12 +32,11 @@ class basic_env#(parameter bit RESET_ACTIVE_LOW = 1'b0) extends env;
         _trace_msg(msg, __CLASS_NAME);
     endfunction
 
-    // Connect environment objects
-    // [[ implements std_verif_pkg::env._connect() ]]
+    // Build environment (instantiate subcomponents, connect interfaces, etc.)
+    // [[ implements std_verif_pkg::env._build() ]]
     protected virtual function automatic void _build();
         // Nothing to do
     endfunction
-
     // Set reset timeout (in reset interface clock cycles)
     function automatic void set_reset_timeout(input int TIMEOUT);
         __RESET_TIMEOUT = TIMEOUT;
