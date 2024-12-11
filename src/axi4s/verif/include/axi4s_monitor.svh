@@ -33,6 +33,14 @@ class axi4s_monitor #(
     function new(input string name="axi4s_monitor", input bit BIGENDIAN=1);
         super.new(name);
         this.__BIGENDIAN = BIGENDIAN;
+        // WORKAROUND-INIT-PROPS {
+        //     Provide/repeat default assignments for all remaining instance properties here.
+        //     Works around an apparent object initialization bug (as of Vivado 2024.2)
+        //     where properties are not properly allocated when they are not assigned
+        //     in the constructor.
+        this.__tpause = 0;
+        this.axis_vif = null;
+        // } WORKAROUND-INIT-PROPS
     endfunction
 
     // Destructor

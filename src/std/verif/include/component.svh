@@ -9,8 +9,11 @@ virtual class component extends base;
     // Properties
     //===================================
     local component __SUBCOMPONENTS[$];
-    local event __start;
-    local event __stop;
+    // WORKAROUND-NAMED-EVENTS {
+    //     As of Vivado 2024.2 use of named events appears to have issues.
+    // local event __start;
+    // local event __stop;
+    // } WORKAROUND-NAMED-EVENTS
     local semaphore __LOCK;
     local bit __FINALIZE = 1'b0;
     local bit __AUTOSTART = 1'b1;
@@ -40,6 +43,15 @@ virtual class component extends base;
         super.new(name);
         __state = STOPPED;
         __init_lock();
+        // WORKAROUND-INIT-PROPS {
+        //     Provide/repeat default assignments for all remaining instance properties here.
+        //     Works around an apparent object initialization bug (as of Vivado 2024.2)
+        //     where properties are not properly allocated when they are not assigned
+        //     in the constructor.
+        __SUBCOMPONENTS = {};
+        __FINALIZE = 1'b0;
+        __AUTOSTART = 1'b1;
+        // } WORKAROUND-INIT-PROPS
     endfunction
 
     // Destructor
@@ -161,12 +173,24 @@ virtual class component extends base;
                 fork
                     begin
                         __autostart();
-                        wait(__start.triggered);
+                        // WORKAROUND-NAMED-EVENTS {
+                        //     Persistent trigger not supported officially;
+                        //     Also, as of Vivado 2024.2 use of named events
+                        //     appears to have issues.
+                        // wait(__start.triggered);
+                        wait(__state == RUNNING);
+                        // } WORKAROUND-NAMED-EVENTS
                         _run();
                         wait(0); 
                     end
                     begin
-                        wait(__stop.triggered);
+                        // WORKAROUND-NAMED-EVENTS {
+                        //     Persistent trigger not supported officially;
+                        //     Also, as of Vivado 2024.2 use of named events
+                        //     appears to have issues.
+                        // wait(__stop.triggered);
+                        wait(__state == STOPPED);
+                        // } WORKAROUND-NAMED-EVENTS
                     end
                 join_any
                 disable fork;
@@ -179,7 +203,11 @@ virtual class component extends base;
     // Start component execution
     function automatic void start();
         trace_msg("start()");
-        -> __start;
+
+        // WORKAROUND-NAMED-EVENTS {
+        //     As of Vivado 2024.2 use of named events appears to have issues.
+        // -> __start;
+        // } WORKAROUND-NAMED-EVENTS
         __state = RUNNING;
         trace_msg("start() Done.");
     endfunction
@@ -192,7 +220,10 @@ virtual class component extends base;
     // Stop component execution
     function automatic void stop();
         trace_msg("stop()");
-        -> __stop;
+        // WORKAROUND-NAMED-EVENTS {
+        //     As of Vivado 2024.2 use of named events appears to have issues.
+        // -> __stop;
+        // } WORKAROUND-NAMED-EVENTS
         foreach (__SUBCOMPONENTS[i]) __SUBCOMPONENTS[i].stop();
         __state = STOPPED;
         if (__FINALIZE) destroy();

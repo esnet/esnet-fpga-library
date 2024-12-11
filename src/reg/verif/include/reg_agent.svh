@@ -37,6 +37,14 @@ virtual class reg_agent #(
     // Constructor
     function new(input string name="reg_agent");
         super.new(name);
+        // WORKAROUND-INIT-PROPS {
+        //     Provide/repeat default assignments for all remaining instance properties here.
+        //     Works around an apparent object initialization bug (as of Vivado 2024.2)
+        //     where properties are not properly allocated when they are not assigned
+        //     in the constructor.
+        this._WR_TIMEOUT = 8;
+        this._RD_TIMEOUT = 8;
+        // } WORKAROUND-INIT-PROPS
     endfunction
 
     // Destructor

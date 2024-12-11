@@ -24,6 +24,14 @@ virtual class driver #(parameter type TRANSACTION_T = transaction) extends compo
     // Constructor
     function new(input string name="driver");
         super.new(name);
+        // WORKAROUND-INIT-PROPS {
+        //     Provide/repeat default assignments for all remaining instance properties here.
+        //     Works around an apparent object initialization bug (as of Vivado 2024.2)
+        //     where properties are not properly allocated when they are not assigned
+        //     in the constructor.
+        this.__cnt = 0;
+        this.inbox = null;
+        // } WORKAROUND-INIT-PROPS
     endfunction
 
     // Destructor

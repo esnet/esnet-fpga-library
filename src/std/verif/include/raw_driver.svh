@@ -17,6 +17,14 @@ class raw_driver #(
     // Constructor
     function new(input string name="raw_driver");
         super.new(name);
+        // WORKAROUND-INIT-PROPS {
+        //     Provide/repeat default assignments for all remaining instance properties here.
+        //     Works around an apparent object initialization bug (as of Vivado 2024.2)
+        //     where properties are not properly allocated when they are not assigned
+        //     in the constructor.
+        this.raw_vif = null;
+        this.__tx_mode = TX_MODE_SEND;
+        // } WORKAROUND-INIT-PROPS
     endfunction
 
     // Destructor

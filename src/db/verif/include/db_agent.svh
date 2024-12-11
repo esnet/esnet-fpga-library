@@ -48,6 +48,14 @@ virtual class db_agent #(
     function new(input string name="db_agent", input int _max_capacity=0);
         super.new(name);
         set_max_capacity(_max_capacity);
+        // WORKAROUND-INIT-PROPS {
+        //     Provide/repeat default assignments for all remaining instance properties here.
+        //     Works around an apparent object initialization bug (as of Vivado 2024.2)
+        //     where properties are not properly allocated when they are not assigned
+        //     in the constructor.
+        this._RESET_TIMEOUT=0;
+        this._OP_TIMEOUT=0;
+        // } WORKAROUND-INIT-PROPS
     endfunction
 
     // Destructor
