@@ -52,7 +52,7 @@ synth:
       - COMPONENT: [sync, mem, fifo, axi4l, db, htable, state, packet]
   script:
     # Run all build jobs in specified component library
-    - find src/$COMPONENT/build -mindepth 1 -maxdepth 1 -type d -name '[^\.]*' -exec make -s -C {} \;
+    - find src/$COMPONENT/build -mindepth 1 -maxdepth 1 -type d -name '[^\.]*' | xargs -n1 sh -c 'make -s -C $0 || exit 255'
   artifacts:
     when: always
     paths: [.out/$COMPONENT/build]
