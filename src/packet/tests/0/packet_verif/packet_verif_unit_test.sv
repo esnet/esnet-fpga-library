@@ -147,7 +147,7 @@ module packet_verif_unit_test;
         `SVTEST(clone)
             typedef logic[22:0] meta_t;
             int len=$urandom_range(64, 1500);
-            int bad_byte_idx = $urandom_range(0, len);
+            int bad_byte_idx = $urandom_range(0, len-1);
             meta_t meta;
             string msg;
             packet_raw#(meta_t) ref_pkt;
@@ -169,7 +169,7 @@ module packet_verif_unit_test;
         `SVTEST(dup)
             typedef logic[22:0] meta_t;
             int len=$urandom_range(64, 1500);
-            int bad_byte_idx = $urandom_range(0, len);
+            int bad_byte_idx = $urandom_range(0, len-1);
             meta_t meta;
             string msg;
             packet_raw#(meta_t) ref_pkt;
