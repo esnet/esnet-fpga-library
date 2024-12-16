@@ -6,6 +6,7 @@ interface axi3_intf
     parameter type ID_T = logic,
     parameter type USER_T = logic
 );
+
     // Signals
     // -- Clock/reset
     logic                          aclk;

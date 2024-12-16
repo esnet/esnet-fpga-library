@@ -1,7 +1,11 @@
-module axi3_mem_adapter
+// Module: axi3_from_mem_adapter
+//
+// Converts (word-addressable) mem_wr_if/mem_rd_if interfaces into a
+// 'byte-addressable' AXI-3 interface.
+module axi3_from_mem_adapter
     import axi3_pkg::*;
 #(
-    parameter axsize_encoding_t SIZE = SIZE_64BYTES,
+    parameter axsize_t SIZE = SIZE_64BYTES,
     parameter int WR_TIMEOUT = 64, // Write timeout (in clock cycles); set to 0 to disable timeout
     parameter int RD_TIMEOUT = 64  // Read timeout  (in clock cycles); set to 0 to disable timeout
 )(
@@ -18,6 +22,20 @@ module axi3_mem_adapter
     // AXI3 interface (downstream)
     axi3_intf.controller       axi3_if
 );
+    // Parameters
+    localparam int DATA_BYTES     = get_word_size(SIZE);
+    localparam int WORD_ADDR_WID  = mem_wr_if.ADDR_WID;
+    localparam int BYTE_SEL_WID   = $clog2(DATA_BYTES);
+    localparam int BYTE_ADDR_WID  = WORD_ADDR_WID + BYTE_SEL_WID;
+
+    // Parameter checking
+    initial begin
+        std_pkg::param_check(mem_wr_if.DATA_WID, DATA_BYTES*8,  "mem_wr_if.DATA_WID");
+        std_pkg::param_check(mem_rd_if.ADDR_WID, WORD_ADDR_WID, "mem_rd_if.ADDR_WID");
+        std_pkg::param_check(mem_rd_if.DATA_WID, DATA_BYTES*8,  "mem_rd_if.DATA_WID");
+        std_pkg::param_check(axi3_if.ADDR_WID, BYTE_ADDR_WID,   "axi3_if.ADDR_WID");
+        std_pkg::param_check(axi3_if.DATA_BYTE_WID, DATA_BYTES, "axi3_if.DATA_BYTE_WID");
+    end
     
     // Signals
     // --------------------
@@ -48,13 +66,13 @@ module axi3_mem_adapter
         end
     end
 
-    always_ff @(posedge clk) if (mem_wr_if.req && mem_wr_if.rdy) axi3_if.awaddr <= mem_wr_if.addr;
+    always_ff @(posedge clk) if (mem_wr_if.req && mem_wr_if.rdy) axi3_if.awaddr <= mem_wr_if.addr << BYTE_SEL_WID;
  
     // Write metadata
     // -----------------------------
     assign axi3_if.awid = '0;
     assign axi3_if.awlen = 0; // Burst length == 1; TODO: support Burst length > 1
-    assign axi3_if.awsize.encoded = SIZE;
+    assign axi3_if.awsize = SIZE;
     assign axi3_if.awburst.encoded = BURST_INCR;
     assign axi3_if.awlock.encoded= LOCK_NORMAL;
     assign axi3_if.awcache.encoded = '{bufferable: 1'b0, cacheable: 1'b0, read_allocate: 1'b0, write_allocate: 1'b0};
@@ -167,13 +185,13 @@ module axi3_mem_adapter
         end
     end
 
-    always_ff @(posedge clk) if (mem_rd_if.req && mem_rd_if.rdy) axi3_if.araddr <= mem_rd_if.addr;
+    always_ff @(posedge clk) if (mem_rd_if.req && mem_rd_if.rdy) axi3_if.araddr <= mem_rd_if.addr << BYTE_SEL_WID;
   
     // Read metadata
     // -----------------------------
     assign axi3_if.arid = '0;
     assign axi3_if.arlen = 0; // Burst length == 1; TODO: support Burst length > 1
-    assign axi3_if.arsize.encoded = SIZE;
+    assign axi3_if.arsize = SIZE;
     assign axi3_if.arburst.encoded = BURST_INCR;
     assign axi3_if.arlock.encoded= LOCK_NORMAL;
     assign axi3_if.arcache.encoded = '{bufferable: 1'b0, cacheable: 1'b0, read_allocate: 1'b0, write_allocate: 1'b0};
@@ -255,4 +273,4 @@ module axi3_mem_adapter
         else if (axi3_if.rvalid && axi3_if.rready) mem_rd_if.data <= axi3_if.rdata;
     end
 
-endmodule : axi3_mem_adapter
+endmodule : axi3_from_mem_adapter
