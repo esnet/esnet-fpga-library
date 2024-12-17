@@ -249,7 +249,7 @@ module timer_expiry_unit_test;
         // Configure timeout value via register write
         reg_agent.set_timeout(cfg_timeout);
         // Set timer initial state
-        timer = $urandom_range(0, 50);
+        timer = $urandom_range(0, 49);
         exp_threshold = timer - cfg_timeout;
         ticks(timer);
         @(posedge clk);
