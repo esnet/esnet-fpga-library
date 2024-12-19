@@ -1,4 +1,4 @@
-class raw_predictor #(
+virtual class raw_predictor #(
     parameter type DATA_IN_T = byte,
     parameter type DATA_OUT_T = byte
 ) extends raw_model#(

@@ -1,4 +1,4 @@
-class raw_model #(
+virtual class raw_model #(
     parameter type DATA_IN_T = byte,
     parameter type DATA_OUT_T = byte,
     parameter type T = model#(raw_transaction#(DATA_IN_T), raw_transaction#(DATA_OUT_T))
