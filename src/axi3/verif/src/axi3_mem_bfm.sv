@@ -11,7 +11,8 @@ module axi3_mem_bfm #(
     // Parameters
     localparam int ADDR_WID = axi3_if[0].ADDR_WID;
     localparam int DATA_BYTE_WID = axi3_if[0].DATA_BYTE_WID;
-    localparam type AXI_ID_T = axi3_if[0].ID_T; 
+    localparam int BYTE_SEL_WID = $clog2(DATA_BYTE_WID);
+    localparam type AXI_ID_T = axi3_if[0].ID_T;
 
     // Typedefs
     typedef logic [ADDR_WID-1:0]           addr_t;
@@ -22,7 +23,9 @@ module axi3_mem_bfm #(
     typedef struct packed {id_t id; data_t data; strb_t strb; logic last;} wdata_ctxt_t;
     typedef struct packed {id_t id; data_t data; logic last;} rdata_ctxt_t;
 
-    data_t __ram [addr_t];
+    typedef logic [ADDR_WID-BYTE_SEL_WID-1:0] __addr_t; // Word address
+
+    data_t __ram [__addr_t];
 
     generate
         for (genvar g_if = 0; g_if < CHANNELS; g_if++) begin : g__if
@@ -30,6 +33,7 @@ module axi3_mem_bfm #(
             // (Local) signals
             addr_ctxt_t  aw_ctxt_q[$];
             addr_t       awaddr;
+            __addr_t     __awaddr; // Word address
             id_t         awid;
 
             wdata_ctxt_t wdata_q[$];
@@ -42,6 +46,7 @@ module axi3_mem_bfm #(
 
             addr_ctxt_t  ar_ctxt_q[$];
             addr_t       araddr;
+            __addr_t     __araddr; // Word address
             id_t         arid;
             logic        arvalid;
 
@@ -129,7 +134,9 @@ module axi3_mem_bfm #(
 
             always_comb begin
                 if (wvalid) begin
-                    __ram[awaddr] = wdata;
+                    __awaddr = awaddr >> BYTE_SEL_WID;
+                    if (awaddr[BYTE_SEL_WID-1:0] != '0) $display("WARNING: Misaligned WRITE on Ch%0d, ID %0d: ADDR: 0x%x", g_if, arid, awaddr);
+                    __ram[__awaddr] = wdata;
                     if (DEBUG) $display("WRITE on Ch%0d, ID %d: ADDR: 0x%x, DATA: 0x%x, STRB: 0x%x, LAST: %b ", g_if, awid, awaddr, wdata, wstrb, wlast);
                 end
             end
@@ -180,9 +187,11 @@ module axi3_mem_bfm #(
                     rdata_q.delete();
                 end else begin
                     if (arvalid) begin
-                        if (__ram.exists(araddr)) begin
-                            rdata_q.push_back({arid, __ram[araddr], 1'b0});
-                            if (DEBUG) $display("READ on Ch%0d, ID %0d: ADDR: 0x%x, DATA: 0x%x, LAST: 0", g_if, arid, araddr, __ram[araddr]);
+                        __araddr = araddr >> BYTE_SEL_WID;
+                        if (araddr[BYTE_SEL_WID-1:0] != '0) $display("WARNING: Misaligned READ on Ch%0d, ID %0d: ADDR: 0x%x", g_if, arid, araddr);
+                        if (__ram.exists(__araddr)) begin
+                            rdata_q.push_back({arid, __ram[__araddr], 1'b0});
+                            if (DEBUG) $display("READ on Ch%0d, ID %0d: ADDR: 0x%x, DATA: 0x%x, LAST: 0", g_if, arid, araddr, __ram[__araddr]);
                         end else begin
                             rdata_q.push_back({arid, 256'b0, 1'b0});
                             if (DEBUG) $display("READ unitialized address on Ch%0d, ID %0d: ADDR: 0x%x, LAST: 0", g_if, arid, araddr);

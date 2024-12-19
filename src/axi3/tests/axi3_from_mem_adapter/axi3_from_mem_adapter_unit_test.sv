@@ -1,31 +1,34 @@
 `include "svunit_defines.svh"
 
-module axi3_mem_adapter_unit_test;
+module axi3_from_mem_adapter_unit_test;
 
     import svunit_pkg::svunit_testcase;
     import axi3_pkg::*;
 
-    string name = "axi3_mem_adapter_ut";
+    string name = "axi3_from_mem_adapter_ut";
     svunit_testcase svunit_ut;
 
     //===================================
     // Parameters
     //===================================
-    localparam type ADDR_T = logic[32:0];
-    localparam int DATA_BYTE_WID = 32;
-    localparam type DATA_T = logic[DATA_BYTE_WID*8-1:0];
+    localparam axsize_t AXI_SIZE = SIZE_32BYTES;
+    localparam int      AXI_ADDR_WID = 33;
+
+    localparam int SIZE = 2**AXI_ADDR_WID;
+
+    localparam int  DATA_BYTES = axi3_pkg::get_word_size(AXI_SIZE);
+    localparam int  DATA_WID = DATA_BYTES * 8;
+    localparam type DATA_T = logic[DATA_WID-1:0];
+
     localparam mem_pkg::access_t   ACCESS_TYPE = mem_pkg::ACCESS_READ_WRITE;
     localparam mem_pkg::mem_type_t MEM_TYPE = mem_pkg::MEM_TYPE_HBM;
 
-    localparam axsize_encoding_t AXI_SIZE = SIZE_32BYTES;
 
     localparam int NUM_CHANNELS = 16;
     localparam int ACTIVE_CHANNEL = 0;
 
-    localparam int ADDR_WID = $bits(ADDR_T);
-    localparam int SIZE = 2**ADDR_WID;
-    localparam int DATA_WID = $bits(DATA_T);
-    localparam int DATA_BYTES = DATA_BYTE_WID;
+    localparam int  MEM_ADDR_WID = AXI_ADDR_WID - $clog2(DATA_BYTES);
+    localparam type MEM_ADDR_T = logic[MEM_ADDR_WID-1:0];
 
     //===================================
     // DUT
@@ -36,11 +39,11 @@ module axi3_mem_adapter_unit_test;
 
     axi4l_intf axil_if ();
 
-    mem_intf    #(.ADDR_T(ADDR_T), .DATA_T(DATA_T)) mem_if (.clk(clk));
-    mem_wr_intf #(.ADDR_WID(ADDR_WID), .DATA_WID(DATA_WID)) mem_wr_if (.clk(clk));
-    mem_rd_intf #(.ADDR_WID(ADDR_WID), .DATA_WID(DATA_WID)) mem_rd_if (.clk(clk));
+    mem_intf    #(.ADDR_T(MEM_ADDR_T), .DATA_T(DATA_T)) mem_if (.clk(clk));
+    mem_wr_intf #(.ADDR_WID(MEM_ADDR_WID), .DATA_WID(DATA_WID)) mem_wr_if (.clk(clk));
+    mem_rd_intf #(.ADDR_WID(MEM_ADDR_WID), .DATA_WID(DATA_WID)) mem_rd_if (.clk(clk));
 
-    axi3_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .ADDR_WID(ADDR_WID), .ID_T(logic[5:0])) axi3_if [NUM_CHANNELS] ();
+    axi3_intf #(.DATA_BYTE_WID(DATA_BYTES), .ADDR_WID(AXI_ADDR_WID), .ID_T(logic[5:0])) axi3_if [NUM_CHANNELS] ();
 
     mem_proxy       #(
         .ACCESS_TYPE ( ACCESS_TYPE ),
@@ -54,7 +57,7 @@ module axi3_mem_adapter_unit_test;
         .*
     );
 
-    axi3_mem_adapter #(
+    axi3_from_mem_adapter #(
         .SIZE ( AXI_SIZE )
     ) DUT (
         .axi3_if ( axi3_if[ACTIVE_CHANNEL] ),
@@ -223,7 +226,7 @@ module axi3_mem_adapter_unit_test;
         // Desc:
         //===================================
         `SVTEST(write_read)
-            ADDR_T addr;
+            MEM_ADDR_T addr;
             byte exp_data [DATA_BYTES];
             byte got_data [];
             // Randomize access
@@ -258,10 +261,10 @@ module axi3_mem_adapter_unit_test;
         `SVTEST(writes_reads)
             const int NUM_TRANSACTIONS = 500;
             typedef byte data_t [DATA_BYTES];
-            data_t exp_data [ADDR_T];
+            data_t exp_data [MEM_ADDR_T];
             do begin
-                ADDR_T __addr;
-                data_t __exp_data;
+                MEM_ADDR_T __addr;
+                data_t     __exp_data;
                 // Randomize access
                 void'(std::randomize(__addr));
                 void'(std::randomize(__exp_data));
@@ -295,4 +298,4 @@ module axi3_mem_adapter_unit_test;
         reset_if.wait_ready(timeout, 0);
     endtask
 
-endmodule : axi3_mem_adapter_unit_test
+endmodule : axi3_from_mem_adapter_unit_test
