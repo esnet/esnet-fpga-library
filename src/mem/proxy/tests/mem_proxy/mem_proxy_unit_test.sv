@@ -21,7 +21,7 @@ module mem_proxy_unit_test;
     localparam int DEPTH = 2**ADDR_WID;
     localparam int DATA_WID = $bits(DATA_T);
     localparam int DATA_BYTES = DATA_WID % 8 == 0 ? DATA_WID / 8 : DATA_WID / 8 + 1;
-    localparam int SIZE = DEPTH * DATA_BYTES;
+    localparam longint MEM_SIZE = DEPTH * DATA_BYTES;
 
     //===================================
     // DUT
@@ -89,7 +89,7 @@ module mem_proxy_unit_test;
         // Build agent
         reg_agent = new();
         reg_agent.axil_vif = axil_if;
-        agent = new("mem_proxy_agent", SIZE, DATA_WID, reg_agent);
+        agent = new("mem_proxy_agent", DATA_WID, reg_agent);
     endfunction
 
     //===================================
@@ -161,6 +161,7 @@ module mem_proxy_unit_test;
             mem_pkg::mem_type_t _type;
             mem_pkg::access_t _access;
             int num;
+            longint size;
             // Check memory type
             agent.get_type(_type);
             `FAIL_UNLESS_EQUAL(_type, MEM_TYPE);
@@ -174,8 +175,8 @@ module mem_proxy_unit_test;
             agent.get_depth(num);
             `FAIL_UNLESS_EQUAL(num, DEPTH);
             // Check size
-            agent.get_size(num);
-            `FAIL_UNLESS_EQUAL(num, SIZE);
+            agent.get_size(size);
+            `FAIL_UNLESS_EQUAL(size, MEM_SIZE);
             // Check min burst size
             agent.get_min_burst_size(num);
             `FAIL_UNLESS_EQUAL(num, DATA_BYTES);

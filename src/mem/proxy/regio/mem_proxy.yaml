@@ -42,13 +42,15 @@ regs:
           desc:  memory depth in words
           width: 32
 
-  - name: info_size
-    desc: Info (size)
+  - name: info_size_upper
+    desc: Info (size in bytes, bits 63:32)
     access: ro
-    fields:
-        - name: bytes
-          desc: memory size in bytes
-          width: 32
+    width: 32
+
+  - name: info_size_lower
+    desc: Info (size in bytes, bits 31:0)
+    access: ro
+    width: 32
 
   - name: info_burst
     desc: Info (burst)
