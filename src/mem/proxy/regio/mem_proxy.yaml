@@ -186,7 +186,7 @@ regs:
         - name: byte_3
           desc: 3rd byte of selected dword
           width: 8
-    count: 64
+    count: 16
 
   - name: rd_data
     desc: Read data register (for READ operations).
@@ -208,4 +208,4 @@ regs:
         - name: byte_3
           desc: 3rd byte of selected dword
           width: 8
-    count: 64
+    count: 16
