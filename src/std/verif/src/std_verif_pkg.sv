@@ -16,8 +16,6 @@ package std_verif_pkg;
     `include "event_scoreboard.svh"
 
     `include "raw_transaction.svh"
-    `include "raw_driver.svh"
-    `include "raw_monitor.svh"
     `include "raw_model.svh"
     `include "raw_predictor.svh"
     `include "raw_scoreboard.svh"
@@ -28,22 +26,6 @@ package std_verif_pkg;
 
     `include "wire_model.svh"
     `include "wire_env.svh"
-
-    // Typedefs
-    typedef enum {
-        TX_MODE_SEND,
-        TX_MODE_PUSH,
-        TX_MODE_PUSH_WHEN_READY
-    } tx_mode_t;
-
-    typedef enum {
-        RX_MODE_RECEIVE,
-        RX_MODE_PULL,
-        RX_MODE_ACK,
-        RX_MODE_FETCH,
-        RX_MODE_FETCH_VAL,
-        RX_MODE_ACK_FETCH
-    } rx_mode_t;
 
 endpackage : std_verif_pkg
 

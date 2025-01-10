@@ -1,22 +1,27 @@
-interface std_raw_intf #(
-    parameter type DATA_T = bit[15:0]
+interface bus_intf #(
+    parameter type DATA_T = logic
 ) (
-    input clk
+    input wire logic clk,
+    input wire logic srst
 );
 
     // Signals
-    logic  valid;
-    logic  ready;
-    DATA_T data;
+    wire logic  valid;
+    wire logic  ready;
+    wire DATA_T data;
 
     // Modports
     modport tx (
+        input  clk,
+        input  srst,
         output valid,
         input  ready,
         output data
     );
 
     modport rx (
+        input  clk,
+        input  srst,
         input  valid,
         output ready,
         input  data
@@ -147,4 +152,14 @@ interface std_raw_intf #(
         fetch(_data);
     endtask
 
-endinterface : std_raw_intf
+endinterface : bus_intf
+
+
+module bus_intf_connector (
+    bus_intf.rx bus_if_from_tx,
+    bus_intf.tx bus_if_to_rx
+);
+    assign bus_if_to_rx.valid = bus_if_from_tx.valid;
+    assign bus_if_to_rx.data  = bus_if_from_tx.data;
+    assign bus_if_from_tx.ready = bus_if_to_rx.ready;
+endmodule : bus_intf_connector

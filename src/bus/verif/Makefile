@@ -23,10 +23,8 @@ SRC_LIST_FILES =
 #   (see $SCRIPTS_ROOT/Makefiles/templates/dependencies.mk)
 # ----------------------------------------------------
 SUBCOMPONENTS = \
-    fifo.verif \
-    std.verif \
-    bus.verif \
-    axi4l.verif
+    bus.rtl \
+    std.verif
 
 EXT_LIBS =
 

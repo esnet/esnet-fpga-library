@@ -1,13 +1,13 @@
-class raw_monitor #(
+class bus_monitor #(
     parameter type DATA_T = bit[15:0]
-) extends monitor#(raw_transaction#(DATA_T));
+) extends std_verif_pkg::monitor#(std_verif_pkg::raw_transaction#(DATA_T));
 
-    local static const string __CLASS_NAME = "std_verif_pkg::raw_monitor";
+    local static const string __CLASS_NAME = "bus_verif_pkg::bus_monitor";
 
     //===================================
     // Properties
     //===================================
-    virtual std_raw_intf #(DATA_T) raw_vif;
+    virtual bus_intf #(DATA_T) bus_vif;
 
     local rx_mode_t __rx_mode = RX_MODE_RECEIVE;
 
@@ -15,14 +15,14 @@ class raw_monitor #(
     // Methods
     //===================================
     // Constructor
-    function new(input string name="raw_monitor");
+    function new(input string name="bus_monitor");
         super.new(name);
         // WORKAROUND-INIT-PROPS {
         //     Provide/repeat default assignments for all remaining instance properties here.
         //     Works around an apparent object initialization bug (as of Vivado 2024.2)
         //     where properties are not properly allocated when they are not assigned
         //     in the constructor.
-        this.raw_vif = null;
+        this.bus_vif = null;
         this.__rx_mode = RX_MODE_RECEIVE;
         // } WORKAROUND-INIT-PROPS
     endfunction
@@ -30,7 +30,7 @@ class raw_monitor #(
     // Destructor
     // [[ implements std_verif_pkg::base.destroy() ]]
     virtual function automatic void destroy();
-        raw_vif = null;
+        bus_vif = null;
         super.destroy();
     endfunction
 
@@ -48,7 +48,7 @@ class raw_monitor #(
     // Quiesce monitored interface
     // [[ implements std_verif_pkg::component._idle() ]]
     protected task _idle();
-        raw_vif.idle_rx();
+        bus_vif.idle_rx();
     endtask
 
     // Receive raw data from interface
@@ -56,12 +56,12 @@ class raw_monitor #(
         trace_msg("receive_raw()");
         // Receive transaction from interface
         case (this.__rx_mode)
-            RX_MODE_RECEIVE   : raw_vif.receive(data);
-            RX_MODE_PULL      : raw_vif.pull(data);
-            RX_MODE_ACK       : raw_vif.ack(data);
-            RX_MODE_FETCH     : raw_vif.fetch(data);
-            RX_MODE_FETCH_VAL : raw_vif.fetch_val(data);
-            RX_MODE_ACK_FETCH : raw_vif.ack_fetch(data);
+            RX_MODE_RECEIVE   : bus_vif.receive(data);
+            RX_MODE_PULL      : bus_vif.pull(data);
+            RX_MODE_ACK       : bus_vif.ack(data);
+            RX_MODE_FETCH     : bus_vif.fetch(data);
+            RX_MODE_FETCH_VAL : bus_vif.fetch_val(data);
+            RX_MODE_ACK_FETCH : bus_vif.ack_fetch(data);
         endcase
         trace_msg("receive_raw() Done.");
     endtask
@@ -87,4 +87,4 @@ class raw_monitor #(
         trace_msg("_receive() Done.");
     endtask
 
-endclass : raw_monitor
+endclass : bus_monitor

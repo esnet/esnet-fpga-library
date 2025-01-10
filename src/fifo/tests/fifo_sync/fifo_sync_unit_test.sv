@@ -74,8 +74,8 @@ module fifo_sync_unit_test #(
 
     std_reset_intf reset_if (.clk(clk));
 
-    std_raw_intf #(DATA_T) wr_if (.clk(clk));
-    std_raw_intf #(DATA_T) rd_if (.clk(clk));
+    bus_intf #(DATA_T) wr_if (.clk(clk));
+    bus_intf #(DATA_T) rd_if (.clk(clk));
 
     // Assign reset interface
     assign srst = reset_if.reset;
@@ -317,7 +317,7 @@ module fifo_sync_unit_test #(
             `FAIL_UNLESS(cb.oflow == 0);
 
             // Put driver in 'push' mode to allow overflow conditions
-            env.driver.set_tx_mode(std_verif_pkg::TX_MODE_PUSH);
+            env.driver.set_tx_mode(bus_verif_pkg::TX_MODE_PUSH);
 
             // Send one more transaction
             exp_transaction = new($sformatf("exp_transaction_%d", __DEPTH), __DEPTH);

@@ -88,8 +88,8 @@ module fifo_async_axil_unit_test #(
 
     std_reset_intf reset_if (.clk(wr_clk));
 
-    std_raw_intf #(DATA_T) wr_if (.clk(wr_clk));
-    std_raw_intf #(DATA_T) rd_if (.clk(rd_clk));
+    bus_intf #(DATA_T) wr_if (.clk(wr_clk));
+    bus_intf #(DATA_T) rd_if (.clk(rd_clk));
 
     axi4l_verif_pkg::axi4l_reg_agent axil_reg_agent;
     fifo_ctrl_reg_agent ctrl_reg_agent;
@@ -457,7 +457,7 @@ module fifo_async_axil_unit_test #(
 
             // Add one more (overflow) event, after configuring
             // driver in 'push' mode to allow overflow condition
-            env.driver.set_tx_mode(std_verif_pkg::TX_MODE_PUSH);
+            env.driver.set_tx_mode(bus_verif_pkg::TX_MODE_PUSH);
             exp_transaction = new("exp_transaction", __DEPTH);
             env.driver.send(exp_transaction);
             @(cb_wr);
@@ -531,7 +531,7 @@ module fifo_async_axil_unit_test #(
 
             // Add one more (overflow) event, after configuring
             // driver in 'push' mode to allow overflow condition
-            env.driver.set_tx_mode(std_verif_pkg::TX_MODE_PUSH);
+            env.driver.set_tx_mode(bus_verif_pkg::TX_MODE_PUSH);
             exp_transaction = new("exp_transaction", __DEPTH);
             env.driver.send(exp_transaction);
             @(cb_wr);
@@ -669,7 +669,7 @@ module fifo_async_axil_unit_test #(
             string msg;
 
             // Put driver in 'push' mode to allow overflow conditions
-            env.driver.set_tx_mode(std_verif_pkg::TX_MODE_PUSH);
+            env.driver.set_tx_mode(bus_verif_pkg::TX_MODE_PUSH);
 
             // Overflow should be deasserted immediately following init
             `FAIL_UNLESS(cb_wr.full == 0);

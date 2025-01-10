@@ -23,11 +23,7 @@ SRC_LIST_FILES =
 #   (see $SCRIPTS_ROOT/Makefiles/templates/dependencies.mk)
 # ----------------------------------------------------
 SUBCOMPONENTS = \
-    fifo.verif \
-    std.verif \
-    bus.verif \
-    axi4l.verif
-
+    fifo.rtl
 EXT_LIBS =
 
 # ----------------------------------------------------
@@ -44,13 +40,14 @@ COMPILE_OPTS =
 # ----------------------------------------------------
 # Targets
 # ----------------------------------------------------
-all: compile
+all: compile synth
 
 compile: _compile_sim
+synth:   _compile_synth
 info:    _compile_info
 clean:   _compile_clean
 
-.PHONY: all compile info clean
+.PHONY: all compile synth info clean
 
 # ----------------------------------------------------
 # Import Vivado compile targets

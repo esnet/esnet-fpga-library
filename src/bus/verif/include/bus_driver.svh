@@ -1,13 +1,13 @@
-class raw_driver #(
+class bus_driver #(
     parameter type DATA_T = bit[15:0]
-) extends driver#(raw_transaction#(DATA_T));
+) extends std_verif_pkg::driver#(std_verif_pkg::raw_transaction#(DATA_T));
 
-    local static const string __CLASS_NAME = "std_verif_pkg::raw_driver";
+    local static const string __CLASS_NAME = "bus_verif_pkg::bus_driver";
 
     //===================================
     // Properties
     //===================================
-    virtual std_raw_intf #(DATA_T) raw_vif;
+    virtual bus_intf #(DATA_T) bus_vif;
 
     local tx_mode_t __tx_mode = TX_MODE_SEND;
 
@@ -15,14 +15,14 @@ class raw_driver #(
     // Methods
     //===================================
     // Constructor
-    function new(input string name="raw_driver");
+    function new(input string name="bus_driver");
         super.new(name);
         // WORKAROUND-INIT-PROPS {
         //     Provide/repeat default assignments for all remaining instance properties here.
         //     Works around an apparent object initialization bug (as of Vivado 2024.2)
         //     where properties are not properly allocated when they are not assigned
         //     in the constructor.
-        this.raw_vif = null;
+        this.bus_vif = null;
         this.__tx_mode = TX_MODE_SEND;
         // } WORKAROUND-INIT-PROPS
     endfunction
@@ -30,7 +30,7 @@ class raw_driver #(
     // Destructor
     // [[ implements std_verif_pkg::base.destroy() ]]
     virtual function automatic void destroy();
-        raw_vif = null;
+        bus_vif = null;
         super.destroy();
     endfunction
 
@@ -48,23 +48,23 @@ class raw_driver #(
     // Quiesce driven interface
     // [[ implements std_verif_pkg::component._idle() ]]
     protected task _idle();
-        raw_vif.idle_tx();
+        bus_vif.idle_tx();
     endtask
 
-    // Send raw data to interface
+    // Send data to interface
     task send_raw(DATA_T data);
         trace_msg("send_raw()");
         // Send transaction to interface
         case(this.__tx_mode)
-            TX_MODE_SEND:            raw_vif.send(data);
-            TX_MODE_PUSH:            raw_vif.push(data);
-            TX_MODE_PUSH_WHEN_READY: raw_vif.push_when_ready(data);
-            default:                 raw_vif.send(data);
+            TX_MODE_SEND:            bus_vif.send(data);
+            TX_MODE_PUSH:            bus_vif.push(data);
+            TX_MODE_PUSH_WHEN_READY: bus_vif.push_when_ready(data);
+            default:                 bus_vif.send(data);
         endcase
         trace_msg("send_raw() Done.");
     endtask
 
-    // Send raw transaction
+    // Send bus transaction
     // [[ implements std_verif_pkg::driver._send() ]]
     protected task _send(input TRANSACTION_T transaction);
         trace_msg("_send()");
@@ -74,4 +74,4 @@ class raw_driver #(
         trace_msg("_send() Done.");
     endtask
 
-endclass : raw_driver
+endclass : bus_driver
