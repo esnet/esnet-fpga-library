@@ -230,7 +230,7 @@ interface axi4s_intf
 
     // Synthesize SOP
     initial sop = 1;
-    always @(posedge aclk or negedge aresetn) begin
+    always @(posedge aclk) begin
         if (!aresetn) sop <= 1'b1;
         else begin
             if (tvalid && tready && tlast)  sop <= 1'b1;
