@@ -285,6 +285,12 @@ _synth_constraints: | $(COMPONENT_OUT_SYNTH_PATH)
 		echo "\tread_xdc -quiet -unmanaged -ref $$rammodule $(abspath $(LIB_ROOT)/src/xilinx/ram/build/$$rammodule/synth.xdc)" >> $(SYNTH_CONSTRAINTS_OBJ); \
 		echo "}" >> $(SYNTH_CONSTRAINTS_OBJ); \
 	done
+	@echo >> $(SYNTH_CONSTRAINTS_OBJ)
+	@echo "# SLR crossing constraints" >> $(SYNTH_CONSTRAINTS_OBJ)
+	@echo "#-------------------------" >> $(SYNTH_CONSTRAINTS_OBJ)
+	@echo "if {[lsearch [get_files -compile_order sources -used_in synthesis] *bus/rtl/src/bus_pipe_slr.sv] >= 0} {" >> $(SYNTH_CONSTRAINTS_OBJ); \
+	 echo "\tread_xdc -quiet -unmanaged -ref bus_pipe_slr $(abspath $(LIB_ROOT)/src/bus/build/bus_pipe_slr/synth.xdc)" >> $(SYNTH_CONSTRAINTS_OBJ); \
+	 echo "}" >> $(SYNTH_CONSTRAINTS_OBJ);
 
 .PHONY: _synth_sources _synth_constraints
 
