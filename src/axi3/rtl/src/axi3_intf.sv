@@ -5,12 +5,13 @@ interface axi3_intf
     parameter int  ADDR_WID = 32,
     parameter type ID_T = logic,
     parameter type USER_T = logic
+) (
+    // Clock/reset
+    input logic aclk,
+    input logic aresetn // Active-low synchronous reset
 );
 
     // Signals
-    // -- Clock/reset
-    logic                          aclk;
-    logic                          aresetn;
     // -- Write address
     ID_T                           awid;
     logic [ADDR_WID-1:0]           awaddr;
@@ -65,8 +66,8 @@ interface axi3_intf
     // Modports
     modport controller (
         // Clock/reset
-        output aclk,
-        output aresetn,
+        input  aclk,
+        input  aresetn,
         // Write address
         output awid,
         output awaddr,
@@ -177,14 +178,11 @@ interface axi3_intf
 
 endinterface : axi3_intf
 
-// AXI4-Lite (back-to-back) connector helper module
+// AXI-3 (back-to-back) connector helper module
 module axi3_intf_connector (
     axi3_intf.peripheral axi3_if_from_controller,
     axi3_intf.controller axi3_if_to_peripheral
 );
-    // Clock/reset
-    assign axi3_if_to_peripheral.aclk = axi3_if_from_controller.aclk;
-    assign axi3_if_to_peripheral.aresetn = axi3_if_from_controller.aresetn;
     // Write address
     assign axi3_if_to_peripheral.awid = axi3_if_from_controller.awid;
     assign axi3_if_to_peripheral.awaddr = axi3_if_from_controller.awaddr;
@@ -269,9 +267,6 @@ module axi3_intf_controller_term (
     import axi3_pkg::*;
 
     // Tie off controller outputs
-    // Clock/reset
-    assign axi3_if.aclk = 1'b0;
-    assign axi3_if.aresetn = 1'b0;
     // Write address
     assign axi3_if.awid = '0;
     assign axi3_if.awaddr = '0;
@@ -322,9 +317,6 @@ module axi3_intf_from_signals
     parameter type USER_T = logic
 ) (
     // Signals (from controller)
-    // -- Clock/reset
-    input  logic                          aclk,
-    input  logic                          aresetn,
     // -- Write address
     input  ID_T                           awid,
     input  logic [ADDR_WID-1:0]           awaddr,
@@ -379,9 +371,6 @@ module axi3_intf_from_signals
     // Interface (to peripheral)
     axi3_intf.controller                  axi3_if
 );
-    // Clock/reset
-    assign axi3_if.aclk = aclk;
-    assign axi3_if.aresetn = aresetn;
     // Write address
     assign axi3_if.awid = awid;
     assign axi3_if.awaddr = awaddr;
@@ -446,7 +435,7 @@ module axi3_intf_to_signals
     parameter type USER_T = logic
 ) (
     // Interface (from controller)
-    axi3_intf.peripheral             axi3_if,
+    axi3_intf.peripheral                  axi3_if,
  
     // Signals (to peripheral)
     // -- Clock/reset
@@ -503,7 +492,6 @@ module axi3_intf_to_signals
     input  logic                          rvalid,
     output logic                          rready
 );
-
     // Clock/reset
     assign aclk = axi3_if.aclk;
     assign aresetn = axi3_if.aresetn;

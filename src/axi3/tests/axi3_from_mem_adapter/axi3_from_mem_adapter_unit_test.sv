@@ -43,7 +43,7 @@ module axi3_from_mem_adapter_unit_test;
     mem_wr_intf #(.ADDR_WID(MEM_ADDR_WID), .DATA_WID(DATA_WID)) mem_wr_if (.clk(clk));
     mem_rd_intf #(.ADDR_WID(MEM_ADDR_WID), .DATA_WID(DATA_WID)) mem_rd_if (.clk(clk));
 
-    axi3_intf #(.DATA_BYTE_WID(DATA_BYTES), .ADDR_WID(AXI_ADDR_WID), .ID_T(logic[5:0])) axi3_if [NUM_CHANNELS] ();
+    axi3_intf #(.DATA_BYTE_WID(DATA_BYTES), .ADDR_WID(AXI_ADDR_WID), .ID_T(logic[5:0])) axi3_if [NUM_CHANNELS] (.aclk(clk), .aresetn(!srst));
 
     mem_proxy       #(
         .ACCESS_TYPE ( ACCESS_TYPE ),
@@ -92,7 +92,7 @@ module axi3_from_mem_adapter_unit_test;
     axi4l_verif_pkg::axi4l_reg_agent reg_agent;
 
     // Reset
-    std_reset_intf reset_if (.clk(clk));
+    std_reset_intf reset_if (.clk);
 
     // Assign clock (333MHz)
     `SVUNIT_CLK_GEN(clk, 1.5ns);
