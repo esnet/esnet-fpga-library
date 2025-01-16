@@ -1,7 +1,7 @@
 `include "svunit_defines.svh"
 
 module axi4s_intf_unit_test #(
-    parameter logic[3:0] DUT_SELECT = 0
+    parameter int DUT_SELECT = 0
 );
     import svunit_pkg::svunit_testcase;
     import axi4s_verif_pkg::*;
@@ -19,7 +19,10 @@ module axi4s_intf_unit_test #(
                                    DUT_SELECT == 10 ? "axi4s_pkt_fifo_async_default" :
                                    DUT_SELECT == 11 ? "axi4s_pkt_fifo_async_st_fwd" :
                                    DUT_SELECT == 12 ? "axi4s_pkt_fifo_sync" :
-                                   DUT_SELECT == 13 ? "axi4s_packet_adapter" : "undefined";
+                                   DUT_SELECT == 13 ? "axi4s_packet_adapter" :
+                                   DUT_SELECT == 14 ? "axi4s_pipe" : 
+                                   DUT_SELECT == 15 ? "axi4s_pipe_auto" :
+                                   DUT_SELECT == 16 ? "axi4s_pipe_slr" : "undefined";
 
     string name = $sformatf("axi4s_intf_dut_%s_ut", dut_string);
     svunit_testcase svunit_ut;
@@ -116,6 +119,15 @@ module axi4s_intf_unit_test #(
                 assign tdest = packet_if.meta.tdest;
                 assign tuser = packet_if.meta.tuser;
                 axi4s_from_packet_adapter #(TID_T, TDEST_T, TUSER_T) DUT_1 (.axis_if(axis_out_if), .*);
+         end
+         14 : begin
+             axi4s_pipe #(.STAGES(2)) DUT (.axi4s_if_from_tx ( axis_in_if ), .axi4s_if_to_rx ( axis_out_if ));
+         end
+         15 : begin
+             axi4s_pipe_auto DUT (.axi4s_if_from_tx ( axis_in_if ), .axi4s_if_to_rx ( axis_out_if ));
+         end
+         16 : begin
+             axi4s_pipe_slr DUT (.axi4s_if_from_tx ( axis_in_if ), .axi4s_if_to_rx ( axis_out_if ));
          end
       endcase
    endgenerate
@@ -391,4 +403,16 @@ endmodule
 
 module axi4s_packet_adapter_unit_test;
 `AXI4S_UNIT_TEST(13)
+endmodule
+
+module axi4s_pipe_unit_test;
+`AXI4S_UNIT_TEST(14)
+endmodule
+
+module axi4s_pipe_auto_unit_test;
+`AXI4S_UNIT_TEST(15)
+endmodule
+
+module axi4s_pipe_slr_unit_test;
+`AXI4S_UNIT_TEST(16)
 endmodule
