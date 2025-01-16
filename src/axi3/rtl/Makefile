@@ -23,7 +23,8 @@ SRC_LIST_FILES =
 #   (see $SCRIPTS_ROOT/Makefiles/templates/dependencies.mk)
 # ----------------------------------------------------
 SUBCOMPONENTS = \
-    mem.rtl
+    mem.rtl \
+    bus.rtl
 
 EXT_LIBS =
 
