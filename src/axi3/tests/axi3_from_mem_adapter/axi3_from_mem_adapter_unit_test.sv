@@ -14,7 +14,7 @@ module axi3_from_mem_adapter_unit_test;
     localparam axsize_t AXI_SIZE = SIZE_32BYTES;
     localparam int      AXI_ADDR_WID = 33;
 
-    localparam int SIZE = 2**AXI_ADDR_WID;
+    localparam longint MEM_SIZE = 2**AXI_ADDR_WID;
 
     localparam int  DATA_BYTES = axi3_pkg::get_word_size(AXI_SIZE);
     localparam int  DATA_WID = DATA_BYTES * 8;
@@ -115,7 +115,7 @@ module axi3_from_mem_adapter_unit_test;
         // Build agent
         reg_agent = new();
         reg_agent.axil_vif = axil_if;
-        agent = new("mem_reg_agent", SIZE, DATA_WID, reg_agent);
+        agent = new("mem_proxy_agent", DATA_WID, reg_agent);
     endfunction
 
     //===================================
@@ -187,6 +187,7 @@ module axi3_from_mem_adapter_unit_test;
             mem_pkg::mem_type_t _type;
             mem_pkg::access_t _access;
             int num;
+            longint size;
             // Check memory type
             agent.get_type(_type);
             `FAIL_UNLESS_EQUAL(_type, MEM_TYPE);
@@ -197,8 +198,8 @@ module axi3_from_mem_adapter_unit_test;
             agent.get_alignment(num);
             `FAIL_UNLESS_EQUAL(num, DATA_BYTES);
             // Check size
-            agent.get_size(num);
-            `FAIL_UNLESS_EQUAL(num, SIZE);
+            agent.get_size(size);
+            `FAIL_UNLESS_EQUAL(size, MEM_SIZE);
             // Check min burst size
             agent.get_min_burst_size(num);
             `FAIL_UNLESS_EQUAL(num, DATA_BYTES);

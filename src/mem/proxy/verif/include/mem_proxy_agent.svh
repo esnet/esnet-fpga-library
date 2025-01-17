@@ -5,10 +5,9 @@ class mem_proxy_agent extends mem_proxy_reg_blk_agent;
     //===================================
     // Parameters
     //===================================
-    local int __RESET_TIMEOUT;
-    local int __OP_TIMEOUT;
+    local int __RESET_TIMEOUT = 0;
+    local int __OP_TIMEOUT = 128;
 
-    local const int __SIZE;
     local const int __DATA_WID;
 
     //===================================
@@ -17,15 +16,13 @@ class mem_proxy_agent extends mem_proxy_reg_blk_agent;
     // Constructor
     function new(
             input string name="mem_proxy_agent",
-            input int size,
             input int data_wid,
             const ref reg_verif_pkg::reg_agent reg_agent,
             input int BASE_OFFSET=0
         );
         super.new(name, BASE_OFFSET);
-        this.__SIZE = size;
         this.__DATA_WID = data_wid;
-        this.set_reset_timeout(2*size);
+        this.set_reset_timeout(0);
         this.set_op_timeout(128);
         this.reg_agent = reg_agent;
     endfunction
@@ -348,17 +345,19 @@ class mem_proxy_agent extends mem_proxy_reg_blk_agent;
     endtask
 
     // Get depth
-    task get_depth(output int _depth);
+    task get_depth(output longint _depth);
         mem_proxy_reg_pkg::reg_info_depth_t reg_info_depth;
         this.read_info_depth(reg_info_depth);
         _depth = reg_info_depth;
     endtask
 
     // Get size
-    task get_size(output int _size);
-        mem_proxy_reg_pkg::reg_info_size_t reg_info_size;
-        this.read_info_size(reg_info_size);
-        _size = reg_info_size;
+    task get_size(output longint _size);
+        mem_proxy_reg_pkg::reg_info_size_upper_t reg_info_size_upper;
+        mem_proxy_reg_pkg::reg_info_size_lower_t reg_info_size_lower;
+        this.read_info_size_upper(reg_info_size_upper);
+        this.read_info_size_lower(reg_info_size_lower);
+        _size = {reg_info_size_upper, reg_info_size_lower};
     endtask
 
     // Get min burst size

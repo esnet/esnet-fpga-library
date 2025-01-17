@@ -26,14 +26,16 @@ module mem_proxy
     // -----------------------------
     // Parameters
     // -----------------------------
-    localparam type ADDR_T = mem_if.ADDR_T;
-    localparam int  ADDR_WID = $bits(ADDR_T);
-    localparam int  MEM_SIZE = 2**ADDR_WID;
+    localparam type    ADDR_T = mem_if.ADDR_T;
+    localparam int     ADDR_WID = $bits(ADDR_T);
+    localparam longint MEM_DEPTH = 2**ADDR_WID;
 
     localparam type DATA_T = mem_if.DATA_T;
     localparam int  DATA_WID = $bits(DATA_T);
     localparam bit  DATA_WID_IS_N_BYTES = (DATA_WID % 8 == 0);
     localparam int  DATA_BYTES = DATA_WID % 8 == 0 ? DATA_WID / 8 : DATA_WID / 8 + 1;
+
+    localparam longint MEM_SIZE = MEM_DEPTH * DATA_BYTES;
 
     // Determine burst parameters (in bytes)
     localparam int BURST_LEN_MAX = DATA_WID_IS_N_BYTES ? mem_proxy_reg_pkg::COUNT_WR_DATA * 4 / DATA_BYTES : 1;
@@ -200,10 +202,13 @@ module mem_proxy
     assign reg_if.info_nxt.alignment = DATA_BYTES;
 
     assign reg_if.info_depth_nxt_v = 1'b1;
-    assign reg_if.info_depth_nxt = MEM_SIZE;
+    assign reg_if.info_depth_nxt = MEM_DEPTH;
 
-    assign reg_if.info_size_nxt_v = 1'b1;
-    assign reg_if.info_size_nxt = MEM_SIZE*DATA_BYTES;
+    assign reg_if.info_size_lower_nxt_v = 1'b1;
+    assign reg_if.info_size_lower_nxt = MEM_SIZE[31:0];
+
+    assign reg_if.info_size_upper_nxt_v = 1'b1;
+    assign reg_if.info_size_upper_nxt = MEM_SIZE[63:32];
 
     assign reg_if.info_burst_nxt_v = 1'b1;
     assign reg_if.info_burst_nxt.min = BURST_SIZE_MIN;
