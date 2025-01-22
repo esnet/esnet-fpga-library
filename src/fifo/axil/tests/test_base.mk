@@ -1,7 +1,7 @@
 # -----------------------------------------------
 # Component setup
 # -----------------------------------------------
-COMPONENT_ROOT := ../..
+COMPONENT_ROOT := ../../..
 
 include $(COMPONENT_ROOT)/config.mk
 
@@ -23,8 +23,7 @@ waves ?= OFF
 #   (see $SCRIPTS_ROOT/Makefiles/templates/dependencies.mk for details)
 # ----------------------------------------------------
 SUBCOMPONENTS = \
-    bus.rtl \
-    fifo.rtl \
+    fifo.axil.rtl \
     fifo.verif \
     fifo.tb \
     std.rtl

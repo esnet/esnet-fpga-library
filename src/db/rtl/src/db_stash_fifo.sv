@@ -66,8 +66,6 @@ module db_stash_fifo #(
     // ----------------------------------
     // Interfaces
     // ----------------------------------
-    axi4l_intf #() fifo_ctrl_fsm_axil_if__unused ();
-
     db_intf #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) db_wr_if (.clk(clk));
     db_intf #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) db_rd_if (.clk(clk));
 
@@ -145,12 +143,8 @@ module db_stash_fifo #(
         .rd_count ( ),
         .rd_empty ( empty ),
         .rd_uflow ( ),
-        .mem_rdy  ( db_init_done ),
-        .axil_if  ( fifo_ctrl_fsm_axil_if__unused )
+        .mem_rdy  ( db_init_done )
     );
-
-    // Terminate unused AXI-L interface
-    axi4l_intf_controller_term i_axi4l_intf_controller_term (.axi4l_if (fifo_ctrl_fsm_axil_if__unused));
 
     // ----------------------------------
     // Cache write logic

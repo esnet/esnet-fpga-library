@@ -1,4 +1,4 @@
-name: fifo_ctrl_wr_mon
+name: fifo_wr_mon
 info: |
   This register map describes a generic control/monitoring interface
   for the write-side of a FIFO controller.
@@ -24,8 +24,10 @@ regs:
 
   - name: status_count
     desc: FIFO occupancy as determined in write domain.
+    width: 32
     access: ro
 
   - name: status_wr_ptr
     desc: FIFO write pointer.
+    width: 32
     access: ro

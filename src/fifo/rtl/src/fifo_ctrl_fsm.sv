@@ -1,15 +1,15 @@
-module fifo_ctrl_fsm #(
+module fifo_ctrl_fsm
+    import fifo_pkg::*;
+#(
     parameter int DEPTH = 256,
     parameter bit ASYNC = 1,
     parameter bit OFLOW_PROT = 1,
     parameter bit UFLOW_PROT = 1,
-    parameter fifo_pkg::opt_mode_t WR_OPT_MODE = fifo_pkg::OPT_MODE_TIMING,
-    parameter fifo_pkg::opt_mode_t RD_OPT_MODE = fifo_pkg::OPT_MODE_TIMING,
+    parameter opt_mode_t WR_OPT_MODE = OPT_MODE_TIMING,
+    parameter opt_mode_t RD_OPT_MODE = OPT_MODE_TIMING,
     // Derived parameters (don't override)
     parameter int PTR_WID = DEPTH > 1 ? $clog2(DEPTH) : 1,
-    parameter int CNT_WID = $clog2(DEPTH+1),
-    // Debug parameters
-    parameter bit AXIL_IF = 1'b0
+    parameter int CNT_WID = $clog2(DEPTH+1)
 ) (
     // Write side
     input  logic               wr_clk,
@@ -33,12 +33,8 @@ module fifo_ctrl_fsm #(
     output logic               rd_uflow,
 
     // Memory ready
-    input  logic               mem_rdy,
-
-    // AXI-L control/monitoring interface
-    axi4l_intf.peripheral      axil_if
+    input  logic               mem_rdy
 );
-
     // -----------------------------
     // Signals
     // -----------------------------
@@ -164,112 +160,5 @@ module fifo_ctrl_fsm #(
             assign rd_empty = (rd_count == 0);
         end : g__rd_opt_latency
     endgenerate
-    
-    // AXI-L monitoring
-    generate
-        if (AXIL_IF) begin : g__axil
-            // (Local) imports
-            import fifo_ctrl_info_reg_pkg::*;
-            // (Local) interfaces
-            axi4l_intf info_axil_if   ();
-            axi4l_intf wr_mon_axil_if ();
-            axi4l_intf rd_mon_axil_if ();
-            axi4l_intf wr_mon_axil_if__wr_clk ();
-            axi4l_intf rd_mon_axil_if__rd_clk ();
-
-            fifo_ctrl_info_reg_intf   info_reg_if ();
-            fifo_ctrl_wr_mon_reg_intf wr_mon_reg_if ();
-            fifo_ctrl_rd_mon_reg_intf rd_mon_reg_if ();
-
-            // Main decoder
-            // TEMP: Workaround elaboration bug in Vivado 2023.2 where interface array port
-            //       (axil_client_if[2]) in axi4l_decoder submodule is reported as not present.
-            //       Instantiating the axi4l_decoder module here directly seems to avoid the issue.
-            /*
-            // FIFO block-level decoder
-            fifo_ctrl_decoder i_fifo_ctrl_decoder (
-                .axil_if        ( axil_if ),
-                .info_axil_if   ( info_axil_if ),
-                .wr_mon_axil_if ( wr_mon_axil_if ),
-                .rd_mon_axil_if ( rd_mon_axil_if )
-            );
-            */
-            axi4l_decoder #(
-                .MEM_MAP   ( fifo_ctrl_decoder_pkg::MEM_MAP)
-            ) i_axi4l_decoder (
-                .axi4l_if        ( axil_if ),
-                .axi4l_client_if ( '{info_axil_if, wr_mon_axil_if, rd_mon_axil_if} )
-            );
-
-            // Info block (static)
-            fifo_ctrl_info_reg_blk i_fifo_ctrl_info_reg_blk (
-                .axil_if    ( info_axil_if ),
-                .reg_blk_if ( info_reg_if )
-            );
-
-            // Export (static) parameterization info
-            assign info_reg_if.info_nxt_v = 1'b1;
-            assign info_reg_if.info_nxt.fifo_type  = ASYNC      ? INFO_FIFO_TYPE_ASYNC :
-                                                                  INFO_FIFO_TYPE_SYNC;
-            assign info_reg_if.info_nxt.oflow_prot = OFLOW_PROT ? INFO_OFLOW_PROT_ENABLED :
-                                                                  INFO_OFLOW_PROT_DISABLED;
-            assign info_reg_if.info_nxt.uflow_prot = UFLOW_PROT ? INFO_UFLOW_PROT_ENABLED :
-                                                                  INFO_UFLOW_PROT_DISABLED;
-
-            assign info_reg_if.info_depth_nxt_v = 1'b1;
-            assign info_reg_if.info_depth_nxt = DEPTH;
-
-            // CDC
-            axi4l_intf_cdc i_axi4l_cdc_wr_mon (
-                .axi4l_if_from_controller(wr_mon_axil_if),
-                .clk_to_peripheral       (wr_clk),
-                .axi4l_if_to_peripheral  (wr_mon_axil_if__wr_clk)
-            );
-            axi4l_intf_cdc i_axi4l_cdc_rd_mon (
-                .axi4l_if_from_controller(rd_mon_axil_if),
-                .clk_to_peripheral       (rd_clk),
-                .axi4l_if_to_peripheral  (rd_mon_axil_if__rd_clk)
-            );
-
-            // Write/read monitor register blocks
-            fifo_ctrl_wr_mon_reg_blk i_fifo_ctrl_wr_mon_reg_blk (
-                .axil_if    ( wr_mon_axil_if__wr_clk ),
-                .reg_blk_if ( wr_mon_reg_if )
-            );
-            fifo_ctrl_rd_mon_reg_blk i_fifo_ctrl_rd_mon_reg_blk (
-                .axil_if    ( rd_mon_axil_if__rd_clk ),
-                .reg_blk_if ( rd_mon_reg_if )
-            );
-
-            // Write monitoring
-            assign wr_mon_reg_if.status_nxt_v = 1'b1;
-            assign wr_mon_reg_if.status_count_nxt_v = 1'b1;
-            assign wr_mon_reg_if.status_wr_ptr_nxt_v = 1'b1;
-            always_ff @(posedge wr_clk) begin
-                wr_mon_reg_if.status_nxt.reset  <= wr_srst;
-                wr_mon_reg_if.status_nxt.full   <= wr_full;
-                wr_mon_reg_if.status_nxt.oflow  <= wr_oflow;
-                wr_mon_reg_if.status_count_nxt  <= wr_count;
-                wr_mon_reg_if.status_wr_ptr_nxt <= wr_ptr;
-            end
-
-            // Read monitoring
-            assign rd_mon_reg_if.status_nxt_v = 1'b1;
-            assign rd_mon_reg_if.status_count_nxt_v = 1'b1;
-            assign rd_mon_reg_if.status_rd_ptr_nxt_v = 1'b1;
-            always_ff @(posedge rd_clk) begin
-                rd_mon_reg_if.status_nxt.reset  <= rd_srst;
-                rd_mon_reg_if.status_nxt.empty  <= rd_empty;
-                rd_mon_reg_if.status_nxt.uflow  <= rd_uflow;
-                rd_mon_reg_if.status_count_nxt  <= rd_count;
-                rd_mon_reg_if.status_rd_ptr_nxt <= rd_ptr;
-            end
-
-        end : g__axil
-        else begin : g__no_axil
-            // Terminate unused AXI-L interface
-            axi4l_intf_peripheral_term i_axil4l_intf_peripheral_term (.axi4l_if (axil_if));
-        end : g__no_axil
-    endgenerate
-
+   
 endmodule : fifo_ctrl_fsm

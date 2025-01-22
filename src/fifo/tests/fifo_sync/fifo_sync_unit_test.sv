@@ -72,10 +72,10 @@ module fifo_sync_unit_test #(
     //===================================
     tb_env #(DATA_T, FWFT) env;
 
-    std_reset_intf reset_if (.clk(clk));
+    std_reset_intf reset_if (.clk);
 
-    bus_intf #(DATA_T) wr_if (.clk(clk));
-    bus_intf #(DATA_T) rd_if (.clk(clk));
+    bus_intf #(DATA_T) wr_if (.clk, .srst);
+    bus_intf #(DATA_T) rd_if (.clk, .srst);
 
     // Assign reset interface
     assign srst = reset_if.reset;

@@ -1,4 +1,4 @@
-name: fifo_ctrl_rd_mon
+name: fifo_rd_mon
 info: |
   This register map describes a generic control/monitoring interface
   for the read-side of a FIFO controller.
@@ -24,8 +24,10 @@ regs:
 
   - name: status_count
     desc: FIFO occupancy as determined in read domain.
+    width: 32
     access: ro
 
   - name: status_rd_ptr
     desc: FIFO read pointer.
+    width: 32
     access: ro

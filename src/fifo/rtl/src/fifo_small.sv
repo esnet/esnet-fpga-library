@@ -37,11 +37,6 @@ module fifo_small #(
     logic [PTR_WID-1:0]   rd_ptr;
 
     // -----------------------------
-    // Interfaces
-    // -----------------------------
-    axi4l_intf #() axil_if__unused ();
-
-    // -----------------------------
     // Control FSM
     // -----------------------------
     fifo_ctrl_fsm  #(
@@ -69,8 +64,7 @@ module fifo_small #(
         .rd_count ( ),
         .rd_empty ( empty ),
         .rd_uflow ( uflow ),
-        .mem_rdy  ( 1'b1 ),
-        .axil_if  ( axil_if__unused )
+        .mem_rdy  ( 1'b1 )
     );
 
     // Write
@@ -80,8 +74,5 @@ module fifo_small #(
 
     // Read
     assign rd_data = mem[rd_ptr];
-
-    // Terminate unused AXI-L interface
-    axi4l_intf_controller_term i_axi4l_intf_controller_term (.axi4l_if (axil_if__unused));
 
 endmodule : fifo_small

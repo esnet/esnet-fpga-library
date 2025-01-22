@@ -46,9 +46,10 @@ module axi4s_fifo_core
     axi4s_data_t axi4s_out_data;
 
     //----------------------------------------------
-    // Signals
+    // Interfaces
     //----------------------------------------------
-    axi4l_intf axil_if__unused ();
+    fifo_wr_mon_intf wr_mon_if__unused (.clk(axi4s_in.aclk));
+    fifo_rd_mon_intf rd_mon_if__unused (.clk(axi4s_out.aclk));
 
     //----------------------------------------------
     // Map AXI-S interface to/from FIFO data interface
@@ -94,10 +95,8 @@ module axi4s_fifo_core
         .rd_count    ( ),
         .rd_empty    ( ),
         .rd_uflow    ( ),
-        .axil_if     ( axil_if__unused )
+        .wr_mon_if   ( wr_mon_if__unused ),
+        .rd_mon_if   ( rd_mon_if__unused )
     );
-
-    // Terminate unused interface
-    axi4l_intf_controller_term i_axi4l_intf_controller_term (.axi4l_if(axil_if__unused));
 
 endmodule : axi4s_fifo_core

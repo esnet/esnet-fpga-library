@@ -77,8 +77,8 @@ module fifo_async_unit_test #(
 
     std_reset_intf reset_if (.clk(wr_clk));
 
-    bus_intf #(DATA_T) wr_if (.clk(wr_clk));
-    bus_intf #(DATA_T) rd_if (.clk(rd_clk));
+    bus_intf #(DATA_T) wr_if (.clk(wr_clk), .srst(wr_srst));
+    bus_intf #(DATA_T) rd_if (.clk(rd_clk), .srst(rd_srst));
 
     // Assign reset interface
     assign wr_srst = reset_if.reset;

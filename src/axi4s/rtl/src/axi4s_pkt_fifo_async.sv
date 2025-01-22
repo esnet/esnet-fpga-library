@@ -148,7 +148,7 @@ module axi4s_pkt_fifo_async
 
    
    // --- fifo_async instantiation ---
-   fifo_async_axil #(
+   fifo_axil_async #(
       .DATA_T    (fifo_data_t),
       .DEPTH     (FIFO_ASYNC_DEPTH),
       .FWFT      (1)

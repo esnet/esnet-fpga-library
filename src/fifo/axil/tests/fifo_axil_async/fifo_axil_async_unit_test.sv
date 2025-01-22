@@ -3,7 +3,7 @@
 // (Failsafe) timeout
 `define SVUNIT_TIMEOUT 500us
 
-module fifo_async_axil_unit_test #(
+module fifo_axil_async_unit_test #(
     parameter int DEPTH = 3,
     parameter bit FWFT = 1'b0
 );
@@ -14,7 +14,7 @@ module fifo_async_axil_unit_test #(
     localparam string type_string = FWFT ? "fwft" : "std";
 
     // Synthesize testcase name from parameters
-    string name = $sformatf("fifo_async_axil_%s_depth%0d__ut", type_string, DEPTH);
+    string name = $sformatf("fifo_axil_async_%s_depth%0d__ut", type_string, DEPTH);
 
     svunit_testcase svunit_ut;
 
@@ -27,8 +27,8 @@ module fifo_async_axil_unit_test #(
     //===================================
     // Derived parameters
     //===================================
-    const int MEM_WR_LATENCY = DUT.i_fifo_core.MEM_WR_LATENCY;
-    const int MEM_RD_LATENCY = DUT.i_fifo_core.MEM_RD_LATENCY;
+    const int MEM_WR_LATENCY = DUT.i_fifo_axil_core.i_fifo_core.MEM_WR_LATENCY;
+    const int MEM_RD_LATENCY = DUT.i_fifo_axil_core.i_fifo_core.MEM_RD_LATENCY;
 
     // Adjust 'effective' FIFO depth to account for optional FWFT buffer
     localparam int __DEPTH = FWFT ? DEPTH + 1 : DEPTH;
@@ -68,7 +68,7 @@ module fifo_async_axil_unit_test #(
 
     localparam FIFO_ASYNC_LATENCY = 6;  // 1 (bin2gray) + 3 (sync) + 1 (gray2bin) + 1 (phase delta)
 
-    fifo_async_axil #(
+    fifo_axil_async #(
         .DATA_T  ( DATA_T ),
         .DEPTH   ( DEPTH ),
         .FWFT    ( FWFT )
@@ -88,12 +88,11 @@ module fifo_async_axil_unit_test #(
 
     std_reset_intf reset_if (.clk(wr_clk));
 
-    bus_intf #(DATA_T) wr_if (.clk(wr_clk));
-    bus_intf #(DATA_T) rd_if (.clk(rd_clk));
+    bus_intf #(DATA_T) wr_if (.clk(wr_clk), .srst(wr_srst));
+    bus_intf #(DATA_T) rd_if (.clk(rd_clk), .srst(rd_srst));
 
     axi4l_verif_pkg::axi4l_reg_agent axil_reg_agent;
-    fifo_ctrl_reg_agent ctrl_reg_agent;
-    fifo_core_reg_agent core_reg_agent;
+    fifo_reg_agent reg_agent;
 
     // Assign reset interface
     assign wr_srst = reset_if.reset;
@@ -148,8 +147,7 @@ module fifo_async_axil_unit_test #(
         axil_reg_agent = new();
         axil_reg_agent.axil_vif = axil_if;
 
-        core_reg_agent = new("core_agent", axil_reg_agent, 'h000);
-        ctrl_reg_agent = new("ctrl_agent", axil_reg_agent, 'h100);
+        reg_agent = new("reg_agent", axil_reg_agent, 'h0);
 
         // Create testbench environment
         env = new("tb_env", reset_if, wr_if, rd_if);
@@ -170,7 +168,7 @@ module fifo_async_axil_unit_test #(
         // Reset model
         ctrl_model_reset();
 
-        ctrl_reg_agent.idle();
+        reg_agent.idle();
         env.idle();
         env.reset();
         env.init();
@@ -229,11 +227,11 @@ module fifo_async_axil_unit_test #(
         //       parameterization.
         //
         //===================================
-        `SVTEST(ctrl_info)
+        `SVTEST(info)
             int got_depth;
             bit got_async;
 
-            ctrl_reg_agent.get_depth(got_depth);
+            reg_agent.get_depth(got_depth);
 
             `FAIL_UNLESS_LOG(
                 got_depth === DEPTH,
@@ -244,44 +242,7 @@ module fifo_async_axil_unit_test #(
                 )
             );
 
-            ctrl_reg_agent.is_async(got_async);
-            `FAIL_UNLESS_LOG(
-                got_async === ASYNC,
-                $sformatf(
-                    "FIFO type (async) mismatch. Exp: %b, Got: %b.",
-                    ASYNC,
-                    got_async
-                )
-            );
-
-        `SVTEST_END
-
-        //===================================
-        // Test:
-        //   core info
-        //
-        // Desc: read info registers from
-        //       FIFO core regs and check
-        //       against expected block
-        //       parameterization.
-        //
-        //===================================
-        `SVTEST(core_info)
-            int got_depth;
-            bit got_async;
-
-            core_reg_agent.get_depth(got_depth);
-
-            `FAIL_UNLESS_LOG(
-                got_depth === DEPTH,
-                $sformatf(
-                    "Depth mismatch. Exp: %0d, Got: %0d.",
-                    DEPTH,
-                    got_depth
-                )
-            );
-
-            core_reg_agent.is_async(got_async);
+            reg_agent.is_async(got_async);
             `FAIL_UNLESS_LOG(
                 got_async === ASYNC,
                 $sformatf(
@@ -727,7 +688,7 @@ module fifo_async_axil_unit_test #(
     `SVUNIT_TESTS_END
 
     task soft_reset();
-        core_reg_agent.soft_reset();
+        reg_agent.soft_reset();
         ctrl_model_reset();
     endtask
 
@@ -737,7 +698,7 @@ module fifo_async_axil_unit_test #(
         int got_cnt;
         int got_ptr;
         // Check status
-        ctrl_reg_agent.is_full(got_full);
+        reg_agent.is_full(got_full);
         `FAIL_UNLESS_LOG(
             got_full === ctrl_model_full(),
             $sformatf(
@@ -746,16 +707,16 @@ module fifo_async_axil_unit_test #(
                 got_full
             )
         );
-        ctrl_reg_agent.is_empty(got_empty);
+        reg_agent.is_empty(got_empty);
         `FAIL_UNLESS_LOG(
             got_empty === ctrl_model_empty(),
             $sformatf(
-                "Full flag mismatch. Exp: %0b, Got: %0b.",
+                "Empty flag mismatch. Exp: %0b, Got: %0b.",
                 ctrl_model_empty(),
                 got_empty
             )
         );
-        ctrl_reg_agent.get_wr_ptr(got_ptr);
+        reg_agent.get_wr_ptr(got_ptr);
         `FAIL_UNLESS_LOG(
             got_ptr === ctrl_model_wr_ptr(),
             $sformatf(
@@ -764,7 +725,7 @@ module fifo_async_axil_unit_test #(
                 got_ptr
             )
         );
-        ctrl_reg_agent.get_rd_ptr(got_ptr);
+        reg_agent.get_rd_ptr(got_ptr);
         `FAIL_UNLESS_LOG(
             got_ptr === ctrl_model_rd_ptr(),
             $sformatf(
@@ -773,28 +734,33 @@ module fifo_async_axil_unit_test #(
                 got_ptr
             )
         );
-        ctrl_reg_agent.get_wr_count(got_cnt);
+        reg_agent.get_wr_count(got_cnt);
         `FAIL_UNLESS_LOG(
-            got_cnt === ctrl_model_count(),
+            got_cnt === ctrl_model_wr_count(),
             $sformatf(
                 "Write count mismatch. Exp: %0x, Got: %0x.",
-                ctrl_model_count(),
+                ctrl_model_wr_count(),
                 got_cnt
             )
         );
-        ctrl_reg_agent.get_rd_count(got_cnt);
+        reg_agent.get_rd_count(got_cnt);
         `FAIL_UNLESS_LOG(
-            got_cnt === ctrl_model_count(),
+            got_cnt === ctrl_model_rd_count(),
             $sformatf(
                 "Read count mismatch. Exp: %0x, Got: %0x.",
-                ctrl_model_count(),
+                ctrl_model_rd_count(),
                 got_cnt
             )
         );
     endtask
 
-    function automatic int ctrl_model_count();
+    function automatic int ctrl_model_wr_count();
         return ctrl_model.wr_ptr - ctrl_model.rd_ptr;
+    endfunction
+
+    function automatic int ctrl_model_rd_count();
+        if (FWFT) return ctrl_model_wr_count() + ctrl_model.fwft;
+        else      return ctrl_model_wr_count();
     endfunction
 
     function automatic void ctrl_model_reset();
@@ -806,25 +772,26 @@ module fifo_async_axil_unit_test #(
     function automatic bit ctrl_model_write();
         if (!ctrl_model_full()) begin
             ctrl_model.wr_ptr++;
-            if (FWFT && !ctrl_model.fwft) begin
-                ctrl_model.rd_ptr++;
-                ctrl_model.fwft = 1;
+            if (FWFT) begin
+                if (!ctrl_model.fwft) begin
+                    ctrl_model.rd_ptr++;
+                    ctrl_model.fwft = 1;
+                end
             end
             return 1'b0;
         end else return 1'b1; // Indicate overflow
     endfunction
 
     function automatic bit ctrl_model_read();
-        if (FWFT && ctrl_model.fwft) begin
-            if (!ctrl_model_empty()) ctrl_model.rd_ptr++;
-            else                     ctrl_model.fwft = 0;
-            return 1'b0;
-        end else if (!ctrl_model_empty()) begin
+        if (!(ctrl_model_wr_count() == 0)) begin
             ctrl_model.rd_ptr++;
             return 1'b0;
-        end else return 1'b1; // Indicate underflow
+        end else if (FWFT && ctrl_model.fwft) begin
+            ctrl_model.fwft = 0;
+            return 1'b0;
+        end else return 1'b1;
     endfunction
-
+        
     function automatic int ctrl_model_wr_ptr();
         return ctrl_model.wr_ptr % DEPTH;
     endfunction
@@ -835,24 +802,24 @@ module fifo_async_axil_unit_test #(
     endfunction
 
     function automatic bit ctrl_model_full();
-        return (ctrl_model_count() == DEPTH);
+        return (ctrl_model_wr_count() == DEPTH);
     endfunction
 
     function automatic bit ctrl_model_empty();
-        return (ctrl_model_count() == 0);
+        return (ctrl_model_rd_count() == 0);
     endfunction
 
-endmodule : fifo_async_axil_unit_test
+endmodule : fifo_axil_async_unit_test
 
 
 
 // 'Boilerplate' unit test wrapper code
 //  Builds unit test for a specific FIFO configuration in a way
 //  that maintains SVUnit compatibility
-`define FIFO_ASYNC_AXIL_UNIT_TEST(DEPTH, FWFT)\
+`define FIFO_AXIL_ASYNC_UNIT_TEST(DEPTH, FWFT)\
   import svunit_pkg::svunit_testcase;\
   svunit_testcase svunit_ut;\
-  fifo_async_axil_unit_test #(DEPTH, FWFT) test();\
+  fifo_axil_async_unit_test #(DEPTH, FWFT) test();\
   function void build();\
     test.build();\
     svunit_ut = test.svunit_ut;\
@@ -867,31 +834,31 @@ endmodule : fifo_async_axil_unit_test
 
 
 // Standard 3-entry FIFO
-module fifo_async_axil_std_depth3_unit_test;
-`FIFO_ASYNC_AXIL_UNIT_TEST(3, 0)
+module fifo_axil_async_std_depth3_unit_test;
+`FIFO_AXIL_ASYNC_UNIT_TEST(3, 0)
 endmodule
 
 // Standard 8-entry FIFO
-module fifo_async_axil_std_depth8_unit_test;
-`FIFO_ASYNC_AXIL_UNIT_TEST(8, 0)
+module fifo_axil_async_std_depth8_unit_test;
+`FIFO_AXIL_ASYNC_UNIT_TEST(8, 0)
 endmodule
 
 // Standard 32-entry FIFO
-module fifo_async_axil_std_depth32_unit_test;
-`FIFO_ASYNC_AXIL_UNIT_TEST(32, 0)
+module fifo_axil_async_std_depth32_unit_test;
+`FIFO_AXIL_ASYNC_UNIT_TEST(32, 0)
 endmodule
 
 // FWFT 16-entry FIFO
-module fifo_async_axil_fwft_depth16_unit_test;
-`FIFO_ASYNC_AXIL_UNIT_TEST(16, 1)
+module fifo_axil_async_fwft_depth16_unit_test;
+`FIFO_AXIL_ASYNC_UNIT_TEST(16, 1)
 endmodule
 
 // FWFT 23-entry FIFO
-module fifo_async_axil_fwft_depth23_unit_test;
-`FIFO_ASYNC_AXIL_UNIT_TEST(23, 1)
+module fifo_axil_async_fwft_depth23_unit_test;
+`FIFO_AXIL_ASYNC_UNIT_TEST(23, 1)
 endmodule
 
 // FWFT 64-entry FIFO
-module fifo_async_axil_fwft_depth64_unit_test;
-`FIFO_ASYNC_AXIL_UNIT_TEST(64, 1)
+module fifo_axil_async_fwft_depth64_unit_test;
+`FIFO_AXIL_ASYNC_UNIT_TEST(64, 1)
 endmodule

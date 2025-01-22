@@ -55,11 +55,6 @@ module fifo_small_prefetch #(
     logic [CNT_WID-1:0]     count;
 
     // -----------------------------
-    // Interfaces
-    // -----------------------------
-    axi4l_intf #() axil_if__unused ();
-
-    // -----------------------------
     // Control FSM
     // -----------------------------
     fifo_ctrl_fsm  #(
@@ -87,8 +82,7 @@ module fifo_small_prefetch #(
         .rd_count ( ),
         .rd_empty ( ),
         .rd_uflow ( ),
-        .mem_rdy  ( 1'b1 ),
-        .axil_if  ( axil_if__unused )
+        .mem_rdy  ( 1'b1 )
     );
 
     // Deassert wr_rdy at buffer midpoint
@@ -103,8 +97,5 @@ module fifo_small_prefetch #(
     assign rd_data = mem[rd_ptr];
 
     assign rd_rdy = (count > 0);
-
-    // Terminate unused AXI-L interface
-    axi4l_intf_controller_term i_axi4l_intf_controller_term (.axi4l_if (axil_if__unused));
 
 endmodule : fifo_small_prefetch

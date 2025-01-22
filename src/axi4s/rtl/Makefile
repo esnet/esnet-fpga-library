@@ -28,6 +28,7 @@ SUBCOMPONENTS = \
     arb.rtl \
     reg.rtl \
     fifo.rtl \
+    fifo.axil.rtl \
     mem.rtl \
     packet.rtl
 

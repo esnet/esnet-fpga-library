@@ -140,7 +140,7 @@ module axi4s_pkt_fifo_sync
 
    
    // --- fifo_sync instantiation ---
-   fifo_sync_axil #(
+   fifo_axil_sync #(
       .DATA_T    (fifo_data_t),
       .DEPTH     (FIFO_SYNC_DEPTH),
       .FWFT      (1)
