@@ -57,12 +57,18 @@ module axi4l_decoder_unit_test;
     //===================================
     // Interfaces
     axi4l_intf axil_if                            ();
+    axi4l_intf axil_if_p                          ();
     axi4l_intf axil_subdecoder_if   [SUBDECODERS] ();
+
+    axi4l_pipe_slr i_axi4l_pipe_slr (
+        .axi4l_if_from_controller ( axil_if ),
+        .axi4l_if_to_peripheral   ( axil_if_p )
+    );
 
     axi4l_decoder #(
         .MEM_MAP ( MEM_MAP_TOP )
     ) i_axi4l_decoder_top (
-        .axi4l_if         ( axil_if ),
+        .axi4l_if         ( axil_if_p ),
         .axi4l_client_if  ( axil_subdecoder_if )
     );
 
