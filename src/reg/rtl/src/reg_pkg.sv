@@ -8,7 +8,7 @@ package reg_pkg;
     // -----------------------------
     localparam int MAX_REGIONS = 32;
 
-    typedef struct packed {
+    typedef struct {
         int base;
         int size;
     } region_spec_t;
