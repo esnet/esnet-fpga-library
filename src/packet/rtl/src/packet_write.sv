@@ -123,8 +123,8 @@ module packet_write
                 if (mem_init_done) nxt_state = SOP;
             end
             SOP: begin
-                rdy = nxt_descriptor_if.valid && nxt_descriptor_if.size >= DATA_BYTE_WID;
-                if (packet_if.valid) begin
+                rdy = mem_wr_if.rdy && nxt_descriptor_if.valid && (nxt_descriptor_if.size >= DATA_BYTE_WID);
+                if (packet_if.valid && packet_if.rdy) begin
                     if (packet_if.eop) begin
                         pkt_done = 1'b1;
                         if (DROP_ERRORED && packet_if.err) pkt_status = STATUS_ERR;
@@ -135,13 +135,13 @@ module packet_write
                             desc_valid = 1'b1;
                             pkt_status = packet_if.err ? STATUS_ERR : STATUS_OK;
                         end
-                    end else if (rdy) nxt_state = MOP;
-                    else if (IGNORE_RDY) nxt_state = FLUSH;
+                    end else if (IGNORE_RDY && !rdy) nxt_state = FLUSH;
+                    else nxt_state = MOP;
                 end
             end
             MOP: begin
-                rdy = (words <= desc_words);
-                if (packet_if.valid) begin
+                rdy = mem_wr_if.rdy && (words <= desc_words);
+                if (packet_if.valid && packet_if.rdy) begin
                     if (packet_if.eop) begin
                         pkt_done = 1'b1;
                         if (DROP_ERRORED && packet_if.err) pkt_status = STATUS_ERR;
@@ -187,7 +187,7 @@ module packet_write
     always_comb begin
         addr = addr_reg;
         if (state == SOP) addr = nxt_descriptor_if.addr;
-        else if (state == MOP && packet_if.valid) addr = addr + 1;
+        else if (state == MOP && packet_if.valid && rdy) addr = addr + 1;
     end
 
     // Descriptor word count
