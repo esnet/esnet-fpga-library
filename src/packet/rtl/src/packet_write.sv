@@ -29,7 +29,8 @@ module packet_write
     packet_event_intf.publisher event_if,
 
     // Memory write interface
-    mem_wr_intf.controller      mem_wr_if
+    mem_wr_intf.controller      mem_wr_if,
+    input logic                 mem_init_done
 );
     // -----------------------------
     // Imports
@@ -81,7 +82,6 @@ module packet_write
     // -----------------------------
     // Signals
     // -----------------------------
-    logic        mem_init_done;
     logic        rdy;
 
     ADDR_T       addr;
@@ -175,7 +175,6 @@ module packet_write
         endcase
     end
 
-    assign mem_init_done = mem_wr_if.rdy;
     assign packet_if.rdy = IGNORE_RDY ? 1'b1 : rdy;
 
     // Acknowledge next descriptor allocation

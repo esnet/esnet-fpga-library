@@ -62,6 +62,7 @@ module packet_fifo
         .MAX_DESCRIPTORS ( MAX_DESCRIPTORS ),
         .MAX_RD_LATENCY  ( MAX_RD_LATENCY )
     ) i_packet_fifo_core (
+        .mem_init_done   ( 1'b1 ),
         .*
     );
 

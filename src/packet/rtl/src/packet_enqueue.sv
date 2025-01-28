@@ -22,7 +22,8 @@ module packet_enqueue
     packet_event_intf.publisher event_if,
 
     // Memory write interface
-    mem_wr_intf.controller      mem_wr_if
+    mem_wr_intf.controller      mem_wr_if,
+    input logic                 mem_init_done
 );
     // -----------------------------
     // Imports
@@ -123,7 +124,8 @@ module packet_enqueue
         .nxt_descriptor_if,
         .descriptor_if ( wr_descriptor_if ),
         .event_if,
-        .mem_wr_if
+        .mem_wr_if,
+        .mem_init_done
     );
 
     assign nxt_descriptor_if.valid = 1'b1;

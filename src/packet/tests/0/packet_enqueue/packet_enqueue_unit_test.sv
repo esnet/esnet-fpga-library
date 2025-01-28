@@ -45,6 +45,7 @@ module packet_enqueue_unit_test #(
     packet_event_intf event_if (.clk(clk));
 
     mem_wr_intf #(.ADDR_WID(ADDR_WID), .DATA_WID(DATA_WID)) mem_wr_if (.clk(clk));
+    logic mem_init_done;
 
     packet_enqueue #(
         .IGNORE_RDY ( 1 ),
@@ -64,6 +65,8 @@ module packet_enqueue_unit_test #(
         if (mem_wr_if.req && mem_wr_if.en) mem_wr_if.ack <= 1'b1;
         else                               mem_wr_if.ack <= 1'b0;
     end
+
+    assign mem_init_done = 1'b1;
 
     // Environment
     std_verif_pkg::component_env #(

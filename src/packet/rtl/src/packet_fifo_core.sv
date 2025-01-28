@@ -19,7 +19,9 @@ module packet_fifo_core
     // Packet output (synchronous to packet_out_if.clk)
     packet_intf.tx              packet_out_if,
     packet_event_intf.publisher event_out_if,
-    mem_rd_intf.controller      mem_rd_if
+    mem_rd_intf.controller      mem_rd_if,
+
+    input logic                 mem_init_done
 );
 
     // -----------------------------
@@ -68,7 +70,8 @@ module packet_fifo_core
                 .wr_descriptor_if ( wr_descriptor_if__in_clk ),
                 .rd_descriptor_if ( rd_descriptor_if__in_clk ),
                 .event_if         ( event_in_if ),
-                .mem_wr_if
+                .mem_wr_if,
+                .mem_init_done
             );
             // Descriptor FIFOs
             // -- Forward (in to out)
