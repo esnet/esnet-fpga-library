@@ -55,9 +55,9 @@ synth:
     - find src/$COMPONENT/build -mindepth 1 -maxdepth 1 -type d -name '[^\.]*' | xargs -n1 sh -c 'make -s -C $0 || exit 255'
   artifacts:
     when: always
-    paths: [.out/$COMPONENT/build]
+    paths: [.out/**/$COMPONENT/build]
     reports:
       junit:
-        - .out/$COMPONENT/build/**/*.summary.xml
+        - .out/**/$COMPONENT/build/**/*.summary.xml
   needs:
 
