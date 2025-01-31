@@ -329,7 +329,8 @@ module packet_capture #(
         .nxt_descriptor_if,
         .descriptor_if,
         .event_if,
-        .mem_wr_if
+        .mem_wr_if,
+        .mem_init_done
     );
 
     mem_sdp_to_sp_adapter i_mem_sdp_to_sp_adapter (

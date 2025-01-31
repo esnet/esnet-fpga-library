@@ -115,7 +115,7 @@ module packet_read
             end
             BUSY : begin
                 prefetch_req = 1'b1;
-                if (prefetch_rdy && prefetch_eop) nxt_state = READY;
+                if (mem_rd_if.rdy && prefetch_rdy && prefetch_eop) nxt_state = READY;
             end
             default: begin
                 nxt_state = RESET;
@@ -137,7 +137,7 @@ module packet_read
                     if (descriptor_if.valid) rd_ptr <= descriptor_if.addr;
                 end
                 BUSY : begin
-                    if (prefetch_rdy) rd_ptr <= rd_ptr + 1;
+                    if (mem_rd_if.rdy && prefetch_rdy) rd_ptr <= rd_ptr + 1;
                 end
             endcase
         end
@@ -152,7 +152,7 @@ module packet_read
         else begin
             case (state)
                 READY : rd_word <= 0;
-                BUSY  : if (prefetch_rdy) rd_word <= rd_word + 1;
+                BUSY  : if (mem_rd_if.rdy && prefetch_rdy) rd_word <= rd_word + 1;
             endcase
         end
     end

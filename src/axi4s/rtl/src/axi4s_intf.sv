@@ -427,7 +427,7 @@ module axi4s_tready_pipe (
         else if (axi4s_if_to_rx.tready && axi4s_if_from_tx_p.tvalid) axi4s_if_from_tx_p.tvalid <= '0;
         else if (sample_enable)                                      axi4s_if_from_tx_p.tvalid <= axi4s_if_from_tx.tvalid;
 
-        if (sample_enable) begin
+        if (!axi4s_if_from_tx_p.tvalid) begin
             axi4s_if_from_tx_p.tdata  <= axi4s_if_from_tx.tdata;
             axi4s_if_from_tx_p.tkeep  <= axi4s_if_from_tx.tkeep;
             axi4s_if_from_tx_p.tlast  <= axi4s_if_from_tx.tlast;

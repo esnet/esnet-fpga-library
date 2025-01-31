@@ -17,8 +17,8 @@ module util_reset_buffer #(
     // Signals
     logic __srst_in;
     logic __srst;
-    logic __srst_out;
-    logic __srstn_out;
+    (* max_fanout = 100 *) logic __srst_out;
+    (* max_fanout = 100 *) logic __srstn_out;
 
     // Normalize reset polarity
     assign __srst_in = INPUT_ACTIVE_LOW ? !srst_in : srst_in;
@@ -33,7 +33,7 @@ module util_reset_buffer #(
     // Common stages
     generate
         if (STAGES > 1) begin : g__multi_stage
-            logic __srst_p [STAGES-1];
+            (* max_fanout = 100 *) logic __srst_p [STAGES-1];
             initial __srst_p = '{default: ASSERT_ON_INIT};
             always @(posedge clk) begin
                 for (int i = 1; i < STAGES-1; i++) begin

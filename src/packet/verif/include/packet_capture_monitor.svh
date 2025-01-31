@@ -27,9 +27,9 @@ class packet_capture_monitor #(parameter type META_T=bit) extends packet_monitor
         super.new(name);
         this.set_reset_timeout(2*mem_size);
         this.set_op_timeout(128);
-        control_agent = new("packet_capture_reg_blk_agent", 'h0);
+        control_agent = new("packet_capture_reg_blk_agent", BASE_OFFSET + 'h0);
         control_agent.reg_agent = reg_agent;
-        mem_agent = new("packet_mem_agent", data_wid, reg_agent, 'h400);
+        mem_agent = new("packet_mem_agent", data_wid, reg_agent, BASE_OFFSET + 'h400);
         mem_agent.set_reset_timeout(2*mem_size);
         register_subcomponent(control_agent);
         register_subcomponent(mem_agent);

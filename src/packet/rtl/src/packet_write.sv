@@ -29,7 +29,8 @@ module packet_write
     packet_event_intf.publisher event_if,
 
     // Memory write interface
-    mem_wr_intf.controller      mem_wr_if
+    mem_wr_intf.controller      mem_wr_if,
+    input logic                 mem_init_done
 );
     // -----------------------------
     // Imports
@@ -81,7 +82,6 @@ module packet_write
     // -----------------------------
     // Signals
     // -----------------------------
-    logic        mem_init_done;
     logic        rdy;
 
     ADDR_T       addr;
@@ -123,8 +123,8 @@ module packet_write
                 if (mem_init_done) nxt_state = SOP;
             end
             SOP: begin
-                rdy = nxt_descriptor_if.valid && nxt_descriptor_if.size >= DATA_BYTE_WID;
-                if (packet_if.valid) begin
+                rdy = mem_wr_if.rdy && nxt_descriptor_if.valid && (nxt_descriptor_if.size >= DATA_BYTE_WID);
+                if (packet_if.valid && packet_if.rdy) begin
                     if (packet_if.eop) begin
                         pkt_done = 1'b1;
                         if (DROP_ERRORED && packet_if.err) pkt_status = STATUS_ERR;
@@ -135,13 +135,13 @@ module packet_write
                             desc_valid = 1'b1;
                             pkt_status = packet_if.err ? STATUS_ERR : STATUS_OK;
                         end
-                    end else if (rdy) nxt_state = MOP;
-                    else if (IGNORE_RDY) nxt_state = FLUSH;
+                    end else if (IGNORE_RDY && !rdy) nxt_state = FLUSH;
+                    else nxt_state = MOP;
                 end
             end
             MOP: begin
-                rdy = (words <= desc_words);
-                if (packet_if.valid) begin
+                rdy = mem_wr_if.rdy && (words <= desc_words);
+                if (packet_if.valid && packet_if.rdy) begin
                     if (packet_if.eop) begin
                         pkt_done = 1'b1;
                         if (DROP_ERRORED && packet_if.err) pkt_status = STATUS_ERR;
@@ -175,7 +175,6 @@ module packet_write
         endcase
     end
 
-    assign mem_init_done = mem_wr_if.rdy;
     assign packet_if.rdy = IGNORE_RDY ? 1'b1 : rdy;
 
     // Acknowledge next descriptor allocation
@@ -187,7 +186,7 @@ module packet_write
     always_comb begin
         addr = addr_reg;
         if (state == SOP) addr = nxt_descriptor_if.addr;
-        else if (state == MOP && packet_if.valid) addr = addr + 1;
+        else if (state == MOP && packet_if.valid && rdy) addr = addr + 1;
     end
 
     // Descriptor word count
@@ -225,12 +224,11 @@ module packet_write
 
     // Report packet event
     always_ff @(posedge clk) begin
-        if (pkt_done) begin
-            packet_event <= 1'b1;
-            packet_event_size <= pkt_size;
-            packet_event_status <= pkt_status;
-        end
+        packet_event <= pkt_done;
+        packet_event_size <= pkt_size;
+        packet_event_status <= pkt_status;
     end
+
     assign event_if.evt = packet_event;
     assign event_if.size = packet_event_size;
     assign event_if.status = packet_event_status;
