@@ -42,7 +42,8 @@ module packet_descriptor_fifo
     // -----------------------------
     // Interfaces
     // -----------------------------
-    axi4l_intf axil_if__unused ();
+    fifo_wr_mon_intf wr_mon_if__unused (.clk(from_tx.clk));
+    fifo_rd_mon_intf rd_mon_if__unused (.clk(from_tx.clk));
 
     // -----------------------------
     // FIFO
@@ -57,24 +58,25 @@ module packet_descriptor_fifo
         .DEPTH  ( DEPTH ),
         .ASYNC  ( ASYNC ),
         .FWFT   ( 1 )
-    ) i_fifo_core (
-        .wr_clk   ( from_tx.clk ),
-        .wr_srst  ( from_tx.srst ),
-        .wr_rdy   ( from_tx.rdy ),
-        .wr       ( from_tx.valid ),
-        .wr_data  ( desc_in ),
-        .wr_count ( ),
-        .wr_full  ( ),
-        .wr_oflow ( ),
-        .rd_clk   ( to_rx.clk ),
-        .rd_srst  ( to_rx.srst ),
-        .rd       ( to_rx.rdy ),
-        .rd_ack   ( to_rx.valid ),
-        .rd_data  ( desc_out ),
-        .rd_count ( ),
-        .rd_empty ( ),
-        .rd_uflow ( ),
-        .axil_if  ( axil_if__unused )
+    ) i_fifo_core  (
+        .wr_clk    ( from_tx.clk ),
+        .wr_srst   ( from_tx.srst ),
+        .wr_rdy    ( from_tx.rdy ),
+        .wr        ( from_tx.valid ),
+        .wr_data   ( desc_in ),
+        .wr_count  ( ),
+        .wr_full   ( ),
+        .wr_oflow  ( ),
+        .rd_clk    ( to_rx.clk ),
+        .rd_srst   ( to_rx.srst ),
+        .rd        ( to_rx.rdy ),
+        .rd_ack    ( to_rx.valid ),
+        .rd_data   ( desc_out ),
+        .rd_count  ( ),
+        .rd_empty  ( ),
+        .rd_uflow  ( ),
+        .wr_mon_if ( wr_mon_if__unused ),
+        .rd_mon_if ( rd_mon_if__unused )
     );
 
     assign to_rx.addr = desc_out.addr;

@@ -23,12 +23,11 @@ waves ?= OFF
 #   (see $SCRIPTS_ROOT/Makefiles/templates/dependencies.mk for details)
 # ----------------------------------------------------
 SUBCOMPONENTS = \
+    bus.rtl \
     fifo.rtl \
     fifo.verif \
     fifo.tb \
-    std.rtl \
-    axi4l.rtl \
-    axi4l.verif
+    std.rtl
 
 EXT_LIBS =
 

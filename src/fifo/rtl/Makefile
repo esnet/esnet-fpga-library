@@ -23,10 +23,8 @@ SRC_LIST_FILES =
 #   (see $SCRIPTS_ROOT/Makefiles/templates/dependencies.mk)
 # ----------------------------------------------------
 SUBCOMPONENTS = \
-    fifo.regio.rtl \
     mem.rtl \
-    sync.rtl \
-    axi4l.rtl
+    sync.rtl
 
 EXT_LIBS =
 

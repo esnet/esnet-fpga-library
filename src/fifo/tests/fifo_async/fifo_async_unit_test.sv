@@ -77,8 +77,8 @@ module fifo_async_unit_test #(
 
     std_reset_intf reset_if (.clk(wr_clk));
 
-    std_raw_intf #(DATA_T) wr_if (.clk(wr_clk));
-    std_raw_intf #(DATA_T) rd_if (.clk(rd_clk));
+    bus_intf #(DATA_T) wr_if (.clk(wr_clk), .srst(wr_srst));
+    bus_intf #(DATA_T) rd_if (.clk(rd_clk), .srst(rd_srst));
 
     // Assign reset interface
     assign wr_srst = reset_if.reset;
@@ -278,7 +278,7 @@ module fifo_async_unit_test #(
 
             // Add one more (overflow) event, after configuring
             // driver in 'push' mode to allow overflow condition
-            env.driver.set_tx_mode(std_verif_pkg::TX_MODE_PUSH);
+            env.driver.set_tx_mode(bus_verif_pkg::TX_MODE_PUSH);
             exp_transaction = new("exp_transaction", __DEPTH);
             env.driver.send(exp_transaction);
 
@@ -351,7 +351,7 @@ module fifo_async_unit_test #(
 
             // Add one more (overflow) event, after configuring
             // driver in 'push' mode to allow overflow condition
-            env.driver.set_tx_mode(std_verif_pkg::TX_MODE_PUSH);
+            env.driver.set_tx_mode(bus_verif_pkg::TX_MODE_PUSH);
             exp_transaction = new("exp_transaction", __DEPTH);
             env.driver.send(exp_transaction);
             @(cb_wr);
@@ -515,7 +515,7 @@ module fifo_async_unit_test #(
             `FAIL_UNLESS(cb_wr.oflow == 0);
 
             // Send one more transaction (after putting driver in push mode to allow overflows)
-            env.driver.set_tx_mode(std_verif_pkg::TX_MODE_PUSH);
+            env.driver.set_tx_mode(bus_verif_pkg::TX_MODE_PUSH);
             exp_transaction = new($sformatf("exp_transaction_%d", entries), entries);
             env.driver.send(exp_transaction);
 

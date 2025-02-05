@@ -24,9 +24,11 @@ SRC_LIST_FILES =
 # ----------------------------------------------------
 SUBCOMPONENTS = \
     axi4s.regio.rtl \
+    bus.rtl \
     arb.rtl \
     reg.rtl \
     fifo.rtl \
+    fifo.axil.rtl \
     mem.rtl \
     packet.rtl
 

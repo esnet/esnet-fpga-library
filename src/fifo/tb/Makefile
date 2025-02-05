@@ -25,6 +25,7 @@ SRC_LIST_FILES =
 SUBCOMPONENTS = \
     fifo.verif \
     std.verif \
+    bus.verif \
     axi4l.verif
 
 EXT_LIBS =

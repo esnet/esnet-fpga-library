@@ -15,11 +15,11 @@ module axi3_from_mem_adapter
 
     output logic               init_done,
 
-    // Memory interface (upstream)
+    // Memory interface (from controller)
     mem_wr_intf.peripheral     mem_wr_if,
     mem_rd_intf.peripheral     mem_rd_if,
 
-    // AXI3 interface (downstream)
+    // AXI3 interface (to peripheral)
     axi3_intf.controller       axi3_if
 );
     // Parameters
@@ -44,11 +44,6 @@ module axi3_from_mem_adapter
 
     logic                      rd_pending;
     logic                      rd_timeout;
-
-    // Clock/reset
-    // -----------------------------
-    assign axi3_if.aclk = clk;
-    assign axi3_if.aresetn = !srst;
 
     // Initialization
     // -----------------------------

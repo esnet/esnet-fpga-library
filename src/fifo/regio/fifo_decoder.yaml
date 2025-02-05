@@ -1,0 +1,24 @@
+name: fifo
+visible: true
+
+blocks:
+  ctrl: &ctrl
+    !include src/fifo/regio/fifo_ctrl.yaml
+  wr_mon: &wr_mon
+    !include src/fifo/regio/fifo_wr_mon.yaml
+  rd_mon: &rd_mon
+    !include src/fifo/regio/fifo_rd_mon.yaml
+
+interfaces:
+  - block: *ctrl
+    address: 0x0000
+    width: 6
+    name: ctrl
+  - block: *wr_mon
+    address: 0x040
+    width: 6
+    name: wr_mon
+  - block: *rd_mon
+    address: 0x080
+    width: 6
+    name: rd_mon

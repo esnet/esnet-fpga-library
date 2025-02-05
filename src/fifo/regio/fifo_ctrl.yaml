@@ -1,0 +1,57 @@
+name: fifo_ctrl
+info: |
+  This register map describes an interface for controlling and monitoring
+  (retrieving parameterization information) from a FIFO controller.
+regs:
+  - default:
+      width: 32
+      access: rw
+      init: 0
+
+  - name: info
+    desc: Info (type)
+    access: ro
+    fields:
+        - name: fifo_type
+          desc: type
+          width: 1
+          enum:
+              0 : SYNC
+              1 : ASYNC
+        - name: oflow_prot
+          desc: overflow protection
+          width: 1
+          enum:
+              0 : DISABLED
+              1 : ENABLED
+        - name: uflow_prot
+          desc: underflow protection
+          width: 1
+          enum:
+              0 : DISABLED
+              1 : ENABLED
+        - name: fwft_mode
+          desc: first-word fall-through mode
+          width: 1
+          enum:
+              0 : STD
+              1 : FWFT
+
+  - name: info_depth
+    desc: Info (depth)
+    width: 32
+    access: ro
+
+  - name: info_width
+    desc: Info (width in bits)
+    width: 32
+    access: ro
+
+  - name: control
+    desc: FIFO control.
+    access: rw
+    fields:
+        - name: reset
+          desc: soft reset
+          width: 1
+          init: 0

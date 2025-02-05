@@ -9,31 +9,32 @@ module fifo_core
     parameter bit UFLOW_PROT = 1,
     parameter opt_mode_t WR_OPT_MODE = fifo_pkg::OPT_MODE_TIMING,
     parameter opt_mode_t RD_OPT_MODE = fifo_pkg::OPT_MODE_TIMING,
-    // Debug parameters
-    parameter bit AXIL_IF = 1'b0
+    // Derived parameters (don't override)
+    parameter int CNT_WID = FWFT ? $clog2(DEPTH+1+1) : $clog2(DEPTH+1)
 ) (
     // Write interface
-    input  logic        wr_clk,
-    input  logic        wr_srst,
-    output logic        wr_rdy,
-    input  logic        wr,
-    input  DATA_T       wr_data,
-    output logic [31:0] wr_count,
-    output logic        wr_full,
-    output logic        wr_oflow,
+    input  logic                wr_clk,
+    input  logic                wr_srst,
+    output logic                wr_rdy,
+    input  logic                wr,
+    input  DATA_T               wr_data,
+    output logic [CNT_WID-1:0]  wr_count,
+    output logic                wr_full,
+    output logic                wr_oflow,
 
     // Read interface
-    input  logic        rd_clk,
-    input  logic        rd_srst,
-    input  logic        rd,
-    output logic        rd_ack,
-    output DATA_T       rd_data,
-    output logic [31:0] rd_count,
-    output logic        rd_empty,
-    output logic        rd_uflow,
+    input  logic                rd_clk,
+    input  logic                rd_srst,
+    input  logic                rd,
+    output logic                rd_ack,
+    output DATA_T               rd_data,
+    output logic [CNT_WID-1:0]  rd_count,
+    output logic                rd_empty,
+    output logic                rd_uflow,
 
-    // AXI-L control/monitoring interface
-    axi4l_intf.peripheral      axil_if
+    // Monitoring
+    fifo_wr_mon_intf.peripheral wr_mon_if,
+    fifo_rd_mon_intf.peripheral rd_mon_if
 );
 
     // -----------------------------
@@ -77,7 +78,6 @@ module fifo_core
     // -----------------------------
     // Signals
     // -----------------------------
-    logic                 soft_reset__wr_clk;
     logic                 local_wr_srst;
     logic                 local_rd_srst;
 
@@ -100,12 +100,10 @@ module fifo_core
     mem_wr_intf #(.ADDR_WID (PTR_WID), .DATA_WID(DATA_WID)) mem_wr_if (.clk(wr_clk));
     mem_rd_intf #(.ADDR_WID (PTR_WID), .DATA_WID(DATA_WID)) mem_rd_if (.clk(rd_clk));
 
-    axi4l_intf ctrl_axil_if ();
-
     // -----------------------------
     // Resets
     // -----------------------------
-    // Combine wr/rd and soft resets to avoid inconsistent state between write and read sides
+    // Combine wr/rd resets to avoid inconsistent state between write and read sides
     generate
         if (ASYNC) begin : g__async
             // (Local) signals
@@ -114,12 +112,8 @@ module fifo_core
             logic wr_srst__rd_clk;
             logic rd_srst__wr_clk;
 
-            // Combine wr_clk resets (register to eliminate fanout on synchronizer input)
-            initial __wr_srst = 1'b1;
-            always @(posedge wr_clk) begin
-                if (wr_srst || soft_reset__wr_clk) __wr_srst <= 1'b1;
-                else                               __wr_srst <= 1'b0;
-            end
+            // Register to eliminate fanout on synchronizer input
+            always_ff @(posedge wr_clk) __wr_srst <= wr_srst;
 
             // Synchronize write reset to read domain
             sync_reset #(
@@ -132,11 +126,7 @@ module fifo_core
             );
 
             // Register to eliminate fanout on synchronizer input
-            initial __rd_srst = 1'b0;
-            always @(posedge rd_clk) begin
-                if (rd_srst) __rd_srst <= 1'b1;
-                else         __rd_srst <= 1'b0;
-            end
+            always_ff @(posedge rd_clk) __rd_srst <= rd_srst;
 
             // Synchronize read reset to write domain
             sync_reset #(
@@ -151,8 +141,8 @@ module fifo_core
             // Synthesize local resets
             initial local_wr_srst = 1'b1;
             always @(posedge wr_clk) begin
-                if (wr_srst || rd_srst__wr_clk || soft_reset__wr_clk) local_wr_srst <= 1'b1;
-                else                                                  local_wr_srst <= 1'b0;
+                if (wr_srst || rd_srst__wr_clk) local_wr_srst <= 1'b1;
+                else                            local_wr_srst <= 1'b0;
             end
 
             initial local_rd_srst = 1'b1;
@@ -165,8 +155,8 @@ module fifo_core
             // Synthesize local reset (no synchronization necessary)
             initial local_wr_srst = 1'b1;
             always @(posedge wr_clk) begin
-                if (wr_srst || rd_srst || soft_reset__wr_clk) local_wr_srst <= 1'b1;
-                else                                          local_wr_srst <= 1'b0;
+                if (wr_srst || rd_srst) local_wr_srst <= 1'b1;
+                else                    local_wr_srst <= 1'b0;
             end
             assign local_rd_srst = local_wr_srst;
         end : g__sync
@@ -193,8 +183,7 @@ module fifo_core
         .OFLOW_PROT ( OFLOW_PROT ),
         .UFLOW_PROT ( __UFLOW_PROT ),
         .WR_OPT_MODE( WR_OPT_MODE ),
-        .RD_OPT_MODE( RD_OPT_MODE ),
-        .AXIL_IF    ( AXIL_IF )
+        .RD_OPT_MODE( RD_OPT_MODE )
     ) i_fifo_ctrl_fsm (
         .wr_clk   ( wr_clk ),
         .wr_srst  ( local_wr_srst ),
@@ -213,8 +202,7 @@ module fifo_core
         .rd_count ( __rd_count ),
         .rd_empty ( __rd_empty ),
         .rd_uflow ( __rd_uflow ),
-        .mem_rdy  ( mem_init_done ),
-        .axil_if  ( ctrl_axil_if )
+        .mem_rdy  ( mem_init_done )
     );
 
     // -----------------------------
@@ -232,7 +220,7 @@ module fifo_core
     assign rd_data = mem_rd_if.data;
 
     generate
-        // First word flow-through FIFO mode
+        // First-word fall-through FIFO mode
         if (FWFT) begin : g__fwft
             // empty indication reflects presence/absence of data in output register
             initial rd_empty = 1'b1;
@@ -243,7 +231,7 @@ module fifo_core
             end
 
             // Adjust count for entry in FWFT buffer
-            assign rd_count = rd_empty ? {'0, __rd_count} : {'0, __rd_count} + 1;
+            assign rd_count = rd_empty ? __rd_count : __rd_count + 1;
 
             // Data prefetch
             assign __rd = rd_empty || rd;
@@ -259,87 +247,26 @@ module fifo_core
         else begin : g__std
             assign __rd = rd;
             assign rd_ack   = mem_rd_if.ack;
-            assign rd_count = {'0, __rd_count};
+            assign rd_count = __rd_count;
             assign rd_empty = __rd_empty;
             assign rd_uflow = __rd_uflow;
         end : g__std
     endgenerate
 
     // Write count
-    assign wr_count = {'0, __wr_count};
+    assign wr_count = __wr_count;
 
-   
-    // AXI-L control/monitoring
-    generate
-        if (AXIL_IF) begin : g__axil
-            // (Local) imports
-            import fifo_core_reg_pkg::*;
+    // Export monitor data
+    assign wr_mon_if.reset = local_wr_srst;
+    assign wr_mon_if.full  = wr_full;
+    assign wr_mon_if.oflow = wr_oflow;
+    assign wr_mon_if.count = {'0, wr_count};
+    assign wr_mon_if.ptr   = {'0, wr_ptr};
 
-            // (Local) interfaces
-            axi4l_intf core_axil_if ();
-
-            fifo_core_reg_intf  core_reg_if ();
-
-            // Main decoder
-            // TEMP: Workaround elaboration bug in Vivado 2023.2 where interface array port
-            //       (axil_client_if[1]) in axi4l_decoder submodule is reported as not present.
-            //       Instantiating the axi4l_decoder module here directly seems to avoid the issue.
-            /*
-            fifo_core_decoder i_fifo_core_decoder (
-                .axil_if ( axil_if ),
-                .core_axil_if ( core_axil_if ),
-                .ctrl_axil_if ( ctrl_axil_if )
-            );
-            */
-            axi4l_decoder #(
-                .MEM_MAP   ( fifo_core_decoder_pkg::MEM_MAP)
-            ) i_axi4l_decoder (
-                .axi4l_if        ( axil_if ),
-                .axi4l_client_if ( '{core_axil_if, ctrl_axil_if} )
-            );
-
-            // FIFO core register block (AXI-L clock domain)
-            fifo_core_reg_blk i_fifo_core_reg_blk (
-                .axil_if    ( core_axil_if ),
-                .reg_blk_if ( core_reg_if )
-            );
-
-            // Export (static) parameterization info
-            assign core_reg_if.info_nxt_v = 1'b1;
-            assign core_reg_if.info_nxt.fifo_type  = ASYNC      ? INFO_FIFO_TYPE_ASYNC :
-                                                                  INFO_FIFO_TYPE_SYNC;
-            assign core_reg_if.info_nxt.oflow_prot = OFLOW_PROT ? INFO_OFLOW_PROT_ENABLED :
-                                                                  INFO_OFLOW_PROT_DISABLED;
-            assign core_reg_if.info_nxt.uflow_prot = UFLOW_PROT ? INFO_UFLOW_PROT_ENABLED :
-                                                                  INFO_UFLOW_PROT_DISABLED;
-            assign core_reg_if.info_nxt.fwft_mode  = FWFT       ? INFO_FWFT_MODE_STD :
-                                                                  INFO_FWFT_MODE_FWFT;
-
-            assign core_reg_if.info_depth_nxt_v = 1'b1;
-            assign core_reg_if.info_depth_nxt = DEPTH;
-
-            // Soft reset (retime to write domain)
-            sync_level #(
-                .RST_VALUE ( 1'b0 )
-            ) i_sync_level__soft_reset_wr_clk (
-                .clk_in   ( axil_if.aclk ),
-                .rst_in   ( !axil_if.aresetn ),
-                .rdy_in   ( ),
-                .lvl_in   ( core_reg_if.control.reset ),
-                .clk_out  ( wr_clk ),
-                .rst_out  ( 1'b0 ),
-                .lvl_out  ( soft_reset__wr_clk )
-            );
-
-        end : g__axil
-        else begin : g__no_axil
-            // Terminate unused AXI-L interfaces
-            axi4l_intf_peripheral_term i_axi4l_intf_peripheral_term (.axi4l_if (axil_if));
-            axi4l_intf_controller_term i_axi4l_intf_controller_term (.axi4l_if (ctrl_axil_if));
-
-            // No soft reset
-            assign soft_reset__wr_clk = 1'b0;
-        end
-    endgenerate
-
+    assign rd_mon_if.reset = local_rd_srst;
+    assign rd_mon_if.empty = rd_empty;
+    assign rd_mon_if.uflow = rd_uflow;
+    assign rd_mon_if.count = {'0, rd_count};
+    assign rd_mon_if.ptr   = {'0, rd_ptr};
+  
 endmodule : fifo_core

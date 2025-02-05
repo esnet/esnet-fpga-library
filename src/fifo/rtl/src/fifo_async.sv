@@ -34,13 +34,13 @@ module fifo_async #(
     // -----------------------------
     // Signals
     // -----------------------------
-    logic [31:0] __wr_count;
-    logic [31:0] __rd_count;
+    logic [CNT_WID-1:0] __rd_count;
 
     // -----------------------------
     // Interfaces
     // -----------------------------
-    axi4l_intf axil_if__unused ();
+    fifo_wr_mon_intf wr_mon_if__unused (.clk(wr_clk));
+    fifo_rd_mon_intf rd_mon_if__unused (.clk(rd_clk));
 
     // -----------------------------
     // Instantiate FIFO core
@@ -51,37 +51,32 @@ module fifo_async #(
         .ASYNC  ( 1 ),
         .FWFT   ( FWFT ),
         .OFLOW_PROT ( OFLOW_PROT ),
-        .UFLOW_PROT ( UFLOW_PROT ),
-        .AXIL_IF    ( 0 )
+        .UFLOW_PROT ( UFLOW_PROT )
     ) i_fifo_core (
-        .wr_clk   ( wr_clk ),
-        .wr_srst  ( wr_srst ),
-        .wr_rdy   ( wr_rdy ),
-        .wr       ( wr ),
-        .wr_data  ( wr_data ),
-        .wr_count ( __wr_count ),
+        .wr_clk,
+        .wr_srst,
+        .wr_rdy,
+        .wr,
+        .wr_data,
+        .wr_count,
         .wr_full  ( full ),
         .wr_oflow ( oflow ),
-        .rd_clk   ( rd_clk ),
-        .rd_srst  ( rd_srst ),
-        .rd       ( rd ),
-        .rd_ack   ( rd_ack ),
-        .rd_data  ( rd_data ),
+        .rd_clk,
+        .rd_srst,
+        .rd,
+        .rd_ack,
+        .rd_data,
         .rd_count ( __rd_count ),
         .rd_empty ( empty ),
         .rd_uflow ( uflow ),
-        .axil_if  ( axil_if__unused )
+        .wr_mon_if ( wr_mon_if__unused ),
+        .rd_mon_if ( rd_mon_if__unused )
     );
 
-    assign wr_count = __wr_count[CNT_WID-1:0];
-   
     initial rd_count = 0;
     always @(posedge rd_clk) begin
         if (rd_srst) rd_count <= 0;
-        else         rd_count <= __rd_count[CNT_WID-1:0];
+        else         rd_count <= __rd_count;
     end
-   
-    // Tie off (unused AXI-L interface)
-    axi4l_intf_controller_term i_axi4l_intf_controller_term (.axi4l_if(axil_if__unused));
-    
+      
 endmodule : fifo_async
