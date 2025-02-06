@@ -55,7 +55,7 @@ module fifo_ctrl_fsm
         else if (wr_safe) _wr_ptr <= _wr_ptr + 1;
     end
 
-    assign wr_ptr = _wr_ptr % DEPTH;
+    assign wr_ptr = _wr_ptr[PTR_WID-1:0];
     assign wr_oflow = wr && !wr_rdy;
 
     // -----------------------------
@@ -69,7 +69,7 @@ module fifo_ctrl_fsm
         else if (rd_safe) _rd_ptr <= _rd_ptr + 1;
     end
 
-    assign rd_ptr = _rd_ptr % DEPTH;
+    assign rd_ptr = _rd_ptr[PTR_WID-1:0];
     assign rd_uflow = rd && rd_empty;
 
     // -----------------------------

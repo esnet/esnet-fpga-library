@@ -25,11 +25,12 @@ module fifo_small #(
     // Parameters
     // -----------------------------
     localparam int PTR_WID = DEPTH > 1 ? $clog2(DEPTH) : 1;
+    localparam int MEM_DEPTH = 2**PTR_WID;
 
     // -----------------------------
     // Signals
     // -----------------------------
-    DATA_T mem [DEPTH];
+    DATA_T mem [MEM_DEPTH];
 
     logic                 wr_safe;
     logic [PTR_WID-1:0]   wr_ptr;

@@ -793,12 +793,11 @@ module fifo_axil_async_unit_test #(
     endfunction
         
     function automatic int ctrl_model_wr_ptr();
-        return ctrl_model.wr_ptr % DEPTH;
+        return ctrl_model.wr_ptr[$clog2(DEPTH)-1:0];
     endfunction
 
     function automatic int ctrl_model_rd_ptr();
-        const int MEM_DEPTH = 2**$clog2(DEPTH);
-        return ctrl_model.rd_ptr % DEPTH;
+        return ctrl_model.rd_ptr[$clog2(DEPTH)-1:0];
     endfunction
 
     function automatic bit ctrl_model_full();
