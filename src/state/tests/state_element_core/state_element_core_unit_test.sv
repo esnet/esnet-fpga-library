@@ -212,6 +212,13 @@ module state_element_core_write_unit_test;
     `STATE_ELEMENT_UNIT_TEST(ID_T,SPEC);
 endmodule
 
+// WRITE_COND
+module state_element_core_write_cond_unit_test;
+    localparam type ID_T = logic[11:0];
+    localparam state_pkg::element_t SPEC = '{state_pkg::ELEMENT_TYPE_WRITE_COND,32,33,state_pkg::RETURN_MODE_PREV_STATE,state_pkg::REAP_MODE_PERSIST};
+    `STATE_ELEMENT_UNIT_TEST(ID_T,SPEC);
+endmodule
+
 // WRITE_IF_ZERO
 module state_element_core_write_if_zero_unit_test;
     localparam type ID_T = logic[11:0];

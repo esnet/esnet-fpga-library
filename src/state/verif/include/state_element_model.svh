@@ -49,6 +49,11 @@ class state_element_model #(
         case (__SPEC.TYPE)
             ELEMENT_TYPE_READ : __next_state = __prev_state;
             ELEMENT_TYPE_WRITE : __next_state = __update;
+            ELEMENT_TYPE_WRITE_COND : begin
+                if (|(__update & 1)) __next_state = __update >> 1;
+                else if (init)       __next_state = '0;
+                else                 __next_state = __prev_state;
+            end
             ELEMENT_TYPE_WRITE_IF_ZERO : begin
                 if (init)                    __next_state = __update;
                 else if (__prev_state == '0) __next_state = __update;

@@ -15,6 +15,7 @@ package state_pkg;
         ELEMENT_TYPE_UNSPECIFIED = 0,
         ELEMENT_TYPE_READ,
         ELEMENT_TYPE_WRITE,
+        ELEMENT_TYPE_WRITE_COND,
         ELEMENT_TYPE_WRITE_IF_ZERO,
         ELEMENT_TYPE_WRITE_N_TIMES,
         ELEMENT_TYPE_FLAGS,
@@ -87,6 +88,7 @@ package state_pkg;
         case (TYPE)
             ELEMENT_TYPE_READ          : return "read";
             ELEMENT_TYPE_WRITE         : return "write";
+            ELEMENT_TYPE_WRITE_COND    : return "write_cond";
             ELEMENT_TYPE_WRITE_IF_ZERO : return "write_if_zero";
             ELEMENT_TYPE_WRITE_N_TIMES : return "write_N_times";
             ELEMENT_TYPE_FLAGS         : return "flags";

@@ -1,0 +1,29 @@
+name: sar_reassembly_cache
+
+blocks:
+  cache: &cache
+    !include src/sar/regio/sar_reassembly_cache.yaml
+  allocator: &allocator
+    !include src/state/regio/state_allocator.yaml
+
+decoders:
+  htable: &htable
+    !include src/sar/regio/sar_reassembly_htable_decoder.yaml
+
+interfaces:
+  - block: *cache
+    width: 9
+    address: 0x0000
+    name: cache
+  - block: *allocator
+    address: 0x0200
+    width: 9
+    name: allocator
+  - decoder: *htable
+    width: 11
+    address: 0x0800
+    name: append
+  - decoder: *htable
+    width: 11
+    address: 0x1000
+    name: prepend

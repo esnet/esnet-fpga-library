@@ -1,0 +1,79 @@
+name: sar_reassembly_state_check
+info: |
+  This register block controls reassembly state polling,
+  for identifying completed buffers, idle buffers, etc.
+
+regs:
+  - default:
+      width  : 32
+      access : ro
+      init   : 0
+
+  - name: control
+    access: rw
+    fields:
+        - name:  reset
+          desc:  (soft) block reset
+          width: 1
+          init:  0
+        - name:  enable
+          desc:  (soft) block enable
+          width: 1
+          init:  1
+
+  - name: status
+    access: ro
+    fields:
+        - name:  reset_mon
+          desc:  block reset monitor
+          width: 1
+        - name:  enable_mon
+          desc:  block enable monitor
+          width: 1
+        - name:  ready_mon
+          desc:  block ready monitor
+          width: 1
+
+  - name:   cfg_timeout
+    access: rw
+    fields:
+        - name:  enable
+          desc:  Fragment timeout enable.
+          width: 1
+          init:  1
+        - name:  value
+          desc:  Fragment timeout in ms.
+          width: 23
+          init:  1000
+
+  - name: dbg_status
+    desc: (Debug) status monitor.
+    access: ro
+    fields:
+        - name: state
+          desc: FSM state.
+          width: 8
+          enum:
+              00 : RESET
+              01 : IDLE
+              02 : PROCESS
+              03 : CHECK
+
+  - name: dbg_control
+    access: rw
+    fields:
+        - name:  clear_counts
+          desc:  clear all debug counters.
+          width: 1
+          init:  0
+
+  - name: dbg_cnt_buffer_done
+    access: ro
+    desc: Count of buffer-done notifications generated
+    width: 32
+
+  - name: dbg_cnt_fragment_expired
+    access: ro
+    desc: Count of fragment-expired notifications generated
+    width: 32
+
