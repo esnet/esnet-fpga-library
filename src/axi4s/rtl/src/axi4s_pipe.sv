@@ -1,7 +1,8 @@
 // AXI4-S pipeline
 // Pipelines AXI4-S interface, in both directions (valid + ready) 
 module axi4s_pipe #(
-    parameter int STAGES = 1 // Pipeline stages, inserted in both forward (valid) and reverse (ready) directions
+    parameter int STAGES = 1, // Pipeline stages, inserted in both forward (valid) and reverse (ready) directions
+    parameter bit IGNORE_TREADY = 1'b0
 ) (
     axi4s_intf.rx  axi4s_if_from_tx,
     axi4s_intf.tx  axi4s_if_to_rx
@@ -43,7 +44,7 @@ module axi4s_pipe #(
 
     generate
         begin : g__fwd
-            bus_pipe #(STAGES) i_bus_pipe ( .bus_if_from_tx ( bus_if__from_tx ), .bus_if_to_rx ( bus_if__to_rx ));
+            bus_pipe #(STAGES, IGNORE_TREADY) i_bus_pipe ( .bus_if_from_tx ( bus_if__from_tx ), .bus_if_to_rx ( bus_if__to_rx ));
         end : g__fwd
     endgenerate
 
