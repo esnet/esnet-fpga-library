@@ -1,0 +1,116 @@
+name: alloc
+info: |
+  This register map describes a register block for
+  control and monitoring of an allocator.
+regs:
+  - default:
+      width: 32
+      access: rw
+      init: 0
+
+  - name: info_size
+    desc: Info (number of pointers supported)
+    access: ro
+
+  - name: control
+    access: rw
+    fields:
+        - name:  reset
+          desc:  soft reset.
+          width: 1
+          init:  0
+        - name:  enable
+          desc:  enable allocator.
+          width: 1
+          init:  1
+        - name:  allocate_en
+          desc:  enable allocation of pointers.
+          width: 1
+          init:  1
+
+  - name: status
+    access: ro
+    fields:
+        - name:  reset
+          desc:  reset status
+          width: 1
+        - name:  init_done
+          desc:  memory init done
+          width: 1
+        - name:  enabled
+          desc:  allocator enabled
+          width: 1
+
+  - name: status_flags
+    access: rd_evt
+    fields:
+        - name:  alloc_err
+          desc:  pointer allocation error (attempt to allocate already-allocated pointer).
+          width: 1
+        - name:  dealloc_err
+          desc:  pointer deallocation error (attempt to deallocate unallocated pointer).
+          width: 1
+
+  - name: alloc_err_ptr
+    desc: Latches pointer associated with last allocation error.
+    access: ro
+    width: 32
+
+  - name: dealloc_err_ptr
+    desc: Latches pointer associated with last deallocation error.
+    access: ro
+    width: 32
+
+  - name: cnt_active
+    access: ro
+    desc: Count of pointers currently allocated.
+    width: 32
+  
+  - name: dbg_status
+    desc: Debug status.
+    access: ro
+    fields:
+        - name: state_0
+          desc: FSM state monitor [0]
+          width: 8
+        - name: state_1
+          desc: FSM state monitor [1]
+          width: 8
+
+  - name: dbg_control
+    access: rw
+    fields:
+        - name:  clear_counts
+          desc:  clear all debug counters.
+          width: 1
+          init:  0
+
+  - name: dbg_cnt_alloc
+    access: ro
+    desc: Count of pointers allocated.
+    width: 32
+ 
+  - name: dbg_cnt_alloc_fail
+    access: ro
+    desc: Count of pointer allocation requests failing due to no pointer available (alloc FIFO uflow).
+    width: 32
+
+  - name: dbg_cnt_alloc_err
+    access: ro
+    desc: Count of pointer allocation errors (attempts to allocate allocated pointers).
+    width: 32
+
+  - name: dbg_cnt_dealloc
+    access: ro
+    desc: Count of pointers deallocated.
+    width: 32
+  
+  - name: dbg_cnt_dealloc_fail
+    access: ro
+    desc: Count of pointer deallocation requests dropped due to insufficient processing capacity (dealloc FIFO oflow).
+    width: 32
+
+  - name: dbg_cnt_dealloc_err
+    access: ro
+    desc: Count of pointer deallocation errors (attempts to deallocate unallocated pointers).
+    width: 32
