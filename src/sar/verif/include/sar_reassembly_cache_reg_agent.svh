@@ -5,7 +5,7 @@ class sar_reassembly_cache_reg_agent#(type BUF_ID_T = bit, type OFFSET_T = bit, 
     //===================================
     sar_reassembly_htable_reg_agent #(BUF_ID_T, OFFSET_T, FRAGMENT_PTR_T) append;
     sar_reassembly_htable_reg_agent #(BUF_ID_T, OFFSET_T, FRAGMENT_PTR_T) prepend;
-    state_allocator_reg_agent allocator;
+    alloc_reg_agent allocator;
 
     //===================================
     // Methods

@@ -6,7 +6,7 @@ class state_cache_reg_agent#(type KEY_T = bit, type ID_T = bit) extends state_ca
     db_reg_agent #(KEY_T, ID_T) db_agent;
     htable_cuckoo_reg_agent cuckoo_agent;
     htable_fast_update_reg_agent fast_update_agent;
-    state_allocator_reg_agent allocator_agent;
+    alloc_reg_agent allocator_agent;
 
     //===================================
     // Methods

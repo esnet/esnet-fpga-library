@@ -19,12 +19,14 @@ module state_cache_core_unit_test;
     // Parameters
     //===================================
     localparam int KEY_WID = 64;
-    localparam int ID_WID = 16;
     localparam int HASH_WID = 12;
     localparam int NUM_IDS = 8192;
     localparam int NUM_TABLES = 3;
     localparam int TABLE_SIZE [NUM_TABLES] = '{default: 4096};
     localparam int BURST_SIZE = 8;
+
+
+    localparam int ID_WID = $clog2(NUM_IDS);
 
     const int RAW_SIZE = TABLE_SIZE.sum();
 
@@ -70,7 +72,6 @@ module state_cache_core_unit_test;
     state_cache_core #(
         .KEY_T ( KEY_T ),
         .ID_T ( ID_T ),
-        .NUM_IDS ( NUM_IDS ),
         .NUM_TABLES ( NUM_TABLES ),
         .TABLE_SIZE ( TABLE_SIZE ),
         .HASH_LATENCY ( 0 ),

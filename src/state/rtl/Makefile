@@ -28,7 +28,8 @@ SUBCOMPONENTS = \
     util.rtl \
     fifo.rtl \
     db.rtl \
-    htable.rtl
+    htable.rtl \
+    alloc.axil.rtl
 
 EXT_LIBS =
 

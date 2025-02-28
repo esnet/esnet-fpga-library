@@ -3,7 +3,6 @@ module state_cache_core
 #(
     parameter type KEY_T = logic,
     parameter type ID_T = logic,
-    parameter int  NUM_IDS = 2**$bits(ID_T),
     parameter int  NUM_TABLES = 3,
     parameter int  TABLE_SIZE [NUM_TABLES] = '{default: 512},
     parameter int  HASH_LATENCY = 0,
@@ -161,7 +160,7 @@ module state_cache_core
         .reg_blk_if ( reg_if )
     );
 
-    assign reg_if.info_size_nxt = NUM_IDS;
+    assign reg_if.info_size_nxt = 2**$bits(ID_T);
     assign reg_if.info_size_nxt_v = 1'b1;
 
     // Block control
@@ -361,7 +360,6 @@ module state_cache_core
     state_id_manager     #(
         .KEY_T            ( KEY_T ),
         .ID_T             ( ID_T ),
-        .NUM_IDS          ( NUM_IDS ),
         .SIM__FAST_INIT   ( SIM__FAST_INIT )
     ) i_state_id_manager  (
         .clk              ( clk ),

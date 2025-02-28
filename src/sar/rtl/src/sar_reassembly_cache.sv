@@ -242,26 +242,22 @@ module sar_reassembly_cache
     // ----------------------------------
     // Fragment pointer management
     // ----------------------------------
-    state_allocator_bv #(
-        .ID_T           ( FRAGMENT_PTR_T ),
-        .NUM_IDS        ( MAX_FRAGMENTS ),
+    alloc_axil_bv #(
+        .PTR_T          ( FRAGMENT_PTR_T ),
         .ALLOC_FC       ( 0 ),
         .DEALLOC_FC     ( 1 ),
         .SIM__FAST_INIT ( SIM__FAST_INIT )
-    ) i_state_allocator_bv (
+    ) i_alloc_axil_bv   (
         .clk            ( clk ),
         .srst           ( __srst ),
-        .init_done      ( init_done__allocator ),
         .en             ( __en ),
+        .init_done      ( init_done__allocator ),
         .alloc_req      ( frag_ptr_alloc_req ),
         .alloc_rdy      ( frag_ptr_alloc_rdy ),
-        .alloc_id       ( frag_ptr_alloc_value ),
+        .alloc_ptr      ( frag_ptr_alloc_value ),
         .dealloc_req    ( frag_ptr_dealloc_req ),
         .dealloc_rdy    ( frag_ptr_dealloc_rdy ),
-        .dealloc_id     ( frag_ptr_dealloc_value ),
-        .err_alloc      ( ),
-        .err_dealloc    ( ),
-        .err_id         ( ),
+        .dealloc_ptr    ( frag_ptr_dealloc_value ),
         .axil_if        ( axil_if__allocator )
     );
 

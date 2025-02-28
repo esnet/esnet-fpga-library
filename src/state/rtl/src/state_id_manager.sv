@@ -2,7 +2,6 @@ module state_id_manager
 #(
     parameter type KEY_T = logic,
     parameter type ID_T = logic,
-    parameter int  NUM_IDS = 2**$bits(ID_T), // Must be equal to or less than 2**$bits(ID_T)
     // Simulation-only
     parameter bit  SIM__FAST_INIT = 1 // Optimize sim time by performing fast memory init
 )(
@@ -47,7 +46,6 @@ module state_id_manager
         std_pkg::param_check($bits(delete_by_id_if.VALUE_T), KEY_WID, "delete_by_id_if.VALUE_T");
         std_pkg::param_check($bits(delete_by_key_if.KEY_T), KEY_WID, "delete_by_id_if.KEY_T");
         std_pkg::param_check($bits(delete_by_key_if.VALUE_T), ID_WID, "delete_by_id_if.VALUE_T");
-        std_pkg::param_check_lt(NUM_IDS, 2**$bits(ID_T), "NUM_IDS");
     end
 
     // ----------------------------------
@@ -99,26 +97,22 @@ module state_id_manager
     // ----------------------------------
     // ID allocator
     // ----------------------------------
-    state_allocator_bv #(
-        .ID_T           ( ID_T ),
-        .NUM_IDS        ( NUM_IDS ),
+    alloc_axil_bv #(
+        .PTR_T          ( ID_T ),
         .ALLOC_FC       ( 0 ),
         .DEALLOC_FC     ( 1 ),
         .SIM__FAST_INIT ( SIM__FAST_INIT )
-    ) i_state_allocator_bv (
+    ) i_alloc_axil_bv   (
         .clk            ( clk ),
         .srst           ( srst ),
-        .init_done      ( init_done__allocator ),
         .en             ( en ),
+        .init_done      ( init_done__allocator ),
         .alloc_req      ( alloc_req ),
         .alloc_rdy      ( alloc_rdy ),
-        .alloc_id       ( alloc_id ),
+        .alloc_ptr      ( alloc_id ),
         .dealloc_req    ( dealloc_req ),
         .dealloc_rdy    ( dealloc_rdy ),
-        .dealloc_id     ( dealloc_id ),
-        .err_alloc      ( ),
-        .err_dealloc    ( ),
-        .err_id         ( ),
+        .dealloc_ptr    ( dealloc_id ),
         .axil_if        ( axil_if )
     );
 
