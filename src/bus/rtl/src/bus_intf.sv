@@ -1,11 +1,11 @@
 interface bus_intf #(
     parameter type DATA_T = logic
 ) (
-    input wire logic clk,
-    input wire logic srst
+    input wire logic clk
 );
 
     // Signals
+    wire logic  srst;
     wire logic  valid;
     wire logic  ready;
     wire DATA_T data;
@@ -13,7 +13,7 @@ interface bus_intf #(
     // Modports
     modport tx (
         input  clk,
-        input  srst,
+        output srst,
         output valid,
         input  ready,
         output data
@@ -159,6 +159,7 @@ module bus_intf_connector (
     bus_intf.rx bus_if_from_tx,
     bus_intf.tx bus_if_to_rx
 );
+    assign bus_if_to_rx.srst  = bus_if_from_tx.srst;
     assign bus_if_to_rx.valid = bus_if_from_tx.valid;
     assign bus_if_to_rx.data  = bus_if_from_tx.data;
     assign bus_if_from_tx.ready = bus_if_to_rx.ready;

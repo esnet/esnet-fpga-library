@@ -17,8 +17,8 @@ module bus_pipe #(
     generate
         if (STAGES > 0) begin : g__pipe
             // (Local) interfaces
-            bus_intf #(.DATA_T(DATA_T)) bus_if__tx (.clk(bus_if_from_tx.clk), .srst(bus_if_from_tx.srst));
-            bus_intf #(.DATA_T(DATA_T)) bus_if__rx (.clk(bus_if_from_tx.clk), .srst(bus_if_from_tx.srst));
+            bus_intf #(.DATA_T(DATA_T)) bus_if__tx (.clk(bus_if_from_tx.clk));
+            bus_intf #(.DATA_T(DATA_T)) bus_if__rx (.clk(bus_if_from_tx.clk));
 
             // Pipeline transmitter (includes single pipeline stage)
             bus_pipe_tx #(IGNORE_READY) i_bus_pipe_tx (

@@ -88,8 +88,8 @@ module fifo_axil_async_unit_test #(
 
     std_reset_intf reset_if (.clk(wr_clk));
 
-    bus_intf #(DATA_T) wr_if (.clk(wr_clk), .srst(wr_srst));
-    bus_intf #(DATA_T) rd_if (.clk(rd_clk), .srst(rd_srst));
+    bus_intf #(DATA_T) wr_if (.clk(wr_clk));
+    bus_intf #(DATA_T) rd_if (.clk(rd_clk));
 
     axi4l_verif_pkg::axi4l_reg_agent axil_reg_agent;
     fifo_reg_agent reg_agent;

@@ -13,14 +13,17 @@ module bus_reg #(
     localparam int  DATA_WID = $bits(bus_if_from_tx.DATA_T);
     localparam type DATA_T = logic[DATA_WID-1:0];
 
+    (* DONT_TOUCH *) logic  srst;
     (* DONT_TOUCH *) logic  valid;
     (* DONT_TOUCH *) DATA_T data;
 
     always @(posedge bus_if_from_tx.clk) begin
+        srst  <= bus_if_from_tx.srst;
         valid <= bus_if_from_tx.valid;
         data  <= bus_if_from_tx.data;
     end
 
+    assign bus_if_to_rx.srst = srst;
     assign bus_if_to_rx.valid = valid;
     assign bus_if_to_rx.data = data;
 

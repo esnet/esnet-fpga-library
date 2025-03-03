@@ -16,20 +16,24 @@ module bus_reg_multi #(
 
     generate
         if (STAGES > 1) begin : g__multi_stage
+            (* DONT_TOUCH *) logic  srst_p  [STAGES];
             (* DONT_TOUCH *) logic  valid_p [STAGES];
             (* DONT_TOUCH *) DATA_T data_p  [STAGES];
 
             initial valid_p = '{default: 1'b0};
             always @(posedge bus_if_from_tx.clk) begin
                 for (int i = 1; i < STAGES; i++) begin
+                    srst_p [i] <= srst_p [i-1];
                     valid_p[i] <= valid_p[i-1];
                     data_p [i] <= data_p [i-1];
                 end
+                srst_p [0] <= bus_if_from_tx.srst;
                 valid_p[0] <= bus_if_from_tx.valid;
                 data_p [0] <= bus_if_from_tx.data;
             end
+            assign bus_if_to_rx.srst  = srst_p [STAGES-1];
             assign bus_if_to_rx.valid = valid_p[STAGES-1];
-            assign bus_if_to_rx.data  = data_p[STAGES-1];
+            assign bus_if_to_rx.data  = data_p [STAGES-1];
             
             if (IGNORE_READY) begin : g__ignore_ready
                 assign bus_if_from_tx.ready = 1'b1;

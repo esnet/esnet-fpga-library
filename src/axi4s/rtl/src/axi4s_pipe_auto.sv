@@ -38,8 +38,8 @@ module axi4s_pipe_auto #(
         TDATA_T     tdata;
     } payload_t;
 
-    bus_intf #(.DATA_T(payload_t)) bus_if__from_tx (.clk(axi4s_if_from_tx.aclk), .srst(!axi4s_if_from_tx.aresetn));
-    bus_intf #(.DATA_T(payload_t)) bus_if__to_rx   (.clk(axi4s_if_from_tx.aclk), .srst(!axi4s_if_from_tx.aresetn));
+    bus_intf #(.DATA_T(payload_t)) bus_if__from_tx (.clk(axi4s_if_from_tx.aclk));
+    bus_intf #(.DATA_T(payload_t)) bus_if__to_rx   (.clk(axi4s_if_from_tx.aclk));
 
     axi4s_to_bus_adapter i_axi4s_to_bus_adapter (
         .axi4s_if_from_tx,

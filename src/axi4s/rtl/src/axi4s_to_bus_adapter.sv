@@ -38,6 +38,7 @@ module axi4s_to_bus_adapter #(
     payload_t axi4s_if__payload;
 
     // Adapt between AXI4-S and bus interfaces
+    assign bus_if_to_rx.srst = !axi4s_if_from_tx.aresetn;
     assign bus_if_to_rx.valid = axi4s_if_from_tx.tvalid;
     assign axi4s_if__payload.tdata  = axi4s_if_from_tx.tdata;
     assign axi4s_if__payload.tkeep  = axi4s_if_from_tx.tkeep;

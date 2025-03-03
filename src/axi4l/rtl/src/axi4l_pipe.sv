@@ -42,16 +42,16 @@ module axi4l_pipe #(
     } r_payload_t;
 
     // Bus interfaces (one for each of the AXI4-L channels)
-    bus_intf #(.DATA_T(ax_payload_t)) aw_bus_if__from_controller (.clk(axi4l_if_from_controller.aclk), .srst(!axi4l_if_from_controller.aresetn));
-    bus_intf #(.DATA_T(ax_payload_t)) aw_bus_if__to_peripheral   (.clk(axi4l_if_from_controller.aclk), .srst(!axi4l_if_from_controller.aresetn));
-    bus_intf #(.DATA_T(w_payload_t))  w_bus_if__from_controller  (.clk(axi4l_if_from_controller.aclk), .srst(!axi4l_if_from_controller.aresetn));
-    bus_intf #(.DATA_T(w_payload_t))  w_bus_if__to_peripheral    (.clk(axi4l_if_from_controller.aclk), .srst(!axi4l_if_from_controller.aresetn));
-    bus_intf #(.DATA_T(b_payload_t))  b_bus_if__from_controller  (.clk(axi4l_if_from_controller.aclk), .srst(!axi4l_if_from_controller.aresetn));
-    bus_intf #(.DATA_T(b_payload_t))  b_bus_if__to_peripheral    (.clk(axi4l_if_from_controller.aclk), .srst(!axi4l_if_from_controller.aresetn));
-    bus_intf #(.DATA_T(ax_payload_t)) ar_bus_if__from_controller (.clk(axi4l_if_from_controller.aclk), .srst(!axi4l_if_from_controller.aresetn));
-    bus_intf #(.DATA_T(ax_payload_t)) ar_bus_if__to_peripheral   (.clk(axi4l_if_from_controller.aclk), .srst(!axi4l_if_from_controller.aresetn));
-    bus_intf #(.DATA_T(r_payload_t))  r_bus_if__from_controller  (.clk(axi4l_if_from_controller.aclk), .srst(!axi4l_if_from_controller.aresetn));
-    bus_intf #(.DATA_T(r_payload_t))  r_bus_if__to_peripheral    (.clk(axi4l_if_from_controller.aclk), .srst(!axi4l_if_from_controller.aresetn));
+    bus_intf #(.DATA_T(ax_payload_t)) aw_bus_if__from_controller (.clk(axi4l_if_from_controller.aclk));
+    bus_intf #(.DATA_T(ax_payload_t)) aw_bus_if__to_peripheral   (.clk(axi4l_if_from_controller.aclk));
+    bus_intf #(.DATA_T(w_payload_t))  w_bus_if__from_controller  (.clk(axi4l_if_from_controller.aclk));
+    bus_intf #(.DATA_T(w_payload_t))  w_bus_if__to_peripheral    (.clk(axi4l_if_from_controller.aclk));
+    bus_intf #(.DATA_T(b_payload_t))  b_bus_if__from_controller  (.clk(axi4l_if_from_controller.aclk));
+    bus_intf #(.DATA_T(b_payload_t))  b_bus_if__to_peripheral    (.clk(axi4l_if_from_controller.aclk));
+    bus_intf #(.DATA_T(ax_payload_t)) ar_bus_if__from_controller (.clk(axi4l_if_from_controller.aclk));
+    bus_intf #(.DATA_T(ax_payload_t)) ar_bus_if__to_peripheral   (.clk(axi4l_if_from_controller.aclk));
+    bus_intf #(.DATA_T(r_payload_t))  r_bus_if__from_controller  (.clk(axi4l_if_from_controller.aclk));
+    bus_intf #(.DATA_T(r_payload_t))  r_bus_if__to_peripheral    (.clk(axi4l_if_from_controller.aclk));
 
     axi4l_to_bus_adapter i_axi4l_to_bus_adapter (
         .axi4l_if  ( axi4l_if_from_controller ),

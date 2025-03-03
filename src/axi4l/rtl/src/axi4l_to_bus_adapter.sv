@@ -54,6 +54,7 @@ module axi4l_to_bus_adapter #(
     r_payload_t  axi4l_if__r_payload;
 
     // Write address
+    assign aw_bus_if.srst = !axi4l_if.aresetn;
     assign aw_bus_if.valid = axi4l_if.awvalid;
     assign axi4l_if__aw_payload.addr   = axi4l_if.awaddr;
     assign axi4l_if__aw_payload.prot   = axi4l_if.awprot;
@@ -61,6 +62,7 @@ module axi4l_to_bus_adapter #(
     assign axi4l_if.awready = aw_bus_if.ready;
 
     // Write data
+    assign w_bus_if.srst = !axi4l_if.aresetn;
     assign w_bus_if.valid = axi4l_if.wvalid;
     assign axi4l_if__w_payload.data = axi4l_if.wdata;
     assign axi4l_if__w_payload.strb = axi4l_if.wstrb;
@@ -74,6 +76,7 @@ module axi4l_to_bus_adapter #(
     assign b_bus_if.ready = axi4l_if.bready;
 
     // Read address
+    assign ar_bus_if.srst = !axi4l_if.aresetn;
     assign ar_bus_if.valid = axi4l_if.arvalid;
     assign axi4l_if__ar_payload.addr   = axi4l_if.araddr;
     assign axi4l_if__ar_payload.prot   = axi4l_if.arprot;
