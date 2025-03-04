@@ -50,6 +50,10 @@ module axi3_from_mem_adapter
     // TODO: add init (i.e. auto-clear block)
     assign init_done = 1'b1;
 
+    // Reset
+    // -----------------------------
+    assign axi3_if.aresetn = !srst;
+
     // Write address
     // -----------------------------
     initial axi3_if.awvalid = 1'b0;
