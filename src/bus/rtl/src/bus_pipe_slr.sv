@@ -19,11 +19,11 @@
 
     localparam int  TOTAL_SLACK = 4 + 2*PRE_PIPE_STAGES + 2*POST_PIPE_STAGES;
 
-    bus_intf #(.DATA_T(DATA_T)) bus_if__tx   (.clk(bus_if_from_tx.clk), .srst(bus_if_from_tx.srst));
-    bus_intf #(.DATA_T(DATA_T)) bus_if__tx_p (.clk(bus_if_from_tx.clk), .srst(bus_if_from_tx.srst));
-    bus_intf #(.DATA_T(DATA_T)) bus_if__sll  (.clk(bus_if_from_tx.clk), .srst(bus_if_from_tx.srst));
-    bus_intf #(.DATA_T(DATA_T)) bus_if__rx_p (.clk(bus_if_from_tx.clk), .srst(bus_if_from_tx.srst));
-    bus_intf #(.DATA_T(DATA_T)) bus_if__rx   (.clk(bus_if_from_tx.clk), .srst(bus_if_from_tx.srst));
+    bus_intf #(.DATA_T(DATA_T)) bus_if__tx   (.clk(bus_if_from_tx.clk));
+    bus_intf #(.DATA_T(DATA_T)) bus_if__tx_p (.clk(bus_if_from_tx.clk));
+    bus_intf #(.DATA_T(DATA_T)) bus_if__sll  (.clk(bus_if_from_tx.clk));
+    bus_intf #(.DATA_T(DATA_T)) bus_if__rx_p (.clk(bus_if_from_tx.clk));
+    bus_intf #(.DATA_T(DATA_T)) bus_if__rx   (.clk(bus_if_from_tx.clk));
 
     // Pipeline transmitter
     bus_pipe_tx #(IGNORE_READY) i_bus_pipe_tx (

@@ -19,11 +19,13 @@ module bus_pipe_rx #(
     localparam int  DATA_WID = $bits(bus_if_from_tx.DATA_T);
     localparam type DATA_T = logic[DATA_WID-1:0];
 
+    assign bus_if_to_rx.srst = bus_if_from_tx.srst;
+
     generate
         if (IGNORE_READY) begin : g__ignore_ready
             // No need for Rx FIFO
             assign bus_if_to_rx.valid = bus_if_from_tx.valid;
-            assign bus_if_to_rx.data = bus_if_from_tx.data;
+            assign bus_if_to_rx.data  = bus_if_from_tx.data;
             assign bus_if_from_tx.ready = 1'b1;
         end : g__ignore_ready
         else begin : g__obey_ready

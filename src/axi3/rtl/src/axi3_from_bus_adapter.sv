@@ -76,6 +76,12 @@ module axi3_from_bus_adapter #(
     ax_payload_t axi3_if__ar_payload;
     r_payload_t  axi3_if__r_payload;
 
+    // Reset
+    logic srst;
+    assign srst = aw_bus_if.srst;
+
+    assign axi3_if.aresetn = !srst;
+
     // Write address
     assign axi3_if.awvalid = aw_bus_if.valid;
     assign axi3_if__aw_payload = aw_bus_if.data;
@@ -103,6 +109,7 @@ module axi3_from_bus_adapter #(
     assign w_bus_if.ready = axi3_if.wready;
 
     // Write response
+    assign b_bus_if.srst = srst;
     assign b_bus_if.valid = axi3_if.bvalid;
     assign axi3_if__b_payload.id   = axi3_if.bid;
     assign axi3_if__b_payload.resp = axi3_if.bresp;
@@ -127,6 +134,7 @@ module axi3_from_bus_adapter #(
     assign ar_bus_if.ready  = axi3_if.arready;
 
     // Read data
+    assign r_bus_if.srst = srst;
     assign r_bus_if.valid = axi3_if.rvalid;
     assign axi3_if__r_payload.id   = axi3_if.rid;
     assign axi3_if__r_payload.data = axi3_if.rdata;

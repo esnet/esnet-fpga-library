@@ -3,17 +3,14 @@
 // (Failsafe) timeout
 `define SVUNIT_TIMEOUT 500us
 
-module fifo_sync_unit_test #(
-    parameter int DEPTH = 3,
-    parameter bit FWFT = 1'b0
+module fifo_small_unit_test #(
+    parameter int DEPTH = 3
 );
     import svunit_pkg::svunit_testcase;
     import tb_pkg::*;
 
-    localparam string type_string = FWFT ? "fwft" : "std";
-
     // Synthesize testcase name from parameters
-    string name = $sformatf("fifo_sync_%s_depth%0d__ut", type_string, DEPTH);
+    string name = $sformatf("fifo_small_depth%0d__ut", DEPTH);
 
     svunit_testcase svunit_ut;
 
@@ -25,13 +22,9 @@ module fifo_sync_unit_test #(
     //===================================
     // Derived parameters
     //===================================
-    localparam int MEM_WR_LATENCY = DUT.i_fifo_core.MEM_WR_LATENCY;
-    localparam int MEM_RD_LATENCY = DUT.i_fifo_core.MEM_RD_LATENCY;
+    localparam int MEM_WR_LATENCY = 1;
 
-    // Adjust 'effective' FIFO depth to account for optional FWFT buffer
-    localparam int __DEPTH = FWFT ? DEPTH + MEM_RD_LATENCY : DEPTH;
-
-    localparam int CNT_WID = $clog2(__DEPTH+1);
+    localparam int CNT_WID = $clog2(DEPTH+1);
 
     //===================================
     // Typedefs
@@ -45,32 +38,25 @@ module fifo_sync_unit_test #(
     logic   clk;
     logic   srst;
 
-    logic   wr_rdy;
     logic   wr;
     DATA_T  wr_data;
+    logic   full;
+    logic   oflow;
 
     logic   rd;
-    logic   rd_ack;
     DATA_T  rd_data;
-
-    logic   full;
     logic   empty;
-    count_t wr_count;
-    count_t rd_count;
-
-    logic   oflow;
     logic   uflow;
 
-    fifo_sync #(
+    fifo_small #(
         .DATA_T  ( DATA_T ),
-        .DEPTH   ( DEPTH ),
-        .FWFT    ( FWFT )
+        .DEPTH   ( DEPTH )
     ) DUT (.*);
 
     //===================================
     // Testbench
     //===================================
-    tb_env #(DATA_T, FWFT) env;
+    tb_env #(DATA_T, 1) env;
 
     std_reset_intf reset_if (.clk);
 
@@ -89,11 +75,11 @@ module fifo_sync_unit_test #(
     // Assign data interfaces
     assign wr = wr_if.valid;
     assign wr_data = wr_if.data;
-    assign wr_if.ready = wr_rdy;
+    assign wr_if.ready = !full;
 
     assign rd = rd_if.ready;
     assign rd_if.data = rd_data;
-    assign rd_if.valid = rd_ack;
+    assign rd_if.valid = !empty;
 
     clocking cb @(posedge clk);
         default input #1step output #1step;
@@ -224,7 +210,6 @@ module fifo_sync_unit_test #(
 
             // Allow write transaction to be registered by FIFO
             wr_if._wait(MEM_WR_LATENCY+1);
-            if (FWFT) rd_if._wait(MEM_RD_LATENCY);
 
             // Check that empty is deasserted
             repeat (2) @(cb);
@@ -261,8 +246,7 @@ module fifo_sync_unit_test #(
             `FAIL_UNLESS(cb.full == 0);
 
             // Send DEPTH transactions
-            for (int i = 0; i < __DEPTH; i++) begin
-                if (FWFT && cb.full) repeat (MEM_RD_LATENCY) @(cb);
+            for (int i = 0; i < DEPTH; i++) begin
                 `FAIL_UNLESS(cb.full == 0);
                 env.driver.send(exp_transaction);
             end
@@ -305,8 +289,7 @@ module fifo_sync_unit_test #(
             `FAIL_UNLESS(cb.oflow == 0);
 
             // Send DEPTH transactions
-            for (int i = 0; i < __DEPTH; i++) begin
-                if (FWFT && cb.full) repeat (MEM_RD_LATENCY) @(cb);
+            for (int i = 0; i < DEPTH; i++) begin
                 // Full/overflow should be deasserted
                 `FAIL_UNLESS(cb.full == 0);
                 `FAIL_UNLESS(cb.oflow == 0);
@@ -323,7 +306,7 @@ module fifo_sync_unit_test #(
             env.driver.set_tx_mode(bus_verif_pkg::TX_MODE_PUSH);
 
             // Send one more transaction
-            exp_transaction = new($sformatf("exp_transaction_%d", __DEPTH), __DEPTH);
+            exp_transaction = new($sformatf("exp_transaction_%d", DEPTH), DEPTH);
             env.driver.send(exp_transaction);
 
             // This should trigger oflow on the same cycle
@@ -335,7 +318,7 @@ module fifo_sync_unit_test #(
             `FAIL_UNLESS(cb.oflow == 0);
 
             // Empty FIFO
-            for (int i = 0; i < __DEPTH; i++) begin
+            for (int i = 0; i < DEPTH; i++) begin
                 exp_transaction = new($sformatf("exp_transaction_%d", i), i);
                 env.monitor.receive(got_transaction);
                 match = exp_transaction.compare(got_transaction, msg);
@@ -347,7 +330,7 @@ module fifo_sync_unit_test #(
             @(cb);
 
             // Send and receive one more transaction
-            exp_transaction = new($sformatf("exp_transaction_%d", __DEPTH), __DEPTH);
+            exp_transaction = new($sformatf("exp_transaction_%d", DEPTH), DEPTH);
             env.driver.send(exp_transaction);
             `FAIL_UNLESS(cb.oflow == 0);
 
@@ -363,17 +346,17 @@ module fifo_sync_unit_test #(
 
     `SVUNIT_TESTS_END
 
-endmodule : fifo_sync_unit_test
+endmodule : fifo_small_unit_test
 
 
 
 // 'Boilerplate' unit test wrapper code
 //  Builds unit test for a specific FIFO configuration in a way
 //  that maintains SVUnit compatibility
-`define FIFO_SYNC_UNIT_TEST(DEPTH, FWFT)\
+`define FIFO_SMALL_UNIT_TEST(DEPTH)\
   import svunit_pkg::svunit_testcase;\
   svunit_testcase svunit_ut;\
-  fifo_sync_unit_test #(DEPTH, FWFT) test();\
+  fifo_small_unit_test #(DEPTH) test();\
   function void build();\
     test.build();\
     svunit_ut = test.svunit_ut;\
@@ -385,66 +368,27 @@ endmodule : fifo_sync_unit_test
     test.run();\
   endtask
 
-
-// Standard 3-entry FIFO (small)
-module fifo_sync_std_depth3_unit_test;
-`FIFO_SYNC_UNIT_TEST(3, 0)
+// 2-entry FIFO
+module fifo_small_depth2_unit_test;
+`FIFO_SMALL_UNIT_TEST(2)
 endmodule
 
-// Standard 8-entry FIFO (small)
-module fifo_sync_std_depth8_unit_test;
-`FIFO_SYNC_UNIT_TEST(8, 0)
+// 3-entry FIFO
+module fifo_small_depth3_unit_test;
+`FIFO_SMALL_UNIT_TEST(3)
 endmodule
 
-// Standard 32-entry FIFO (small)
-module fifo_sync_std_depth32_unit_test;
-`FIFO_SYNC_UNIT_TEST(32, 0)
+// 8-entry FIFO
+module fifo_small_depth8_unit_test;
+`FIFO_SMALL_UNIT_TEST(8)
 endmodule
 
-// Standard 385-entry FIFO (medium)
-module fifo_sync_std_depth385_unit_test;
-`FIFO_SYNC_UNIT_TEST(385, 0)
+// 32-entry FIFO
+module fifo_small_depth32_unit_test;
+`FIFO_SMALL_UNIT_TEST(32)
 endmodule
 
-// Standard 512-entry FIFO (medium)
-module fifo_sync_std_depth512_unit_test;
-`FIFO_SYNC_UNIT_TEST(512, 0)
+// 98-entry FIFO
+module fifo_sync_std_depth98_unit_test;
+`FIFO_SMALL_UNIT_TEST(98)
 endmodule
-
-// Standard 4097-entry FIFO (large)
-module fifo_sync_std_depth4097_unit_test;
-`FIFO_SYNC_UNIT_TEST(4097, 0)
-endmodule
-
-
-
-// FWFT 3-entry FIFO (small)
-module fifo_sync_fwft_depth3_unit_test;
-`FIFO_SYNC_UNIT_TEST(3, 1)
-endmodule
-
-// FWFT 8-entry FIFO (small)
-module fifo_sync_fwft_depth8_unit_test;
-`FIFO_SYNC_UNIT_TEST(8, 1)
-endmodule
-
-// FWFT 32-entry FIFO (small)
-module fifo_sync_fwft_depth32_unit_test;
-`FIFO_SYNC_UNIT_TEST(32, 1)
-endmodule
-
-// FWFT 385-entry FIFO (medium)
-module fifo_sync_fwft_depth385_unit_test;
-`FIFO_SYNC_UNIT_TEST(385, 1)
-endmodule
-
-// FWFT 512-entry FIFO (medium)
-module fifo_sync_fwft_depth512_unit_test;
-`FIFO_SYNC_UNIT_TEST(512, 1)
-endmodule
-
-// FWFT 4097-entry FIFO (large)
-module fifo_sync_fwft_depth4097_unit_test;
-`FIFO_SYNC_UNIT_TEST(4097, 1)
-endmodule
-

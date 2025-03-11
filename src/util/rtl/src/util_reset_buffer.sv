@@ -1,9 +1,10 @@
 // Reset buffer module
 // - passes `srst_in` to `srst_out` after `STAGES` cycles
 // - supports reset tree optimization during physical implementation
+// - use dont_touch attribute at module level to avoid decloning optimizations
 // - NOTE: assumes fully synchronous (assertion + deassertion) reset behaviour
 //   (specifically, this module is not suitable to be used if asynchronous assertion is required)
-module util_reset_buffer #(
+(* dont_touch = "true" *) module util_reset_buffer #(
     parameter int STAGES = 2,           // Create 2-level reset tree, for example
     parameter bit INPUT_ACTIVE_LOW = 0, // Assume active-high input unless otherwise specified
     parameter bit ASSERT_ON_INIT = 0    // When set, output is asserted at init    (i.e. srst_out = 1'b1, srstn_out = 1'b0)

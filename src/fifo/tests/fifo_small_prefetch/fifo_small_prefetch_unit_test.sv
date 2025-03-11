@@ -3,17 +3,14 @@
 // (Failsafe) timeout
 `define SVUNIT_TIMEOUT 500us
 
-module fifo_sync_unit_test #(
-    parameter int DEPTH = 3,
-    parameter bit FWFT = 1'b0
+module fifo_small_prefetch_unit_test #(
+    parameter int PIPELINE_DEPTH = 1
 );
     import svunit_pkg::svunit_testcase;
     import tb_pkg::*;
 
-    localparam string type_string = FWFT ? "fwft" : "std";
-
     // Synthesize testcase name from parameters
-    string name = $sformatf("fifo_sync_%s_depth%0d__ut", type_string, DEPTH);
+    string name = $sformatf("fifo_small_prefetch_depth%0d__ut", PIPELINE_DEPTH);
 
     svunit_testcase svunit_ut;
 
@@ -21,22 +18,12 @@ module fifo_sync_unit_test #(
     // Parameters
     //===================================
     localparam type DATA_T = bit[31:0];
+    localparam int DEPTH = PIPELINE_DEPTH > 1 ? 2*(2**$clog2(PIPELINE_DEPTH)) : 4;
 
     //===================================
     // Derived parameters
     //===================================
-    localparam int MEM_WR_LATENCY = DUT.i_fifo_core.MEM_WR_LATENCY;
-    localparam int MEM_RD_LATENCY = DUT.i_fifo_core.MEM_RD_LATENCY;
-
-    // Adjust 'effective' FIFO depth to account for optional FWFT buffer
-    localparam int __DEPTH = FWFT ? DEPTH + MEM_RD_LATENCY : DEPTH;
-
-    localparam int CNT_WID = $clog2(__DEPTH+1);
-
-    //===================================
-    // Typedefs
-    //===================================
-    typedef logic [CNT_WID-1:0] count_t;
+    localparam int MEM_WR_LATENCY = 1;
 
     //===================================
     // DUT
@@ -45,32 +32,28 @@ module fifo_sync_unit_test #(
     logic   clk;
     logic   srst;
 
-    logic   wr_rdy;
     logic   wr;
+    logic   wr_rdy;
     DATA_T  wr_data;
+    logic   oflow;
 
     logic   rd;
-    logic   rd_ack;
+    logic   rd_rdy;
     DATA_T  rd_data;
 
-    logic   full;
-    logic   empty;
-    count_t wr_count;
-    count_t rd_count;
-
-    logic   oflow;
-    logic   uflow;
-
-    fifo_sync #(
-        .DATA_T  ( DATA_T ),
-        .DEPTH   ( DEPTH ),
-        .FWFT    ( FWFT )
+    fifo_small_prefetch  #(
+        .DATA_T           ( DATA_T ),
+        .PIPELINE_DEPTH   ( PIPELINE_DEPTH )
     ) DUT (.*);
 
     //===================================
     // Testbench
     //===================================
-    tb_env #(DATA_T, FWFT) env;
+    logic __wr_rdy [PIPELINE_DEPTH];
+    logic full;
+    logic empty;
+
+    tb_env #(DATA_T, 1) env;
 
     std_reset_intf reset_if (.clk);
 
@@ -87,17 +70,29 @@ module fifo_sync_unit_test #(
     assign rd_if.srst = srst;
 
     // Assign data interfaces
+    initial __wr_rdy = '{default: 1'b1};
+    always @(posedge clk) begin
+        if (srst) __wr_rdy <= '{default: 1'b1};
+        else begin
+            for (int i = 1; i < PIPELINE_DEPTH; i++) begin
+                __wr_rdy[i] <= __wr_rdy[i-1];
+            end
+            __wr_rdy[0] <= wr_rdy;
+        end
+    end
     assign wr = wr_if.valid;
     assign wr_data = wr_if.data;
-    assign wr_if.ready = wr_rdy;
+    assign wr_if.ready = __wr_rdy[PIPELINE_DEPTH-1];
+    assign full = !wr_if.ready;
 
     assign rd = rd_if.ready;
     assign rd_if.data = rd_data;
-    assign rd_if.valid = rd_ack;
+    assign rd_if.valid = rd_rdy;
+    assign empty = !rd_rdy;
 
     clocking cb @(posedge clk);
         default input #1step output #1step;
-        input empty, full, uflow, oflow;
+        input full, oflow, empty;
     endclocking
 
     // Assign clock (100MHz)
@@ -216,26 +211,24 @@ module fifo_sync_unit_test #(
             std_verif_pkg::raw_transaction#(DATA_T) exp_transaction;
 
             // Empty should be asserted immediately following init
-            `FAIL_UNLESS(cb.empty == 1);
+            `FAIL_UNLESS(cb.empty);
 
             // Send transaction
             exp_transaction = new("exp_transaction", exp_item);
             env.driver.send(exp_transaction);
 
             // Allow write transaction to be registered by FIFO
-            wr_if._wait(MEM_WR_LATENCY+1);
-            if (FWFT) rd_if._wait(MEM_RD_LATENCY);
+            wr_if._wait(MEM_WR_LATENCY);
 
             // Check that empty is deasserted
-            repeat (2) @(cb);
-            `FAIL_UNLESS(cb.empty == 0);
+            `FAIL_IF(cb.empty);
 
             // Receive transaction
             env.monitor.receive(got_transaction);
 
             // Check that empty is reasserted on next cycle
             @(cb);
-            `FAIL_UNLESS(cb.empty == 1);
+            `FAIL_UNLESS(cb.empty);
 
         `SVTEST_END
 
@@ -246,7 +239,7 @@ module fifo_sync_unit_test #(
         // Desc:
         //   verify full flag:
         //   - check that full is deasserted after init
-        //   - check that full is asserted after NUM_ITEMS write to FIFO
+        //   - check that full is asserted when FIFO is full
         //   - check that full is deasserted after single read from FIFO
         //===================================
         `SVTEST(_full)
@@ -258,25 +251,35 @@ module fifo_sync_unit_test #(
             exp_transaction = new("exp_transaction", exp_item);
 
             // Full should be deasserted immediately following init
-            `FAIL_UNLESS(cb.full == 0);
+            `FAIL_IF(cb.full);
 
-            // Send DEPTH transactions
-            for (int i = 0; i < __DEPTH; i++) begin
-                if (FWFT && cb.full) repeat (MEM_RD_LATENCY) @(cb);
-                `FAIL_UNLESS(cb.full == 0);
+            // Send enough transactions to trigger 'full'
+            for (int i = 0; i < (DEPTH - PIPELINE_DEPTH); i++) begin
+                `FAIL_IF(cb.full);
                 env.driver.send(exp_transaction);
             end
-
-            // Full should be asserted on next cycle
-            @(cb);
-            `FAIL_UNLESS(cb.full == 1);
+            // Full should be asserted after some delay
+            fork
+                @(cb.full);
+                begin
+                    repeat (DEPTH) @(cb);
+                    `FAIL_IF_LOG(1, "Full not asserted");
+                end
+            join_any
+            disable fork;
 
             // Receive transaction
             env.monitor.receive(got_transaction);
 
             // Check that full is once again deasserted (takes an extra cycle for read to take effect)
-            repeat (2) @(cb);
-            `FAIL_UNLESS(cb.full == 0);
+            fork
+                @(!cb.full);
+                begin
+                    repeat (DEPTH) @(cb);
+                    `FAIL_IF_LOG(1, "Full not deasserted");
+                end
+            join_any
+            disable fork;
 
         `SVTEST_END
 
@@ -301,41 +304,64 @@ module fifo_sync_unit_test #(
             string msg;
 
             // Overflow should be deasserted immediately following init
-            `FAIL_UNLESS(cb.full == 0);
-            `FAIL_UNLESS(cb.oflow == 0);
+            `FAIL_IF(cb.full);
+            `FAIL_IF(cb.oflow);
 
-            // Send DEPTH transactions
-            for (int i = 0; i < __DEPTH; i++) begin
-                if (FWFT && cb.full) repeat (MEM_RD_LATENCY) @(cb);
+            // Send enough transactions to trigger 'full'
+            for (int i = 0; i < (DEPTH - PIPELINE_DEPTH); i++) begin
                 // Full/overflow should be deasserted
-                `FAIL_UNLESS(cb.full == 0);
-                `FAIL_UNLESS(cb.oflow == 0);
+                `FAIL_IF(cb.full);
+                `FAIL_IF(cb.oflow);
                 exp_transaction = new($sformatf("exp_transaction_%d", i), i);
                 env.driver.send(exp_transaction);
             end
 
-            // After filling FIFO, full should be asserted (oflow should remain deasserted)
-            @(cb);
-            `FAIL_UNLESS(cb.full == 1);
-            `FAIL_UNLESS(cb.oflow == 0);
+            // After exceeding almost full depth, 'full' should be asserted (oflow should remain deasserted)
+            fork
+                @(cb.full);
+                `FAIL_IF(cb.oflow);
+                begin
+                    repeat (DEPTH) @(cb);
+                    `FAIL_IF_LOG(1, "Full not asserted");
+                end
+            join_any
+            disable fork;
 
-            // Put driver in 'push' mode to allow overflow conditions
+            // Send PIPELINE_DEPTH more transactions (should be accommodated in FIFO)
+            for (int i = 0; i <  PIPELINE_DEPTH-1; i++) begin
+                `FAIL_IF(cb.oflow); // Overflow should stay deasserted
+                exp_transaction = new($sformatf("exp_transaction_%d", DEPTH-PIPELINE_DEPTH+i), DEPTH-PIPELINE_DEPTH+i);
+                env.driver.send(exp_transaction);
+            end
+            `FAIL_IF(cb.oflow);
+
+            @(cb);
+            `FAIL_UNLESS(cb.full);
+
+            // Put driver in 'push' mode to force transactions despite wr_rdy being deasserted
             env.driver.set_tx_mode(bus_verif_pkg::TX_MODE_PUSH);
 
             // Send one more transaction
-            exp_transaction = new($sformatf("exp_transaction_%d", __DEPTH), __DEPTH);
+            // This should still be safe due to a one-element buffer
+            exp_transaction = new($sformatf("exp_transaction_%d", DEPTH-1), DEPTH-1);
             env.driver.send(exp_transaction);
 
+            `FAIL_UNLESS(cb.full);
+            `FAIL_IF(cb.oflow);
+
+            // Send one more transaction
             // This should trigger oflow on the same cycle
-            `FAIL_UNLESS(cb.oflow == 1);
+            exp_transaction = new($sformatf("exp_transaction_%d", DEPTH), DEPTH);
+            env.driver.send(exp_transaction);
+            `FAIL_UNLESS(cb.oflow);
 
             // Full should remain asserted, oflow should be deasserted on following cycle
             @(cb);
-            `FAIL_UNLESS(cb.full == 1);
-            `FAIL_UNLESS(cb.oflow == 0);
+            `FAIL_UNLESS(cb.full);
+            `FAIL_IF(cb.oflow);
 
             // Empty FIFO
-            for (int i = 0; i < __DEPTH; i++) begin
+            for (int i = 0; i < DEPTH; i++) begin
                 exp_transaction = new($sformatf("exp_transaction_%d", i), i);
                 env.monitor.receive(got_transaction);
                 match = exp_transaction.compare(got_transaction, msg);
@@ -347,9 +373,9 @@ module fifo_sync_unit_test #(
             @(cb);
 
             // Send and receive one more transaction
-            exp_transaction = new($sformatf("exp_transaction_%d", __DEPTH), __DEPTH);
+            exp_transaction = new($sformatf("exp_transaction_%d", DEPTH), DEPTH);
             env.driver.send(exp_transaction);
-            `FAIL_UNLESS(cb.oflow == 0);
+            `FAIL_IF(cb.oflow);
 
             wr_if._wait(1);
 
@@ -363,17 +389,17 @@ module fifo_sync_unit_test #(
 
     `SVUNIT_TESTS_END
 
-endmodule : fifo_sync_unit_test
+endmodule : fifo_small_prefetch_unit_test
 
 
 
 // 'Boilerplate' unit test wrapper code
 //  Builds unit test for a specific FIFO configuration in a way
 //  that maintains SVUnit compatibility
-`define FIFO_SYNC_UNIT_TEST(DEPTH, FWFT)\
+`define FIFO_SMALL_PREFETCH_UNIT_TEST(PIPELINE_DEPTH)\
   import svunit_pkg::svunit_testcase;\
   svunit_testcase svunit_ut;\
-  fifo_sync_unit_test #(DEPTH, FWFT) test();\
+  fifo_small_prefetch_unit_test #(PIPELINE_DEPTH) test();\
   function void build();\
     test.build();\
     svunit_ut = test.svunit_ut;\
@@ -385,66 +411,23 @@ endmodule : fifo_sync_unit_test
     test.run();\
   endtask
 
-
-// Standard 3-entry FIFO (small)
-module fifo_sync_std_depth3_unit_test;
-`FIFO_SYNC_UNIT_TEST(3, 0)
+// Pipeline depth 1
+module fifo_small_prefetch_pldepth1_unit_test;
+`FIFO_SMALL_PREFETCH_UNIT_TEST(1)
 endmodule
 
-// Standard 8-entry FIFO (small)
-module fifo_sync_std_depth8_unit_test;
-`FIFO_SYNC_UNIT_TEST(8, 0)
+// Pipeline depth 3
+module fifo_small_prefetch_pldepth3_unit_test;
+`FIFO_SMALL_PREFETCH_UNIT_TEST(3)
 endmodule
 
-// Standard 32-entry FIFO (small)
-module fifo_sync_std_depth32_unit_test;
-`FIFO_SYNC_UNIT_TEST(32, 0)
+// Pipeline depth 8
+module fifo_small_prefetch_pldepth8_unit_test;
+`FIFO_SMALL_PREFETCH_UNIT_TEST(8)
 endmodule
 
-// Standard 385-entry FIFO (medium)
-module fifo_sync_std_depth385_unit_test;
-`FIFO_SYNC_UNIT_TEST(385, 0)
-endmodule
-
-// Standard 512-entry FIFO (medium)
-module fifo_sync_std_depth512_unit_test;
-`FIFO_SYNC_UNIT_TEST(512, 0)
-endmodule
-
-// Standard 4097-entry FIFO (large)
-module fifo_sync_std_depth4097_unit_test;
-`FIFO_SYNC_UNIT_TEST(4097, 0)
-endmodule
-
-
-
-// FWFT 3-entry FIFO (small)
-module fifo_sync_fwft_depth3_unit_test;
-`FIFO_SYNC_UNIT_TEST(3, 1)
-endmodule
-
-// FWFT 8-entry FIFO (small)
-module fifo_sync_fwft_depth8_unit_test;
-`FIFO_SYNC_UNIT_TEST(8, 1)
-endmodule
-
-// FWFT 32-entry FIFO (small)
-module fifo_sync_fwft_depth32_unit_test;
-`FIFO_SYNC_UNIT_TEST(32, 1)
-endmodule
-
-// FWFT 385-entry FIFO (medium)
-module fifo_sync_fwft_depth385_unit_test;
-`FIFO_SYNC_UNIT_TEST(385, 1)
-endmodule
-
-// FWFT 512-entry FIFO (medium)
-module fifo_sync_fwft_depth512_unit_test;
-`FIFO_SYNC_UNIT_TEST(512, 1)
-endmodule
-
-// FWFT 4097-entry FIFO (large)
-module fifo_sync_fwft_depth4097_unit_test;
-`FIFO_SYNC_UNIT_TEST(4097, 1)
+// Pipeline depth 15
+module fifo_small_prefetch_pldepth15_unit_test;
+`FIFO_SMALL_PREFETCH_UNIT_TEST(15)
 endmodule
 

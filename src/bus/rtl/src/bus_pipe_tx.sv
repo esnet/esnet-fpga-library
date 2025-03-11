@@ -15,6 +15,7 @@ module bus_pipe_tx #(
     assign ready = IGNORE_READY ? 1'b1 : bus_if_to_rx.ready;
 
     // Evaluate valid <-> ready handshake at input
+    assign bus_if_to_rx.srst  = bus_if_from_tx.srst;
     assign bus_if_to_rx.valid = bus_if_from_tx.valid && ready;
     assign bus_if_to_rx.data  = bus_if_from_tx.data;
     assign bus_if_from_tx.ready = ready;

@@ -24,10 +24,9 @@ module bus_intf_unit_test #(
     //===================================
 
     logic   clk;
-    logic   srst;
     
-    bus_intf #(DATA_T) bus_if_from_tx (.clk(clk), .srst(srst));
-    bus_intf #(DATA_T) bus_if_to_rx (.clk(clk), .srst(srst));
+    bus_intf #(DATA_T) bus_if_from_tx (.clk(clk));
+    bus_intf #(DATA_T) bus_if_to_rx (.clk(clk));
 
     generate
         case (COMPONENT_NAME)
@@ -57,10 +56,10 @@ module bus_intf_unit_test #(
     std_reset_intf reset_if (.clk(clk));
 
     // Assign reset interface
-    assign srst = reset_if.reset;
+    assign bus_if_from_tx.srst = reset_if.reset;
 
     initial reset_if.ready = 1'b0;
-    always @(posedge clk) reset_if.ready <= ~srst;
+    always @(posedge clk) reset_if.ready <= ~reset_if.reset;
 
     // Assign clock (100MHz)
     `SVUNIT_CLK_GEN(clk, 5ns);

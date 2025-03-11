@@ -67,16 +67,16 @@ module axi3_pipe_auto (
     } r_payload_t;
 
     // Bus interfaces (one for each of the AXI3 channels)
-    bus_intf #(.DATA_T(ax_payload_t)) aw_bus_if__from_controller (.clk(axi3_if_from_controller.aclk), .srst(!axi3_if_from_controller.aresetn));
-    bus_intf #(.DATA_T(ax_payload_t)) aw_bus_if__to_peripheral   (.clk(axi3_if_from_controller.aclk), .srst(!axi3_if_from_controller.aresetn));
-    bus_intf #(.DATA_T(w_payload_t))  w_bus_if__from_controller  (.clk(axi3_if_from_controller.aclk), .srst(!axi3_if_from_controller.aresetn));
-    bus_intf #(.DATA_T(w_payload_t))  w_bus_if__to_peripheral    (.clk(axi3_if_from_controller.aclk), .srst(!axi3_if_from_controller.aresetn));
-    bus_intf #(.DATA_T(b_payload_t))  b_bus_if__from_controller  (.clk(axi3_if_from_controller.aclk), .srst(!axi3_if_from_controller.aresetn));
-    bus_intf #(.DATA_T(b_payload_t))  b_bus_if__to_peripheral    (.clk(axi3_if_from_controller.aclk), .srst(!axi3_if_from_controller.aresetn));
-    bus_intf #(.DATA_T(ax_payload_t)) ar_bus_if__from_controller (.clk(axi3_if_from_controller.aclk), .srst(!axi3_if_from_controller.aresetn));
-    bus_intf #(.DATA_T(ax_payload_t)) ar_bus_if__to_peripheral   (.clk(axi3_if_from_controller.aclk), .srst(!axi3_if_from_controller.aresetn));
-    bus_intf #(.DATA_T(r_payload_t))  r_bus_if__from_controller  (.clk(axi3_if_from_controller.aclk), .srst(!axi3_if_from_controller.aresetn));
-    bus_intf #(.DATA_T(r_payload_t))  r_bus_if__to_peripheral    (.clk(axi3_if_from_controller.aclk), .srst(!axi3_if_from_controller.aresetn));
+    bus_intf #(.DATA_T(ax_payload_t)) aw_bus_if__from_controller (.clk(axi3_if_from_controller.aclk));
+    bus_intf #(.DATA_T(w_payload_t))  w_bus_if__from_controller  (.clk(axi3_if_from_controller.aclk));
+    bus_intf #(.DATA_T(b_payload_t))  b_bus_if__from_controller  (.clk(axi3_if_from_controller.aclk));
+    bus_intf #(.DATA_T(ax_payload_t)) ar_bus_if__from_controller (.clk(axi3_if_from_controller.aclk));
+    bus_intf #(.DATA_T(r_payload_t))  r_bus_if__from_controller  (.clk(axi3_if_from_controller.aclk));
+    bus_intf #(.DATA_T(ax_payload_t)) aw_bus_if__to_peripheral   (.clk(axi3_if_from_controller.aclk));
+    bus_intf #(.DATA_T(w_payload_t))  w_bus_if__to_peripheral    (.clk(axi3_if_from_controller.aclk));
+    bus_intf #(.DATA_T(b_payload_t))  b_bus_if__to_peripheral    (.clk(axi3_if_from_controller.aclk));
+    bus_intf #(.DATA_T(ax_payload_t)) ar_bus_if__to_peripheral   (.clk(axi3_if_from_controller.aclk));
+    bus_intf #(.DATA_T(r_payload_t))  r_bus_if__to_peripheral    (.clk(axi3_if_from_controller.aclk));
 
     axi3_to_bus_adapter i_axi3_to_bus_adapter (
         .axi3_if   ( axi3_if_from_controller ),

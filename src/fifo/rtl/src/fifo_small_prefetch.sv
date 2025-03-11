@@ -38,21 +38,23 @@ module fifo_small_prefetch #(
     // -----------------------------
     // Parameters
     // -----------------------------
-    localparam int PTR_WID = $clog2(2 * (PIPELINE_DEPTH + 1));
-    localparam int DEPTH = 2**PTR_WID;
+    localparam int DEPTH = PIPELINE_DEPTH > 1 ? 2*(2**$clog2(PIPELINE_DEPTH)) : 4;
+    localparam int PTR_WID = $clog2(DEPTH);
     localparam int CNT_WID = $clog2(DEPTH+1);
+    localparam int PIPELINE_CNT_WID = $clog2(PIPELINE_DEPTH+1);
 
     // -----------------------------
     // Signals
     // -----------------------------
     DATA_T mem [DEPTH];
 
-    logic                 wr_safe;
-    logic [PTR_WID-1:0]   wr_ptr;
+    logic                wr_safe;
+    logic [PTR_WID-1:0]  wr_ptr;
 
-    logic [PTR_WID-1:0]   rd_ptr;
+    logic [PTR_WID-1:0]  rd_ptr;
 
-    logic [CNT_WID-1:0]     count;
+    logic [CNT_WID-1:0]  count;
+    logic [PIPELINE_CNT_WID-1:0] __reservations;
 
     // -----------------------------
     // Control FSM
@@ -85,8 +87,18 @@ module fifo_small_prefetch #(
         .mem_rdy  ( 1'b1 )
     );
 
-    // Deassert wr_rdy at buffer midpoint
-    assign wr_rdy = (count <= DEPTH/2);
+    // Maintain count of potential outstanding transactions
+    initial __reservations = 0;
+    always @(posedge clk) begin
+        if (srst) __reservations <= 0;
+        else begin
+            if      (!wr_rdy && (__reservations > 0))              __reservations <= __reservations - 1;
+            else if ( wr_rdy && (__reservations < PIPELINE_DEPTH)) __reservations <= __reservations + 1;
+        end
+    end
+
+    // Synthesize wr_rdy (account for potential outstanding transactions)
+    assign wr_rdy = (count + __reservations) < DEPTH-1;
 
     // Write
     always_ff @(posedge clk) begin

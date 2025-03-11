@@ -53,8 +53,14 @@ module axi4l_from_bus_adapter #(
     ax_payload_t axi4l_if__ar_payload;
     r_payload_t  axi4l_if__r_payload;
 
+    // Clock
     assign axi4l_if.aclk = aw_bus_if.clk;
-    assign axi4l_if.aresetn = !aw_bus_if.srst;
+
+    // Reset
+    logic srst;
+    assign srst = aw_bus_if.srst;
+
+    assign axi4l_if.aresetn = !srst;
 
     // Write address
     assign axi4l_if.awvalid = aw_bus_if.valid;
@@ -71,6 +77,7 @@ module axi4l_from_bus_adapter #(
     assign w_bus_if.ready = axi4l_if.wready;
 
     // Write response
+    assign b_bus_if.srst = srst;
     assign b_bus_if.valid = axi4l_if.bvalid;
     assign axi4l_if__b_payload.resp = axi4l_if.bresp;
     assign b_bus_if.data = axi4l_if__b_payload;
@@ -84,6 +91,7 @@ module axi4l_from_bus_adapter #(
     assign ar_bus_if.ready  = axi4l_if.arready;
 
     // Read data
+    assign r_bus_if.srst = srst;
     assign r_bus_if.valid = axi4l_if.rvalid;
     assign axi4l_if__r_payload.data = axi4l_if.rdata;
     assign axi4l_if__r_payload.resp = axi4l_if.rresp;

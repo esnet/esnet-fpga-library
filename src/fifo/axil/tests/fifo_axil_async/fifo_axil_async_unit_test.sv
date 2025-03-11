@@ -88,8 +88,8 @@ module fifo_axil_async_unit_test #(
 
     std_reset_intf reset_if (.clk(wr_clk));
 
-    bus_intf #(DATA_T) wr_if (.clk(wr_clk), .srst(wr_srst));
-    bus_intf #(DATA_T) rd_if (.clk(rd_clk), .srst(rd_srst));
+    bus_intf #(DATA_T) wr_if (.clk(wr_clk));
+    bus_intf #(DATA_T) rd_if (.clk(rd_clk));
 
     axi4l_verif_pkg::axi4l_reg_agent axil_reg_agent;
     fifo_reg_agent reg_agent;
@@ -793,12 +793,11 @@ module fifo_axil_async_unit_test #(
     endfunction
         
     function automatic int ctrl_model_wr_ptr();
-        return ctrl_model.wr_ptr % DEPTH;
+        return ctrl_model.wr_ptr[$clog2(DEPTH)-1:0];
     endfunction
 
     function automatic int ctrl_model_rd_ptr();
-        const int MEM_DEPTH = 2**$clog2(DEPTH);
-        return ctrl_model.rd_ptr % DEPTH;
+        return ctrl_model.rd_ptr[$clog2(DEPTH)-1:0];
     endfunction
 
     function automatic bit ctrl_model_full();
