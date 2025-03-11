@@ -28,6 +28,13 @@ module fifo_small #(
     localparam int MEM_DEPTH = 2**PTR_WID;
 
     // -----------------------------
+    // Parameter checking
+    // -----------------------------
+    initial begin
+        std_pkg::param_check_lt(DEPTH, 256, "DEPTH");
+    end
+
+    // -----------------------------
     // Signals
     // -----------------------------
     DATA_T mem [MEM_DEPTH];
