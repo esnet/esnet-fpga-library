@@ -27,6 +27,7 @@ SUBCOMPONENTS = \
     fifo.rtl \
     mem.rtl \
     mem.proxy.rtl \
+    alloc.rtl \
     packet.pkg \
     packet.regio.rtl
 
