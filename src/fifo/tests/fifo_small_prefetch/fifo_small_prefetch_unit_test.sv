@@ -18,7 +18,7 @@ module fifo_small_prefetch_unit_test #(
     // Parameters
     //===================================
     localparam type DATA_T = bit[31:0];
-    localparam int DEPTH = PIPELINE_DEPTH > 1 ? 2*(2**$clog2(PIPELINE_DEPTH)) : 4;
+    localparam int DEPTH = PIPELINE_DEPTH > 1 ? 2*(2**$clog2(PIPELINE_DEPTH)) : 2;
 
     //===================================
     // Derived parameters
@@ -254,7 +254,7 @@ module fifo_small_prefetch_unit_test #(
             `FAIL_IF(cb.full);
 
             // Send enough transactions to trigger 'full'
-            for (int i = 0; i < (DEPTH - PIPELINE_DEPTH); i++) begin
+            for (int i = 0; i < (DEPTH - PIPELINE_DEPTH + 1); i++) begin
                 `FAIL_IF(cb.full);
                 env.driver.send(exp_transaction);
             end
@@ -275,7 +275,7 @@ module fifo_small_prefetch_unit_test #(
             fork
                 @(!cb.full);
                 begin
-                    repeat (DEPTH) @(cb);
+                    repeat (DEPTH+1) @(cb);
                     `FAIL_IF_LOG(1, "Full not deasserted");
                 end
             join_any
@@ -308,7 +308,7 @@ module fifo_small_prefetch_unit_test #(
             `FAIL_IF(cb.oflow);
 
             // Send enough transactions to trigger 'full'
-            for (int i = 0; i < (DEPTH - PIPELINE_DEPTH); i++) begin
+            for (int i = 0; i < (DEPTH - PIPELINE_DEPTH + 1); i++) begin
                 // Full/overflow should be deasserted
                 `FAIL_IF(cb.full);
                 `FAIL_IF(cb.oflow);
@@ -327,10 +327,10 @@ module fifo_small_prefetch_unit_test #(
             join_any
             disable fork;
 
-            // Send PIPELINE_DEPTH more transactions (should be accommodated in FIFO)
+            // Send PIPELINE_DEPTH-1 more transactions (should be accommodated in FIFO)
             for (int i = 0; i <  PIPELINE_DEPTH-1; i++) begin
                 `FAIL_IF(cb.oflow); // Overflow should stay deasserted
-                exp_transaction = new($sformatf("exp_transaction_%d", DEPTH-PIPELINE_DEPTH+i), DEPTH-PIPELINE_DEPTH+i);
+                exp_transaction = new($sformatf("exp_transaction_%d", DEPTH-PIPELINE_DEPTH+1+i), DEPTH-PIPELINE_DEPTH+1+i);
                 env.driver.send(exp_transaction);
             end
             `FAIL_IF(cb.oflow);
@@ -340,14 +340,6 @@ module fifo_small_prefetch_unit_test #(
 
             // Put driver in 'push' mode to force transactions despite wr_rdy being deasserted
             env.driver.set_tx_mode(bus_verif_pkg::TX_MODE_PUSH);
-
-            // Send one more transaction
-            // This should still be safe due to a one-element buffer
-            exp_transaction = new($sformatf("exp_transaction_%d", DEPTH-1), DEPTH-1);
-            env.driver.send(exp_transaction);
-
-            `FAIL_UNLESS(cb.full);
-            `FAIL_IF(cb.oflow);
 
             // Send one more transaction
             // This should trigger oflow on the same cycle
