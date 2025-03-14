@@ -30,7 +30,8 @@ SUBCOMPONENTS = \
     axi4l.rtl \
     db.rtl \
     htable.rtl \
-    state.rtl
+    state.rtl \
+    alloc.axil.rtl
 
 EXT_LIBS =
 

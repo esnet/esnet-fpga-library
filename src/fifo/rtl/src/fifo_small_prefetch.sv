@@ -44,6 +44,13 @@ module fifo_small_prefetch #(
     localparam int PIPELINE_CNT_WID = $clog2(PIPELINE_DEPTH+1);
 
     // -----------------------------
+    // Parameter checking
+    // -----------------------------
+    initial begin
+        std_pkg::param_check_lt(DEPTH, 256, "DEPTH");
+    end
+
+    // -----------------------------
     // Signals
     // -----------------------------
     DATA_T mem [DEPTH];

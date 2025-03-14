@@ -28,7 +28,8 @@ SUBCOMPONENTS = \
     std.verif \
     reg.verif \
     db.verif \
-    htable.verif
+    htable.verif \
+    alloc.verif
 
 EXT_LIBS =
 

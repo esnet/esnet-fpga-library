@@ -23,13 +23,9 @@ SRC_LIST_FILES =
 #   (see $SCRIPTS_ROOT/Makefiles/templates/dependencies.mk)
 # ----------------------------------------------------
 SUBCOMPONENTS = \
-    state.regio.rtl \
-    std.rtl \
-    util.rtl \
-    fifo.rtl \
-    db.rtl \
-    htable.rtl \
-    alloc.axil.rtl
+    alloc.regio.verif \
+    std.verif \
+    reg.verif
 
 EXT_LIBS =
 
@@ -47,14 +43,13 @@ COMPILE_OPTS =
 # ----------------------------------------------------
 # Targets
 # ----------------------------------------------------
-all: compile synth
+all: compile
 
 compile: _compile_sim
-synth:   _compile_synth
 info:    _compile_info
 clean:   _compile_clean
 
-.PHONY: all compile synth info clean
+.PHONY: all compile info clean
 
 # ----------------------------------------------------
 # Import Vivado compile targets

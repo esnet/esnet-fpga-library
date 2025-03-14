@@ -19,7 +19,7 @@ webtalk*.jou
 # Simulation
 **/run_[0-9]*/
 .sim_waves.tcl
-**/tests*/*/*.wcfg
+*.wcfg
 xvlog*.log
 xvlog.pb
 xelab*.log

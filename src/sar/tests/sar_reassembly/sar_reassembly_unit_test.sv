@@ -240,7 +240,6 @@ module sar_reassembly_unit_test;
             .len(_len),
             .last(0)
         );
-
         // Wait for fragment state to be established
         do
             agent.cache.allocator.get_active_cnt(cnt);

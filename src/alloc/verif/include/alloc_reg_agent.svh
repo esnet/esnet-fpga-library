@@ -1,4 +1,4 @@
-class state_allocator_reg_agent extends state_allocator_reg_blk_agent;
+class alloc_reg_agent extends alloc_reg_blk_agent;
     //===================================
     // Typedefs
     //===================================
@@ -13,7 +13,7 @@ class state_allocator_reg_agent extends state_allocator_reg_blk_agent;
     // Methods
     //===================================
     function new(
-            input string name="state_allocator_reg_agent",
+            input string name="alloc_reg_agent",
             const ref reg_verif_pkg::reg_agent reg_agent,
             input int BASE_OFFSET=0
     );
@@ -29,23 +29,17 @@ class state_allocator_reg_agent extends state_allocator_reg_blk_agent;
         __clear_flags();
     endfunction
 
-    // Reset client
-    // [[ implements std_verif_pkg::agent.reset_client ]]
-    task reset_client();
-        soft_reset();
-    endtask
-
     // Poll register block for ready status
     // [[ implements std_verif_pkg::agent.wait_ready() virtual method ]]
     task wait_ready();
-        state_allocator_reg_pkg::reg_status_t reg_status;
+        alloc_reg_pkg::reg_status_t reg_status;
         do
             this.read_status(reg_status);
         while (reg_status.reset == 1'b1 || reg_status.init_done == 1'b0);
     endtask
 
     task soft_reset();
-        state_allocator_reg_pkg::reg_control_t reg_control;
+        alloc_reg_pkg::reg_control_t reg_control;
         this.read_control(reg_control);
         reg_control.reset = 1;
         this.write_control(reg_control);
@@ -55,44 +49,50 @@ class state_allocator_reg_agent extends state_allocator_reg_blk_agent;
     endtask
 
     task get_size(output int size);
-        state_allocator_reg_pkg::reg_info_size_t reg_info_size;
+        alloc_reg_pkg::reg_info_size_t reg_info_size;
         this.read_info_size(reg_info_size);
         size = reg_info_size;
     endtask
 
     task get_active_cnt(output int cnt);
-        state_allocator_reg_pkg::reg_dbg_cnt_active_t reg_dbg_cnt_active;
-        this.read_dbg_cnt_active(reg_dbg_cnt_active);
-        cnt = reg_dbg_cnt_active;
+        alloc_reg_pkg::reg_cnt_active_t reg_cnt_active;
+        this.read_cnt_active(reg_cnt_active);
+        cnt = reg_cnt_active;
     endtask
 
     task get_alloc_cnt(output int cnt);
-        state_allocator_reg_pkg::reg_dbg_cnt_alloc_t reg_dbg_cnt_alloc;
+        alloc_reg_pkg::reg_dbg_cnt_alloc_t reg_dbg_cnt_alloc;
         this.read_dbg_cnt_alloc(reg_dbg_cnt_alloc);
         cnt = reg_dbg_cnt_alloc;
     endtask
 
+    task get_alloc_err_cnt(output int cnt);
+        alloc_reg_pkg::reg_dbg_cnt_alloc_err_t reg_dbg_cnt_alloc_err;
+        this.read_dbg_cnt_alloc_err(reg_dbg_cnt_alloc_err);
+        cnt = reg_dbg_cnt_alloc_err;
+    endtask
+
     task get_dealloc_cnt(output int cnt);
-        state_allocator_reg_pkg::reg_dbg_cnt_dealloc_t reg_dbg_cnt_dealloc;
+        alloc_reg_pkg::reg_dbg_cnt_dealloc_t reg_dbg_cnt_dealloc;
         this.read_dbg_cnt_dealloc(reg_dbg_cnt_dealloc);
         cnt = reg_dbg_cnt_dealloc;
     endtask
 
     task get_dealloc_err_cnt(output int cnt);
-        state_allocator_reg_pkg::reg_dbg_cnt_dealloc_err_t reg_dbg_cnt_dealloc_err;
+        alloc_reg_pkg::reg_dbg_cnt_dealloc_err_t reg_dbg_cnt_dealloc_err;
         this.read_dbg_cnt_dealloc_err(reg_dbg_cnt_dealloc_err);
         cnt = reg_dbg_cnt_dealloc_err;
     endtask
 
-    task enable_allocation();
-        state_allocator_reg_pkg::reg_control_t reg_control;
+    task enable_alloc();
+        alloc_reg_pkg::reg_control_t reg_control;
         this.read_control(reg_control);
         reg_control.allocate_en = 1;
         this.write_control(reg_control);
     endtask
 
-    task disable_allocation();
-        state_allocator_reg_pkg::reg_control_t reg_control;
+    task disable_alloc();
+        alloc_reg_pkg::reg_control_t reg_control;
         this.read_control(reg_control);
         reg_control.allocate_en = 0;
         this.write_control(reg_control);
@@ -104,7 +104,7 @@ class state_allocator_reg_agent extends state_allocator_reg_blk_agent;
 
     // Read flags; store result in __flags for subsequent inspection
     task update_flags();
-        state_allocator_reg_pkg::reg_status_flags_t reg_status_flags;
+        alloc_reg_pkg::reg_status_flags_t reg_status_flags;
         this.read_status_flags(reg_status_flags);
         this.__flags.alloc_err = reg_status_flags.alloc_err;
         this.__flags.dealloc_err = reg_status_flags.dealloc_err;
@@ -127,5 +127,17 @@ class state_allocator_reg_agent extends state_allocator_reg_blk_agent;
         return this.__flags.dealloc_err;
     endfunction
 
+    task get_alloc_err_ptr(output int ptr);
+        alloc_reg_pkg::reg_alloc_err_ptr_t reg_alloc_err_ptr;
+        this.read_alloc_err_ptr(reg_alloc_err_ptr);
+        ptr = reg_alloc_err_ptr;
+    endtask
 
-endclass : state_allocator_reg_agent
+    task get_dealloc_err_ptr(output int ptr);
+        alloc_reg_pkg::reg_dealloc_err_ptr_t reg_dealloc_err_ptr;
+        this.read_dealloc_err_ptr(reg_dealloc_err_ptr);
+        ptr = reg_dealloc_err_ptr;
+    endtask
+
+
+endclass : alloc_reg_agent

@@ -23,13 +23,9 @@ SRC_LIST_FILES =
 #   (see $SCRIPTS_ROOT/Makefiles/templates/dependencies.mk)
 # ----------------------------------------------------
 SUBCOMPONENTS = \
-    state.regio.rtl \
-    std.rtl \
-    util.rtl \
-    fifo.rtl \
-    db.rtl \
-    htable.rtl \
-    alloc.axil.rtl
+    arb.rtl \
+    mem.rtl \
+    fifo.rtl
 
 EXT_LIBS =
 
