@@ -20,9 +20,13 @@ module axi4s_intf_unit_test #(
                                    DUT_SELECT == 11 ? "axi4s_pkt_fifo_async_st_fwd" :
                                    DUT_SELECT == 12 ? "axi4s_pkt_fifo_sync" :
                                    DUT_SELECT == 13 ? "axi4s_packet_adapter" :
-                                   DUT_SELECT == 14 ? "axi4s_pipe" : 
+                                   DUT_SELECT == 14 ? "axi4s_pipe" :
                                    DUT_SELECT == 15 ? "axi4s_pipe_auto" :
-                                   DUT_SELECT == 16 ? "axi4s_pipe_slr" : "undefined";
+                                   DUT_SELECT == 16 ? "axi4s_pipe_slr" :
+                                   DUT_SELECT == 17 ? "axi4s_pipe_slr_p1_p1" :
+                                   DUT_SELECT == 18 ? "axi4s_pipe_slr_b2b" :
+                                   DUT_SELECT == 19 ? "axi4s_pipe_slr_to_pipe" :
+                                   DUT_SELECT == 20 ? "axi4s_pipe_to_pipe_slr" : "undefined";
 
     string name = $sformatf("axi4s_intf_dut_%s_ut", dut_string);
     svunit_testcase svunit_ut;
@@ -31,17 +35,17 @@ module axi4s_intf_unit_test #(
     // Parameters
     //===================================
     localparam int DATA_BYTE_WID = 8;
-    localparam type TID_T = bit;
-    localparam type TDEST_T = bit;
-    localparam type TUSER_T = bit;
+    localparam type TID_T = logic[7:0];
+    localparam type TDEST_T = logic[11:0];
+    localparam type TUSER_T = logic[31:0];
 
     typedef axi4s_transaction#(TID_T,TDEST_T,TUSER_T) AXI4S_TRANSACTION_T;
 
     //===================================
     // DUT
     //===================================
-    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID)) axis_in_if ();
-    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID)) axis_out_if ();
+    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) axis_in_if ();
+    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) axis_out_if ();
 
     axi4l_intf  axil_to_probe ();
     axi4l_intf  axil_to_ovfl  ();
@@ -129,6 +133,40 @@ module axi4s_intf_unit_test #(
          16 : begin
              axi4s_pipe_slr DUT (.axi4s_if_from_tx ( axis_in_if ), .axi4s_if_to_rx ( axis_out_if ));
          end
+         17 : begin
+             axi4s_pipe_slr #(
+                 .PRE_PIPE_STAGES(1),
+                 .POST_PIPE_STAGES(1)
+             ) DUT (.axi4s_if_from_tx ( axis_in_if ), .axi4s_if_to_rx ( axis_out_if ));
+         end
+         18 : begin
+            axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) __axis_if ();
+            axi4s_pipe_slr #(
+                 .PRE_PIPE_STAGES(1),
+                 .POST_PIPE_STAGES(1)
+            ) DUT1 (.axi4s_if_from_tx ( axis_in_if ), .axi4s_if_to_rx ( __axis_if ));
+            axi4s_pipe_slr #(
+                 .PRE_PIPE_STAGES(1),
+                 .POST_PIPE_STAGES(1)
+            ) DUT2 (.axi4s_if_from_tx ( __axis_if ), .axi4s_if_to_rx ( axis_out_if ));
+        end
+        19 : begin
+            axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) __axis_if ();
+            axi4s_pipe_slr #(
+                 .PRE_PIPE_STAGES(1),
+                 .POST_PIPE_STAGES(1)
+            ) DUT1 (.axi4s_if_from_tx ( axis_in_if ), .axi4s_if_to_rx ( __axis_if ));
+            axi4s_pipe #(.STAGES(1)) DUT2 (.axi4s_if_from_tx ( __axis_if ), .axi4s_if_to_rx ( axis_out_if ));
+        end
+        20 : begin
+            axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) __axis_if ();
+            axi4s_pipe #(.STAGES(1)) DUT1 (.axi4s_if_from_tx ( axis_in_if ), .axi4s_if_to_rx ( __axis_if ));
+            axi4s_pipe_slr #(
+                 .PRE_PIPE_STAGES(1),
+                 .POST_PIPE_STAGES(1)
+            ) DUT2 (.axi4s_if_from_tx ( __axis_if ), .axi4s_if_to_rx ( axis_out_if ));
+        end
+
       endcase
    endgenerate
 
@@ -416,3 +454,20 @@ endmodule
 module axi4s_pipe_slr_unit_test;
 `AXI4S_UNIT_TEST(16)
 endmodule
+
+module axi4s_pipe_slr_p1_p1_unit_test;
+`AXI4S_UNIT_TEST(17)
+endmodule
+
+module axi4s_pipe_slr_b2b_unit_test;
+`AXI4S_UNIT_TEST(18)
+endmodule
+
+module axi4s_pipe_slr_to_pipe_unit_test;
+`AXI4S_UNIT_TEST(19)
+endmodule
+
+module axi4s_pipe_to_pipe_slr_unit_test;
+`AXI4S_UNIT_TEST(20)
+endmodule
+
