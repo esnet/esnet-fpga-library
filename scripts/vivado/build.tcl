@@ -128,6 +128,9 @@ if {$PHASE == "create_proj"} {
     # Apply defines
     set_property verilog_define $DEFINE [current_fileset]
 
+    # Apply message severity overrides
+    set_msg_config -id {[Synth 8-295]} -new_severity ERROR
+
     # Load constraints
     if {[file exists $CONSTRAINTS_TCL_AUTO]} {
         source $CONSTRAINTS_TCL_AUTO
