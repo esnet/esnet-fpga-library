@@ -107,8 +107,8 @@ module alloc_axil_core #(
             reg_if.status_flags_nxt.alloc_err    = __mon_if.alloc_err;
             reg_if.status_flags_nxt.dealloc_err  = __mon_if.dealloc_err;
         end else begin
-            reg_if.status_flags_nxt.alloc_err   |= __mon_if.alloc_err;
-            reg_if.status_flags_nxt.dealloc_err |= __mon_if.dealloc_err;
+            reg_if.status_flags_nxt.alloc_err   = reg_if.status_flags.alloc_err | __mon_if.alloc_err;
+            reg_if.status_flags_nxt.dealloc_err = reg_if.status_flags.dealloc_err | __mon_if.dealloc_err;
         end
     end
 
