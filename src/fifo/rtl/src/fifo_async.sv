@@ -39,8 +39,8 @@ module fifo_async #(
     // -----------------------------
     // Interfaces
     // -----------------------------
-    fifo_wr_mon_intf wr_mon_if__unused (.clk(wr_clk));
-    fifo_rd_mon_intf rd_mon_if__unused (.clk(rd_clk));
+    fifo_mon_intf wr_mon_if__unused (.clk(wr_clk));
+    fifo_mon_intf rd_mon_if__unused (.clk(rd_clk));
 
     // -----------------------------
     // Instantiate FIFO core

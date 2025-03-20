@@ -44,11 +44,11 @@ module fifo_axil_core
     // -----------------------------
     // Interfaces
     // -----------------------------
-    fifo_wr_mon_intf wr_mon_if (.clk(wr_clk));
-    fifo_rd_mon_intf rd_mon_if (.clk(rd_clk));
+    fifo_mon_intf wr_mon_if (.clk(wr_clk));
+    fifo_mon_intf rd_mon_if (.clk(rd_clk));
 
-    fifo_wr_mon_intf __wr_mon_if (.clk(wr_clk));
-    fifo_rd_mon_intf __rd_mon_if (.clk(rd_clk));
+    fifo_mon_intf __wr_mon_if (.clk(wr_clk));
+    fifo_mon_intf __rd_mon_if (.clk(rd_clk));
 
     axi4l_intf axil_ctrl_if   ();
     axi4l_intf axil_wr_mon_if ();
@@ -170,9 +170,9 @@ module fifo_axil_core
     );
 
     // Pipeline monitored signals
-    fifo_wr_mon_intf_pipe i_fifo_wr_mon_pipe (
-        .fifo_wr_mon_if_from_peripheral ( wr_mon_if ),
-        .fifo_wr_mon_if_to_controller   ( __wr_mon_if )
+    fifo_mon_pipe_auto i_fifo_mon_pipe_auto__wr (
+        .from_tx ( wr_mon_if ),
+        .to_rx   ( __wr_mon_if )
     );
 
     assign wr_mon_reg_if.status_nxt_v = 1'b1;
@@ -198,9 +198,9 @@ module fifo_axil_core
     );
 
     // Pipeline monitored signals
-    fifo_rd_mon_intf_pipe i_fifo_rd_mon_pipe (
-        .fifo_rd_mon_if_from_peripheral ( rd_mon_if ),
-        .fifo_rd_mon_if_to_controller   ( __rd_mon_if )
+    fifo_mon_pipe_auto i_fifo_mon_pipe_auto__rd (
+        .from_tx ( rd_mon_if ),
+        .to_rx   ( __rd_mon_if )
     );
 
     assign rd_mon_reg_if.status_nxt_v = 1'b1;

@@ -48,8 +48,8 @@ module axi4s_fifo_core
     //----------------------------------------------
     // Interfaces
     //----------------------------------------------
-    fifo_wr_mon_intf wr_mon_if__unused (.clk(axi4s_in.aclk));
-    fifo_rd_mon_intf rd_mon_if__unused (.clk(axi4s_out.aclk));
+    fifo_mon_intf wr_mon_if__unused (.clk(axi4s_in.aclk));
+    fifo_mon_intf rd_mon_if__unused (.clk(axi4s_out.aclk));
 
     //----------------------------------------------
     // Map AXI-S interface to/from FIFO data interface
