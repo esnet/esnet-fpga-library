@@ -4,7 +4,7 @@ blocks:
   cache: &cache
     !include src/state/regio/state_cache.yaml
   allocator: &allocator
-    !include src/state/regio/state_allocator.yaml
+    !include src/alloc/regio/alloc.yaml
   db: &db
     !include src/db/regio/db.yaml
 

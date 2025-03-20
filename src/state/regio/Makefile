@@ -13,7 +13,6 @@ include $(COMPONENT_ROOT)/config.mk
 REG_BLOCK_YAML = \
     state.yaml \
     state_notify.yaml \
-    state_allocator.yaml \
     state_cache.yaml
 
 REG_DECODER_YAML = \

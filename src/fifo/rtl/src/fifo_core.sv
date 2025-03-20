@@ -107,33 +107,25 @@ module fifo_core
     generate
         if (ASYNC) begin : g__async
             // (Local) signals
-            logic __wr_srst;
-            logic __rd_srst;
             logic wr_srst__rd_clk;
             logic rd_srst__wr_clk;
-
-            // Register to eliminate fanout on synchronizer input
-            always_ff @(posedge wr_clk) __wr_srst <= wr_srst;
 
             // Synchronize write reset to read domain
             sync_reset #(
                 .INPUT_ACTIVE_HIGH (1)
             ) i_sync_reset__wr_srst__rd_clk (
                 .clk_in  ( wr_clk ),
-                .rst_in  ( __wr_srst ),
+                .rst_in  ( wr_srst ),
                 .clk_out ( rd_clk ),
                 .rst_out ( wr_srst__rd_clk )
             );
-
-            // Register to eliminate fanout on synchronizer input
-            always_ff @(posedge rd_clk) __rd_srst <= rd_srst;
 
             // Synchronize read reset to write domain
             sync_reset #(
                 .INPUT_ACTIVE_HIGH (1)
             ) i_sync_reset__rd_srst__wr_clk (
                 .clk_in  ( rd_clk ),
-                .rst_in  ( __rd_srst ),
+                .rst_in  ( rd_srst ),
                 .clk_out ( wr_clk ),
                 .rst_out ( rd_srst__wr_clk )
             );
