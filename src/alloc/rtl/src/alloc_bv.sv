@@ -45,7 +45,7 @@ module alloc_bv #(
     input  PTR_T              dealloc_ptr,
 
     // Monitoring
-    alloc_mon_intf.peripheral mon_if
+    alloc_mon_intf.tx         mon_if
 );
     // -----------------------------
     // Parameters

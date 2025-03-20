@@ -1,7 +1,7 @@
 // Allocator monitor interface
 interface alloc_mon_intf (
     input wire logic clk
-); 
+);
 
     // Signals
     logic        alloc;
@@ -9,10 +9,10 @@ interface alloc_mon_intf (
     logic        alloc_err;
     logic        dealloc;
     logic        dealloc_fail;
-    logic        dealloc_err;  
-    logic [31:0] ptr;  
+    logic        dealloc_err;
+    logic [31:0] ptr;
 
-    modport controller(
+    modport rx(
         input  clk,
         input  alloc,
         input  alloc_fail,
@@ -23,7 +23,7 @@ interface alloc_mon_intf (
         input  ptr
     );
 
-    modport peripheral(
+    modport tx(
         input  clk,
         output alloc,
         output alloc_fail,
@@ -35,9 +35,9 @@ interface alloc_mon_intf (
     );
 endinterface : alloc_mon_intf
 
-(* autopipeline_module = "true" *) module alloc_mon_intf_pipe (
-    alloc_mon_intf.controller alloc_mon_if_from_peripheral,
-    alloc_mon_intf.peripheral alloc_mon_if_to_controller
+(* autopipeline_module = "true" *) module alloc_mon_pipe_auto (
+    alloc_mon_intf.rx from_tx,
+    alloc_mon_intf.tx to_rx
 );
     (* autopipeline_limit=8 *) logic alloc;
     (* autopipeline_limit=8 *) logic alloc_fail;
@@ -46,23 +46,43 @@ endinterface : alloc_mon_intf
     (* autopipeline_limit=8, autopipeline_group="err" *) logic alloc_err;
     (* autopipeline_limit=8, autopipeline_group="err" *) logic dealloc_err;
     (* autopipeline_limit=8, autopipeline_group="err" *) logic[31:0] ptr;
-    
-    always_ff @(posedge alloc_mon_if_from_peripheral.clk) begin
-        alloc        <= alloc_mon_if_from_peripheral.alloc;
-        alloc_fail   <= alloc_mon_if_from_peripheral.alloc_fail;
-        alloc_err    <= alloc_mon_if_from_peripheral.alloc_err;
-        dealloc      <= alloc_mon_if_from_peripheral.dealloc;
-        dealloc_fail <= alloc_mon_if_from_peripheral.dealloc_fail;
-        dealloc_err  <= alloc_mon_if_from_peripheral.dealloc_err;
-        ptr          <= alloc_mon_if_from_peripheral.ptr;
+
+    logic alloc_p;
+    logic alloc_fail_p;
+    logic dealloc_p;
+    logic dealloc_fail_p;
+    logic alloc_err_p;
+    logic dealloc_err_p;
+    logic[31:0] ptr_p;
+
+    // Auto-pipelined nets must be driven from register
+    always_ff @(posedge from_tx.clk) begin
+        alloc        <= from_tx.alloc;
+        alloc_fail   <= from_tx.alloc_fail;
+        alloc_err    <= from_tx.alloc_err;
+        dealloc      <= from_tx.dealloc;
+        dealloc_fail <= from_tx.dealloc_fail;
+        dealloc_err  <= from_tx.dealloc_err;
+        ptr          <= from_tx.ptr;
     end
 
-    assign alloc_mon_if_to_controller.alloc        = alloc;
-    assign alloc_mon_if_to_controller.alloc_fail   = alloc_fail;
-    assign alloc_mon_if_to_controller.alloc_err    = alloc_err;
-    assign alloc_mon_if_to_controller.dealloc      = dealloc;
-    assign alloc_mon_if_to_controller.dealloc_fail = dealloc_fail;
-    assign alloc_mon_if_to_controller.dealloc_err  = dealloc_err;
-    assign alloc_mon_if_to_controller.ptr          = ptr;
+    // Auto-pipelined nets must have fanout == 1
+    always_ff @(posedge from_tx.clk) begin
+        alloc_p        <= alloc;
+        alloc_fail_p   <= alloc_fail;
+        alloc_err_p    <= alloc_err;
+        dealloc_p      <= dealloc;
+        dealloc_fail_p <= dealloc_fail;
+        dealloc_err_p  <= dealloc_err;
+        ptr_p          <= ptr;
+    end
 
-endmodule : alloc_mon_intf_pipe
+    assign to_rx.alloc        = alloc_p;
+    assign to_rx.alloc_fail   = alloc_fail_p;
+    assign to_rx.alloc_err    = alloc_err_p;
+    assign to_rx.dealloc      = dealloc_p;
+    assign to_rx.dealloc_fail = dealloc_fail_p;
+    assign to_rx.dealloc_err  = dealloc_err_p;
+    assign to_rx.ptr          = ptr_p;
+
+endmodule : alloc_mon_pipe_auto
