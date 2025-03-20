@@ -38,8 +38,9 @@ module fifo_small_prefetch #(
     // -----------------------------
     // Parameters
     // -----------------------------
-    localparam int DEPTH = PIPELINE_DEPTH > 1 ? 2*(2**$clog2(PIPELINE_DEPTH)) : 2;
+    localparam int DEPTH = PIPELINE_DEPTH * 2;
     localparam int PTR_WID = $clog2(DEPTH);
+    localparam int MEM_DEPTH = 2**PTR_WID;
     localparam int CNT_WID = $clog2(DEPTH+1);
     localparam int PIPELINE_CNT_WID = $clog2(PIPELINE_DEPTH+1);
 
@@ -47,13 +48,13 @@ module fifo_small_prefetch #(
     // Parameter checking
     // -----------------------------
     initial begin
-        std_pkg::param_check_lt(DEPTH, 256, "DEPTH");
+        std_pkg::param_check_lt(MEM_DEPTH, 256, "DEPTH");
     end
 
     // -----------------------------
     // Signals
     // -----------------------------
-    DATA_T mem [DEPTH];
+    DATA_T mem [MEM_DEPTH];
 
     logic                wr_safe;
     logic [PTR_WID-1:0]  wr_ptr;

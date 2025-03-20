@@ -18,7 +18,7 @@ module fifo_small_prefetch_unit_test #(
     // Parameters
     //===================================
     localparam type DATA_T = bit[31:0];
-    localparam int DEPTH = PIPELINE_DEPTH > 1 ? 2*(2**$clog2(PIPELINE_DEPTH)) : 2;
+    localparam int DEPTH = PIPELINE_DEPTH * 2;
 
     //===================================
     // Derived parameters
@@ -254,7 +254,7 @@ module fifo_small_prefetch_unit_test #(
             `FAIL_IF(cb.full);
 
             // Send enough transactions to trigger 'full'
-            for (int i = 0; i < (DEPTH - PIPELINE_DEPTH + 1); i++) begin
+            for (int i = 0; i < (PIPELINE_DEPTH + 1); i++) begin
                 `FAIL_IF(cb.full);
                 env.driver.send(exp_transaction);
             end
@@ -308,7 +308,7 @@ module fifo_small_prefetch_unit_test #(
             `FAIL_IF(cb.oflow);
 
             // Send enough transactions to trigger 'full'
-            for (int i = 0; i < (DEPTH - PIPELINE_DEPTH + 1); i++) begin
+            for (int i = 0; i < (PIPELINE_DEPTH + 1); i++) begin
                 // Full/overflow should be deasserted
                 `FAIL_IF(cb.full);
                 `FAIL_IF(cb.oflow);
@@ -330,7 +330,7 @@ module fifo_small_prefetch_unit_test #(
             // Send PIPELINE_DEPTH-1 more transactions (should be accommodated in FIFO)
             for (int i = 0; i <  PIPELINE_DEPTH-1; i++) begin
                 `FAIL_IF(cb.oflow); // Overflow should stay deasserted
-                exp_transaction = new($sformatf("exp_transaction_%d", DEPTH-PIPELINE_DEPTH+1+i), DEPTH-PIPELINE_DEPTH+1+i);
+                exp_transaction = new($sformatf("exp_transaction_%d", PIPELINE_DEPTH+1+i), PIPELINE_DEPTH+1+i);
                 env.driver.send(exp_transaction);
             end
             `FAIL_IF(cb.oflow);
