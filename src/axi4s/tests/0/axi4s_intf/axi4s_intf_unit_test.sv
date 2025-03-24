@@ -71,16 +71,19 @@ module axi4s_intf_unit_test #(
          7: begin
                 axi4s_fifo_async #(.DEPTH(  32)) DUT (.axi4s_in(axis_in_if), .axi4s_out(axis_out_if));
                `SVUNIT_CLK_GEN(axis_out_if.aclk, 1.0ns);  // slow to fast
+                assign axis_out_if.aresetn = axis_in_if.aresetn;
             end
 
          8: begin
                 axi4s_fifo_async #(.DEPTH( 512)) DUT (.axi4s_in(axis_in_if), .axi4s_out(axis_out_if));
                `SVUNIT_CLK_GEN(axis_out_if.aclk, 1.5ns);
+                assign axis_out_if.aresetn = axis_in_if.aresetn;
             end
 
          9: begin
                 axi4s_fifo_async #(.DEPTH(8192)) DUT (.axi4s_in(axis_in_if), .axi4s_out(axis_out_if));
                `SVUNIT_CLK_GEN(axis_out_if.aclk, 2.0ns);  // fast to slow
+                assign axis_out_if.aresetn = axis_in_if.aresetn;
             end
 
          10: begin
@@ -188,7 +191,6 @@ module axi4s_intf_unit_test #(
     // Reset
     std_reset_intf reset_if (.clk(axis_in_if.aclk));
     assign axis_in_if.aresetn = !reset_if.reset;
-    assign axis_out_if.aresetn = axis_in_if.aresetn;
     assign reset_if.ready = !reset_if.reset;
 
     // Assign clock (333MHz)
