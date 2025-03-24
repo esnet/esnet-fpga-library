@@ -134,11 +134,7 @@ module fifo_axil_core
     );
 
     // Combine block-level and soft resets
-    initial __wr_srst = 1'b1;
-    always @(posedge wr_clk) begin
-        if (wr_srst || soft_reset__wr_clk) __wr_srst <= 1'b1;
-        else                               __wr_srst <= 1'b0;
-    end
+    assign __wr_srst = wr_srst || soft_reset__wr_clk;
 
     // Export parameterization info
     assign ctrl_reg_if.info_nxt_v = 1'b1;
