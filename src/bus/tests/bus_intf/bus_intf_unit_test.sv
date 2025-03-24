@@ -42,6 +42,12 @@ module bus_intf_unit_test #(
                 bus_pipe_slr DUT (.*);
             end : g__bus_pipe_slr
 
+            "bus_pipe_slr_b2b" : begin : g__bus_pipe_slr_b2b
+                bus_intf #(DATA_T) __bus_if (.clk);
+                bus_pipe_slr #(0, 1, 1) DUT1 (.bus_if_from_tx, .bus_if_to_rx (__bus_if));
+                bus_pipe_slr #(0, 1, 1) DUT2 (.bus_if_from_tx (__bus_if), .bus_if_to_rx);
+            end : g__bus_pipe_slr_b2b
+
             "bus_pipe_auto" : begin : g__bus_pipe_auto
                 bus_pipe_auto DUT (.*);
             end : g__bus_pipe_auto
@@ -161,14 +167,62 @@ module bus_intf_unit_test #(
         //   stream
         //
         // Desc:
-        //   send one item and check
+        //   send stream of packets
         //===================================
         `SVTEST(stream)
             localparam NUM = 1000;
             // Send stream of transactions
             send_stream(NUM);
             // Check
-            #15us `FAIL_IF_LOG( env.scoreboard.report(msg) > 0, msg );
+            #20us `FAIL_IF_LOG( env.scoreboard.report(msg) > 0, msg );
+        `SVTEST_END
+        //===================================
+        // Test:
+        //   stream_stalls
+        //
+        // Desc:
+        //   send stream of packets with (randomized) transmit stalls
+        //===================================
+        `SVTEST(stream_stalls)
+            localparam NUM = 1000;
+            env.driver.enable_stalls();
+            // Send stream of transactions
+            send_stream(NUM);
+            // Check
+            #60us `FAIL_IF_LOG( env.scoreboard.report(msg) > 0, msg );
+        `SVTEST_END
+
+        //===================================
+        // Test:
+        //   stream_backpressure
+        //
+        // Desc:
+        //   send stream of packets with (randomized) receive stalls
+        //===================================
+        `SVTEST(stream_backpressure)
+            localparam NUM = 1000;
+            env.monitor.enable_stalls();
+            // Send stream of transactions
+            send_stream(NUM);
+            // Check
+            #60us `FAIL_IF_LOG( env.scoreboard.report(msg) > 0, msg );
+        `SVTEST_END
+
+        //===================================
+        // Test:
+        //   stream_random
+        //
+        // Desc:
+        //   send stream of packets with (randomized) transmit and receive stalls
+        //===================================
+        `SVTEST(stream_random)
+            localparam NUM = 1000;
+            env.driver.enable_stalls();
+            env.monitor.enable_stalls();
+            // Send stream of transactions
+            send_stream(NUM);
+            // Check
+            #100us `FAIL_IF_LOG( env.scoreboard.report(msg) > 0, msg );
         `SVTEST_END
 
     `SVUNIT_TESTS_END
@@ -211,9 +265,15 @@ module bus_pipe_slr_unit_test;
     `BUS_INTF_UNIT_TEST("bus_pipe_slr");
 endmodule
 
+// Back-to-back SLR crossing pipeline stage
+module bus_pipe_slr_b2b_unit_test;
+    `BUS_INTF_UNIT_TEST("bus_pipe_slr_b2b");
+endmodule
+
 // Auto-pipelining component
 module bus_pipe_auto_unit_test;
     `BUS_INTF_UNIT_TEST("bus_pipe_auto");
 endmodule
+
 
 

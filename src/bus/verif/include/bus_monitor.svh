@@ -10,6 +10,9 @@ class bus_monitor #(
     virtual bus_intf #(DATA_T) bus_vif;
 
     local rx_mode_t __rx_mode = RX_MODE_RECEIVE;
+    bit __stall = 1'b0;
+    int __stall_cycles = 0;
+    int __stall_cycles_max = 4; 
 
     //===================================
     // Methods
@@ -24,6 +27,9 @@ class bus_monitor #(
         //     in the constructor.
         this.bus_vif = null;
         this.__rx_mode = RX_MODE_RECEIVE;
+        this.__stall = 1'b0;
+        this.__stall_cycles = 0;
+        this.__stall_cycles_max = 4;
         // } WORKAROUND-INIT-PROPS
     endfunction
 
@@ -45,6 +51,20 @@ class bus_monitor #(
         this.__rx_mode = rx_mode;
     endfunction
 
+    // Enable stalls
+    function automatic void enable_stalls(input int stall_cycles=0);
+        this.__stall = 1'b1;
+        this.__stall_cycles = stall_cycles;
+    endfunction
+
+    function automatic void disable_stalls();
+        this.__stall = 1'b0;
+    endfunction
+
+    function automatic void set_max_stall(input int max_stall);
+        this.__stall_cycles_max = max_stall;
+    endfunction
+
     // Quiesce monitored interface
     // [[ implements std_verif_pkg::component._idle() ]]
     protected task _idle();
@@ -53,7 +73,15 @@ class bus_monitor #(
 
     // Receive raw data from interface
     task receive_raw(output DATA_T data);
+        int stall_cycles = 0;
         trace_msg("receive_raw()");
+        // Model stalls
+        if (this.__stall) begin
+            if (this.__stall_cycles > 0) stall_cycles = this.__stall_cycles;
+            else                         stall_cycles = $urandom_range(0, this.__stall_cycles_max);
+            bus_vif.idle_rx();
+            bus_vif._wait(stall_cycles);
+        end
         // Receive transaction from interface
         case (this.__rx_mode)
             RX_MODE_RECEIVE   : bus_vif.receive(data);
