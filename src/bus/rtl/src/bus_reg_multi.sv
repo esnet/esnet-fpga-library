@@ -16,9 +16,9 @@ module bus_reg_multi #(
 
     generate
         if (STAGES > 1) begin : g__multi_stage
-            (* DONT_TOUCH *) logic  srst_p  [STAGES];
-            (* DONT_TOUCH *) logic  valid_p [STAGES];
-            (* DONT_TOUCH *) DATA_T data_p  [STAGES];
+            (* shreg_extract = "no" *) logic  srst_p  [STAGES];
+            (* shreg_extract = "no" *) logic  valid_p [STAGES];
+            (* streg_extract = "no" *) DATA_T data_p  [STAGES];
 
             initial valid_p = '{default: 1'b0};
             always @(posedge bus_if_from_tx.clk) begin
@@ -39,7 +39,7 @@ module bus_reg_multi #(
                 assign bus_if_from_tx.ready = 1'b1;
             end : g__ignore_ready
             else begin : g__obey_ready
-                (* DONT_TOUCH *) logic ready_p [STAGES];
+                (* shreg_extract = "no" *) logic ready_p [STAGES];
                 initial ready_p = '{default: 1'b0};
                 always @(posedge bus_if_from_tx.clk) begin
                     for (int i = 1; i < STAGES; i++) begin

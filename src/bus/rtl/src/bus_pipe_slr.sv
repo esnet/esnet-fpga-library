@@ -41,14 +41,14 @@
 
     // Tx registers (SLRx)
     // (includes transmit registers for valid/data and receive register for ready)
-    bus_reg #(IGNORE_READY) i_bus_slr_tx (
+    (* DONT_TOUCH *) bus_reg #(IGNORE_READY) i_bus_slr_tx (
         .bus_if_from_tx  ( bus_if__tx_p ),
         .bus_if_to_rx    ( bus_if__sll )
     );
 
     // Rx registers (SLRy)
     // (includes receive registers for valid/data and transmit register for ready)
-    bus_reg #(IGNORE_READY) i_bus_slr_rx (
+    (* DONT_TOUCH *) bus_reg #(IGNORE_READY) i_bus_slr_rx (
         .bus_if_from_tx  ( bus_if__sll ),
         .bus_if_to_rx    ( bus_if__rx_p )
     );

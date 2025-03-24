@@ -13,9 +13,9 @@ module bus_reg #(
     localparam int  DATA_WID = $bits(bus_if_from_tx.DATA_T);
     localparam type DATA_T = logic[DATA_WID-1:0];
 
-    (* DONT_TOUCH *) logic  srst;
-    (* DONT_TOUCH *) logic  valid;
-    (* DONT_TOUCH *) DATA_T data;
+    (* shreg_extract = "no" *) logic  srst;
+    (* shreg_extract = "no" *) logic  valid;
+    (* shreg_extract = "no" *) DATA_T data;
 
     always @(posedge bus_if_from_tx.clk) begin
         srst  <= bus_if_from_tx.srst;
@@ -32,7 +32,7 @@ module bus_reg #(
             assign bus_if_from_tx.ready = 1'b1;
         end : g__ignore_ready
         else begin : g__obey_ready
-            (* DONT_TOUCH *) logic  ready;
+            (* shreg_extract = "no" *) logic  ready;
             always @(posedge bus_if_from_tx.clk) ready <= bus_if_to_rx.ready;
             assign bus_if_from_tx.ready = ready;
         end : g__obey_ready
