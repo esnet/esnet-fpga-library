@@ -16,6 +16,11 @@
     localparam int  DATA_WID = $bits(bus_if_from_tx.DATA_T);
     localparam type DATA_T = logic[DATA_WID-1:0];
 
+    // Parameter checking
+    initial begin
+        std_pkg::param_check($bits(bus_if_to_rx.DATA_T), DATA_WID, "bus_if_to_rx.DATA_T");
+    end
+
     // Interfaces
     bus_intf #(.DATA_T(DATA_T)) bus_if__tx (.clk(bus_if_from_tx.clk));
     bus_intf #(.DATA_T(DATA_T)) bus_if__rx (.clk(bus_if_from_tx.clk));
@@ -32,32 +37,35 @@
     DATA_T data_p;
 
     // Pipeline transmitter
-    bus_pipe_tx #(IGNORE_READY) i_bus_pipe_tx (
+    bus_pipe_tx i_bus_pipe_tx (
         .bus_if_from_tx,
         .bus_if_to_rx ( bus_if__tx )
     );
 
     // Auto-pipelined nets must be driven from register
-    always_ff @(posedge bus_if_from_tx.clk) begin
-        srst <= bus_if_from_tx.srst;
-        valid <= bus_if__tx.valid;
-        data <= bus_if_from_tx.data;
-    end
+    // (bus_pipe_tx drives forward signals from registers)
+    assign srst  = bus_if__tx.srst;
+    assign valid = bus_if__tx.valid;
+    assign data  = bus_if__tx.data;
 
-    always_ff @(posedge bus_if_from_tx.clk) begin
+    initial ready = 1'b0;
+    always @(posedge bus_if_from_tx.clk) begin
         ready <= bus_if__rx.ready;
     end
 
     // Auto-pipelined nets must have fanout == 1
-    always_ff @(posedge bus_if_from_tx.clk) begin
+    // (bus_pipe_tx receives reverse signals into registers)
+    initial begin
+        srst_p = 1'b1;
+        valid_p = 1'b0;
+    end
+    always @(posedge bus_if_from_tx.clk) begin
         srst_p  <= srst;
         valid_p <= valid;
         data_p  <= data;
     end
 
-    always_ff @(posedge bus_if_from_tx.clk) begin
-        ready_p <= ready;
-    end
+    assign ready_p = ready;
 
     assign bus_if__rx.srst = srst_p;
     assign bus_if__rx.valid = valid_p;

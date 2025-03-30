@@ -19,6 +19,11 @@ module bus_pipe_rx #(
     localparam int  DATA_WID = $bits(bus_if_from_tx.DATA_T);
     localparam type DATA_T = logic[DATA_WID-1:0];
 
+    // Parameter checking
+    initial begin
+        std_pkg::param_check($bits(bus_if_to_rx.DATA_T), DATA_WID, "bus_if_to_rx.DATA_T");
+    end
+
     assign bus_if_to_rx.srst = bus_if_from_tx.srst;
 
     generate
