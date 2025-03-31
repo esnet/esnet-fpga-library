@@ -6,8 +6,9 @@
 // to accommodate a specified number of cycles of slack in the
 // valid <-> ready handshaking protocol.
 module bus_pipe_rx #(
-    parameter bit IGNORE_READY = 1'b0,
-    parameter int TOTAL_SLACK = 16 // Number of cycles of slack supported in the valid/ready pipeline
+    parameter type DATA_T = logic,
+    parameter bit  IGNORE_READY = 1'b0,
+    parameter int  TOTAL_SLACK = 16 // Number of cycles of slack supported in the valid/ready pipeline
                                    // Count contributions around entire loop, e.g. buffers inserted
                                    // in forward (valid) path as well as those inserted in reverse
                                    // (ready) path
@@ -15,13 +16,10 @@ module bus_pipe_rx #(
     bus_intf.rx   bus_if_from_tx,
     bus_intf.tx   bus_if_to_rx
 );
-
-    localparam int  DATA_WID = $bits(bus_if_from_tx.DATA_T);
-    localparam type DATA_T = logic[DATA_WID-1:0];
-
     // Parameter checking
     initial begin
-        std_pkg::param_check($bits(bus_if_to_rx.DATA_T), DATA_WID, "bus_if_to_rx.DATA_T");
+        std_pkg::param_check($bits(bus_if_from_tx.DATA_T), $bits(DATA_T), "bus_if_from_tx.DATA_T");
+        std_pkg::param_check($bits(bus_if_to_rx.DATA_T),   $bits(DATA_T), "bus_if_to_rx.DATA_T");
     end
 
     assign bus_if_to_rx.srst = bus_if_from_tx.srst;

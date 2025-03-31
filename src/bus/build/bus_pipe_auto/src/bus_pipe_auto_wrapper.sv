@@ -24,6 +24,6 @@ module bus_pipe_auto_wrapper
     assign data_out = bus_if_to_rx.data;
     assign bus_if_to_rx.ready = ready_out;
 
-    bus_pipe_auto i_bus_pipe_auto (.*);
+    bus_pipe_auto #(.DATA_T(logic[31:0])) i_bus_pipe_auto (.*);
 
 endmodule : bus_pipe_auto_wrapper

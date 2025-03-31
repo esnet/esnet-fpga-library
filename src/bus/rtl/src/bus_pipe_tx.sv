@@ -4,17 +4,16 @@
 //
 // Evaluates valid <-> ready handshake at Tx boundary; forwarded
 // valid indication represents accepted transactions.
-module bus_pipe_tx (
+module bus_pipe_tx #(
+    parameter type DATA_T = logic
+) (
     bus_intf.rx   bus_if_from_tx,
     bus_intf.tx   bus_if_to_rx
 );
-    // Parameters
-    localparam int  DATA_WID = $bits(bus_if_from_tx.DATA_T);
-    localparam type DATA_T = logic[DATA_WID-1:0];
-
     // Parameter checking
     initial begin
-        std_pkg::param_check($bits(bus_if_to_rx.DATA_T), DATA_WID, "bus_if_to_rx.DATA_T");
+        std_pkg::param_check($bits(bus_if_from_tx.DATA_T), $bits(DATA_T), "bus_if_from_tx.DATA_T");
+        std_pkg::param_check($bits(bus_if_to_rx.DATA_T),   $bits(DATA_T), "bus_if_to_rx.DATA_T");
     end
 
     // Signals

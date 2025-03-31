@@ -7,18 +7,16 @@
 //  signaling directions).
 //
 (* autopipeline_module = "true" *) module bus_pipe_auto #(
-    parameter bit IGNORE_READY = 1'b0
+    parameter type DATA_T = logic,
+    parameter bit  IGNORE_READY = 1'b0
 ) (
     bus_intf.rx   bus_if_from_tx,
     bus_intf.tx   bus_if_to_rx
 );
-    // Parameters
-    localparam int  DATA_WID = $bits(bus_if_from_tx.DATA_T);
-    localparam type DATA_T = logic[DATA_WID-1:0];
-
     // Parameter checking
     initial begin
-        std_pkg::param_check($bits(bus_if_to_rx.DATA_T), DATA_WID, "bus_if_to_rx.DATA_T");
+        std_pkg::param_check($bits(bus_if_from_tx.DATA_T), $bits(DATA_T), "bus_if_from_tx.DATA_T");
+        std_pkg::param_check($bits(bus_if_to_rx.DATA_T),   $bits(DATA_T), "bus_if_to_rx.DATA_T");
     end
 
     // Interfaces
@@ -37,7 +35,9 @@
     DATA_T data_p;
 
     // Pipeline transmitter
-    bus_pipe_tx i_bus_pipe_tx (
+    bus_pipe_tx #(
+        .DATA_T  ( DATA_T )
+    ) i_bus_pipe_tx (
         .bus_if_from_tx,
         .bus_if_to_rx ( bus_if__tx )
     );
@@ -74,6 +74,7 @@
 
     // Pipeline receiver
     bus_pipe_rx #(
+        .DATA_T       ( DATA_T ),
         .IGNORE_READY ( IGNORE_READY ),
         .TOTAL_SLACK  ( 16 )
     ) i_bus_pipe_rx (

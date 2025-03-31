@@ -5,18 +5,16 @@
 //       will be violated and must be accommodated by e.g.
 //       bookending with bus_pipe_tx and bus_pipe_rx modules
 module bus_reg_multi #(
-    parameter int STAGES = 1
+    parameter type DATA_T = logic,
+    parameter int  STAGES = 1
 ) (
     bus_intf.rx   bus_if_from_tx,
     bus_intf.tx   bus_if_to_rx
 );
-    // Parameters
-    localparam int  DATA_WID = $bits(bus_if_from_tx.DATA_T);
-    localparam type DATA_T = logic[DATA_WID-1:0];
-
     // Parameter checking
     initial begin
-        std_pkg::param_check($bits(bus_if_to_rx.DATA_T), DATA_WID, "bus_if_to_rx.DATA_T");
+        std_pkg::param_check($bits(bus_if_from_tx.DATA_T), $bits(DATA_T), "bus_if_from_tx.DATA_T");
+        std_pkg::param_check($bits(bus_if_to_rx.DATA_T),   $bits(DATA_T), "bus_if_to_rx.DATA_T");
         std_pkg::param_check_gt(STAGES, 0, "STAGES");
     end
 
@@ -56,7 +54,7 @@ module bus_reg_multi #(
 
         end : g__multi_stage
         else begin : g__zero_stage
-            bus_intf_connector i_bus_intf_connector (.*);
+            bus_intf_connector #(.DATA_T(DATA_T)) i_bus_intf_connector (.*);
         end : g__zero_stage
     endgenerate
 

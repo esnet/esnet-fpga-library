@@ -31,7 +31,7 @@ module bus_intf_unit_test #(
     generate
         case (COMPONENT_NAME)
             "bus_intf_connector" : begin : g__bus_intf_connector
-                bus_intf_connector DUT (.*);
+                bus_intf_connector #(DATA_T) DUT (.*);
             end : g__bus_intf_connector
             
             "bus_pipe" : begin : g__bus_pipe

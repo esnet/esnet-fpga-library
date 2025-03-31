@@ -155,12 +155,33 @@ interface bus_intf #(
 endinterface : bus_intf
 
 
-module bus_intf_connector (
+module bus_intf_connector #(
+    parameter type DATA_T = logic
+) (
     bus_intf.rx bus_if_from_tx,
     bus_intf.tx bus_if_to_rx
 );
-    assign bus_if_to_rx.srst  = bus_if_from_tx.srst;
-    assign bus_if_to_rx.valid = bus_if_from_tx.valid;
-    assign bus_if_to_rx.data  = bus_if_from_tx.data;
-    assign bus_if_from_tx.ready = bus_if_to_rx.ready;
+    // Parameter checking
+    initial begin
+        std_pkg::param_check($bits(bus_if_from_tx.DATA_T), $bits(DATA_T), "bus_if_from_tx.DATA_T");
+        std_pkg::param_check($bits(bus_if_to_rx.DATA_T), $bits(DATA_T), "bus_if_to_rx.DATA_T");
+    end
+
+    logic  srst;
+    logic  valid;
+    DATA_T data;
+    logic  ready;
+
+    // Terminate bus interface from Tx
+    assign srst = bus_if_from_tx.srst;
+    assign valid = bus_if_from_tx.valid;
+    assign data = bus_if_from_tx.data;
+    assign bus_if_from_tx.ready = ready;
+
+    // Drive bus interface to Rx
+    assign bus_if_to_rx.srst = srst;
+    assign bus_if_to_rx.valid = valid;
+    assign bus_if_to_rx.data = data;
+    assign ready = bus_if_to_rx.ready;
+
 endmodule : bus_intf_connector
