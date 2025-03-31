@@ -128,46 +128,31 @@ module axi4s_intf_unit_test #(
                 axi4s_from_packet_adapter #(TID_T, TDEST_T, TUSER_T) DUT_1 (.axis_if(axis_out_if), .*);
          end
          14 : begin
-             axi4s_pipe #(.STAGES(2)) DUT (.axi4s_if_from_tx ( axis_in_if ), .axi4s_if_to_rx ( axis_out_if ));
+             axi4s_pipe #(.STAGES(2)) DUT (.from_tx ( axis_in_if ), .to_rx ( axis_out_if ));
          end
          15 : begin
-             axi4s_pipe_auto DUT (.axi4s_if_from_tx ( axis_in_if ), .axi4s_if_to_rx ( axis_out_if ));
+             axi4s_pipe_auto DUT (.from_tx ( axis_in_if ), .to_rx ( axis_out_if ));
          end
          16 : begin
-             axi4s_pipe_slr DUT (.axi4s_if_from_tx ( axis_in_if ), .axi4s_if_to_rx ( axis_out_if ));
+             axi4s_pipe_slr DUT (.from_tx ( axis_in_if ), .to_rx ( axis_out_if ));
          end
          17 : begin
-             axi4s_pipe_slr #(
-                 .PRE_PIPE_STAGES(1),
-                 .POST_PIPE_STAGES(1)
-             ) DUT (.axi4s_if_from_tx ( axis_in_if ), .axi4s_if_to_rx ( axis_out_if ));
+             axi4s_pipe_slr #(.PRE_PIPE_STAGES(1), .POST_PIPE_STAGES(1)) DUT (.from_tx ( axis_in_if ), .to_rx ( axis_out_if ));
          end
          18 : begin
             axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) __axis_if ();
-            axi4s_pipe_slr #(
-                 .PRE_PIPE_STAGES(1),
-                 .POST_PIPE_STAGES(1)
-            ) DUT1 (.axi4s_if_from_tx ( axis_in_if ), .axi4s_if_to_rx ( __axis_if ));
-            axi4s_pipe_slr #(
-                 .PRE_PIPE_STAGES(1),
-                 .POST_PIPE_STAGES(1)
-            ) DUT2 (.axi4s_if_from_tx ( __axis_if ), .axi4s_if_to_rx ( axis_out_if ));
+            axi4s_pipe_slr #(.PRE_PIPE_STAGES(1), .POST_PIPE_STAGES(1)) DUT1 (.from_tx ( axis_in_if ), .to_rx ( __axis_if ));
+            axi4s_pipe_slr #(.PRE_PIPE_STAGES(1), .POST_PIPE_STAGES(1)) DUT2 (.from_tx ( __axis_if ),  .to_rx ( axis_out_if ));
         end
         19 : begin
             axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) __axis_if ();
-            axi4s_pipe_slr #(
-                 .PRE_PIPE_STAGES(1),
-                 .POST_PIPE_STAGES(1)
-            ) DUT1 (.axi4s_if_from_tx ( axis_in_if ), .axi4s_if_to_rx ( __axis_if ));
-            axi4s_pipe #(.STAGES(1)) DUT2 (.axi4s_if_from_tx ( __axis_if ), .axi4s_if_to_rx ( axis_out_if ));
+            axi4s_pipe_slr #(.PRE_PIPE_STAGES(1), .POST_PIPE_STAGES(1)) DUT1 (.from_tx ( axis_in_if ), .to_rx ( __axis_if ));
+            axi4s_pipe #(.STAGES(1)) DUT2 (.from_tx ( __axis_if ), .to_rx ( axis_out_if ));
         end
         20 : begin
             axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) __axis_if ();
-            axi4s_pipe #(.STAGES(1)) DUT1 (.axi4s_if_from_tx ( axis_in_if ), .axi4s_if_to_rx ( __axis_if ));
-            axi4s_pipe_slr #(
-                 .PRE_PIPE_STAGES(1),
-                 .POST_PIPE_STAGES(1)
-            ) DUT2 (.axi4s_if_from_tx ( __axis_if ), .axi4s_if_to_rx ( axis_out_if ));
+            axi4s_pipe #(.STAGES(1)) DUT1 (.from_tx ( axis_in_if ), .to_rx ( __axis_if ));
+            axi4s_pipe_slr #(.PRE_PIPE_STAGES(1), .POST_PIPE_STAGES(1)) DUT2 (.from_tx ( __axis_if ), .to_rx ( axis_out_if ));
         end
 
       endcase

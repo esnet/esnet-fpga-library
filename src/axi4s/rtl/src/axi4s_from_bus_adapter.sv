@@ -1,53 +1,58 @@
 // AXI4-S from bus interface adapter
-module axi4s_from_bus_adapter #(
-) (
+module axi4s_from_bus_adapter (
     // Generic bus interface (from transmitter)
     bus_intf.rx    bus_if_from_tx,
 
     // AXI4-S interface (to receiver)
     axi4s_intf.tx  axi4s_if_to_rx
 );
-
-    // Imports
-    import axi4s_pkg::*;
-
     // Parameters
-    localparam int  DATA_BYTE_WID = axi4s_if_to_rx.DATA_BYTE_WID;
-    localparam type TKEEP_T = logic[DATA_BYTE_WID-1:0];
-    localparam type TDATA_T = logic[DATA_BYTE_WID-1:0][7:0];
+    localparam int DATA_BYTE_WID = axi4s_if_to_rx.DATA_BYTE_WID;
+    localparam int TDATA_WID = DATA_BYTE_WID*8;
+    localparam int TKEEP_WID = DATA_BYTE_WID;
+    localparam int TID_WID   = $bits(axi4s_if_to_rx.TID_T);
+    localparam int TDEST_WID = $bits(axi4s_if_to_rx.TDEST_T);
+    localparam int TUSER_WID = $bits(axi4s_if_to_rx.TUSER_T);
 
-    localparam int  TID_WID = $bits(axi4s_if_to_rx.TID_T);
-    localparam type TID_T = logic[TID_WID-1:0];
-
-    localparam int  TDEST_WID = $bits(axi4s_if_to_rx.TDEST_T);
-    localparam type TDEST_T = logic[TDEST_WID-1:0];
-
-    localparam int  TUSER_WID = $bits(axi4s_if_to_rx.TUSER_T);
-    localparam type TUSER_T = logic[TUSER_WID-1:0];
-
-    // Payload struct
+    // Payload struct (opaque to underlying bus_intf infrastructure)
     typedef struct packed {
-        TUSER_T     tuser;
-        TDEST_T     tdest;
-        TID_T       tid;
-        logic       tlast;
-        TKEEP_T     tkeep;
-        TDATA_T     tdata;
+        logic [TUSER_WID-1:0] tuser;
+        logic [TDEST_WID-1:0] tdest;
+        logic [TID_WID-1:0]   tid;
+        logic                 tlast;
+        logic [TKEEP_WID-1:0] tkeep;
+        logic [TDATA_WID-1:0] tdata;
     } payload_t;
 
-    payload_t axi4s_if__payload;
+    // Parameter checking
+    initial begin
+        std_pkg::param_check($bits(bus_if_from_tx.DATA_T), $bits(payload_t), "bus_if_from_tx.DATA_T");
+    end
 
-    // Adapt between bus and AXI4-S interfaces
-    assign axi4s_if_to_rx.aclk = bus_if_from_tx.clk;
-    assign axi4s_if_to_rx.aresetn = !bus_if_from_tx.srst;
-    assign axi4s_if_to_rx.tvalid = bus_if_from_tx.valid;
-    assign axi4s_if__payload = bus_if_from_tx.data;
-    assign axi4s_if_to_rx.tdata = axi4s_if__payload.tdata;
-    assign axi4s_if_to_rx.tkeep = axi4s_if__payload.tkeep;
-    assign axi4s_if_to_rx.tlast = axi4s_if__payload.tlast;
-    assign axi4s_if_to_rx.tid   = axi4s_if__payload.tid;
-    assign axi4s_if_to_rx.tdest = axi4s_if__payload.tdest;
-    assign axi4s_if_to_rx.tuser = axi4s_if__payload.tuser;
-    assign bus_if_from_tx.ready = axi4s_if_to_rx.tready;
+    // Signals
+    logic     clk;
+    payload_t payload;
+    logic     srst;
+    logic     valid;
+    logic     ready;
+
+    // Terminate bus interface
+    assign clk = bus_if_from_tx.clk;
+    assign srst = bus_if_from_tx.srst;
+    assign valid = bus_if_from_tx.valid;
+    assign payload = bus_if_from_tx.data;
+    assign bus_if_from_tx.ready = ready;
+
+    // Drive AXI-S interface
+    assign axi4s_if_to_rx.aclk = clk;
+    assign axi4s_if_to_rx.aresetn = !srst;
+    assign axi4s_if_to_rx.tvalid = valid;
+    assign axi4s_if_to_rx.tdata = payload.tdata;
+    assign axi4s_if_to_rx.tkeep = payload.tkeep;
+    assign axi4s_if_to_rx.tlast = payload.tlast;
+    assign axi4s_if_to_rx.tid   = payload.tid;
+    assign axi4s_if_to_rx.tdest = payload.tdest;
+    assign axi4s_if_to_rx.tuser = payload.tuser;
+    assign ready = axi4s_if_to_rx.tready;
 
 endmodule : axi4s_from_bus_adapter
