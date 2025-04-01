@@ -3,18 +3,18 @@ interface packet_descriptor_intf #(
     parameter type META_T = logic,
     parameter type SIZE_T = logic[15:0]
 ) (
-    input wire logic clk,
-    input wire logic srst = 1'b0
+    input logic clk,
+    input logic srst = 1'b0
 );
     import packet_pkg::*;
 
     // Signals
-    wire logic        valid;
-    wire logic        rdy;
-    wire ADDR_T       addr;
-    wire SIZE_T       size;
-    wire logic        err;
-    wire META_T       meta;
+    logic        valid;
+    logic        rdy;
+    ADDR_T       addr;
+    SIZE_T       size;
+    logic        err;
+    META_T       meta;
     
     // Modports
     modport tx(
@@ -73,13 +73,13 @@ interface packet_descriptor_intf #(
 
     task send(
             input ADDR_T   _addr,
-            input SIZE_T   _size,
+            input int      _size,
             input META_T   _meta = '0,
             input logic    _err = 1'b0
         );
         cb_tx.valid  <= 1'b1;
         cb_tx.addr   <= _addr;
-        cb_tx.size   <= _size;
+        cb_tx.size   <= SIZE_T'(_size);
         cb_tx.err    <= _err;
         cb_tx.meta   <= _meta;
         @(cb_tx);
@@ -89,7 +89,7 @@ interface packet_descriptor_intf #(
 
     task receive(
             output ADDR_T   _addr,
-            output SIZE_T   _size,
+            output int      _size,
             output META_T   _meta,
             output logic    _err
         );
@@ -133,14 +133,42 @@ module packet_descriptor_intf_connector (
     packet_descriptor_intf.rx from_tx,
     packet_descriptor_intf.tx to_rx
 );
+    // Parameters
+    localparam int ADDR_WID = $bits(from_tx.ADDR_T);
+    localparam int META_WID = $bits(from_tx.META_T);
+    localparam int SIZE_WID = $bits(from_tx.SIZE_T);
+
+    // Parameter checking
+    initial begin
+        std_pkg::param_check($bits(to_rx.ADDR_T), ADDR_WID, "to_rx.ADDR_T");
+        std_pkg::param_check($bits(to_rx.META_T), META_WID, "to_rx.META_T");
+        std_pkg::param_check($bits(to_rx.SIZE_T), SIZE_WID, "to_rx.SIZE_T");
+    end
+
+    // Signals
+    logic                valid;
+    logic                rdy;
+    logic [ADDR_WID-1:0] addr;
+    logic [SIZE_WID-1:0] size;
+    logic                err;
+    logic [META_WID-1:0] meta;
+
     // Connect signals (tx -> rx)
-    assign to_rx.valid  = from_tx.valid;
-    assign to_rx.addr   = from_tx.addr;
-    assign to_rx.size   = from_tx.size;
-    assign to_rx.err    = from_tx.err;
-    assign to_rx.meta   = from_tx.meta;
+    assign valid = from_tx.valid;
+    assign addr  = from_tx.addr;
+    assign size  = from_tx.size;
+    assign err   = from_tx.err;
+    assign meta  = from_tx.meta;
+
+    assign to_rx.valid = valid;
+    assign to_rx.addr  = addr;
+    assign to_rx.size  = size;
+    assign to_rx.err   = err;
+    assign to_rx.meta  = meta;
 
     // Connect signals (rx -> tx)
-    assign from_tx.rdy = to_rx.rdy;
+    assign rdy = to_rx.rdy;
+
+    assign from_tx.rdy = rdy;
 
 endmodule : packet_descriptor_intf_connector

@@ -14,10 +14,7 @@ class packet_intf_monitor #(
     //===================================
     // Interfaces
     //===================================
-    virtual packet_intf #(
-        .DATA_BYTE_WID(DATA_BYTE_WID),
-        .META_T(META_T)
-    ) packet_vif;
+    virtual packet_intf #(DATA_BYTE_WID,META_T) packet_vif;
 
     //===================================
     // Typedefs

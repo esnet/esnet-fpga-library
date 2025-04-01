@@ -8,10 +8,7 @@ class packet_descriptor_monitor #(
     //===================================
     // Interfaces
     //===================================
-    virtual packet_descriptor_intf #(
-        .ADDR_T(ADDR_T),
-        .META_T(META_T)
-    ) packet_descriptor_vif;
+    virtual packet_descriptor_intf #(ADDR_T,META_T) packet_descriptor_vif;
 
     //===================================
     // Typedefs

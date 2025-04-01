@@ -71,8 +71,8 @@ module packet_q_core
     alloc_intf #(.BUFFER_SIZE(BUFFER_SIZE), .PTR_T(PTR_T), .META_T(META_T)) scatter_if [NUM_INPUT_IFS]  (.clk, .srst);
     alloc_intf #(.BUFFER_SIZE(BUFFER_SIZE), .PTR_T(PTR_T), .META_T(META_T)) gather_if  [NUM_OUTPUT_IFS] (.clk, .srst);
 
-    packet_event_intf event_in_if__unused  [NUM_INPUT_IFS]  ();
-    packet_event_intf event_out_if__unused [NUM_OUTPUT_IFS] ();
+    packet_event_intf event_in_if__unused  [NUM_INPUT_IFS]  (.clk);
+    packet_event_intf event_out_if__unused [NUM_OUTPUT_IFS] (.clk);
 
     // -----------------------------
     // Signals

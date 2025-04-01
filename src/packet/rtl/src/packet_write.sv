@@ -63,6 +63,7 @@ module packet_write
     initial begin
         std_pkg::param_check(mem_wr_if.DATA_WID, DATA_WID, "mem_wr_if.DATA_WID");
         std_pkg::param_check(mem_wr_if.ADDR_WID, ADDR_WID,"descriptor_if.ADDR_WID");
+        std_pkg::param_check($bits(descriptor_if.META_T), META_WID,"descriptor_if.META_T");
         std_pkg::param_check($bits(nxt_descriptor_if.ADDR_T), ADDR_WID,"nxt_descriptor_if.ADDR_WID");
         std_pkg::param_check_gt(SIZE_WID, $clog2(MAX_PKT_SIZE), "SIZE_WID");
     end
