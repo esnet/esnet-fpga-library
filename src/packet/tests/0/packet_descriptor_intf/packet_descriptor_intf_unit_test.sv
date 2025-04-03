@@ -14,8 +14,8 @@ module packet_descriptor_intf_unit_test #(
     //===================================
     // Parameters
     //===================================
-    localparam type ADDR_T = bit[31:0];
-    localparam type META_T = bit[15:0];
+    localparam type ADDR_T = logic[31:0];
+    localparam type META_T = logic[15:0];
 
     typedef packet_descriptor#(ADDR_T,META_T) PACKET_DESCRIPTOR_T;
 
@@ -42,8 +42,8 @@ module packet_descriptor_intf_unit_test #(
     ) env;
 
     // Driver/monitor
-    packet_descriptor_driver#(ADDR_T,META_T) driver;
-    packet_descriptor_monitor#(ADDR_T,META_T) monitor;
+    packet_descriptor_intf_driver#(ADDR_T,META_T) driver;
+    packet_descriptor_intf_monitor#(ADDR_T,META_T) monitor;
 
     // Model
     std_verif_pkg::wire_model#(PACKET_DESCRIPTOR_T) model;

@@ -147,10 +147,9 @@ module packet_playback_unit_test;
 
     task one_packet(int id=0, int len=$urandom_range(64, 1500));
         packet_raw#(META_T) packet;
-        packet = new($sformatf("pkt_%0d", id), len);
-        packet.randomize();
         void'(std::randomize(meta));
-        packet.set_meta(meta);
+        packet = new($sformatf("pkt_%0d", id), len, meta);
+        packet.randomize();
         env.inbox.put(packet);
     endtask
 
@@ -187,10 +186,9 @@ module packet_playback_unit_test;
             localparam int BURST_SIZE = 20;
             int len=$urandom_range(64, 1500);
             META_T meta;
-            packet = new("pkt_0", len);
-            packet.randomize();
             void'(std::randomize(meta));
-            packet.set_meta(meta);
+            packet = new("pkt_0", len, meta);
+            packet.randomize();
             for (int i = 0; i < BURST_SIZE; i++ ) begin
                 scoreboard.exp_inbox.put(packet);
             end

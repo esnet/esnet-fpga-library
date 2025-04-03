@@ -1,4 +1,4 @@
-class packet_descriptor_monitor #(
+class packet_descriptor_intf_monitor #(
     parameter type ADDR_T = bit,
     parameter type META_T = bit
 ) extends std_verif_pkg::monitor#(packet_descriptor#(ADDR_T,META_T));
@@ -14,7 +14,7 @@ class packet_descriptor_monitor #(
     // Typedefs
     //===================================
     // Constructor
-    function new(input string name="packet_descriptor_monitor");
+    function new(input string name="packet_descriptor_intf_monitor");
         super.new(name);
     endfunction
 
@@ -74,4 +74,4 @@ class packet_descriptor_monitor #(
         packet_descriptor_vif.flush();
     endtask
 
-endclass
+endclass : packet_descriptor_intf_monitor

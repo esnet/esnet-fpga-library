@@ -189,16 +189,15 @@ module packet_q_core_unit_test #(
     //   `SVTEST_END
     //===================================
 
+    META_T meta;
     string msg;
     int len;
 
     task one_packet(int id=0, int len=$urandom_range(64, 511));
         packet_raw#(META_T) packet;
-        META_T meta;
-        packet = new($sformatf("pkt_%0d", id), len);
-        packet.randomize();
         void'(std::randomize(meta));
-        packet.set_meta(meta);
+        packet = new($sformatf("pkt_%0d", id), len, meta);
+        packet.randomize();
         env.inbox.put(packet);
     endtask
 

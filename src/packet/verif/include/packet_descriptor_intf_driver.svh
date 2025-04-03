@@ -1,9 +1,9 @@
-class packet_descriptor_driver #(
+class packet_descriptor_intf_driver #(
     parameter type ADDR_T = bit,
     parameter type META_T = bit
 ) extends std_verif_pkg::driver#(packet_descriptor#(ADDR_T,META_T));
 
-    local static const string __CLASS_NAME = "packet_verif_pkg::packet_descriptor_driver";
+    local static const string __CLASS_NAME = "packet_verif_pkg::packet_descriptor_intf_driver";
 
     //===================================
     // Interfaces
@@ -14,7 +14,7 @@ class packet_descriptor_driver #(
     // Methods
     //===================================
     // Constructor
-    function new(input string name="packet_descriptor_driver");
+    function new(input string name="packet_descriptor_intf_driver");
         super.new(name);
     endfunction
 
@@ -51,4 +51,4 @@ class packet_descriptor_driver #(
         debug_msg("Done.");
     endtask
 
-endclass : packet_descriptor_driver
+endclass : packet_descriptor_intf_driver
