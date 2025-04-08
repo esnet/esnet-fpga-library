@@ -3,7 +3,8 @@ module packet_enqueue
     parameter int  IGNORE_RDY = 0,
     parameter bit  DROP_ERRORED = 1,
     parameter int  MIN_PKT_SIZE = 0,
-    parameter int  MAX_PKT_SIZE = 16384
+    parameter int  MAX_PKT_SIZE = 16384,
+    parameter int  ALIGNMENT = 1 // sop alignment; when > 1, enforce alignment of SOP to packet_if.DATA_BYTE_WID*ALIGNMENT
 ) (
     // Clock/Reset
     input  logic                clk,
@@ -36,10 +37,14 @@ module packet_enqueue
     localparam int DATA_BYTE_WID = packet_if.DATA_BYTE_WID;
     localparam int DATA_WID = DATA_BYTE_WID*8;
 
+    localparam int ROW_DATA_BYTE_WID = DATA_BYTE_WID * ALIGNMENT;
+
     localparam type ADDR_T = wr_descriptor_if.ADDR_T;
     localparam int ADDR_WID = $bits(ADDR_T);
-    localparam int MEM_DEPTH = 2**ADDR_WID;
-    localparam int PTR_WID = ADDR_WID + 1;
+    localparam int DEPTH = 2**ADDR_WID;
+    localparam int ROW_DEPTH = DEPTH / ALIGNMENT;
+    localparam int ROW_ADDR_WID = $clog2(ROW_DEPTH);
+    localparam int PTR_WID = $clog2(ROW_DEPTH + 1);
     localparam type PTR_T = logic[PTR_WID-1:0];
 
     localparam type META_T = packet_if.META_T;
@@ -48,7 +53,7 @@ module packet_enqueue
     localparam type SIZE_T = wr_descriptor_if.SIZE_T;
     localparam int SIZE_WID = $clog2(MAX_PKT_SIZE + 1);
 
-    localparam int MAX_PKT_WORDS = MAX_PKT_SIZE % DATA_BYTE_WID == 0 ? MAX_PKT_SIZE / DATA_BYTE_WID : MAX_PKT_SIZE / DATA_BYTE_WID + 1;
+    localparam int MAX_PKT_WORDS = MAX_PKT_SIZE % ROW_DATA_BYTE_WID == 0 ? MAX_PKT_SIZE / ROW_DATA_BYTE_WID : MAX_PKT_SIZE / ROW_DATA_BYTE_WID + 1;
     localparam int WORD_CNT_WID = $clog2(MAX_PKT_WORDS+1);
 
     // -----------------------------
@@ -60,6 +65,8 @@ module packet_enqueue
         std_pkg::param_check($bits(wr_descriptor_if.META_T), META_WID, "wr_descriptor_if.META_T");
         std_pkg::param_check($bits(rd_descriptor_if.META_T), META_WID, "rd_descriptor_if.META_T");
         std_pkg::param_check($bits(rd_descriptor_if.ADDR_T),ADDR_WID,"rd_descriptor_if.ADDR_T");
+        std_pkg::param_check_gt(ALIGNMENT, 1, "ALIGNMENT");
+        std_pkg::param_check(ALIGNMENT, 2**$clog2(ALIGNMENT), "ALIGNMENT (power of 2)");
     end
 
     // -----------------------------
@@ -84,12 +91,12 @@ module packet_enqueue
     initial head_ptr = '0;
     always @(posedge clk) begin
         if (srst) head_ptr <= '0;
-        else if (wr_descriptor_if.valid) head_ptr <= head_ptr + (wr_descriptor_if.size-1)/DATA_BYTE_WID + 1;
+        else if (wr_descriptor_if.valid) head_ptr <= head_ptr + (wr_descriptor_if.size-1)/ROW_DATA_BYTE_WID + 1;
     end
 
     always @(posedge clk) begin
         if (srst) tail_ptr <= '0;
-        else if (rd_descriptor_if.valid) tail_ptr <= tail_ptr + (rd_descriptor_if.size-1)/DATA_BYTE_WID + 1;
+        else if (rd_descriptor_if.valid) tail_ptr <= tail_ptr + (rd_descriptor_if.size-1)/ROW_DATA_BYTE_WID + 1;
     end
     assign rd_descriptor_if.rdy = 1'b1;
 
@@ -97,7 +104,7 @@ module packet_enqueue
     // Full/Write Ready
     // -----------------------------
     assign count = head_ptr - tail_ptr;
-    assign avail = MEM_DEPTH - count;
+    assign avail = ROW_DEPTH - count;
 
     initial desc_words = 0;
     always @(posedge clk) begin
@@ -107,7 +114,7 @@ module packet_enqueue
             else desc_words <= avail;
         end
     end
-    assign desc_size = desc_words * DATA_BYTE_WID;
+    assign desc_size = desc_words * ROW_DATA_BYTE_WID;
 
     // -----------------------------
     // Packet write
@@ -129,7 +136,7 @@ module packet_enqueue
     );
 
     assign nxt_descriptor_if.valid = 1'b1;
-    assign nxt_descriptor_if.addr = head_ptr;
+    assign nxt_descriptor_if.addr = head_ptr * ALIGNMENT;
     assign nxt_descriptor_if.size = desc_size;
     assign nxt_descriptor_if.meta = 'x;
     assign nxt_descriptor_if.err = 1'bx;
