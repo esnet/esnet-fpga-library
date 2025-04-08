@@ -1,4 +1,5 @@
 name: axi4s_split_join
+visible: true
 
 blocks:
   axi4s_split_join: &axi4s_split_join
