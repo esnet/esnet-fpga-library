@@ -124,7 +124,7 @@ module packet_write
                 if (mem_init_done) nxt_state = SOP;
             end
             SOP: begin
-                rdy = mem_wr_if.rdy && nxt_descriptor_if.valid && (nxt_descriptor_if.size >= DATA_BYTE_WID);
+                rdy = mem_wr_if.rdy && nxt_descriptor_if.valid && (nxt_descriptor_if.size >= DATA_BYTE_WID) && descriptor_if.rdy;
                 if (packet_if.valid && packet_if.rdy) begin
                     if (packet_if.eop) begin
                         pkt_done = 1'b1;
