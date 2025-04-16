@@ -108,6 +108,6 @@ module axi4s_mux
     .sel   (  sel )
    );
 
-   axi4s_intf_pipe out_pipe (.axi4s_if_from_tx(axi4s_out_p), .axi4s_if_to_rx(axi4s_out));
+   axi4s_full_pipe out_pipe (.axi4s_if_from_tx(axi4s_out_p), .axi4s_if_to_rx(axi4s_out));
 
 endmodule // axi4s_mux
