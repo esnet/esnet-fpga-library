@@ -596,7 +596,7 @@ module axi4s_intf_demux
 
     logic tready[N];
 
-    axi4s_intf_connector axi4s_intf_connector_out (.axi4s_from_tx(axi4s_in), .axi4s_to_rx(axi4s_in_p));
+    axi4s_intf_connector axi4s_intf_connector_in (.axi4s_from_tx(axi4s_in), .axi4s_to_rx(axi4s_in_p));
 
     // axis4s input interface signalling.
     assign axi4s_in_p.tready = tready[sel];
