@@ -10,18 +10,22 @@
     parameter type DATA_T = logic,
     parameter bit  IGNORE_READY = 1'b0
 ) (
-    bus_intf.rx   bus_if_from_tx,
-    bus_intf.tx   bus_if_to_rx
+    bus_intf.rx   from_tx,
+    bus_intf.tx   to_rx
 );
     // Parameter checking
     initial begin
-        std_pkg::param_check($bits(bus_if_from_tx.DATA_T), $bits(DATA_T), "bus_if_from_tx.DATA_T");
-        std_pkg::param_check($bits(bus_if_to_rx.DATA_T),   $bits(DATA_T), "bus_if_to_rx.DATA_T");
+        std_pkg::param_check($bits(from_tx.DATA_T), $bits(DATA_T), "from_tx.DATA_T");
+        std_pkg::param_check($bits(to_rx.DATA_T),   $bits(DATA_T), "to_rx.DATA_T");
     end
 
+    // Signals
+    logic clk;
+    assign clk = from_tx.clk;
+
     // Interfaces
-    bus_intf #(.DATA_T(DATA_T)) bus_if__tx (.clk(bus_if_from_tx.clk));
-    bus_intf #(.DATA_T(DATA_T)) bus_if__rx (.clk(bus_if_from_tx.clk));
+    bus_intf #(.DATA_T(DATA_T)) bus_if__tx (.clk);
+    bus_intf #(.DATA_T(DATA_T)) bus_if__rx (.clk);
 
     // Signals
     (* autopipeline_group = "fwd", autopipeline_limit=12, autopipeline_include = "rev" *) logic srst;
@@ -38,8 +42,8 @@
     bus_pipe_tx #(
         .DATA_T  ( DATA_T )
     ) i_bus_pipe_tx (
-        .bus_if_from_tx,
-        .bus_if_to_rx ( bus_if__tx )
+        .from_tx,
+        .to_rx ( bus_if__tx )
     );
 
     // Auto-pipelined nets must be driven from register
@@ -49,7 +53,7 @@
     assign data  = bus_if__tx.data;
 
     initial ready = 1'b0;
-    always @(posedge bus_if_from_tx.clk) begin
+    always @(posedge clk) begin
         ready <= bus_if__rx.ready;
     end
 
@@ -59,7 +63,7 @@
         srst_p = 1'b1;
         valid_p = 1'b0;
     end
-    always @(posedge bus_if_from_tx.clk) begin
+    always @(posedge clk) begin
         srst_p  <= srst;
         valid_p <= valid;
         data_p  <= data;
@@ -78,8 +82,8 @@
         .IGNORE_READY ( IGNORE_READY ),
         .TOTAL_SLACK  ( 16 )
     ) i_bus_pipe_rx (
-        .bus_if_from_tx ( bus_if__rx ),
-        .bus_if_to_rx
+        .from_tx ( bus_if__rx ),
+        .to_rx
     );
 
 endmodule : bus_pipe_auto

@@ -13,23 +13,23 @@ module bus_pipe_rx #(
                                    // in forward (valid) path as well as those inserted in reverse
                                    // (ready) path
 ) (
-    bus_intf.rx   bus_if_from_tx,
-    bus_intf.tx   bus_if_to_rx
+    bus_intf.rx   from_tx,
+    bus_intf.tx   to_rx
 );
     // Parameter checking
     initial begin
-        std_pkg::param_check($bits(bus_if_from_tx.DATA_T), $bits(DATA_T), "bus_if_from_tx.DATA_T");
-        std_pkg::param_check($bits(bus_if_to_rx.DATA_T),   $bits(DATA_T), "bus_if_to_rx.DATA_T");
+        std_pkg::param_check($bits(from_tx.DATA_T), $bits(DATA_T), "from_tx.DATA_T");
+        std_pkg::param_check($bits(to_rx.DATA_T),   $bits(DATA_T), "to_rx.DATA_T");
     end
 
-    assign bus_if_to_rx.srst = bus_if_from_tx.srst;
+    assign to_rx.srst = from_tx.srst;
 
     generate
         if (IGNORE_READY) begin : g__ignore_ready
             // No need for Rx FIFO
-            assign bus_if_to_rx.valid = bus_if_from_tx.valid;
-            assign bus_if_to_rx.data  = bus_if_from_tx.data;
-            assign bus_if_from_tx.ready = 1'b1;
+            assign to_rx.valid = from_tx.valid;
+            assign to_rx.data  = from_tx.data;
+            assign from_tx.ready = 1'b1;
         end : g__ignore_ready
         else begin : g__obey_ready
             // Implement Rx FIFO to accommodate specified slack
@@ -38,15 +38,15 @@ module bus_pipe_rx #(
                 .DATA_T         ( DATA_T ),
                 .PIPELINE_DEPTH ( TOTAL_SLACK )
             ) i_fifo_small_prefetch (
-                .clk     ( bus_if_from_tx.clk ),
-                .srst    ( bus_if_from_tx.srst ),
-                .wr      ( bus_if_from_tx.valid ),
-                .wr_rdy  ( bus_if_from_tx.ready ),
-                .wr_data ( bus_if_from_tx.data ),
+                .clk     ( from_tx.clk ),
+                .srst    ( from_tx.srst ),
+                .wr      ( from_tx.valid ),
+                .wr_rdy  ( from_tx.ready ),
+                .wr_data ( from_tx.data ),
                 .oflow   ( ),
-                .rd      ( bus_if_to_rx.ready ),
-                .rd_rdy  ( bus_if_to_rx.valid ),
-                .rd_data ( bus_if_to_rx.data )
+                .rd      ( to_rx.ready ),
+                .rd_rdy  ( to_rx.valid ),
+                .rd_data ( to_rx.data )
             );
         end : g__obey_ready
     endgenerate

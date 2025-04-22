@@ -158,13 +158,13 @@ endinterface : bus_intf
 module bus_intf_connector #(
     parameter type DATA_T = logic
 ) (
-    bus_intf.rx bus_if_from_tx,
-    bus_intf.tx bus_if_to_rx
+    bus_intf.rx from_tx,
+    bus_intf.tx to_rx
 );
     // Parameter checking
     initial begin
-        std_pkg::param_check($bits(bus_if_from_tx.DATA_T), $bits(DATA_T), "bus_if_from_tx.DATA_T");
-        std_pkg::param_check($bits(bus_if_to_rx.DATA_T), $bits(DATA_T), "bus_if_to_rx.DATA_T");
+        std_pkg::param_check($bits(from_tx.DATA_T), $bits(DATA_T), "from_tx.DATA_T");
+        std_pkg::param_check($bits(to_rx.DATA_T), $bits(DATA_T), "to_rx.DATA_T");
     end
 
     logic  srst;
@@ -173,15 +173,15 @@ module bus_intf_connector #(
     logic  ready;
 
     // Terminate bus interface from Tx
-    assign srst = bus_if_from_tx.srst;
-    assign valid = bus_if_from_tx.valid;
-    assign data = bus_if_from_tx.data;
-    assign bus_if_from_tx.ready = ready;
+    assign srst = from_tx.srst;
+    assign valid = from_tx.valid;
+    assign data = from_tx.data;
+    assign from_tx.ready = ready;
 
     // Drive bus interface to Rx
-    assign bus_if_to_rx.srst = srst;
-    assign bus_if_to_rx.valid = valid;
-    assign bus_if_to_rx.data = data;
-    assign ready = bus_if_to_rx.ready;
+    assign to_rx.srst = srst;
+    assign to_rx.valid = valid;
+    assign to_rx.data = data;
+    assign ready = to_rx.ready;
 
 endmodule : bus_intf_connector

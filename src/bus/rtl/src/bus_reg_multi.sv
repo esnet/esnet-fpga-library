@@ -8,15 +8,19 @@ module bus_reg_multi #(
     parameter type DATA_T = logic,
     parameter int  STAGES = 1
 ) (
-    bus_intf.rx   bus_if_from_tx,
-    bus_intf.tx   bus_if_to_rx
+    bus_intf.rx   from_tx,
+    bus_intf.tx   to_rx
 );
     // Parameter checking
     initial begin
-        std_pkg::param_check($bits(bus_if_from_tx.DATA_T), $bits(DATA_T), "bus_if_from_tx.DATA_T");
-        std_pkg::param_check($bits(bus_if_to_rx.DATA_T),   $bits(DATA_T), "bus_if_to_rx.DATA_T");
+        std_pkg::param_check($bits(from_tx.DATA_T), $bits(DATA_T), "from_tx.DATA_T");
+        std_pkg::param_check($bits(to_rx.DATA_T),   $bits(DATA_T), "to_rx.DATA_T");
         std_pkg::param_check_gt(STAGES, 0, "STAGES");
     end
+
+    // Clock
+    logic clk;
+    assign clk = from_tx.clk;
 
     generate
         if (STAGES > 0) begin : g__multi_stage
@@ -29,28 +33,28 @@ module bus_reg_multi #(
                 srst_p = '{default: 1'b1};
                 valid_p = '{default: 1'b0};
             end
-            always @(posedge bus_if_from_tx.clk) begin
+            always @(posedge clk) begin
                 for (int i = 1; i < STAGES; i++) begin
                     srst_p [i] <= srst_p [i-1];
                     valid_p[i] <= valid_p[i-1];
                     data_p [i] <= data_p [i-1];
                 end
-                srst_p [0] <= bus_if_from_tx.srst;
-                valid_p[0] <= bus_if_from_tx.valid;
-                data_p [0] <= bus_if_from_tx.data;
+                srst_p [0] <= from_tx.srst;
+                valid_p[0] <= from_tx.valid;
+                data_p [0] <= from_tx.data;
             end
-            assign bus_if_to_rx.srst  = srst_p [STAGES-1];
-            assign bus_if_to_rx.valid = valid_p[STAGES-1];
-            assign bus_if_to_rx.data  = data_p [STAGES-1];
+            assign to_rx.srst  = srst_p [STAGES-1];
+            assign to_rx.valid = valid_p[STAGES-1];
+            assign to_rx.data  = data_p [STAGES-1];
             
             initial ready_p = '{default: 1'b0};
-            always @(posedge bus_if_from_tx.clk) begin
+            always @(posedge clk) begin
                 for (int i = 1; i < STAGES; i++) begin
                     ready_p[i] <= ready_p[i-1];
                 end
-                ready_p[0] <= bus_if_to_rx.ready;
+                ready_p[0] <= to_rx.ready;
             end
-            assign bus_if_from_tx.ready = ready_p[STAGES-1];
+            assign from_tx.ready = ready_p[STAGES-1];
 
         end : g__multi_stage
         else begin : g__zero_stage
