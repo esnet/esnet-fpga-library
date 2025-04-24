@@ -33,11 +33,6 @@
     (* autopipeline_group = "rev" *) logic ready;
     (* autopipeline_group = "fwd", autopipeline_limit=12, autopipeline_include = "rev" *) DATA_T data;
 
-    logic srst_p;
-    logic valid_p;
-    logic ready_p;
-    DATA_T data_p;
-
     // Pipeline transmitter
     bus_pipe_tx #(
         .DATA_T  ( DATA_T )
@@ -48,10 +43,6 @@
 
     // Auto-pipelined nets must be driven from register
     // (bus_pipe_tx drives forward signals from registers)
-    assign srst  = bus_if__tx.srst;
-    assign valid = bus_if__tx.valid;
-    assign data  = bus_if__tx.data;
-
     initial ready = 1'b0;
     always @(posedge clk) begin
         ready <= bus_if__rx.ready;
@@ -60,21 +51,19 @@
     // Auto-pipelined nets must have fanout == 1
     // (bus_pipe_tx receives reverse signals into registers)
     initial begin
-        srst_p = 1'b1;
-        valid_p = 1'b0;
+        srst = 1'b1;
+        valid = 1'b0;
     end
     always @(posedge clk) begin
-        srst_p  <= srst;
-        valid_p <= valid;
-        data_p  <= data;
+        srst  <= bus_if__tx.srst;
+        valid <= bus_if__tx.valid;
+        data  <= bus_if__tx.data;
     end
 
-    assign ready_p = ready;
-
-    assign bus_if__rx.srst = srst_p;
-    assign bus_if__rx.valid = valid_p;
-    assign bus_if__rx.data = data_p;
-    assign bus_if__tx.ready = ready_p;
+    assign bus_if__rx.srst = srst;
+    assign bus_if__rx.valid = valid;
+    assign bus_if__rx.data = data;
+    assign bus_if__tx.ready = ready;
 
     // Pipeline receiver
     bus_pipe_rx #(
