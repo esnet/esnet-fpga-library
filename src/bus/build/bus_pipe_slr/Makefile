@@ -33,7 +33,7 @@ SUBCOMPONENTS = \
 # ----------------------------------------------------
 # Targets
 # ----------------------------------------------------
-all: opt validate
+all: place validate
 
 pre_synth: _pre_synth
 synth:     _build_core_synth
