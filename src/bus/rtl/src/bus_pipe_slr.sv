@@ -58,14 +58,14 @@
 
     // Tx registers (SLRx)
     // (includes transmit registers for srst/valid/data and receive register for ready)
-    (* DONT_TOUCH *) bus_reg #(.DATA_T (DATA_T)) i_bus_slr_tx (
+    (* DONT_TOUCH = "yes" *) bus_reg #(.DATA_T (DATA_T)) i_bus_slr_tx (
         .from_tx  ( bus_if__tx_p ),
         .to_rx    ( bus_if__sll )
     );
 
     // Rx registers (SLRy)
     // (includes receive registers for srst/valid/data and transmit register for ready)
-    (* DONT_TOUCH *) bus_reg #(.DATA_T (DATA_T)) i_bus_slr_rx (
+    (* DONT_TOUCH = "yes" *) bus_reg #(.DATA_T (DATA_T)) i_bus_slr_rx (
         .from_tx  ( bus_if__sll ),
         .to_rx    ( bus_if__rx_p )
     );
