@@ -1,6 +1,6 @@
 class packet_descriptor_intf_monitor #(
-    parameter type ADDR_T = bit,
-    parameter type META_T = bit
+    parameter type ADDR_T = logic,
+    parameter type META_T = logic
 ) extends std_verif_pkg::monitor#(packet_descriptor#(ADDR_T,META_T));
 
     local static const string __CLASS_NAME = "packet_verif_pkg::packet_descriptor_monitor";
