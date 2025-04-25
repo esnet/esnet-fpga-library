@@ -31,6 +31,8 @@ module packet_fifo_core
     localparam int  META_WID = $bits(packet_in_if.META_T);
     localparam type META_T = logic[META_WID-1:0];
 
+    localparam int  MAX_PKT_WORDS = MAX_PKT_SIZE % DATA_BYTE_WID == 0 ? MAX_PKT_SIZE / DATA_BYTE_WID : MAX_PKT_SIZE / DATA_BYTE_WID + 1;
+
     localparam int  ADDR_WID = $clog2(DEPTH);
     localparam int  PTR_WID = ADDR_WID + 1;
     localparam type ADDR_T = logic[ADDR_WID-1:0];
@@ -42,6 +44,7 @@ module packet_fifo_core
     initial begin
         std_pkg::param_check(packet_out_if.DATA_BYTE_WID, DATA_BYTE_WID, "packet_out_if.DATA_BYTE_WID");
         std_pkg::param_check($bits(packet_out_if.META_T), $bits(META_T), "packet_out_if.META_T");
+        if (!CUT_THROUGH) std_pkg::param_check_gt(DEPTH, MAX_PKT_WORDS, "DEPTH");
     end
 
     // -----------------------------
