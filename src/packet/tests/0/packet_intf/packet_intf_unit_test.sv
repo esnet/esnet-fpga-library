@@ -1,16 +1,12 @@
 `include "svunit_defines.svh"
 
 module packet_intf_unit_test #(
-    parameter logic[2:0] DUT_SELECT = 0
+    parameter string DUT_SELECT = "packet_intf_connector"
 );
     import svunit_pkg::svunit_testcase;
     import packet_verif_pkg::*;
 
-    localparam string dut_string = DUT_SELECT == 0 ? "packet_intf_connector" :
-                                                 1 ? "packet_fifo" :
-                                                     "undefined";
-
-    string name = $sformatf("packet_intf_dut_%s_ut", dut_string);
+    string name = $sformatf("packet_intf_dut_%s_ut", DUT_SELECT);
     svunit_testcase svunit_ut;
 
     //===================================
@@ -27,14 +23,19 @@ module packet_intf_unit_test #(
     logic clk;
     logic srst;
 
-    packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_T(META_T)) packet_in_if (.clk(clk), .srst(srst));
-    packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_T(META_T)) packet_out_if (.clk(clk), .srst(srst));
+    packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_T(META_T)) from_tx (.clk, .srst);
+    packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_T(META_T)) to_rx (.clk, .srst);
 
 
     generate
         case (DUT_SELECT)
-            0: packet_intf_connector DUT (.from_tx(packet_in_if), .to_rx(packet_out_if));
-            1: packet_fifo #(.DEPTH (16384), .SIM__RAM_MODEL(1)) DUT (.*);
+            "packet_intf_connector": packet_intf_connector DUT (.*);
+            "packet_fifo": packet_fifo #(.DEPTH (2048)) DUT (.packet_in_if(from_tx), .packet_out_if(to_rx));
+            "packet_pipe_1st": packet_pipe #(.STAGES(1)) DUT (.*);
+            "packet_pipe_4st": packet_pipe #(.STAGES(4)) DUT (.*);
+            "packet_pipe_auto": packet_pipe_auto DUT (.*);
+            "packet_pipe_slr": packet_pipe_slr DUT (.*);
+            "packet_pipe_slr_p1_p1": packet_pipe_slr #(.PRE_PIPE_STAGES(1), .POST_PIPE_STAGES(1)) DUT (.*);
         endcase
     endgenerate
 
@@ -68,11 +69,11 @@ module packet_intf_unit_test #(
 
         // Driver
         driver = new(.BIGENDIAN(1));
-        driver.packet_vif = packet_in_if;
+        driver.packet_vif = from_tx;
 
         // Monitor
         monitor = new(.BIGENDIAN(1));
-        monitor.packet_vif = packet_out_if;
+        monitor.packet_vif = to_rx;
 
         model = new();
         scoreboard = new();
@@ -118,7 +119,7 @@ module packet_intf_unit_test #(
     //     <test code>
     //   `SVTEST_END
     //===================================
-
+    localparam int NUM_PKTS = 100;
     string msg;
     int len;
 
@@ -131,10 +132,10 @@ module packet_intf_unit_test #(
         env.inbox.put(packet);
     endtask
 
-    task packet_stream();
-       for (int i = 0; i < 100; i++) begin
-           one_packet(i);
-       end
+    task packet_stream(int NUM = NUM_PKTS);
+        for (int i = 0; i < NUM_PKTS; i++) begin
+            one_packet(i);
+        end
     endtask
 
     `SVUNIT_TESTS_BEGIN
@@ -143,52 +144,51 @@ module packet_intf_unit_test #(
         `SVTEST_END
 
         `SVTEST(one_packet_good)
-            len = $urandom_range(64, 511);
             one_packet();
-            #10us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
+            check(1, 10us);
         `SVTEST_END
 
         `SVTEST(one_packet_tpause_2)
             //env.monitor.set_tpause(2);
             one_packet();
-            #10us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
+            check(1, 10us);
         `SVTEST_END
 
         `SVTEST(one_packet_twait_2)
             //env.driver.set_twait(2);
             one_packet();
-            #10us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
+            check(1, 10us);
         `SVTEST_END
 
         `SVTEST(one_packet_tpause_2_twait_2)
             //env.monitor.set_tpause(2);
             //env.driver.set_twait(2);
             one_packet();
-            #10us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
+            check(1, 10us);
         `SVTEST_END
 
         `SVTEST(packet_stream_good)
             packet_stream();
-            #100us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
+            check(NUM_PKTS, 100us);
         `SVTEST_END
 
         `SVTEST(packet_stream_tpause_2)
             //env.monitor.set_tpause(2);
             packet_stream();
-            #100us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
+            check(NUM_PKTS, 100us);
         `SVTEST_END
 
         `SVTEST(packet_stream_twait_2)
             //env.driver.set_twait(2);
             packet_stream();
-            #100us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
+            check(NUM_PKTS, 100us);
         `SVTEST_END
 
         `SVTEST(packet_stream_tpause_2_twait_2)
             //env.monitor.set_tpause(2);
             //env.driver.set_twait(2);
             packet_stream();
-            #100us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
+            check(NUM_PKTS, 100us);
         `SVTEST_END
 
         `SVTEST(one_packet_bad)
@@ -207,7 +207,7 @@ module packet_intf_unit_test #(
             bad_byte_data = 8'hFF ^ bad_pkt.get_byte(bad_byte_idx);
             bad_pkt.set_byte(bad_byte_idx, bad_byte_data);
             env.driver.inbox.put(bad_pkt);
-            packet_in_if._wait(1000);
+            #5us
             `FAIL_UNLESS_LOG(
                 scoreboard.report(msg),
                 "Passed unexpectedly."
@@ -219,6 +219,28 @@ module packet_intf_unit_test #(
         `SVTEST_END
 
     `SVUNIT_TESTS_END
+
+    task check(input int EXPECTED, input time TIMEOUT);
+        fork
+            begin
+                string msg;
+                #(TIMEOUT);
+                `FAIL_IF_LOG( env.scoreboard.report(msg) > 0, msg);
+                $display($sformatf("%d", env.scoreboard.got_processed()));
+                `FAIL_IF_LOG(1, "Timeout waiting for expected transactions.");
+            end
+            begin
+                string msg;
+                int processed;
+                do
+                    #100ns;
+                while ( env.scoreboard.got_processed() != EXPECTED );
+                `FAIL_IF_LOG( env.scoreboard.report(msg) > 0, msg);
+                `FAIL_UNLESS_EQUAL( env.scoreboard.got_matched(), EXPECTED);
+            end
+        join_any
+        disable fork;
+    endtask
 
 endmodule
 
@@ -243,9 +265,30 @@ endmodule
 
 
 module packet_intf_connector_unit_test;
-`PACKET_UNIT_TEST(0)
+`PACKET_UNIT_TEST("packet_intf_connector")
 endmodule
 
 module packet_fifo_unit_test;
-`PACKET_UNIT_TEST(1)
+`PACKET_UNIT_TEST("packet_fifo")
 endmodule
+
+module packet_pipe_1st_unit_test;
+`PACKET_UNIT_TEST("packet_pipe_1st")
+endmodule
+
+module packet_pipe_4st_unit_test;
+`PACKET_UNIT_TEST("packet_pipe_4st")
+endmodule
+
+module packet_pipe_auto_unit_test;
+`PACKET_UNIT_TEST("packet_pipe_auto")
+endmodule
+
+module packet_pipe_slr_unit_test;
+`PACKET_UNIT_TEST("packet_pipe_slr")
+endmodule
+
+module packet_pipe_slr_p1_p1_unit_test;
+`PACKET_UNIT_TEST("packet_pipe_slr_p1_p1")
+endmodule
+
