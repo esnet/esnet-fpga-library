@@ -1,14 +1,14 @@
 interface bus_intf #(
     parameter type DATA_T = logic
 ) (
-    input wire logic clk
+    input logic clk
 );
 
     // Signals
-    wire logic  srst;
-    wire logic  valid;
-    wire logic  ready;
-    wire DATA_T data;
+    logic  srst;
+    logic  valid;
+    logic  ready;
+    DATA_T data;
 
     // Modports
     modport tx (
