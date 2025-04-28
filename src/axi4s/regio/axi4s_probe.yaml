@@ -41,3 +41,27 @@ regs:
               0 : NO_CLEAR
               1 : CLEAR_ON_WR_EVT
           init: 0
+
+  - name: monitor
+    desc: monitors state of axi4s control signals
+    access: ro
+    fields:
+        - name: aresetn
+          width: 1
+        - name: tvalid
+          width: 1
+        - name: tready
+          width: 1
+        - name: tlast
+          width: 1
+
+  - name: activity
+    desc: latches axi4s control signals (clear on read)
+    access: rd_evt
+    fields:
+        - name: tvalid
+          width: 1
+        - name: tready
+          width: 1
+        - name: tlast
+          width: 1

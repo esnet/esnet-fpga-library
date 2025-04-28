@@ -64,7 +64,7 @@ module alloc_bv_core #(
     input  PTR_T              dealloc_ptr,
 
     // Monitoring
-    alloc_mon_intf.peripheral mon_if,
+    alloc_mon_intf.tx         mon_if,
 
     // Memory interface
     mem_wr_intf.controller    mem_wr_if,

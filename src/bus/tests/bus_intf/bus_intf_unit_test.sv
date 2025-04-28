@@ -17,7 +17,7 @@ module bus_intf_unit_test #(
     //===================================
     // Parameters
     //===================================
-    localparam type DATA_T = bit[31:0];
+    localparam type DATA_T = logic[31:0];
 
     //===================================
     // DUT
@@ -25,25 +25,31 @@ module bus_intf_unit_test #(
 
     logic   clk;
     
-    bus_intf #(DATA_T) bus_if_from_tx (.clk(clk));
-    bus_intf #(DATA_T) bus_if_to_rx (.clk(clk));
+    bus_intf #(DATA_T) from_tx (.clk(clk));
+    bus_intf #(DATA_T) to_rx (.clk(clk));
 
     generate
         case (COMPONENT_NAME)
             "bus_intf_connector" : begin : g__bus_intf_connector
-                bus_intf_connector DUT (.*);
+                bus_intf_connector #(DATA_T) DUT (.*);
             end : g__bus_intf_connector
             
             "bus_pipe" : begin : g__bus_pipe
-                bus_pipe #(.STAGES(4)) DUT (.*);
+                bus_pipe #(DATA_T, .STAGES(4)) DUT (.*);
             end : g__bus_pipe
 
             "bus_pipe_slr" : begin : g__bus_pipe_slr
-                bus_pipe_slr DUT (.*);
+                bus_pipe_slr #(DATA_T) DUT (.*);
             end : g__bus_pipe_slr
 
+            "bus_pipe_slr_b2b" : begin : g__bus_pipe_slr_b2b
+                bus_intf #(DATA_T) __bus_if (.clk);
+                bus_pipe_slr #(DATA_T, 0, 1, 1) DUT1 (.from_tx, .to_rx (__bus_if));
+                bus_pipe_slr #(DATA_T, 0, 1, 1) DUT2 (.from_tx (__bus_if), .to_rx);
+            end : g__bus_pipe_slr_b2b
+
             "bus_pipe_auto" : begin : g__bus_pipe_auto
-                bus_pipe_auto DUT (.*);
+                bus_pipe_auto #(DATA_T) DUT (.*);
             end : g__bus_pipe_auto
         endcase
     endgenerate
@@ -56,7 +62,7 @@ module bus_intf_unit_test #(
     std_reset_intf reset_if (.clk(clk));
 
     // Assign reset interface
-    assign bus_if_from_tx.srst = reset_if.reset;
+    assign from_tx.srst = reset_if.reset;
 
     initial reset_if.ready = 1'b0;
     always @(posedge clk) reset_if.ready <= ~reset_if.reset;
@@ -71,7 +77,7 @@ module bus_intf_unit_test #(
         svunit_ut = new(name);
 
         // Create testbench environment
-        env = new("tb_env", reset_if, bus_if_from_tx, bus_if_to_rx);
+        env = new("tb_env", reset_if, from_tx, to_rx);
         env.build();
     endfunction
 
@@ -155,20 +161,73 @@ module bus_intf_unit_test #(
             env.inbox.put(exp_transaction);
             // Check transaction
             #15us `FAIL_IF_LOG( env.scoreboard.report(msg) > 0, msg );
+            `FAIL_UNLESS_EQUAL( env.scoreboard.got_matched(), 1);
         `SVTEST_END
         //===================================
         // Test:
         //   stream
         //
         // Desc:
-        //   send one item and check
+        //   send stream of packets
         //===================================
         `SVTEST(stream)
             localparam NUM = 1000;
             // Send stream of transactions
             send_stream(NUM);
             // Check
-            #15us `FAIL_IF_LOG( env.scoreboard.report(msg) > 0, msg );
+            #20us `FAIL_IF_LOG( env.scoreboard.report(msg) > 0, msg );
+            `FAIL_UNLESS_EQUAL( env.scoreboard.got_matched(), 1000);
+        `SVTEST_END
+        //===================================
+        // Test:
+        //   stream_stalls
+        //
+        // Desc:
+        //   send stream of packets with (randomized) transmit stalls
+        //===================================
+        `SVTEST(stream_stalls)
+            localparam NUM = 1000;
+            env.driver.enable_stalls();
+            // Send stream of transactions
+            send_stream(NUM);
+            // Check
+            #60us `FAIL_IF_LOG( env.scoreboard.report(msg) > 0, msg );
+            `FAIL_UNLESS_EQUAL( env.scoreboard.got_matched(), 1000);
+        `SVTEST_END
+
+        //===================================
+        // Test:
+        //   stream_backpressure
+        //
+        // Desc:
+        //   send stream of packets with (randomized) receive stalls
+        //===================================
+        `SVTEST(stream_backpressure)
+            localparam NUM = 1000;
+            env.monitor.enable_stalls();
+            // Send stream of transactions
+            send_stream(NUM);
+            // Check
+            #60us `FAIL_IF_LOG( env.scoreboard.report(msg) > 0, msg );
+            `FAIL_UNLESS_EQUAL( env.scoreboard.got_matched(), 1000);
+        `SVTEST_END
+
+        //===================================
+        // Test:
+        //   stream_random
+        //
+        // Desc:
+        //   send stream of packets with (randomized) transmit and receive stalls
+        //===================================
+        `SVTEST(stream_random)
+            localparam NUM = 1000;
+            env.driver.enable_stalls();
+            env.monitor.enable_stalls();
+            // Send stream of transactions
+            send_stream(NUM);
+            // Check
+            #100us `FAIL_IF_LOG( env.scoreboard.report(msg) > 0, msg );
+            `FAIL_UNLESS_EQUAL( env.scoreboard.got_matched(), 1000);
         `SVTEST_END
 
     `SVUNIT_TESTS_END
@@ -211,9 +270,15 @@ module bus_pipe_slr_unit_test;
     `BUS_INTF_UNIT_TEST("bus_pipe_slr");
 endmodule
 
+// Back-to-back SLR crossing pipeline stage
+module bus_pipe_slr_b2b_unit_test;
+    `BUS_INTF_UNIT_TEST("bus_pipe_slr_b2b");
+endmodule
+
 // Auto-pipelining component
 module bus_pipe_auto_unit_test;
     `BUS_INTF_UNIT_TEST("bus_pipe_auto");
 endmodule
+
 
 

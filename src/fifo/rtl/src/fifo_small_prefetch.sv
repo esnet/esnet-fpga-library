@@ -14,7 +14,7 @@ module fifo_small_prefetch #(
                                       // This represents the (minimum) number of writes
                                       // supported without overflow *after* deassertion of wr_rdy.
                                       // This implementation is intended for 'small' buffers,
-                                      // typically <= 128
+                                      // typically <= 32
 ) (
     // Clock/reset
     input  logic        clk,
@@ -38,8 +38,9 @@ module fifo_small_prefetch #(
     // -----------------------------
     // Parameters
     // -----------------------------
-    localparam int DEPTH = PIPELINE_DEPTH > 1 ? 2*(2**$clog2(PIPELINE_DEPTH)) : 2;
+    localparam int DEPTH = PIPELINE_DEPTH * 2;
     localparam int PTR_WID = $clog2(DEPTH);
+    localparam int MEM_DEPTH = 2**PTR_WID;
     localparam int CNT_WID = $clog2(DEPTH+1);
     localparam int PIPELINE_CNT_WID = $clog2(PIPELINE_DEPTH+1);
 
@@ -47,13 +48,14 @@ module fifo_small_prefetch #(
     // Parameter checking
     // -----------------------------
     initial begin
-        std_pkg::param_check_lt(DEPTH, 256, "DEPTH");
+        std_pkg::param_check_lt(PIPELINE_DEPTH, 64, "PIPELINE_DEPTH");
+        std_pkg::param_check_lt(MEM_DEPTH, 256, "DEPTH");
     end
 
     // -----------------------------
     // Signals
     // -----------------------------
-    DATA_T mem [DEPTH];
+    DATA_T mem [MEM_DEPTH];
 
     logic                wr_safe;
     logic [PTR_WID-1:0]  wr_ptr;
@@ -61,8 +63,8 @@ module fifo_small_prefetch #(
     logic [PTR_WID-1:0]  rd_ptr;
 
     logic [CNT_WID-1:0]  count;
-    logic [PIPELINE_CNT_WID-1:0] __reservations;
-    logic [PIPELINE_DEPTH-1:0] __reservations_vec;
+    logic [PIPELINE_CNT_WID-1:0] __reserved_slots;
+    logic [PIPELINE_DEPTH-1:0] __empty_vec;
 
     // -----------------------------
     // Control FSM
@@ -96,21 +98,16 @@ module fifo_small_prefetch #(
     );
 
     // Maintain record of outstanding transactions
-    initial __reservations_vec = '0;
+    initial __empty_vec = '0;
     always @(posedge clk) begin
-        if (srst) __reservations_vec <= '0;
-        else      __reservations_vec <= (__reservations_vec << 1) | wr_rdy;
+        if (srst) __empty_vec <= '0;
+        else      __empty_vec <= (__empty_vec << 1) | !wr_rdy;
     end
 
-    // Maintain count of potential outstanding transactions
-    initial __reservations = 0;
-    always @(posedge clk) begin
-        if (srst) __reservations <= 0;
-        else __reservations <= __reservations - __reservations_vec[PIPELINE_DEPTH-1] + wr_rdy;
-    end
+    assign __reserved_slots = PIPELINE_DEPTH - math_pkg::vec#(PIPELINE_DEPTH)::count_ones(__empty_vec);
 
     // Synthesize wr_rdy (account for potential outstanding transactions)
-    assign wr_rdy = (count + __reservations) < DEPTH;
+    assign wr_rdy = (count + __reserved_slots) < DEPTH;
 
     // Write
     always_ff @(posedge clk) begin

@@ -151,4 +151,30 @@ module axi4s_probe
       end
    end
 
+   // Control signal monitoring
+   assign reg_if.monitor_nxt_v = 1'b1;
+   assign reg_if.monitor_nxt.aresetn = axi4s_if.aresetn;
+   assign reg_if.monitor_nxt.tvalid  = axi4s_if.tvalid;
+   assign reg_if.monitor_nxt.tready  = axi4s_if.tready;
+   assign reg_if.monitor_nxt.tlast   = axi4s_if.tlast;
+
+   // Control signal activity tracking
+   struct packed {logic tvalid; logic tready; logic tlast;} activity;
+
+   always @(posedge axi4s_if.aclk) begin
+       if (srst) activity <= '0;
+       else begin
+           if (reg_if.activity_rd_evt) activity <= '0;
+           else begin
+              activity.tvalid <= activity.tvalid || axi4s_if.tvalid;
+              activity.tready <= activity.tready || axi4s_if.tready;
+              activity.tlast  <= activity.tlast  || axi4s_if.tlast;
+           end
+       end
+   end
+   assign reg_if.activity_nxt_v = 1'b1;
+   assign reg_if.activity_nxt.tvalid = activity.tvalid;
+   assign reg_if.activity_nxt.tready = activity.tready;
+   assign reg_if.activity_nxt.tlast  = activity.tlast;
+
 endmodule

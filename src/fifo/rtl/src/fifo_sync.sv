@@ -31,8 +31,8 @@ module fifo_sync #(
     // -----------------------------
     // Interfaces
     // -----------------------------
-    fifo_wr_mon_intf wr_mon_if__unused (.clk(clk));
-    fifo_rd_mon_intf rd_mon_if__unused (.clk(clk));
+    fifo_mon_intf wr_mon_if__unused (.clk(clk));
+    fifo_mon_intf rd_mon_if__unused (.clk(clk));
 
     // -----------------------------
     // Instantiate FIFO core

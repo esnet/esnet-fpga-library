@@ -33,8 +33,8 @@ module fifo_core
     output logic                rd_uflow,
 
     // Monitoring
-    fifo_wr_mon_intf.peripheral wr_mon_if,
-    fifo_rd_mon_intf.peripheral rd_mon_if
+    fifo_mon_intf.tx            wr_mon_if,
+    fifo_mon_intf.tx            rd_mon_if
 );
 
     // -----------------------------
@@ -251,12 +251,16 @@ module fifo_core
     // Export monitor data
     assign wr_mon_if.reset = local_wr_srst;
     assign wr_mon_if.full  = wr_full;
+    assign wr_mon_if.empty = 1'b0;
     assign wr_mon_if.oflow = wr_oflow;
+    assign wr_mon_if.uflow = 1'b0;
     assign wr_mon_if.count = {'0, wr_count};
     assign wr_mon_if.ptr   = {'0, wr_ptr};
 
     assign rd_mon_if.reset = local_rd_srst;
+    assign rd_mon_if.full  = 1'b0;
     assign rd_mon_if.empty = rd_empty;
+    assign rd_mon_if.oflow = 1'b0;
     assign rd_mon_if.uflow = rd_uflow;
     assign rd_mon_if.count = {'0, rd_count};
     assign rd_mon_if.ptr   = {'0, rd_ptr};

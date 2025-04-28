@@ -22,7 +22,7 @@ module alloc_axil_core #(
     input  logic [7:0]        state_mon [2],
 
     // Monitor interface
-    alloc_mon_intf.controller mon_if,
+    alloc_mon_intf.rx         mon_if,
 
     // AXI-L control/monitoring
     axi4l_intf.peripheral     axil_if
@@ -49,9 +49,9 @@ module alloc_axil_core #(
     // -----------------------------
     // Pipeline monitor interface
     // -----------------------------
-    alloc_mon_intf_pipe i_alloc_mon_intf_pipe (
-        .alloc_mon_if_from_peripheral ( mon_if ),
-        .alloc_mon_if_to_controller   ( __mon_if )
+    alloc_mon_pipe_auto i_alloc_mon_pipe_auto (
+        .from_tx ( mon_if ),
+        .to_rx   ( __mon_if )
     );
 
     // -----------------------------

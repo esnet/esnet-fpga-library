@@ -44,6 +44,7 @@ module axi3_from_mem_adapter_unit_test;
     mem_rd_intf #(.ADDR_WID(MEM_ADDR_WID), .DATA_WID(DATA_WID)) mem_rd_if (.clk(clk));
 
     axi3_intf #(.DATA_BYTE_WID(DATA_BYTES), .ADDR_WID(AXI_ADDR_WID), .ID_T(logic[5:0])) axi3_if [NUM_CHANNELS] (.aclk(clk));
+    axi3_intf #(.DATA_BYTE_WID(DATA_BYTES), .ADDR_WID(AXI_ADDR_WID), .ID_T(logic[5:0])) __axi3_if (.aclk(clk));
 
     mem_proxy       #(
         .ACCESS_TYPE ( ACCESS_TYPE ),
@@ -60,8 +61,13 @@ module axi3_from_mem_adapter_unit_test;
     axi3_from_mem_adapter #(
         .SIZE ( AXI_SIZE )
     ) DUT (
-        .axi3_if ( axi3_if[ACTIVE_CHANNEL] ),
+        .axi3_if ( __axi3_if ),
         .*
+    );
+
+    axi3_pipe_slr i_axi3_pipe_slr (
+        .from_controller (__axi3_if),
+        .to_peripheral   (axi3_if[ACTIVE_CHANNEL])
     );
 
     //===================================

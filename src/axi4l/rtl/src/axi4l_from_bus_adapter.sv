@@ -1,6 +1,5 @@
 // AXI4-L from multi-bus interface adapter
-module axi4l_from_bus_adapter #(
-) (
+module axi4l_from_bus_adapter (
     // Generic bus interfaces (from controller)
     // Write address (AW) bus
     bus_intf.rx   aw_bus_if,
@@ -21,21 +20,19 @@ module axi4l_from_bus_adapter #(
 
     // Parameters
     localparam int  DATA_BYTE_WID = axi4l_if.DATA_BYTE_WID;
-    localparam type STRB_T = logic[DATA_BYTE_WID-1:0];
-    localparam type DATA_T = logic[DATA_BYTE_WID-1:0][7:0];
-
     localparam int  ADDR_WID = axi4l_if.ADDR_WID;
-    localparam type ADDR_T = logic[ADDR_WID-1:0];
+    localparam int  STRB_WID = DATA_BYTE_WID;
+    localparam int  DATA_WID = DATA_BYTE_WID * 8;
 
-    // Payload structs
+    // Payload structs (opaque to underlying bus_intf infrastructure)
     typedef struct packed {
         logic [2:0] prot;
-        ADDR_T      addr;
+        logic [ADDR_WID-1:0] addr;
     } ax_payload_t;
 
     typedef struct packed {
-        DATA_T data;
-        STRB_T strb;
+        logic [DATA_WID-1:0] data;
+        logic [STRB_WID-1:0] strb;
     } w_payload_t;
 
     typedef struct packed {
@@ -43,59 +40,97 @@ module axi4l_from_bus_adapter #(
     } b_payload_t;
 
     typedef struct packed {
-        DATA_T data;
+        logic [DATA_WID-1:0] data;
         resp_t resp;
     } r_payload_t;
 
-    ax_payload_t axi4l_if__aw_payload;
-    w_payload_t  axi4l_if__w_payload;
-    b_payload_t  axi4l_if__b_payload;
-    ax_payload_t axi4l_if__ar_payload;
-    r_payload_t  axi4l_if__r_payload;
+    // Parameter checking
+    initial begin
+        std_pkg::param_check($bits(aw_bus_if.DATA_T), $bits(ax_payload_t), "aw_bus_if.DATA_T");
+        std_pkg::param_check($bits(w_bus_if.DATA_T),  $bits(w_payload_t),  "w_bus_if.DATA_T");
+        std_pkg::param_check($bits(ar_bus_if.DATA_T), $bits(ax_payload_t), "ar_bus_if.DATA_T");
+        std_pkg::param_check($bits(b_bus_if.DATA_T),  $bits(b_payload_t),  "b_bus_if.DATA_T");
+        std_pkg::param_check($bits(r_bus_if.DATA_T),  $bits(r_payload_t),  "r_bus_if.DATA_T");
+    end
 
-    // Clock
-    assign axi4l_if.aclk = aw_bus_if.clk;
-
-    // Reset
+    // Signals
+    logic clk;
     logic srst;
-    assign srst = aw_bus_if.srst;
 
+    logic        aw_valid;
+    ax_payload_t aw_payload;
+    logic        aw_ready;
+
+    logic        w_valid;
+    w_payload_t  w_payload;
+    logic        w_ready;
+
+    logic        b_valid;
+    b_payload_t  b_payload;
+    logic        b_ready;
+
+    logic        ar_valid;
+    ax_payload_t ar_payload;
+    logic        ar_ready;
+
+    logic        r_valid;
+    r_payload_t  r_payload;
+    logic        r_ready;
+
+    // Terminate write address bus interface
+    // -- (arbitrarily) choose this interface as the reference for clock/reset
+    assign clk  = aw_bus_if.clk;
+    assign srst = aw_bus_if.srst;
+    assign aw_valid = aw_bus_if.valid;
+    assign aw_payload = aw_bus_if.data;
+    assign aw_bus_if.ready = aw_ready;
+
+    assign w_valid = w_bus_if.valid;
+    assign w_payload = w_bus_if.data;
+    assign w_bus_if.ready = w_ready;
+
+    assign b_bus_if.srst = srst;
+    assign b_bus_if.valid = b_valid;
+    assign b_bus_if.data = b_payload;
+    assign b_ready = b_bus_if.ready;
+
+    assign ar_valid = ar_bus_if.valid;
+    assign ar_payload = ar_bus_if.data;
+    assign ar_bus_if.ready = ar_ready;
+
+    assign r_bus_if.srst = srst;
+    assign r_bus_if.valid = r_valid;
+    assign r_bus_if.data = r_payload;
+    assign r_ready = r_bus_if.ready;
+
+    // Drive AXI-L interface
+    assign axi4l_if.aclk = clk;
     assign axi4l_if.aresetn = !srst;
 
-    // Write address
-    assign axi4l_if.awvalid = aw_bus_if.valid;
-    assign axi4l_if__aw_payload = aw_bus_if.data;
-    assign axi4l_if.awaddr   = axi4l_if__aw_payload.addr;
-    assign axi4l_if.awprot   = axi4l_if__aw_payload.prot;
-    assign aw_bus_if.ready  = axi4l_if.awready;
+    assign axi4l_if.awvalid = aw_valid;
+    assign axi4l_if.awaddr = aw_payload.addr;
+    assign axi4l_if.awprot = aw_payload.prot;
+    assign aw_ready = axi4l_if.awready;
 
-    // Write data
-    assign axi4l_if.wvalid = w_bus_if.valid;
-    assign axi4l_if__w_payload = w_bus_if.data;
-    assign axi4l_if.wdata  = axi4l_if__w_payload.data;
-    assign axi4l_if.wstrb  = axi4l_if__w_payload.strb;
-    assign w_bus_if.ready = axi4l_if.wready;
+    assign axi4l_if.wvalid = w_valid;
+    assign axi4l_if.wdata = w_payload.data;
+    assign axi4l_if.wstrb = w_payload.strb;
+    assign w_ready = axi4l_if.wready;
 
-    // Write response
-    assign b_bus_if.srst = srst;
-    assign b_bus_if.valid = axi4l_if.bvalid;
-    assign axi4l_if__b_payload.resp = axi4l_if.bresp;
-    assign b_bus_if.data = axi4l_if__b_payload;
-    assign axi4l_if.bready = b_bus_if.ready;
+    assign b_valid = axi4l_if.bvalid;
+    assign b_payload.resp = axi4l_if.bresp;
+    assign axi4l_if.bready = b_ready;
 
     // Read address
-    assign axi4l_if.arvalid = ar_bus_if.valid;
-    assign axi4l_if__ar_payload = ar_bus_if.data;
-    assign axi4l_if.araddr   = axi4l_if__ar_payload.addr;
-    assign axi4l_if.arprot   = axi4l_if__ar_payload.prot;
-    assign ar_bus_if.ready  = axi4l_if.arready;
+    assign axi4l_if.arvalid = ar_valid;
+    assign axi4l_if.araddr = ar_payload.addr;
+    assign axi4l_if.arprot = ar_payload.prot;
+    assign ar_ready = axi4l_if.arready;
 
     // Read data
-    assign r_bus_if.srst = srst;
-    assign r_bus_if.valid = axi4l_if.rvalid;
-    assign axi4l_if__r_payload.data = axi4l_if.rdata;
-    assign axi4l_if__r_payload.resp = axi4l_if.rresp;
-    assign r_bus_if.data = axi4l_if__r_payload;
-    assign axi4l_if.rready = r_bus_if.ready;
+    assign r_valid = axi4l_if.rvalid;
+    assign r_payload.data = axi4l_if.rdata;
+    assign r_payload.resp = axi4l_if.rresp;
+    assign axi4l_if.rready = r_ready;
 
 endmodule : axi4l_from_bus_adapter

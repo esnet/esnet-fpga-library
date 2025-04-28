@@ -42,8 +42,8 @@ module packet_descriptor_fifo
     // -----------------------------
     // Interfaces
     // -----------------------------
-    fifo_wr_mon_intf wr_mon_if__unused (.clk(from_tx.clk));
-    fifo_rd_mon_intf rd_mon_if__unused (.clk(from_tx.clk));
+    fifo_mon_intf wr_mon_if__unused (.clk(from_tx.clk));
+    fifo_mon_intf rd_mon_if__unused (.clk(from_tx.clk));
 
     // -----------------------------
     // FIFO

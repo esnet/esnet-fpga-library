@@ -7,18 +7,25 @@
 //  signaling directions).
 //
 (* autopipeline_module = "true" *) module bus_pipe_auto #(
-    parameter bit IGNORE_READY = 1'b0
+    parameter type DATA_T = logic,
+    parameter bit  IGNORE_READY = 1'b0
 ) (
-    bus_intf.rx   bus_if_from_tx,
-    bus_intf.tx   bus_if_to_rx
+    bus_intf.rx   from_tx,
+    bus_intf.tx   to_rx
 );
-    // Parameters
-    localparam int  DATA_WID = $bits(bus_if_from_tx.DATA_T);
-    localparam type DATA_T = logic[DATA_WID-1:0];
+    // Parameter checking
+    initial begin
+        std_pkg::param_check($bits(from_tx.DATA_T), $bits(DATA_T), "from_tx.DATA_T");
+        std_pkg::param_check($bits(to_rx.DATA_T),   $bits(DATA_T), "to_rx.DATA_T");
+    end
+
+    // Signals
+    logic clk;
+    assign clk = from_tx.clk;
 
     // Interfaces
-    bus_intf #(.DATA_T(DATA_T)) bus_if__tx (.clk(bus_if_from_tx.clk));
-    bus_intf #(.DATA_T(DATA_T)) bus_if__rx (.clk(bus_if_from_tx.clk));
+    bus_intf #(.DATA_T(DATA_T)) bus_if__tx (.clk);
+    bus_intf #(.DATA_T(DATA_T)) bus_if__rx (.clk);
 
     // Signals
     (* autopipeline_group = "fwd", autopipeline_limit=12, autopipeline_include = "rev" *) logic srst;
@@ -26,51 +33,46 @@
     (* autopipeline_group = "rev" *) logic ready;
     (* autopipeline_group = "fwd", autopipeline_limit=12, autopipeline_include = "rev" *) DATA_T data;
 
-    logic srst_p;
-    logic valid_p;
-    logic ready_p;
-    DATA_T data_p;
-
     // Pipeline transmitter
-    bus_pipe_tx #(IGNORE_READY) i_bus_pipe_tx (
-        .bus_if_from_tx,
-        .bus_if_to_rx ( bus_if__tx )
+    bus_pipe_tx #(
+        .DATA_T  ( DATA_T )
+    ) i_bus_pipe_tx (
+        .from_tx,
+        .to_rx ( bus_if__tx )
     );
 
     // Auto-pipelined nets must be driven from register
-    always_ff @(posedge bus_if_from_tx.clk) begin
-        srst <= bus_if_from_tx.srst;
-        valid <= bus_if__tx.valid;
-        data <= bus_if_from_tx.data;
-    end
-
-    always_ff @(posedge bus_if_from_tx.clk) begin
+    // (bus_pipe_tx drives forward signals from registers)
+    initial ready = 1'b0;
+    always @(posedge clk) begin
         ready <= bus_if__rx.ready;
     end
 
     // Auto-pipelined nets must have fanout == 1
-    always_ff @(posedge bus_if_from_tx.clk) begin
-        srst_p  <= srst;
-        valid_p <= valid;
-        data_p  <= data;
+    // (bus_pipe_tx receives reverse signals into registers)
+    initial begin
+        srst = 1'b1;
+        valid = 1'b0;
+    end
+    always @(posedge clk) begin
+        srst  <= bus_if__tx.srst;
+        valid <= bus_if__tx.valid;
+        data  <= bus_if__tx.data;
     end
 
-    always_ff @(posedge bus_if_from_tx.clk) begin
-        ready_p <= ready;
-    end
-
-    assign bus_if__rx.srst = srst_p;
-    assign bus_if__rx.valid = valid_p;
-    assign bus_if__rx.data = data_p;
-    assign bus_if__tx.ready = ready_p;
+    assign bus_if__rx.srst = srst;
+    assign bus_if__rx.valid = valid;
+    assign bus_if__rx.data = data;
+    assign bus_if__tx.ready = ready;
 
     // Pipeline receiver
     bus_pipe_rx #(
+        .DATA_T       ( DATA_T ),
         .IGNORE_READY ( IGNORE_READY ),
         .TOTAL_SLACK  ( 16 )
     ) i_bus_pipe_rx (
-        .bus_if_from_tx ( bus_if__rx ),
-        .bus_if_to_rx
+        .from_tx ( bus_if__rx ),
+        .to_rx
     );
 
 endmodule : bus_pipe_auto
