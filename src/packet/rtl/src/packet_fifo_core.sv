@@ -28,7 +28,8 @@ module packet_fifo_core
     // Parameters
     // -----------------------------
     localparam int  DATA_BYTE_WID = packet_in_if.DATA_BYTE_WID;
-    localparam type META_T = packet_in_if.META_T;
+    localparam int  META_WID = $bits(packet_in_if.META_T);
+    localparam type META_T = logic[META_WID-1:0];
 
     localparam int  ADDR_WID = $clog2(DEPTH);
     localparam int  PTR_WID = ADDR_WID + 1;
@@ -52,10 +53,10 @@ module packet_fifo_core
         end : g__cut_through
         else begin : g__store_and_forward
             // (Local) interfaces
-            packet_descriptor_intf #(.ADDR_T(ADDR_T), .META_T(META_T)) wr_descriptor_if__in_clk  (.clk(packet_in_if.clk),  .srst(packet_in_if.srst));
-            packet_descriptor_intf #(.ADDR_T(ADDR_T), .META_T(META_T)) wr_descriptor_if__out_clk (.clk(packet_out_if.clk), .srst(packet_out_if.srst));
-            packet_descriptor_intf #(.ADDR_T(ADDR_T), .META_T(META_T)) rd_descriptor_if__in_clk  (.clk(packet_in_if.clk),  .srst(packet_in_if.srst));
-            packet_descriptor_intf #(.ADDR_T(ADDR_T), .META_T(META_T)) rd_descriptor_if__out_clk (.clk(packet_out_if.clk), .srst(packet_out_if.srst));
+            packet_descriptor_intf #(.ADDR_T(ADDR_T), .META_T(META_T)) wr_descriptor_if__in_clk  [1] (.clk(packet_in_if.clk),  .srst(packet_in_if.srst));
+            packet_descriptor_intf #(.ADDR_T(ADDR_T), .META_T(META_T)) wr_descriptor_if__out_clk [1] (.clk(packet_out_if.clk), .srst(packet_out_if.srst));
+            packet_descriptor_intf #(.ADDR_T(ADDR_T), .META_T(META_T)) rd_descriptor_if__in_clk  [1] (.clk(packet_in_if.clk),  .srst(packet_in_if.srst));
+            packet_descriptor_intf #(.ADDR_T(ADDR_T), .META_T(META_T)) rd_descriptor_if__out_clk [1] (.clk(packet_out_if.clk), .srst(packet_out_if.srst));
 
             // Enqueue FSM
             packet_enqueue       #(
@@ -71,6 +72,7 @@ module packet_fifo_core
                 .rd_descriptor_if ( rd_descriptor_if__in_clk ),
                 .event_if         ( event_in_if ),
                 .mem_wr_if,
+                .mem_wr_ctxt      ( ),
                 .mem_init_done
             );
             // Descriptor FIFOs
@@ -79,8 +81,8 @@ module packet_fifo_core
                 .DEPTH         ( MAX_DESCRIPTORS ),
                 .ASYNC         ( ASYNC )
             ) i_packet_descriptor_fifo (
-                .from_tx       ( wr_descriptor_if__in_clk ),
-                .to_rx         ( wr_descriptor_if__out_clk )
+                .from_tx       ( wr_descriptor_if__in_clk [0] ),
+                .to_rx         ( wr_descriptor_if__out_clk[0] )
             );
             if (ASYNC) begin : g__async
                 // -- Reverse (out to in)
@@ -88,35 +90,32 @@ module packet_fifo_core
                     .DEPTH         ( 8 ),
                     .ASYNC         ( 1 )
                 ) i_packet_descriptor_fifo (
-                    .from_tx       ( rd_descriptor_if__out_clk ),
-                    .to_rx         ( rd_descriptor_if__in_clk )
+                    .from_tx       ( rd_descriptor_if__out_clk[0] ),
+                    .to_rx         ( rd_descriptor_if__in_clk [0] )
                 );
             end : g__async
             else begin : g__sync
                 packet_descriptor_intf_connector i_packet_descriptor_intf_connector (
-                    .from_tx   ( rd_descriptor_if__out_clk ),
-                    .to_rx     ( rd_descriptor_if__in_clk )
+                    .from_tx   ( rd_descriptor_if__out_clk[0] ),
+                    .to_rx     ( rd_descriptor_if__in_clk [0] )
                 );
             end : g__sync
 
-            // Read FSM
-            packet_read          #(
+            // Dequeue FSM
+            packet_dequeue       #(
                 .IGNORE_RDY       ( IGNORE_RDY_OUT ),
                 .MAX_RD_LATENCY   ( MAX_RD_LATENCY )
             ) i_packet_read       (
                 .clk              ( packet_out_if.clk ),
                 .srst             ( packet_out_if.srst ),
                 .packet_if        ( packet_out_if ),
-                .descriptor_if    ( wr_descriptor_if__out_clk ),
+                .wr_descriptor_if ( wr_descriptor_if__out_clk ),
+                .rd_descriptor_if ( rd_descriptor_if__out_clk ),
                 .event_if         ( event_out_if ),
-                .mem_rd_if
+                .mem_rd_if,
+                .mem_rd_ctxt      ( ),
+                .mem_init_done
             );
-
-            assign rd_descriptor_if__out_clk.valid = wr_descriptor_if__out_clk.valid && wr_descriptor_if__out_clk.rdy;
-            assign rd_descriptor_if__out_clk.addr = wr_descriptor_if__out_clk.addr;
-            assign rd_descriptor_if__out_clk.size = wr_descriptor_if__out_clk.size;
-            assign rd_descriptor_if__out_clk.meta = wr_descriptor_if__out_clk.meta;
-            assign rd_descriptor_if__out_clk.err = wr_descriptor_if__out_clk.err;
 
         end : g__store_and_forward
     endgenerate

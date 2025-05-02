@@ -224,14 +224,8 @@ module packet_write
     assign descriptor_if.err    = packet_if.err;
 
     // Report packet event
-    always_ff @(posedge clk) begin
-        packet_event <= pkt_done;
-        packet_event_size <= pkt_size;
-        packet_event_status <= pkt_status;
-    end
-
-    assign event_if.evt = packet_event;
-    assign event_if.size = packet_event_size;
-    assign event_if.status = packet_event_status;
+    assign event_if.evt = pkt_done;
+    assign event_if.size = pkt_size;
+    assign event_if.status = pkt_status;
 
 endmodule : packet_write

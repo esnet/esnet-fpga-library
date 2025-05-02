@@ -28,6 +28,7 @@ SUBCOMPONENTS = \
     mem.rtl \
     mem.proxy.rtl \
     alloc.rtl \
+    arb.rtl \
     packet.pkg \
     packet.regio.rtl
 

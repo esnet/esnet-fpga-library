@@ -21,10 +21,15 @@ module packet_enqueue_unit_test #(
     localparam int  ADDR_WID = $clog2(BUFFER_WORDS);
     localparam int  MIN_PKT_SIZE = 40;
     localparam int  MAX_PKT_SIZE = 1500;
+    localparam int  SIZE_WID = $clog2(MAX_PKT_SIZE+1);
+    localparam type SIZE_T = logic[SIZE_WID-1:0];
 
     localparam type ADDR_T = logic[ADDR_WID-1:0];
     localparam type PTR_T  = logic[ADDR_WID  :0];
 
+    localparam int  NUM_CONTEXTS = 1;
+    localparam int  CTXT_WID = $clog2(NUM_CONTEXTS);
+    localparam type CTXT_T = logic[CTXT_WID-1:0];
 
     typedef packet#(META_T) PACKET_T;
     typedef packet_descriptor#(ADDR_T,META_T) PACKET_DESCRIPTOR_T;
@@ -40,18 +45,27 @@ module packet_enqueue_unit_test #(
     PTR_T head_ptr;
     PTR_T tail_ptr;
 
-    packet_descriptor_intf #(.ADDR_T(ADDR_T), .META_T(META_T)) wr_descriptor_if (.clk(clk));
-    packet_descriptor_intf #(.ADDR_T(ADDR_T), .META_T(META_T)) rd_descriptor_if (.clk(clk));
+    packet_descriptor_intf #(.ADDR_T(ADDR_T), .META_T(META_T)) wr_descriptor_if [NUM_CONTEXTS] (.clk(clk));
+    packet_descriptor_intf #(.ADDR_T(ADDR_T), .META_T(META_T)) rd_descriptor_if [NUM_CONTEXTS] (.clk(clk));
+
     packet_event_intf event_if (.clk(clk));
 
+    logic  ctxt_out_valid;
+    CTXT_T ctxt_out;
+
+    logic ctxt_list_append_rdy;
+
     mem_wr_intf #(.ADDR_WID(ADDR_WID), .DATA_WID(DATA_WID)) mem_wr_if (.clk(clk));
+    CTXT_T mem_wr_ctxt;
     logic mem_init_done;
 
     packet_enqueue #(
         .IGNORE_RDY ( 1 ),
         .DROP_ERRORED ( DROP_ERRORED ),
         .MIN_PKT_SIZE ( MIN_PKT_SIZE ),
-        .MAX_PKT_SIZE ( MAX_PKT_SIZE )
+        .MAX_PKT_SIZE ( MAX_PKT_SIZE ),
+        .ALIGNMENT    ( 1 ),
+        .NUM_CONTEXTS ( NUM_CONTEXTS )
     ) DUT (
         .*
     );
@@ -78,8 +92,6 @@ module packet_enqueue_unit_test #(
     packet_intf_driver#(DATA_BYTE_WID,META_T) driver;
     packet_descriptor_intf_monitor#(ADDR_T,META_T) monitor;
 
-    packet_descriptor_intf_driver#(ADDR_T,META_T) rd_completion_driver;
-
     // Model
     packet_enqueue_model#(DATA_BYTE_WID,ADDR_T,META_T) model;
     std_verif_pkg::event_scoreboard#(PACKET_DESCRIPTOR_T) scoreboard;
@@ -93,6 +105,15 @@ module packet_enqueue_unit_test #(
     // Assign clock (333MHz)
     `SVUNIT_CLK_GEN(clk, 1.5ns);
 
+    logic  ack       [NUM_CONTEXTS];
+    SIZE_T ack_bytes [NUM_CONTEXTS];
+    generate
+        for (genvar g_ctxt = 0; g_ctxt < NUM_CONTEXTS; g_ctxt++) begin
+            assign rd_descriptor_if[g_ctxt].valid = ack[g_ctxt];
+            assign rd_descriptor_if[g_ctxt].size  = ack_bytes[g_ctxt];
+        end
+    endgenerate
+
     //===================================
     // Build
     //===================================
@@ -104,10 +125,7 @@ module packet_enqueue_unit_test #(
         driver.packet_vif = packet_if;
 
         monitor = new();
-        monitor.packet_descriptor_vif = wr_descriptor_if;
-
-        rd_completion_driver = new();
-        rd_completion_driver.packet_descriptor_vif = rd_descriptor_if;
+        monitor.packet_descriptor_vif = wr_descriptor_if[0];
 
         model = new("model", MIN_PKT_SIZE, MAX_PKT_SIZE);
         scoreboard = new();
@@ -126,6 +144,8 @@ module packet_enqueue_unit_test #(
     //===================================
     task setup();
         svunit_ut.setup();
+
+        idle();
 
         // Start environment
         env.run();
@@ -216,25 +236,20 @@ module packet_enqueue_unit_test #(
         `SVTEST_END
 
         `SVTEST(overflow)
-            packet_descriptor#(ADDR_T,META_T) rd_descriptor;
             int words;
             int rd_size;
             len = $urandom_range(MIN_PKT_SIZE, MAX_PKT_SIZE);
             words = $ceil(len * 1.0 / DATA_BYTE_WID);
             rd_size = BUFFER_WORDS*DATA_BYTE_WID+(words-2)*DATA_BYTE_WID;
             while (rd_size > 0) begin
-                if (rd_size > 2**16-1) begin
-                    rd_descriptor = new(.size(2**16-1));
-                    rd_completion_driver.send(rd_descriptor);
-                    rd_size -= 2**16-1;
+                if (rd_size > 2**SIZE_WID-1) begin
+                    send_ack(0, 2**SIZE_WID-1);
+                    rd_size -= 2**SIZE_WID;
                 end else begin
-                    rd_descriptor = new(.size(rd_size));
-                    rd_completion_driver.send(rd_descriptor);
+                    send_ack(0, rd_size);
                     rd_size = 0;
                 end
             end
-            tail_ptr = BUFFER_WORDS + (words - 1);
-            model.set_tail_ptr(tail_ptr);
             one_packet(0, len);
             #10us `FAIL_IF_LOG(scoreboard.report(msg) > 0, msg);
             `FAIL_UNLESS_EQUAL(scoreboard.got_processed(), 0);
@@ -275,6 +290,21 @@ module packet_enqueue_unit_test #(
 
     `SVUNIT_TESTS_END
 
+    task idle();
+        for (int i = 0; i < NUM_CONTEXTS; i++) begin
+            ack[i] = 1'b0;
+        end
+    endtask
+
+    task send_ack(input int _ctxt, input int _bytes);
+        @(posedge clk);
+        ack[_ctxt] <= 1'b1;
+        ack_bytes[_ctxt] <= _bytes;
+        @(posedge clk);
+        ack[_ctxt] <= 1'b0;
+        model.ack_bytes(_bytes);
+    endtask
+
 endmodule
 
 // 'Boilerplate' unit test wrapper code
@@ -298,10 +328,10 @@ endmodule
 
 
 module packet_enqueue_err_drops_unit_test;
-`PACKET_ENQUEUE_UNIT_TEST(0);
+`PACKET_ENQUEUE_UNIT_TEST(1);
 endmodule
 
 module packet_enqueue_no_err_drops_unit_test;
-`PACKET_ENQUEUE_UNIT_TEST(1);
+`PACKET_ENQUEUE_UNIT_TEST(0);
 endmodule
 
