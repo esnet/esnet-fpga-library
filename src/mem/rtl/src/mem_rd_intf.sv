@@ -99,3 +99,21 @@ module mem_rd_intf_connector (
     assign mem_rd_if_from_controller.data = mem_rd_if_to_peripheral.data;
     assign mem_rd_if_from_controller.ack  = mem_rd_if_to_peripheral.ack;
 endmodule : mem_rd_intf_connector
+
+// Memory read interface controller termination
+module mem_rd_intf_controller_term (
+    input srst = 1'b0,
+    mem_rd_intf.controller to_peripheral
+);
+    assign to_peripheral.rst = srst;
+    assign to_peripheral.req = 1'b0;
+endmodule : mem_rd_intf_controller_term
+
+// Memory read interface peripheral termination
+module mem_rd_intf_peripheral_term (
+    input srst = 1'b0,
+    mem_rd_intf.peripheral from_controller
+);
+    assign from_controller.rdy = 1'b0;
+    assign from_controller.ack = 1'b0;
+endmodule : mem_rd_intf_peripheral_term
