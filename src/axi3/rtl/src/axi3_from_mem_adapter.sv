@@ -6,6 +6,7 @@ module axi3_from_mem_adapter
     import axi3_pkg::*;
 #(
     parameter axsize_t SIZE = SIZE_64BYTES,
+    parameter longint BASE_ADDR  = 0,
     parameter int WR_TIMEOUT = 64, // Write timeout (in clock cycles); set to 0 to disable timeout
     parameter int RD_TIMEOUT = 64  // Read timeout  (in clock cycles); set to 0 to disable timeout
 )(
@@ -23,18 +24,21 @@ module axi3_from_mem_adapter
     axi3_intf.controller       axi3_if
 );
     // Parameters
-    localparam int DATA_BYTES     = get_word_size(SIZE);
-    localparam int WORD_ADDR_WID  = mem_wr_if.ADDR_WID;
-    localparam int BYTE_SEL_WID   = $clog2(DATA_BYTES);
-    localparam int BYTE_ADDR_WID  = WORD_ADDR_WID + BYTE_SEL_WID;
+    localparam int DATA_BYTES    = get_word_size(SIZE);
+    localparam int WORD_ADDR_WID = mem_wr_if.ADDR_WID;
+    localparam int BYTE_SEL_WID  = $clog2(DATA_BYTES);
+    localparam int BYTE_ADDR_WID = WORD_ADDR_WID + BYTE_SEL_WID;
+    localparam int BASE_ADDR_WID = $clog2(BASE_ADDR);
+    localparam int AXI_ADDR_WID  = $clog2(BASE_ADDR + 2**BYTE_ADDR_WID);
 
     // Parameter checking
     initial begin
         std_pkg::param_check(mem_wr_if.DATA_WID, DATA_BYTES*8,  "mem_wr_if.DATA_WID");
         std_pkg::param_check(mem_rd_if.ADDR_WID, WORD_ADDR_WID, "mem_rd_if.ADDR_WID");
         std_pkg::param_check(mem_rd_if.DATA_WID, DATA_BYTES*8,  "mem_rd_if.DATA_WID");
-        std_pkg::param_check(axi3_if.ADDR_WID, BYTE_ADDR_WID,   "axi3_if.ADDR_WID");
+        std_pkg::param_check_gt(axi3_if.ADDR_WID, AXI_ADDR_WID,   "axi3_if.ADDR_WID");
         std_pkg::param_check(axi3_if.DATA_BYTE_WID, DATA_BYTES, "axi3_if.DATA_BYTE_WID");
+        if (BASE_ADDR > 0) std_pkg::param_check(2**$clog2(BASE_ADDR), BASE_ADDR, "BASE_ADDR must be power of 2.");
     end
     
     // Signals
@@ -65,7 +69,7 @@ module axi3_from_mem_adapter
         end
     end
 
-    always_ff @(posedge clk) if (mem_wr_if.req && mem_wr_if.rdy) axi3_if.awaddr <= mem_wr_if.addr << BYTE_SEL_WID;
+    always_ff @(posedge clk) if (mem_wr_if.req && mem_wr_if.rdy) axi3_if.awaddr <= BASE_ADDR + (mem_wr_if.addr << BYTE_SEL_WID);
  
     // Write metadata
     // -----------------------------
@@ -184,7 +188,7 @@ module axi3_from_mem_adapter
         end
     end
 
-    always_ff @(posedge clk) if (mem_rd_if.req && mem_rd_if.rdy) axi3_if.araddr <= mem_rd_if.addr << BYTE_SEL_WID;
+    always_ff @(posedge clk) if (mem_rd_if.req && mem_rd_if.rdy) axi3_if.araddr <= BASE_ADDR + (mem_rd_if.addr << BYTE_SEL_WID);
   
     // Read metadata
     // -----------------------------
