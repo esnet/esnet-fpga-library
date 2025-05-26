@@ -25,8 +25,6 @@ IP_SRC_DIR = $(COMPONENT_OUT_PATH)
 # -----------------------------------------------
 VITISNETP4_TCL_FILE = $(IP_SRC_DIR)/$(VITISNETP4_IP_NAME).tcl
 
-SRC_FILES = $(shell find $(XILINX_VIVADO)/data/ip/xilinx/vitis_net_p4* -name "vitis_net_p4_dpi_pkg.sv")
-
 IP_SIM_SRC_FILES += \
     $(VITISNETP4_IP_NAME)/src/verilog/$(VITISNETP4_IP_NAME)_top_pkg.sv \
     $(VITISNETP4_IP_NAME)/src/verilog/$(VITISNETP4_IP_NAME)_pkg.sv \
@@ -118,6 +116,9 @@ EXT_LIBS += \
 endif
 endif
 endif
+
+SUBCOMPONENTS += \
+    xilinx.vitisnetp4.dpi$(if $(COMMON_LIB_NAME),$(lib_separator)$(COMMON_LIB_NAME),)
 
 # -----------------------------------------------
 # Include base Vivado IP management Make instructions
