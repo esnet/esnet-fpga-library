@@ -188,7 +188,7 @@ $(IP_XCI_PROXY_DIR)/.vitisnetp4_refreshed: $(VITISNETP4_TCL_FILE) $(IP_XCI_PROXY
 
 _vitisnetp4_dpi_drv: $(VITISNETP4_DPI_DRV_FILE)
 
-_vitisnetp4_compile: _ip_exdes _vitisnetp4_dpi_drv _ip_compile
+_vitisnetp4_compile: _vitisnetp4_dpi_drv _ip_compile
 
 _vitisnetp4_synth: _ip_synth | $(COMPONENT_OUT_SYNTH_PATH)
 	@rm -rf $(COMPONENT_OUT_SYNTH_PATH)/sv_pkg_srcs.f
