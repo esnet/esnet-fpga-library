@@ -125,8 +125,8 @@ if {$PHASE == "create_proj"} {
     # Configure design
     vivadoProcs::set_top $TOP
 
-    # Apply defines
-    set_property verilog_define $DEFINE [current_fileset]
+    # Apply defines (append to existing list)
+    set_property verilog_define [concat [get_property verilog_define [current_fileset]] $DEFINE] [current_fileset]
 
     # Apply message severity overrides
     set_msg_config -id {[Synth 8-295]} -new_severity ERROR
