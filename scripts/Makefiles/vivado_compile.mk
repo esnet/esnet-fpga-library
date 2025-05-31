@@ -171,14 +171,16 @@ _synth_sources: $(SRCS) $(HDRS) | $(COMPONENT_OUT_SYNTH_PATH)
 	@echo "# Defines" >> $(SYNTH_SOURCES_OBJ)
 	@echo "# ------------------------" >> $(SYNTH_SOURCES_OBJ)
 	@if [ ! -z "$(strip $(SYNTH_DEFINES))" ]; then \
-		echo "set_property verilog_define {" >> $(SYNTH_SOURCES_OBJ); \
+		echo "set verilog_defines [get_property verilog_define [current_fileset]]" >> $(SYNTH_SOURCES_OBJ); \
+		echo "lappend verilog_defines {*}{" >> $(SYNTH_SOURCES_OBJ); \
 	fi
 	@-for define in $(SYNTH_DEFINES); do \
 		echo $$define >> $(COMPONENT_OUT_SYNTH_PATH)/defines.f; \
 		echo "\t$$define" >> $(SYNTH_SOURCES_OBJ); \
 	done
 	@if [ ! -z "$(strip $(SYNTH_DEFINES))" ]; then \
-		echo "} [current_fileset]" >> $(SYNTH_SOURCES_OBJ); \
+		echo "}" >> $(SYNTH_SOURCES_OBJ); \
+		echo "set_property verilog_define \$$verilog_defines [current_fileset]" >> $(SYNTH_SOURCES_OBJ); \
 	fi
 	@echo >> $(SYNTH_SOURCES_OBJ)
 	@echo "# Xilinx IP source listing" >> $(SYNTH_SOURCES_OBJ)
