@@ -17,6 +17,19 @@ LIB_OUTPUT_ROOT ?= $(OUTPUT_ROOT)
 endif
 
 # ----------------------------------------------------
+# Tool check
+# ----------------------------------------------------
+include $(CFG_ROOT)/vivado.mk
+
+ifndef XILINX_VIVADO
+$(error Vivado not configured. Expecting Vivado v$(PROJ_VIVADO_VERSION))
+else
+ifneq ($(notdir $(XILINX_VIVADO)), $(PROJ_VIVADO_VERSION__MAJOR))
+$(error This project expects Vivado $(PROJ_VIVADO_VERSION) (found Vivado $(notdir $(XILINX_VIVADO))))
+endif
+endif
+
+# ----------------------------------------------------
 # Environment
 # ----------------------------------------------------
 # Common environment

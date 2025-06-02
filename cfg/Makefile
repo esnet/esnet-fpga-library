@@ -1,20 +1,18 @@
 # ----------------------------------------------------
 # Path setup
 # ----------------------------------------------------
-PROJ_ROOT = .
+PROJ_ROOT = ..
 
 include $(PROJ_ROOT)/config.mk
 
 # ----------------------------------------------------
-# Help
+# Targets
 # ----------------------------------------------------
-help: __header _config_help
+help: _help
+check: _check
+info:  _info
 
-__header:
-	@echo "ESnet FPGA library"
-	@echo "========================================"
-
-.PHONY: _header help
+.PHONY: help check info
 
 # ----------------------------------------------------
 # Configure device properties for project
@@ -23,23 +21,12 @@ __header:
 #   make config [PART=<part>] [BOARD_PART=<board_part>] [BOARD_REPO=<path_to_board_files>]
 config: _config
 
-_paths:
-	$(_proj_print_paths)
-
-.PHONY: config _paths
+.PHONY: config
 
 # Include part configuration targets
 include $(SCRIPTS_ROOT)/Makefiles/config_part.mk
 
-# Include tool/environment configuration targets
-include $(SCRIPTS_ROOT)/Makefiles/config.mk
-
 # ----------------------------------------------------
-# Clean project
+# Include base Makefile
 # ----------------------------------------------------
-clean:
-	@echo "Removing all output products..."
-	@rm -rf $(OUTPUT_ROOT)
-	@echo "Done."
-
-.PHONY: clean
+include $(SCRIPTS_ROOT)/Makefiles/cfg_base.mk

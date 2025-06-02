@@ -9,10 +9,11 @@
 #  CFG_ROOT - path to configuration directory.
 # -----------------------------------------------------------------------------
 # Includes
-include $(SCRIPTS_ROOT)/Makefiles/config_vivado.mk
+include $(CFG_ROOT)/vivado.mk
+include $(CFG_ROOT)/vivado_ip.mk
 include $(SCRIPTS_ROOT)/Makefiles/config_env.mk
 
 # Targets
-config_check: vivado_check env_check
+config_check: .vivado_version_check .vivado_ip_check env_check
 
 .PHONY: config_check

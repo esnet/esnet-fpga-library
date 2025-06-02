@@ -54,11 +54,14 @@ IP_SIM_INC_DIRS += \
     $(VITISNETP4_IP_NAME)/src/hw/simulation \
     $(VITISNETP4_IP_NAME)/src/verilog
 
+# Import IP core revision details from version-specific tool config
+include $(CFG_ROOT)/vivado_ip.mk
+
 EXT_LIBS += \
-    cam_v2_6_0 \
+    cam_v$(IP_VER_CAM) \
     cam_blk_lib_v1_0_0 \
-    cdcam_v1_0_0 \
-    vitis_net_p4_v2_0_0 \
+    cdcam_v$(IP_VER_CDCAM) \
+    vitis_net_p4_v$(IP_VER_VITIS_NET_P4) \
     unisims_ver \
     unisims_macro \
     xpm

@@ -140,9 +140,12 @@ else
 # If no component is specified, generate helpful error message
 define LIB_OP_RULE
 _$(target): __$(target)
+ifeq ($(target),info)
+else
 	@echo "ERROR: no component specified."
 	@$(MAKE) -s _usage
 	@false
+endif
 endef
 endif
 $(foreach target,$(LIB_OPS),$(eval $(LIB_OP_RULE)))
