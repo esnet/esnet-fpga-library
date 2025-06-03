@@ -1,3 +1,5 @@
+ifndef __CFG_VIVADO_IP_BASE_MK__
+__CFG_VIVADO_IP_BASE_MK__ := defined
 # This Makefile provides generic definitions for using/manipulating
 # vivado IP definitions
 #
@@ -15,18 +17,44 @@ include $(CFG_ROOT)/vivado.mk
 # ------------------------------------------------------------------
 # Load version-specfic IP config where available
 # ------------------------------------------------------------------
-ACTIVE_VIVADO_IP_CFG_FILE = $(CFG_ROOT)/$(VIVADO_ACTIVE_VERSION)/vivado_ip.mk
-PROJ_VIVADO_IP_CFG_FILE   = $(CFG_ROOT)/$(PROJ_VIVADO_VERSION)/vivado_ip.mk
+get_config_file_for_version = $(CFG_ROOT)/$(1)/vivado_ip.mk
 
-ifneq ($(wildcard $(ACTIVE_VIVADO_IP_CFG_FILE)),)
-# First look for config file matching 'active' Vivado version
-include $(ACTIVE_VIVADO_IP_CFG_FILE)
+ifneq ($(wildcard $(call get_config_file_for_version,$(VIVADO_ACTIVE_VERSION))),)
+# First look for IP config file matching 'active' Vivado version, including patch (e.g. 2024.2.1_AR1)
+IP_CONFIG_VERSION = $(VIVADO_ACTIVE_VERSION)
+include $(call get_config_file_for_version,$(VIVADO_ACTIVE_VERSION))
 else
-ifneq ($(wildcard $(PROJ_VIVADO_IP_CFG_FILE)),)
-# Otherwise load the config file corresponding to the project-secified Vivado version
-include $(PROJ_VIVADO_IP_CFG_FILE)
+ifneq ($(wildcard $(call get_config_file_for_version,$(VIVADO_ACTIVE_VERSION__MAJOR_MINOR))),)
+# Then look for IP config file matching 'active' MAJOR/MINOR Vivado version, no patch (e.g. 2024.2.1)
+IP_CONFIG_VERSION = $(VIVADO_ACTIVE_VERSION__MAJOR_MINOR)
+include $(call get_config_file_for_version,$(VIVADO_ACTIVE_VERSION__MAJOR_MINOR))
 else
-# No version-specific config file is provided; proceed with defaults
+ifneq ($(wildcard $(call get_config_file_for_version,$(VIVADO_ACTIVE_VERSION__MAJOR))),)
+# Then look for IP config file matching 'active' MAJOR Vivado version, no patch (e.g. 2024.2)
+IP_CONFIG_VERSION = $(VIVADO_ACTIVE_VERSION__MAJOR)
+include $(call get_config_file_for_version,$(VIVADO_ACTIVE_VERSION__MAJOR))
+else
+ifneq ($(wildcard $(call get_config_file_for_version,$(PROJ_VIVADO_VERSION))),)
+# Then look for IP config file matching 'project' Vivado version, including patch (e.g. 2025.1.1_AR1)
+IP_CONFIG_VERSION = $(PROJ_VIVADO_VERSION)
+include $(call get_config_file_for_version,$(PROJ_VIVADO_VERSION))
+else
+ifneq ($(wildcard $(call get_config_file_for_version,$(PROJ_VIVADO_VERSION__MAJOR_MINOR))),)
+# Then look for IP config file matching 'project' MAJOR/MINOR Vivado version, no patch (e.g. 2025.1.1)
+IP_CONFIG_VERSION = $(PROJ_VIVADO_VERSION__MAJOR_MINOR)
+include $(call get_config_file_for_version,$(PROJ_VIVADO_VERSION__MAJOR_MINOR))
+else
+ifneq ($(wildcard $(call get_config_file_for_version,$(PROJ_VIVADO_VERSION__MAJOR))),)
+# Then look for IP config file matching 'project' MAJOR Vivado version, no patch (e.g. 2025.1)
+IP_CONFIG_VERSION = $(PROJ_VIVADO_VERSION__MAJOR)
+include $(call get_config_file_for_version,$(PROJ_VIVADO_VERSION__MAJOR))
+else
+# No version-specific IP config file is provided; proceed with defaults
+IP_CONFIG_VERSION = default
+endif
+endif
+endif
+endif
 endif
 endif
 
@@ -58,9 +86,12 @@ $(foreach ip_ver,$(__IP_VER_LIST),$(eval $(ip_ver)))
 	@echo "------------------------------------------------------"
 	@echo "(Vivado) IP version info"
 	@echo "------------------------------------------------------"
+	@echo "IP CONFIG_FILE: $(call get_config_file_for_version,$(IP_CONFIG_VERSION))"
 	@echo "VIVADO_IP :"
 	@for ip in $(VIVADO_IP); do \
 		echo "\t$$ip"; \
 	done
 
 .PHONY: .vivado_ip_info
+
+endif # ifndef $(__CFG_VIVADO_IP_BASE_MK__)

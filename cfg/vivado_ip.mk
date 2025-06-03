@@ -14,23 +14,42 @@
 # IP listings can (and often must) be provided per tool version. Simultaneous
 # support for multiple patch versions of the tool is supported by managing
 # IP definitions files, which are searched in the following order:
-# 
+#
 # 1. $(CFG_ROOT)/[active_vivado_version]/vivado_ip.mk
-#     
-#     (where active_vivado_version is the version currently configured in the
-#      system, i.e the result of vivado -version)
 #
-# 2. $(CFG_ROOT)/$(PROJ_VIVADO_VERSION)/vivado_ip.mk
+#     (where active_vivado_version is the version of the tool currently configured
+#      i.e the full result of vivado -version; e.g. 2024.2.1_AR1)
 #
-# 3. Defaults (provided in this file, below) 
+# 2. $(CFG_ROOT)/[active_vivado_major_minor_version]/vivado_ip.mk
 #
-# Note: the currently configured Vivado IP can be queried using `make vivado_ip_info`
+#     (where active_vivado_major_minor_version is the major/minor version currently configured
+#      i.e the result of vivado -version, without patch release; e.g. 2024.2.1)
+#
+# 3. $(CFG_ROOT)/[active_vivado_major_version]/vivado_ip.mk
+#
+#     (where active_vivado_major_version is the major version currently configured
+#      i.e the result of vivado -version, without minor version or patch release; e.g. 2024.2)
+#
+# 4. $(CFG_ROOT)/[project_vivado_version]/vivado_ip.mk
+#
+#     (where project_vivado_version is the full version of the tool expected by the project)
+#
+# 5. $(CFG_ROOT)/[project_vivado_major_minor_version]/vivado_ip.mk
+#
+#     (where project_vivado_major_minor_version is the major/minor (no patch) version of the
+#      tool expected by the project)
+#
+# 6. $(CFG_ROOT)/[project_vivado_major_version]/vivado_ip.mk
+#
+#     (where project_vivado_major_version is the major (no minor, no patch) version of the
+#      tool expected by the project)
+#
+# 7. Defaults (provided in this file, below)
+#
+# Note: the currently configured Vivado IP can be queried using `make info`
 
 # Provide IP defaults (only used when no version-specific config is provided)
-VIVADO_IP ?= \
-    xilinx.com:ip:cam:2.6=0 \
-    xilinx.com:ip:cdcam:1.0=0 \
-    xilinx.com:ip:vitis_net_p4:2.0=0
+VIVADO_IP ?=
 
 # ------------------------------------------------------------------
 # Import targets for querying tool and IP version info

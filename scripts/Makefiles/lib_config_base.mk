@@ -25,7 +25,9 @@ ifndef XILINX_VIVADO
 $(error Vivado not configured. Expecting Vivado v$(PROJ_VIVADO_VERSION))
 else
 ifneq ($(notdir $(XILINX_VIVADO)), $(PROJ_VIVADO_VERSION__MAJOR))
-$(error This project expects Vivado $(PROJ_VIVADO_VERSION) (found Vivado $(notdir $(XILINX_VIVADO))))
+$(info  *** This project expects Vivado $(PROJ_VIVADO_VERSION) (found Vivado $(notdir $(XILINX_VIVADO))). ***)
+$(info  To continue using Vivado $(notdir $(XILINX_VIVADO)) (unsupported), change the project version specified in $(abspath $(CFG_ROOT)/vivado.mk).)
+$(error Invalid Vivado tool version)
 endif
 endif
 
