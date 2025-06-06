@@ -4,7 +4,8 @@
 `define SVUNIT_TIMEOUT 1s
 
 module alloc_sg_core_unit_test #(
-    parameter int PTR_WID = 8
+    parameter int PTR_WID = 8,
+    parameter bit RAM_MODEL = 0
 );
     import svunit_pkg::svunit_testcase;
 
@@ -63,7 +64,8 @@ module alloc_sg_core_unit_test #(
     ) DUT (.*);
 
     mem_ram_sdp #(
-        .SPEC ( '{ADDR_WID: PTR_WID, DATA_WID: DESC_WID, ASYNC: 1'b0, RESET_FSM: 1'b0, OPT_MODE: mem_pkg::OPT_MODE_DEFAULT} )
+        .SPEC ( '{ADDR_WID: PTR_WID, DATA_WID: DESC_WID, ASYNC: 1'b0, RESET_FSM: 1'b0, OPT_MODE: mem_pkg::OPT_MODE_DEFAULT} ),
+        .SIM__RAM_MODEL ( RAM_MODEL )
     ) i_mem_ram_sdp (
         .mem_wr_if ( desc_mem_wr_if ),
         .mem_rd_if ( desc_mem_rd_if )
@@ -271,10 +273,10 @@ endmodule : alloc_sg_core_unit_test
 // 'Boilerplate' unit test wrapper code
 //  Builds unit test for a specific configuration in a way
 //  that maintains SVUnit compatibility
-`define ALLOC_SG_CORE_UNIT_TEST(PTR_WID)\
+`define ALLOC_SG_CORE_UNIT_TEST(PTR_WID,RAM_MODEL)\
   import svunit_pkg::svunit_testcase;\
   svunit_testcase svunit_ut;\
-  alloc_sg_core_unit_test#(PTR_WID) test();\
+  alloc_sg_core_unit_test#(PTR_WID,RAM_MODEL) test();\
   function void build();\
     test.build();\
     svunit_ut = test.svunit_ut;\
@@ -288,22 +290,22 @@ endmodule : alloc_sg_core_unit_test
 
 // (Distributed RAM) 8-bit pointer allocator
 module alloc_sg_core_8b_unit_test;
-`ALLOC_SG_CORE_UNIT_TEST(8);
+`ALLOC_SG_CORE_UNIT_TEST(8,0);
 endmodule
 
 // (Block RAM) 4096-entry, 12-bit pointer allocator
 module alloc_sg_core_12b_unit_test;
-`ALLOC_SG_CORE_UNIT_TEST(12);
+`ALLOC_SG_CORE_UNIT_TEST(12,0);
 endmodule
 
 // (Block RAM) 65536-entry, 16-bit pointer allocator
 module alloc_sg_core_16b_unit_test;
-`ALLOC_SG_CORE_UNIT_TEST(16);
+`ALLOC_SG_CORE_UNIT_TEST(16,1);
 endmodule
 
 // (Ultra RAM) 262144-entry, 18-bit pointer allocator
 module alloc_sg_core_18b_unit_test;
-`ALLOC_SG_CORE_UNIT_TEST(18);
+`ALLOC_SG_CORE_UNIT_TEST(18,1);
 endmodule
 
 

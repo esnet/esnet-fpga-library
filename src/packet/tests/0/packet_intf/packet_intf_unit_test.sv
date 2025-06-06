@@ -34,7 +34,7 @@ module packet_intf_unit_test #(
     generate
         case (DUT_SELECT)
             0: packet_intf_connector DUT (.from_tx(packet_in_if), .to_rx(packet_out_if));
-            1: packet_fifo #(.DEPTH (16384)) DUT (.*);
+            1: packet_fifo #(.DEPTH (16384), .SIM__RAM_MODEL(1)) DUT (.*);
         endcase
     endgenerate
 
