@@ -8,7 +8,9 @@ module packet_fifo
     parameter int  MIN_PKT_SIZE = 0,
     parameter int  MAX_PKT_SIZE = 16384,
     parameter int  DEPTH = 512,
-    parameter int  MAX_DESCRIPTORS = 32
+    parameter int  MAX_DESCRIPTORS = 32,
+    // Simulation-only
+    parameter bit  SIM__RAM_MODEL = 0
  ) (
     packet_intf.rx  packet_in_if,
     packet_intf.tx  packet_out_if
@@ -70,7 +72,8 @@ module packet_fifo
     // Memory instantiation
     // -----------------------------
     mem_ram_sdp #(
-        .SPEC ( MEM_SPEC )
+        .SPEC ( MEM_SPEC ),
+        .SIM__RAM_MODEL ( SIM__RAM_MODEL )
     ) i_mem_ram_sdp (
         .*
     );

@@ -8,7 +8,7 @@ module mem_ram_sdp
     parameter logic [SPEC.DATA_WID-1:0] RESET_VAL = '0,
     // Simulation parameters
     parameter bit SIM__FAST_INIT = 0, // Fast init in simulations
-    parameter bit SIM__RAM_MODEL = 1  // Use model for RAM (associative array) in sims
+    parameter bit SIM__RAM_MODEL = 0  // Use model for RAM (associative array) in sims
 ) (
     // Write interface
     mem_wr_intf.peripheral mem_wr_if,

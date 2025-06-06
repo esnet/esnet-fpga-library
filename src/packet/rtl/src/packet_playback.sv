@@ -9,7 +9,10 @@
 module packet_playback #(
     parameter bit  IGNORE_RDY = 0,
     parameter int  MAX_RD_LATENCY = 8,
-    parameter int  PACKET_MEM_SIZE = 16384
+    parameter int  PACKET_MEM_SIZE = 16384,
+    // Simulation-only
+    parameter bit  SIM__FAST_INIT = 1,
+    parameter bit  SIM__RAM_MODEL = 1
 ) (
     // Clock/Reset
     input  logic                clk,
@@ -346,8 +349,8 @@ module packet_playback #(
 
     mem_ram_tdp #(
         .SPEC    ( MEM_SPEC ),
-        .SIM__FAST_INIT ( 1 ),
-        .SIM__RAM_MODEL ( 0 )
+        .SIM__FAST_INIT ( SIM__FAST_INIT ),
+        .SIM__RAM_MODEL ( SIM__RAM_MODEL )
     ) i_mem_ram_tdp (
         .mem_if_0 ( mem_if__proxy ),
         .mem_if_1 ( mem_if__read )

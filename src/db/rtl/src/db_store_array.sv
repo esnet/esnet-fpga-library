@@ -4,7 +4,8 @@ module db_store_array #(
     parameter bit  TRACK_VALID = 1,// When set, each record includes a valid bit
                                    // When unset, records do not include a valid bit (all records are considered valid)
     // Simulation-only
-    parameter bit  SIM__FAST_INIT = 1 // Optimize sim time by performing fast memory init
+    parameter bit  SIM__FAST_INIT = 1, // Optimize sim time by performing fast memory init
+    parameter bit  SIM__RAM_MODEL = 0
 )(
     // Clock/reset
     input  logic            clk,
@@ -48,7 +49,8 @@ module db_store_array #(
 
     mem_ram_sdp        #(
         .SPEC           ( MEM_SPEC ),
-        .SIM__FAST_INIT ( SIM__FAST_INIT )
+        .SIM__FAST_INIT ( SIM__FAST_INIT ),
+        .SIM__RAM_MODEL ( SIM__RAM_MODEL )
     ) i_mem_ram_sdp__db (
         .mem_wr_if ( mem_wr_if ),
         .mem_rd_if ( mem_rd_if )

@@ -18,7 +18,8 @@ module alloc_bv #(
     // Derived parameters (don't override)
     parameter int  PTR_WID = $bits(PTR_T),
     // Simulation-only
-    parameter bit  SIM__FAST_INIT = 1 // Optimize sim time by performing fast memory init
+    parameter bit  SIM__FAST_INIT = 1, // Optimize sim time by performing fast memory init
+    parameter bit  SIM__RAM_MODEL = 0
 ) (
     // Clock/reset
     input logic               clk,
@@ -86,7 +87,8 @@ module alloc_bv #(
     mem_ram_sdp   #(
         .SPEC      ( MEM_SPEC ),
         .RESET_VAL ( {NUM_COLS{1'b1}} ),
-        .SIM__FAST_INIT ( SIM__FAST_INIT )
+        .SIM__FAST_INIT ( SIM__FAST_INIT ),
+        .SIM__RAM_MODEL ( SIM__RAM_MODEL )
     ) i_mem_ram_sdp (
         .mem_wr_if ( mem_wr_if ),
         .mem_rd_if ( mem_rd_if )
