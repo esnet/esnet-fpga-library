@@ -15,6 +15,9 @@
     output logic  srst_out, // Active-high output reset
     output logic  srstn_out // Active-low  output reset
 );
+    // Parameters
+    localparam logic __INIT_VALUE = ASSERT_ON_INIT ? 1'b1 : 1'b0;
+
     // Signals
     logic __srst_in;
     logic __srst;
@@ -35,7 +38,7 @@
     generate
         if (STAGES > 1) begin : g__multi_stage
             (* max_fanout = 100 *) logic __srst_p [STAGES-1];
-            initial __srst_p = '{default: ASSERT_ON_INIT};
+            initial __srst_p = '{default: __INIT_VALUE};
             always @(posedge clk) begin
                 for (int i = 1; i < STAGES-1; i++) begin
                     __srst_p[i] <= __srst_p[i-1];
@@ -53,10 +56,10 @@
     endgenerate
 
     // Final stage(s) / separate instances for active-high and active-low outputs
-    initial __srst_out = ASSERT_ON_INIT;
+    initial __srst_out = __INIT_VALUE;
     always @(posedge clk) __srst_out <= __srst;
 
-    initial __srstn_out = !ASSERT_ON_INIT;
+    initial __srstn_out = !__INIT_VALUE;
     always @(posedge clk) __srstn_out <= !__srst;
 
     assign srst_out = __srst_out;
