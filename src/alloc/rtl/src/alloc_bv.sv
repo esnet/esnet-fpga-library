@@ -86,7 +86,6 @@ module alloc_bv #(
     // -----------------------------
     mem_ram_sdp   #(
         .SPEC      ( MEM_SPEC ),
-        .RESET_VAL ( {NUM_COLS{1'b1}} ),
         .SIM__FAST_INIT ( SIM__FAST_INIT ),
         .SIM__RAM_MODEL ( SIM__RAM_MODEL )
     ) i_mem_ram_sdp (
