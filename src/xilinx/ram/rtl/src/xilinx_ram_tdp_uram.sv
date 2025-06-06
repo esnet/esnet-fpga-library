@@ -11,6 +11,9 @@ module xilinx_ram_tdp_uram
 
     // Port A
     input  logic                 en_A,
+`ifndef SYNTHESIS
+    input  logic                 srst_A, // Reset used for fast init in simulation only
+`endif
     input  logic                 wr_A,
     input  logic  [ADDR_WID-1:0] addr_A,
     input  logic  [DATA_WID-1:0] wr_data_A,
@@ -50,6 +53,10 @@ module xilinx_ram_tdp_uram
     // -----------------------------
     // Port A
     always @(posedge clk) begin
+`ifndef SYNTHESIS
+        if (srst_A) mem <= '{DEPTH{'0}};
+        else
+`endif
         if (en_A) begin
             if (wr_A) mem[addr_A] <= wr_data_A;
             else __rd_data_A <= mem[addr_A];

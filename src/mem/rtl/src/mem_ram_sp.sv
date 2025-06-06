@@ -113,6 +113,9 @@ module mem_ram_sp
         .OPT_MODE   ( translate_opt_mode(SPEC.OPT_MODE) )
     ) i_xilinx_ram_sp (
         .clk      ( __mem_if.clk ),
+`ifndef SYNTHESIS
+        .srst     ( SIM__FAST_INIT ? mem_if.rst : 1'b0 ),
+`endif
         .en       ( __mem_if.req ),
         .wr       ( __mem_if.wr ),
         .addr     ( __mem_if.addr ),

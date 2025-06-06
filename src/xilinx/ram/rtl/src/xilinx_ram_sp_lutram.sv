@@ -7,6 +7,9 @@ module xilinx_ram_sp_lutram
     parameter int DATA_WID = 32
 ) (
     input  logic                 clk,
+`ifndef SYNTHESIS
+    input  logic                 srst, // Reset used for fast init in simulation only
+`endif
     input  logic                 en,
     input  logic                 wr,
     input  logic  [ADDR_WID-1:0] addr,
@@ -37,6 +40,10 @@ module xilinx_ram_sp_lutram
     // Single-port RAM logic
     // -----------------------------
     always @(posedge clk) begin
+`ifndef SYNTHESIS
+        if (srst) mem <= '{DEPTH{'0}};
+        else
+`endif
         if (en) begin
             if (wr) mem[addr] <= wr_data;
             rd_data <= mem[addr];

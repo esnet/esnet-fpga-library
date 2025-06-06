@@ -147,6 +147,9 @@ module mem_ram_sdp
         .OPT_MODE ( translate_opt_mode(SPEC.OPT_MODE) )
     ) i_xilinx_ram_sdp (
         .wr_clk  ( __mem_wr_if.clk ),
+`ifndef SYNTHESIS
+        .wr_srst ( SIM__FAST_INIT ? mem_wr_if.rst : 1'b0 ),
+`endif
         .wr_en   ( __mem_wr_if.en ),
         .wr_req  ( __mem_wr_if.req ),
         .wr_addr ( __mem_wr_if.addr ),

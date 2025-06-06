@@ -50,6 +50,10 @@ module xilinx_ram_sp_bram
     // Single-port RAM logic
     // -----------------------------
     always @(posedge clk) begin
+`ifndef SYNTHESIS
+        if (srst) mem <= '{DEPTH{'0}};
+        else
+`endif
         if (en) begin 
             if (wr) mem[addr] <= wr_data;
             __rd_data <= mem[addr];

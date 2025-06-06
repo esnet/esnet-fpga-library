@@ -12,6 +12,9 @@ module xilinx_ram_sdp
 ) (
     // Write interface
     input  logic                wr_clk,
+`ifndef SYNTHESIS
+    input  logic                wr_srst, // Reset used for fast init in simulation only
+`endif
     input  logic                wr_en,
     input  logic                wr_req,
     input  logic [ADDR_WID-1:0] wr_addr,
@@ -29,7 +32,7 @@ module xilinx_ram_sdp
     // -----------------------------
     // PARAMETERS
     // -----------------------------
-    // RAM style is auto-determined by size, aspect ratio and 
+    // RAM style is auto-determined by size, aspect ratio and
     localparam ram_style_t _RAM_STYLE = get_default_ram_style(ADDR_WID, DATA_WID, ASYNC, OPT_MODE);
 
     localparam int WR_LATENCY = get_wr_latency(ADDR_WID, DATA_WID, ASYNC, OPT_MODE);
@@ -104,5 +107,5 @@ module xilinx_ram_sdp
             assign rd_ack = rd_en;
         end : g__rd_ack_no_pipe
     endgenerate
- 
+
 endmodule : xilinx_ram_sdp

@@ -7,7 +7,10 @@ module xilinx_ram_sp_uram
     parameter int DATA_WID = 32,
     parameter opt_mode_t OPT_MODE = OPT_MODE_TIMING
 ) (
-    input logic                  clk,
+    input  logic                 clk,
+`ifndef SYNTHESIS
+    input  logic                 srst, // Reset used for fast init in simulation only
+`endif
     input  logic                 en,
     input  logic                 wr,
     input  logic  [ADDR_WID-1:0] addr,
@@ -39,6 +42,10 @@ module xilinx_ram_sp_uram
     // Single-port RAM logic
     // -----------------------------
     always @(posedge clk) begin
+`ifndef SYNTHESIS
+        if (srst) mem <= '{DEPTH{'0}};
+        else
+`endif
         if (en) begin
             if (wr) mem[addr] <= wr_data;
             else __rd_data <= mem[addr];
