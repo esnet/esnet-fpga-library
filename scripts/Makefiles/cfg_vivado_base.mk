@@ -8,16 +8,16 @@ __CFG_VIVADO_BASE_MK__ := defined
 #        where the parent can call the targets defined here
 # -----------------------------------------------
 # Query tool for full version
-VIVADO_ACTIVE_VERSION = $(shell vivado -version | sed -rn '1s/.*([0-9]{4}\.[0-9]([\._][0-9a-zA-Z_]+)?).*/\1/pg')
+VIVADO_ACTIVE_VERSION := $(shell vivado -version | sed -rn '1s/.*([0-9]{4}\.[0-9]([\._][0-9a-zA-Z_]+)?).*/\1/pg')
 
 # Function for extracting major version from full version
 get_vivado_major_version = $(shell echo $(1) | sed -rn '1s/([0-9]{4}\.[0-9]).*/\1/pg')
 get_vivado_major_minor_version = $(shell echo $(1) | sed -rn '1s/([0-9]{4}\.[0-9]\.?[0-9]?).*/\1/pg')
 
-PROJ_VIVADO_VERSION__MAJOR = $(call get_vivado_major_version,$(PROJ_VIVADO_VERSION))
-PROJ_VIVADO_VERSION__MAJOR_MINOR = $(call get_vivado_major_minor_version,$(PROJ_VIVADO_VERSION))
-VIVADO_ACTIVE_VERSION__MAJOR = $(notdir $(XILINX_VIVADO))
-VIVADO_ACTIVE_VERSION__MAJOR_MINOR = $(call get_vivado_major_minor_version,$(VIVADO_ACTIVE_VERSION))
+PROJ_VIVADO_VERSION__MAJOR := $(call get_vivado_major_version,$(PROJ_VIVADO_VERSION))
+PROJ_VIVADO_VERSION__MAJOR_MINOR := $(call get_vivado_major_minor_version,$(PROJ_VIVADO_VERSION))
+VIVADO_ACTIVE_VERSION__MAJOR := $(call get_vivado_major_version,$(VIVADO_ACTIVE_VERSION))
+VIVADO_ACTIVE_VERSION__MAJOR_MINOR := $(call get_vivado_major_minor_version,$(VIVADO_ACTIVE_VERSION))
 
 # Warning for mismatched Vivado patch versions, i.e. 2022.1 =/= 2022.1.1, 2022.1.1 =/= 2022.1.1_AR88888, etc.
 __print_patch_mismatch_warning = \
@@ -39,9 +39,9 @@ __print_patch_mismatch_warning = \
 ifndef XILINX_VIVADO
 	$(error Vivado not configured. Expecting Vivado v$(PROJ_VIVADO_VERSION))
 else
-ifneq ($(notdir $(XILINX_VIVADO)), $(PROJ_VIVADO_VERSION__MAJOR))
-	$(info  *** This project expects Vivado $(PROJ_VIVADO_VERSION) (found Vivado $(notdir $(XILINX_VIVADO))). ***)
-	$(info  To continue using Vivado $(notdir $(XILINX_VIVADO)) (unsupported), change the project version specified in $(abspath $(CFG_ROOT)/vivado.mk).)
+ifneq ($(VIVADO_ACTIVE_VERSION__MAJOR), $(PROJ_VIVADO_VERSION__MAJOR))
+	$(info  *** This project expects Vivado $(PROJ_VIVADO_VERSION) (found Vivado $(VIVADO_ACTIVE_VERSION)). ***)
+	$(info  To continue using Vivado $(VIVADO_ACTIVE_VERSION) (unsupported), change the project version specified in $(abspath $(CFG_ROOT)/vivado.mk).)
 	$(error Invalid Vivado tool version)
 else
 	@$(if $(filter $(PROJ_VIVADO_VERSION),$(VIVADO_ACTIVE_VERSION)),echo "Vivado $(PROJ_VIVADO_VERSION) in use; matches version supported by project.",$(__print_patch_mismatch_warning))
@@ -55,15 +55,19 @@ endif
 	@echo "---------------------------------------------------------"
 	@echo "(Vivado) tool version (expected, as supported by project)"
 	@echo "---------------------------------------------------------"
-	@echo "PROJ_VIVADO_VERSION               : $(PROJ_VIVADO_VERSION)"
-	@echo "PROJ_VIVADO_VERSION (MAJOR/MINOR) : $(PROJ_VIVADO_VERSION__MAJOR_MINOR)"
-	@echo "PROJ_VIVADO_VERSION (MAJOR)       : $(PROJ_VIVADO_VERSION__MAJOR)"
+	@echo "PROJ_VIVADO_VERSION                 : $(PROJ_VIVADO_VERSION)"
+	@echo "PROJ_VIVADO_VERSION (MAJOR/MINOR)   : $(PROJ_VIVADO_VERSION__MAJOR_MINOR)"
+	@echo "PROJ_VIVADO_VERSION (MAJOR)         : $(PROJ_VIVADO_VERSION__MAJOR)"
 	@echo "---------------------------------------------------------"
 	@echo "(Vivado) tool version (active, as configured on system)"
 	@echo "---------------------------------------------------------"
 	@echo "VIVADO_ACTIVE_VERSION               : $(VIVADO_ACTIVE_VERSION)"
 	@echo "VIVADO_ACTIVE_VERSION (MAJOR/MINOR) : $(VIVADO_ACTIVE_VERSION__MAJOR_MINOR)"
 	@echo "VIVADO_ACTIVE_VERSION (MAJOR)       : $(VIVADO_ACTIVE_VERSION__MAJOR)"
+	@echo "---------------------------------------------------------"
+	@echo "(Vivado) tool version (from XILINX_VIVADO env var)"
+	@echo "---------------------------------------------------------"
+	@echo "XILINX_VIVADO__VERSION              : $(XILINX_VIVADO__VERSION)"
 
 .PHONY: .vivado_version_info
 
