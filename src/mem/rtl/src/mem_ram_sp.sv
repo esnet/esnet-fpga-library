@@ -8,7 +8,7 @@ module mem_ram_sp
     parameter logic [SPEC.DATA_WID-1:0] RESET_VAL = '0,
     // Simulation parameters
     parameter bit SIM__FAST_INIT = 0, // Fast init in simulations
-    parameter bit SIM__RAM_MODEL = 1  // Use model for RAM (associative array) in sims
+    parameter bit SIM__RAM_MODEL = 0  // Use model for RAM (associative array) in sims
 ) (
     mem_intf.peripheral mem_if
 );
@@ -113,6 +113,9 @@ module mem_ram_sp
         .OPT_MODE   ( translate_opt_mode(SPEC.OPT_MODE) )
     ) i_xilinx_ram_sp (
         .clk      ( __mem_if.clk ),
+`ifndef SYNTHESIS
+        .srst     ( SIM__FAST_INIT ? mem_if.rst : 1'b0 ),
+`endif
         .en       ( __mem_if.req ),
         .wr       ( __mem_if.wr ),
         .addr     ( __mem_if.addr ),

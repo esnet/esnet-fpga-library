@@ -10,6 +10,9 @@ module xilinx_ram_sp
                                                     // OPT_MODE_TIMING is recommended in most cases.
 ) (
     input  logic                clk,
+`ifndef SYNTHESIS
+    input  logic                srst, // Reset used for fast init in simulation only
+`endif
     input  logic                en,
     input  logic                wr,
     input  logic [ADDR_WID-1:0] addr,
@@ -40,9 +43,11 @@ module xilinx_ram_sp
             );
         end : g__uram
         else if (_RAM_STYLE == RAM_STYLE_BLOCK) begin : g__bram
-            logic srst;
             logic rd_regce;
+`ifdef SYNTHESIS
+            logic srst;
             assign srst = 1'b0;
+`endif
             assign rd_regce = 1'b1;
 
             xilinx_ram_sp_bram #(

@@ -46,3 +46,8 @@ _proj_print_paths = @echo "--------------------------------------------"; \
                echo  "-------------------------------------------"; \
                echo  "OUTPUT_ROOT:    $(OUTPUT_ROOT)";
 
+# Extract Vivado major version info from $XILINX_VIVADO env variable
+# - Format up to v2024.2 is /tools/Xilinx/Vivado/[version]
+# - Format after v2025.1 is /tools/Xilinx/[version]/Vivado
+XILINX_VIVADO__VERSION := $(firstword $(sort $(subst /, ,$(XILINX_VIVADO))))
+

@@ -12,6 +12,9 @@ module xilinx_ram_tdp
 ) (
     // Port A
     input  logic                clk_A,
+`ifndef SYNTHESIS
+    input  logic                srst_A, // Reset used for fast init in simulation only
+`endif
     input  logic                en_A,
     input  logic                wr_A,
     input  logic [ADDR_WID-1:0] addr_A,
@@ -52,11 +55,13 @@ module xilinx_ram_tdp
             );
         end : g__uram
         else if (_RAM_STYLE == RAM_STYLE_BLOCK) begin : g__bram
-            logic srst_A;
             logic srst_B;
             logic rd_regce_A;
             logic rd_regce_B;
+`ifdef SYNTHESIS
+            logic srst_A;
             assign srst_A = 1'b0;
+`endif
             assign srst_B = 1'b0;
             assign rd_regce_A = 1'b1;
             assign rd_regce_B = 1'b1;

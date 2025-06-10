@@ -74,7 +74,7 @@ module axi4l_decoder_unit_test;
 
     // Instantiate subdecoders
     generate
-        for (genvar g_sd = 0; g_sd < SUBDECODERS; g_sd++) begin : g__subdecoder
+        for (genvar g_sd = 0; g_sd < VALID_SUBDECODERS; g_sd++) begin : g__subdecoder
             axi4l_intf axil_client_if [CLIENTS]   ();
 
             axi4l_decoder #(

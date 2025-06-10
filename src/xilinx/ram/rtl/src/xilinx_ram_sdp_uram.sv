@@ -9,6 +9,9 @@ module xilinx_ram_sdp_uram
 ) (
     input logic                 clk,
 
+`ifndef SYNTHESIS
+    input  logic                wr_srst, // Reset used for fast init in simulation only
+`endif
     input logic                 wr_en,
     input logic                 wr_req,
     input logic  [ADDR_WID-1:0] wr_addr,
@@ -44,6 +47,10 @@ module xilinx_ram_sdp_uram
     // SDP RAM logic
     // -----------------------------
     always @(posedge clk) begin
+`ifndef SYNTHESIS
+        if (wr_srst) mem <= '{DEPTH{'0}};
+        else
+`endif
         if (wr_en) begin
             if (wr_req) mem[wr_addr] <= wr_data;
         end

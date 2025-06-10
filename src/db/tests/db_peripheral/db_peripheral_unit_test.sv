@@ -57,7 +57,8 @@ module db_peripheral_unit_test;
     // Database store
     db_store_array #(
         .KEY_T ( KEY_T ),
-        .VALUE_T ( VALUE_T )
+        .VALUE_T ( VALUE_T ),
+        .SIM__RAM_MODEL ( 1 )
     ) i_db_store_array (
         .db_wr_if ( wr_if ),
         .db_rd_if ( rd_if ),

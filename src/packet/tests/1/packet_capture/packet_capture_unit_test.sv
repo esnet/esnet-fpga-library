@@ -30,7 +30,11 @@ module packet_capture_unit_test;
     axi4l_intf axil_if ();
     packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_T(META_T)) packet_if (.clk(clk), .srst(srst));
 
-    packet_capture #(.PACKET_MEM_SIZE(PACKET_MEM_SIZE)) DUT (.*);
+    packet_capture #(
+        .PACKET_MEM_SIZE( PACKET_MEM_SIZE ),
+        .SIM__FAST_INIT ( 0 ),
+        .SIM__RAM_MODEL ( 0 )
+    ) DUT (.*);
 
     //===================================
     // Testbench

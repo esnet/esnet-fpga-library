@@ -62,6 +62,10 @@ module xilinx_ram_tdp_bram
     // Port A
     // -----------------------------
     always @(posedge clk_A) begin
+`ifndef SYNTHESIS
+        if (srst_A) mem <= '{DEPTH{'0}};
+        else
+`endif
         if (en_A) begin 
             if (wr_A) mem[addr_A] <= wr_data_A;
             __rd_data_A <= mem[addr_A];

@@ -379,13 +379,13 @@ module alloc_bv_core #(
     always_ff @(posedge clk) if (rd_ack) rd_data <= mem_rd_if.data;
 
     // Set/clear bit in vector corresponding to pointer
-    always_ff @(posedge clk) if (modify) wr_data <= (rd_data & ~colmask) | ({NUM_COLS{__dealloc}} & colmask);
+    always_ff @(posedge clk) if (modify) wr_data <= (rd_data & ~colmask) | ({NUM_COLS{__alloc}} & colmask);
 
     // Error is detected when new state is the same as the existing state
     // (i.e. pointer to allocate already allocated, pointer to deallocate already deallocated)
     always_comb begin
         modify_err = 1'b0;
-        if (__dealloc == rd_data[ptr.col]) modify_err = 1'b1;
+        if (__alloc == rd_data[ptr.col]) modify_err = 1'b1;
     end
 
     // -----------------------------
@@ -455,7 +455,7 @@ module alloc_bv_core #(
     always_ff @(posedge clk) begin
         // Latch on read
         if (scan_rd_ack)    scan_vec <= mem_rd_if.data;
-        else if (scan_done) scan_vec[scan_col] <= 1'b0;
+        else if (scan_done) scan_vec[scan_col] <= 1'b1;
     end
 
     // Check scan read data for unallocated pointers
@@ -465,7 +465,7 @@ module alloc_bv_core #(
         for (int i = 0; i < NUM_COLS; i++) begin
             // Allocate in ascending order
             automatic int col = NUM_COLS-1-i;
-            if (scan_vec[col]) begin
+            if (!scan_vec[col]) begin
                 if (scan_row < last_ptr.row || col <= last_ptr.col) begin
                     scan_hit = 1'b1;
                     __scan_col = col;

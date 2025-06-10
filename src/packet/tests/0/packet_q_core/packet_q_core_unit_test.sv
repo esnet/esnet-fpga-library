@@ -61,7 +61,9 @@ module packet_q_core_unit_test #(
         .DATA_BYTE_WID  ( DATA_BYTE_WID ),
         .BUFFER_SIZE    ( BUFFER_SIZE ),
         .PTR_T          ( PTR_T ),
-        .META_T         ( META_T )
+        .META_T         ( META_T ),
+        .SIM__FAST_INIT ( 1 ),
+        .SIM__RAM_MODEL ( 1 )
     ) DUT (.*);
 
     //===================================
@@ -91,7 +93,8 @@ module packet_q_core_unit_test #(
     generate
         for (genvar g_if = 0; g_if < NUM_INPUT_IFS; g_if++) begin : g__if
             mem_ram_sdp #(
-                .SPEC    ( DATA_MEM_SPEC )
+                .SPEC    ( DATA_MEM_SPEC ),
+                .SIM__RAM_MODEL ( 1 )
             ) i_mem_ram_sdp__data (
                 .mem_wr_if ( mem_wr_if [g_if] ),
                 .mem_rd_if ( mem_rd_if [g_if] )

@@ -11,7 +11,10 @@ module packet_q_core
     parameter int  BUFFER_SIZE = 2048,
     parameter type PTR_T = logic,
     parameter type META_T = logic,
-    parameter int  MAX_RD_LATENCY = 8
+    parameter int  MAX_RD_LATENCY = 8,
+    // Simulation-only
+    parameter bit  SIM__FAST_INIT = 1,
+    parameter bit  SIM__RAM_MODEL = 1
  ) (
     input  logic                clk,
     input  logic                srst,
@@ -101,7 +104,9 @@ module packet_q_core
         .PTR_T            ( PTR_T ),
         .BUFFER_SIZE      ( BUFFER_SIZE ),
         .MAX_FRAME_SIZE   ( MAX_PKT_SIZE ),
-        .META_T           ( META_T )
+        .META_T           ( META_T ),
+        .SIM__FAST_INIT   ( SIM__FAST_INIT ),
+        .SIM__RAM_MODEL   ( SIM__RAM_MODEL )
     ) i_alloc_sg_core (
         .clk,
         .srst,

@@ -18,7 +18,8 @@ module alloc_sg_core #(
     parameter int  FRAME_SIZE_WID = $clog2(MAX_FRAME_SIZE+1),
     parameter type FRAME_SIZE_T = logic [FRAME_SIZE_WID-1:0],
     // Simulation-only
-    parameter bit  SIM__FAST_INIT = 1 // Optimize sim time by performing fast memory init
+    parameter bit  SIM__FAST_INIT = 1, // Optimize sim time by performing fast memory init
+    parameter bit  SIM__RAM_MODEL = 0
 ) (
     // Clock/reset
     input logic            clk,
@@ -107,7 +108,8 @@ module alloc_sg_core #(
     // -----------------------------
     alloc_bv  #(
         .PTR_T ( PTR_T ),
-        .SIM__FAST_INIT ( SIM__FAST_INIT )
+        .SIM__FAST_INIT ( SIM__FAST_INIT ),
+        .SIM__RAM_MODEL ( SIM__RAM_MODEL )
     ) i_alloc_bv__ptr (
         .clk,
         .srst,

@@ -50,10 +50,9 @@ LIBRARIES =
 #   pairs, e.g.:
 #   LIB_ENV = VAR1_NAME=VAR1_VALUE VAR2_NAME=VAR2_VALUE
 # ----------------------------------------------------
-__CONFIGURED_VIVADO_VERSION=$(notdir $(XILINX_VIVADO))
 
 # Maintain separate output products per tool version
-OUTPUT_SUBDIR = $(__CONFIGURED_VIVADO_VERSION)
+OUTPUT_SUBDIR := $(XILINX_VIVADO__VERSION)
 
 LIB_ENV =
 
