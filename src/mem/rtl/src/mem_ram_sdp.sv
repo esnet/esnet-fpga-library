@@ -148,7 +148,7 @@ module mem_ram_sdp
     ) i_xilinx_ram_sdp (
         .wr_clk  ( __mem_wr_if.clk ),
 `ifndef SYNTHESIS
-        .wr_srst ( SIM__FAST_INIT ? mem_wr_if.rst : 1'b0 ),
+        .wr_srst ( SIM__FAST_INIT && mem_wr_if.rst ),
 `endif
         .wr_en   ( __mem_wr_if.en ),
         .wr_req  ( __mem_wr_if.req ),

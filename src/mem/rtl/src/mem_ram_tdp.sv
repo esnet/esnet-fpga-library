@@ -178,7 +178,7 @@ module mem_ram_tdp
     ) i_xilinx_ram_tdp (
         .clk_A      ( __mem_if_0.clk ),
 `ifndef SYNTHESIS
-        .srst_A     ( SIM__FAST_INIT ? mem_if_0.rst : 1'b0 ),
+        .srst_A     ( SIM__FAST_INIT && mem_if_0.rst ),
 `endif
         .en_A       ( __mem_if_0.req ),
         .wr_A       ( __mem_if_0.wr ),

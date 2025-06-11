@@ -3,7 +3,8 @@ module state_id_manager
     parameter type KEY_T = logic,
     parameter type ID_T = logic,
     // Simulation-only
-    parameter bit  SIM__FAST_INIT = 1 // Optimize sim time by performing fast memory init
+    parameter bit  SIM__FAST_INIT = 1, // Optimize sim time by performing fast memory init
+    parameter bit  SIM__RAM_MODEL = 0
 )(
     // Clock/reset
     input  logic           clk,
@@ -101,7 +102,8 @@ module state_id_manager
         .PTR_T          ( ID_T ),
         .ALLOC_FC       ( 0 ),
         .DEALLOC_FC     ( 1 ),
-        .SIM__FAST_INIT ( SIM__FAST_INIT )
+        .SIM__FAST_INIT ( SIM__FAST_INIT ),
+        .SIM__RAM_MODEL ( SIM__RAM_MODEL )
     ) i_alloc_axil_bv   (
         .clk            ( clk ),
         .srst           ( srst ),
@@ -136,7 +138,8 @@ module state_id_manager
 
     mem_ram_sdp        #(
         .SPEC           ( MEM_SPEC ),
-        .SIM__FAST_INIT ( SIM__FAST_INIT )
+        .SIM__FAST_INIT ( SIM__FAST_INIT ),
+        .SIM__RAM_MODEL ( SIM__RAM_MODEL )
     ) i_mem_ram_sdp__rev_map (
         .mem_wr_if      ( revmap_wr_if ),
         .mem_rd_if      ( revmap_rd_if )

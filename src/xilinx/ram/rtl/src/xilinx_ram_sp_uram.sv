@@ -43,7 +43,7 @@ module xilinx_ram_sp_uram
     // -----------------------------
     always @(posedge clk) begin
 `ifndef SYNTHESIS
-        if (srst) mem <= '{DEPTH{'0}};
+        if (srst) for (int i = 0; i < DEPTH; i++) mem[i] <= '0;
         else
 `endif
         if (en) begin

@@ -114,7 +114,7 @@ module mem_ram_sp
     ) i_xilinx_ram_sp (
         .clk      ( __mem_if.clk ),
 `ifndef SYNTHESIS
-        .srst     ( SIM__FAST_INIT ? mem_if.rst : 1'b0 ),
+        .srst     ( SIM__FAST_INIT && mem_if.rst ),
 `endif
         .en       ( __mem_if.req ),
         .wr       ( __mem_if.wr ),

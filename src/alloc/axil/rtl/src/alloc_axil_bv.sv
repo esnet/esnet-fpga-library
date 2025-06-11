@@ -19,7 +19,8 @@ module alloc_axil_bv #(
     // Derived parameters (don't override)
     parameter int  PTR_WID = $bits(PTR_T),
     // Simulation-only
-    parameter bit  SIM__FAST_INIT = 1    // Optimize sim time by performing fast memory init
+    parameter bit  SIM__FAST_INIT = 1,    // Optimize sim time by performing fast memory init
+    parameter bit  SIM__RAM_MODEL = 0
 ) (
     // Clock/reset
     input logic            clk,
@@ -70,7 +71,8 @@ module alloc_axil_bv #(
         .ALLOC_FC        ( ALLOC_FC ),
         .DEALLOC_Q_DEPTH ( DEALLOC_Q_DEPTH ),
         .DEALLOC_FC      ( DEALLOC_FC ),
-        .SIM__FAST_INIT  ( SIM__FAST_INIT )
+        .SIM__FAST_INIT  ( SIM__FAST_INIT ),
+        .SIM__RAM_MODEL  ( SIM__RAM_MODEL )
     ) i_alloc_bv (
         .clk,
         .srst    ( ctrl_reset ),
