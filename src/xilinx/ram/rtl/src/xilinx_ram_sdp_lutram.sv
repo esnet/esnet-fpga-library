@@ -47,7 +47,7 @@ module xilinx_ram_sdp_lutram
     // -----------------------------
     always @(posedge wr_clk) begin
 `ifndef SYNTHESIS
-        if (wr_srst) mem <= '{DEPTH{'0}};
+        if (wr_srst) for (int i = 0; i < DEPTH; i++) mem[i] <= '0;
         else
 `endif
         if (wr_en)

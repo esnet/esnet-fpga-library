@@ -54,7 +54,7 @@ module xilinx_ram_tdp_uram
     // Port A
     always @(posedge clk) begin
 `ifndef SYNTHESIS
-        if (srst_A) mem <= '{DEPTH{'0}};
+        if (srst_A) for (int i = 0; i < DEPTH; i++) mem[i] <= '0;
         else
 `endif
         if (en_A) begin
