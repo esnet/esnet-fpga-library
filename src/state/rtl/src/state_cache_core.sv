@@ -10,7 +10,8 @@ module state_cache_core
     parameter int  NUM_RD_TRANSACTIONS = 8,
     parameter int  UPDATE_BURST_SIZE = 8,
     // Simulation-only
-    parameter bit  SIM__FAST_INIT = 1 // Optimize sim time by performing fast memory init
+    parameter bit  SIM__FAST_INIT = 1, // Optimize sim time by performing fast memory init
+    parameter bit  SIM__RAM_MODEL = 0
 )(
     // Clock/reset
     input  logic                 clk,
@@ -360,7 +361,8 @@ module state_cache_core
     state_id_manager     #(
         .KEY_T            ( KEY_T ),
         .ID_T             ( ID_T ),
-        .SIM__FAST_INIT   ( SIM__FAST_INIT )
+        .SIM__FAST_INIT   ( SIM__FAST_INIT ),
+        .SIM__RAM_MODEL   ( SIM__RAM_MODEL )
     ) i_state_id_manager  (
         .clk              ( clk ),
         .srst             ( __srst ),
