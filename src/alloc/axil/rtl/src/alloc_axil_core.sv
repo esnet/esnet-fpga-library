@@ -80,8 +80,7 @@ module alloc_axil_core #(
     util_reset_buffer i_util_reset_buffer (
         .clk,
         .srst_in   ( srst || reg_if.control.reset ),
-        .srst_out  ( ctrl_reset ),
-        .srstn_out ()
+        .srst_out  ( ctrl_reset )
     );
 
     always_ff @(posedge clk) ctrl_en <= en && reg_if.control.enable;
@@ -142,8 +141,7 @@ module alloc_axil_core #(
     util_reset_buffer i_util_reset_buffer__dbg_cnt (
         .clk,
         .srst_in   ( srst || reg_if.control.reset || reg_if.dbg_control.clear_counts ),
-        .srst_out  ( dbg_cnt_reset ),
-        .srstn_out ()
+        .srst_out  ( dbg_cnt_reset )
     );
 
     always_comb begin

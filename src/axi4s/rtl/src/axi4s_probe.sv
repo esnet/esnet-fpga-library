@@ -86,13 +86,10 @@ module axi4s_probe
 
    assign byte_cnt_int_val = pkt_cnt_incr_p;
 
-   util_reset_buffer #(
-       .INPUT_ACTIVE_LOW ( 1 )
-   ) i_util_reset_buffer (
+   util_reset_buffer i_util_reset_buffer (
        .clk       ( axi4s_if.aclk ),
-       .srst_in   ( axi4s_if.aresetn ),
-       .srst_out  ( srst ),
-       .srstn_out ( )
+       .srst_in   ( !axi4s_if.aresetn ),
+       .srst_out  ( srst )
    );
 
    always @(posedge axi4s_if.aclk) 
