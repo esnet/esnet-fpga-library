@@ -51,6 +51,22 @@ module bus_intf_unit_test #(
             "bus_pipe_auto" : begin : g__bus_pipe_auto
                 bus_pipe_auto #(DATA_T) DUT (.*);
             end : g__bus_pipe_auto
+
+            "bus_width_converter_le": begin : g__bus_width_converter_le
+                localparam type __DATA_T = logic[$bits(DATA_T)*2-1:0];
+                bus_intf #(__DATA_T) __bus_if (.clk);
+                bus_width_converter #(DATA_T, __DATA_T, .BIGENDIAN(0)) DUT1 (.from_tx, .to_rx (__bus_if));
+                bus_width_converter #(__DATA_T, DATA_T, .BIGENDIAN(0)) DUT2 (.from_tx (__bus_if), .to_rx);
+                initial skip_single_item_tc = 1'b1;
+            end : g__bus_width_converter_le
+
+            "bus_width_converter_be": begin : g__bus_width_converter_be
+                localparam type __DATA_T = logic[$bits(DATA_T)*2-1:0];
+                bus_intf #(__DATA_T) __bus_if (.clk);
+                bus_width_converter #(DATA_T, __DATA_T, .BIGENDIAN(1)) DUT1 (.from_tx, .to_rx (__bus_if));
+                bus_width_converter #(__DATA_T, DATA_T, .BIGENDIAN(1)) DUT2 (.from_tx (__bus_if), .to_rx);
+                initial skip_single_item_tc = 1'b1;
+            end : g__bus_width_converter_be
         endcase
     endgenerate
 
@@ -60,6 +76,9 @@ module bus_intf_unit_test #(
     tb_env #(DATA_T) env;
 
     std_reset_intf reset_if (.clk(clk));
+
+    logic skip_single_item_tc = 0; // Option to skip single item testcase
+                                   // (not valid for width conversion test suite)
 
     // Assign reset interface
     assign from_tx.srst = reset_if.reset;
@@ -159,8 +178,11 @@ module bus_intf_unit_test #(
             exp_transaction = new("exp_transaction", exp_item);
             // Send transaction
             env.inbox.put(exp_transaction);
+            
             // Check transaction
-            #15us `FAIL_IF_LOG( env.scoreboard.report(msg) > 0, msg );
+            #15us
+            if (skip_single_item_tc) return;
+            `FAIL_IF_LOG( env.scoreboard.report(msg) > 0, msg );
             `FAIL_UNLESS_EQUAL( env.scoreboard.got_matched(), 1);
         `SVTEST_END
         //===================================
@@ -279,6 +301,18 @@ endmodule
 module bus_pipe_auto_unit_test;
     `BUS_INTF_UNIT_TEST("bus_pipe_auto");
 endmodule
+
+// Bus width converter (little-endian)
+module bus_width_converter_le_unit_test;
+    `BUS_INTF_UNIT_TEST("bus_width_converter_le");
+endmodule
+
+// Bus width converter (big-endian)
+module bus_width_converter_be_unit_test;
+    `BUS_INTF_UNIT_TEST("bus_width_converter_be");
+endmodule
+
+
 
 
 
