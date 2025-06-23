@@ -13,8 +13,8 @@ module test;
     //===================================
     // Typedefs
     //===================================
-    typedef logic [AXIS_DATA_BYTE_WID-1:0]   axis_tkeep_t;
-    typedef logic [AXIS_DATA_BYTE_WID*8-1:0] axis_tdata_t;
+    typedef logic [AXIS_DATA_BYTE_WID-1:0]      axis_tkeep_t;
+    typedef logic [AXIS_DATA_BYTE_WID-1:0][7:0] axis_tdata_t;
 
     //===================================
     // DUT
@@ -85,23 +85,84 @@ module test;
     always #5ns s_axi_aclk = !s_axi_aclk;
 
     //===================================
-    // Resets
+    // Input packet
+    //===================================
+    bit [0:13][7:0] eth = {
+        // MAC
+        48'haaaaaaaaaaaa,
+        48'haaaaaaaaaaaa,
+        // Ethertype
+        16'h8100
+    };
+
+    bit [0:3][7:0] vlan_0 = {
+        16'hbbbb,
+        // Ethertype (IPv4)
+        16'h0800
+    };
+
+    bit [0:19][7:0] ipv4 = {
+        4'h4, // Version
+        4'hc, // IHL
+        8'hcc, // DSCP/ECN
+        16'h006e, // Total length
+        16'hcccc, // ID
+        16'hcccc, // Flags / Fragment offset
+        8'hcc, // TTL
+        8'h06, // Protocol (TCP)
+        16'hcccc, // Checksum
+        32'hcccccccc, // SRC address,
+        32'hcccccccc  // DST address
+    };
+
+    bit [0:19][7:0] tcp = {
+        16'hdddd, // SRC port
+        16'hdddd, // DST port,
+        32'hdddddddd, // SEQ
+        32'hdddddddd, // ACK
+        4'h5, // Header length
+        4'hd, // RSVD
+        8'hdd, // Flags
+        16'hdddd, // Window size
+        16'hdddd, // Checksum
+        16'hdddd  // Urgent pointer
+    };
+
+    bit [0:1][0:63][7:0] ipv4_tcp_pkt = {
+        eth,
+        vlan_0,
+        ipv4,
+        tcp,
+        {80{8'hee}}
+    };
+
+    //===================================
+    // Execute sim
     //===================================
     initial begin
         idle();
         s_axis_aresetn = 1'b0;
         s_axi_aresetn = 1'b0;
         #100ns;
-        $display("Deassert reset...");
+        $display($sformatf("[%0t] Deassert reset...", $time));
         s_axis_aresetn = 1'b1;
         s_axi_aresetn = 1'b1;
         #100ns;
-        send_packet();
+        fork
+            begin
+                fork
+                    send_packet({>>byte{ipv4_tcp_pkt}});
+                    receive_packet();
+                join
+            end
+            begin
+                #1us;
+                $display($sformatf("[%0t] Timeout.", $time));
+            end
+        join_any
+        disable fork;
         #100ns;
-        send_packet();
-        send_packet();
-        #100ns;
-        $display("Done.");
+        $display($sformatf("[%0t] Done.", $time));
         $finish;
     end
     assign cam_mem_aresetn = s_axis_aresetn;
@@ -144,58 +205,48 @@ module test;
         s_axi_idle();
     endtask
 
+    task send_packet(input byte pkt[]);
+        automatic byte __pkt[$] = pkt;
+        automatic int size = __pkt.size();
+        automatic int byte_idx = 0;
+        $display($sformatf("[%0t] Sent packet:",$time));
+        $display(string_pkg::byte_array_to_string(pkt));
 
-    bit [7:0][0:63] header = {
-        // MAC
-        48'h000000000500,
-        48'h000000000400,
-        // Ethertype
-        16'h8100,
-        // VLAN
-        16'h007e,
-        16'h0800,
-        // IPv4
-        4'h4, // Version
-        4'h5, // IHL
-        8'h0, // DSCP/ECN
-        16'h6c, // Total length
-        16'h0001, // ID
-        3'h0, // Flags
-        13'h0, // Fragment offset
-        8'h40, // TTL
-        8'h06, // Protocol
-        16'h523f, // Checksum
-        32'h0A0F0A28, // SRC address,
-        32'h0A0A0A0A, // DST address
-        // TCP
-        16'h1448, // SRC port
-        16'hfde8, // DST port,
-        32'h0, // SEQ
-        32'h0, // ACK
-        4'h5, // Header length
-        4'h0, // RSVD
-        8'h02, // Flags
-        16'h2000, // Window size
-        16'h04d1, // Checksum
-        16'h0000, // Urgent pointer
-        // Payload
-        48'h616161616161
-    };
-
-    task send_packet();
-        $display("Send packet");
         @(posedge s_axis_aclk);
-        s_axis_tvalid <= 1'b1;
-        s_axis_tkeep <= '1;
-        s_axis_tlast <= 1'b0;
-        s_axis_tdata <=  {<<8{header}};
-        do @(posedge s_axis_aclk); while (!s_axis_tready);
-        s_axis_tvalid <= 1'b1;
-        s_axis_tkeep <= '1;
-        s_axis_tlast <= 1'b1;
-        s_axis_tdata <= '1;
-        do @(posedge s_axis_aclk); while (!s_axis_tready);
-        s_axis_idle();
+        while (__pkt.size() > 0) begin
+            s_axis_tdata[byte_idx] <= __pkt.pop_front();
+            s_axis_tkeep[byte_idx] <= 1'b1;
+            byte_idx++;
+            if ((byte_idx == AXIS_DATA_BYTE_WID) || (__pkt.size() == 0)) begin
+                if (__pkt.size() == 0) s_axis_tlast <= 1'b1;
+                else s_axis_tlast <= 1'b0;
+                s_axis_tvalid <= 1'b1;
+                byte_idx = 0;
+                do @(posedge s_axis_aclk); while (!s_axis_tready);
+            end
+        end
+        s_axis_tvalid <= 1'b0;
+    endtask
+
+    task receive_packet();
+        automatic byte __pkt[$];
+        automatic bit eop = 0;
+        automatic int byte_idx = 0;
+
+        @(posedge s_axis_aclk);
+        m_axis_tready <= 1'b1;
+        while (!eop) begin
+            do @(posedge s_axis_aclk); while (!m_axis_tvalid);
+            while (byte_idx < AXIS_DATA_BYTE_WID) begin
+                if (m_axis_tkeep[byte_idx]) __pkt.push_back(m_axis_tdata[byte_idx]);
+                byte_idx++;
+            end
+            if (m_axis_tlast) eop = 1'b1;
+            byte_idx = 0;
+        end
+        m_axis_tready <= 1'b0;
+        $display($sformatf("[%0t] Received packet:",$time));
+        $display(string_pkg::byte_array_to_string(__pkt));
     endtask
 
     // Export AXI-L accessors to VitisNetP4 shared library

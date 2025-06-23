@@ -102,7 +102,7 @@ $(VITIS_NET_P4_IP_NAME)/$(VITIS_NET_P4_IP_NAME).xci: pipeline.p4 create_ip.tcl
 	@vivado -mode batch -source create_ip.tcl
 
 xsim.dir/work/work.rlx : xsim.dir/vitisnetp4/vitisnetp4.rlx test.sv
-	@xvlog --sv -L vitisnetp4 test.sv $(XILINX_VIVADO)/data/verilog/src/glbl.v
+	@xvlog --sv -L vitisnetp4 string_pkg.sv test.sv $(XILINX_VIVADO)/data/verilog/src/glbl.v
 
 xsim.dir/vitisnetp4/vitisnetp4.rlx : ip
 	@xvlog --sv $(VITIS_NET_P4_INCLUDES) -work vitisnetp4 $(VITIS_NET_P4_FILES)
