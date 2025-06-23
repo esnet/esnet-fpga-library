@@ -165,7 +165,7 @@ module packet_scatter #(
             end
             SOP: begin
                 buffer_rdy = scatter_if.rdy;
-                rdy = mem_wr_if.rdy && buffer_rdy;
+                rdy = mem_wr_if.rdy && buffer_rdy && descriptor_if.rdy;
                 if (packet_if.valid && packet_if.rdy) begin
                     if (IGNORE_RDY && !rdy) begin
                         pkt_oflow = 1'b1;

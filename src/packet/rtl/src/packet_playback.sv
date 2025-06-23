@@ -250,12 +250,12 @@ module packet_playback #(
             end
             SEND_ONE : begin
                 send = 1'b1;
-                if (descriptor_if.rdy) nxt_state = STOP;
+                if (descriptor_if.rdy) nxt_state = DONE;
             end
             SEND_BURST : begin
                 send = 1'b1;
                 if (descriptor_if.rdy) begin
-                    if (burst_cnt == burst_size_m1) nxt_state = STOP;
+                    if (burst_cnt == burst_size_m1) nxt_state = DONE;
                 end
             end
             SEND_CONTINUOUS : begin
@@ -267,6 +267,7 @@ module packet_playback #(
                 end
             end
             STOP: begin
+                send = 1'b1;
                 if (descriptor_if.rdy) nxt_state = DONE;
             end
             DONE : begin

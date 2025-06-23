@@ -28,8 +28,6 @@ SUBCOMPONENTS = \
     mem.rtl \
     axi4l.rtl \
     axi4l.verif \
-    axi3.rtl \
-    axi3.verif \
     packet.verif
 
 EXT_LIBS =

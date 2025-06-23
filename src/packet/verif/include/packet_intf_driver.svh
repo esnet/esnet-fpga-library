@@ -1,6 +1,6 @@
 class packet_intf_driver #(
     parameter int DATA_BYTE_WID = 8,
-    parameter type META_T = bit
+    parameter type META_T = logic
 ) extends packet_driver#(META_T);
 
     local static const string __CLASS_NAME = "packet_verif_pkg::packet_intf_driver";
@@ -15,16 +15,13 @@ class packet_intf_driver #(
     //===================================
     // Interfaces
     //===================================
-    virtual packet_intf #(
-        .DATA_BYTE_WID(DATA_BYTE_WID),
-        .META_T(META_T)
-    ) packet_vif;
+    virtual packet_intf #(DATA_BYTE_WID,META_T) packet_vif;
 
     //===================================
     // Typedefs
     //===================================
-    typedef bit [DATA_BYTE_WID-1:0][7:0] data_t;
-    typedef bit [$clog2(DATA_BYTE_WID)-1:0] mty_t;
+    typedef logic [DATA_BYTE_WID-1:0][7:0] data_t;
+    typedef logic [$clog2(DATA_BYTE_WID)-1:0] mty_t;
 
     //===================================
     // Methods
@@ -92,7 +89,8 @@ class packet_intf_driver #(
         automatic byte __data[$] = data;
         automatic data_t _data = '0;
         automatic mty_t  mty;
-        automatic bit    eop;
+        automatic logic __err = err;
+        automatic logic  eop;
         automatic int byte_idx = 0;
         automatic int word_idx = 0;
 
@@ -112,7 +110,7 @@ class packet_intf_driver #(
                     mty = DATA_BYTE_WID - byte_idx;
                 end
                 trace_msg($sformatf("send_raw: Sending word %0d.", word_idx));
-                packet_vif.send(_data, eop, mty, err, meta);
+                packet_vif.send(_data, eop, mty, __err, meta);
                 _data = '0;
                 byte_idx = 0;
                 word_idx++;

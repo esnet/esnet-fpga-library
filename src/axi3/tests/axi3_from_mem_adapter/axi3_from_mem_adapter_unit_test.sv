@@ -59,7 +59,8 @@ module axi3_from_mem_adapter_unit_test;
     );
 
     axi3_from_mem_adapter #(
-        .SIZE ( AXI_SIZE )
+        .SIZE ( AXI_SIZE ),
+        .BASE_ADDR ( 8'h100 )
     ) DUT (
         .axi3_if ( __axi3_if ),
         .*

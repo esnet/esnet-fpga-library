@@ -76,7 +76,7 @@ module packet_read
     state_t state;
     state_t nxt_state;
 
-    logic rdy;
+    logic desc_ack;
 
     ADDR_T rd_ptr;
 
@@ -103,19 +103,21 @@ module packet_read
 
     always_comb begin
         nxt_state = state;
-        rdy = 1'b0;
+        desc_ack = 1'b0;
         prefetch_req = 1'b0;
         case (state)
             RESET: begin
                 nxt_state = READY;
             end
             READY: begin
-                rdy = 1'b1;
                 if (descriptor_if.valid) nxt_state = BUSY;
             end
             BUSY : begin
                 prefetch_req = 1'b1;
-                if (mem_rd_if.rdy && prefetch_rdy && prefetch_eop) nxt_state = READY;
+                if (mem_rd_if.rdy && prefetch_rdy && prefetch_eop) begin
+                    desc_ack = 1'b1;
+                    nxt_state = READY;
+                end
             end
             default: begin
                 nxt_state = RESET;
@@ -123,7 +125,7 @@ module packet_read
         endcase
     end
 
-    assign descriptor_if.rdy = rdy;
+    assign descriptor_if.rdy = desc_ack;
 
     // -----------------------------
     // Read pointer management
@@ -184,7 +186,11 @@ module packet_read
 
     // Latch metadata
     always_ff @(posedge clk) begin
-        if (descriptor_if.valid && descriptor_if.rdy) ctxt_in.meta <= descriptor_if.meta;
+        case (state)
+            READY : begin
+                ctxt_in.meta <= descriptor_if.meta;
+            end
+        endcase
     end
 
     generate

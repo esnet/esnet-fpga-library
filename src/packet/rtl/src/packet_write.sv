@@ -63,6 +63,7 @@ module packet_write
     initial begin
         std_pkg::param_check(mem_wr_if.DATA_WID, DATA_WID, "mem_wr_if.DATA_WID");
         std_pkg::param_check(mem_wr_if.ADDR_WID, ADDR_WID,"descriptor_if.ADDR_WID");
+        std_pkg::param_check($bits(descriptor_if.META_T), META_WID,"descriptor_if.META_T");
         std_pkg::param_check($bits(nxt_descriptor_if.ADDR_T), ADDR_WID,"nxt_descriptor_if.ADDR_WID");
         std_pkg::param_check_gt(SIZE_WID, $clog2(MAX_PKT_SIZE), "SIZE_WID");
     end
@@ -123,7 +124,7 @@ module packet_write
                 if (mem_init_done) nxt_state = SOP;
             end
             SOP: begin
-                rdy = mem_wr_if.rdy && nxt_descriptor_if.valid && (nxt_descriptor_if.size >= DATA_BYTE_WID);
+                rdy = mem_wr_if.rdy && nxt_descriptor_if.valid && (nxt_descriptor_if.size >= DATA_BYTE_WID) && descriptor_if.rdy;
                 if (packet_if.valid && packet_if.rdy) begin
                     if (packet_if.eop) begin
                         pkt_done = 1'b1;
@@ -223,14 +224,8 @@ module packet_write
     assign descriptor_if.err    = packet_if.err;
 
     // Report packet event
-    always_ff @(posedge clk) begin
-        packet_event <= pkt_done;
-        packet_event_size <= pkt_size;
-        packet_event_status <= pkt_status;
-    end
-
-    assign event_if.evt = packet_event;
-    assign event_if.size = packet_event_size;
-    assign event_if.status = packet_event_status;
+    assign event_if.evt = pkt_done;
+    assign event_if.size = pkt_size;
+    assign event_if.status = pkt_status;
 
 endmodule : packet_write

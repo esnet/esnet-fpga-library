@@ -1,6 +1,6 @@
-class packet_descriptor_monitor #(
-    parameter type ADDR_T = bit,
-    parameter type META_T = bit
+class packet_descriptor_intf_monitor #(
+    parameter type ADDR_T = logic,
+    parameter type META_T = logic
 ) extends std_verif_pkg::monitor#(packet_descriptor#(ADDR_T,META_T));
 
     local static const string __CLASS_NAME = "packet_verif_pkg::packet_descriptor_monitor";
@@ -8,16 +8,13 @@ class packet_descriptor_monitor #(
     //===================================
     // Interfaces
     //===================================
-    virtual packet_descriptor_intf #(
-        .ADDR_T(ADDR_T),
-        .META_T(META_T)
-    ) packet_descriptor_vif;
+    virtual packet_descriptor_intf #(ADDR_T,META_T) packet_descriptor_vif;
 
     //===================================
     // Typedefs
     //===================================
     // Constructor
-    function new(input string name="packet_descriptor_monitor");
+    function new(input string name="packet_descriptor_intf_monitor");
         super.new(name);
     endfunction
 
@@ -77,4 +74,4 @@ class packet_descriptor_monitor #(
         packet_descriptor_vif.flush();
     endtask
 
-endclass
+endclass : packet_descriptor_intf_monitor

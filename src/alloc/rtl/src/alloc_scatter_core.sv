@@ -116,6 +116,7 @@ module alloc_scatter_core #(
             PTR_T      __alloc_ptr;
             logic      __req_q_full;
             logic      __req_q_empty;
+            logic      __req_q_rd;
             req_ctxt_t __req_ctxt_in;
             req_ctxt_t __req_ctxt_nxt;
             logic      __req_ctxt_valid;

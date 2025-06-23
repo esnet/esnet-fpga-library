@@ -50,17 +50,30 @@ class packet_enqueue_model #(
         trace_msg("_reset() Done.");
     endfunction
 
+    function automatic void ack_bytes(input int _bytes);
+        this.__tail_ptr += $ceil(_bytes * 1.0 / DATA_BYTE_WID);
+    endfunction
+
     // Set tail pointer (simulate read-side operations)
     function automatic void set_tail_ptr(input int tail_ptr);
         this.__tail_ptr = tail_ptr;
     endfunction
 
-    function automatic bit check_oflow(input int pkt_size);
+    function automatic int get_tail_ptr();
+        return this.__tail_ptr;
+    endfunction
+
+    function automatic int get_avail();
         bit[__ADDR_WID:0] fill = this.__head_ptr - this.__tail_ptr;
         int avail = this.__BUFFER_WORDS - fill;
-        int pkt_words = $ceil(pkt_size * 1.0 / DATA_BYTE_WID);
-        return avail < pkt_words;
+        return avail;
     endfunction
+
+    function automatic bit check_oflow(input int pkt_size);
+        int pkt_words = $ceil(pkt_size * 1.0 / DATA_BYTE_WID);
+        return get_avail() < pkt_words;
+    endfunction
+
 
     // Process input transaction
     // [[ implements std_verif_pkg::model._process() ]]

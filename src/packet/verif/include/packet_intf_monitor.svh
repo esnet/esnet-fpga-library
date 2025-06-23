@@ -1,6 +1,6 @@
 class packet_intf_monitor #(
     parameter int DATA_BYTE_WID = 8,
-    parameter type META_T = bit
+    parameter type META_T = logic
 ) extends packet_monitor#(META_T);
 
     local static const string __CLASS_NAME = "packet_verif_pkg::packet_intf_monitor";
@@ -14,16 +14,13 @@ class packet_intf_monitor #(
     //===================================
     // Interfaces
     //===================================
-    virtual packet_intf #(
-        .DATA_BYTE_WID(DATA_BYTE_WID),
-        .META_T(META_T)
-    ) packet_vif;
+    virtual packet_intf #(DATA_BYTE_WID,META_T) packet_vif;
 
     //===================================
     // Typedefs
     //===================================
-    typedef bit [DATA_BYTE_WID-1:0][7:0] data_t;
-    typedef bit [$clog2(DATA_BYTE_WID)-1:0] mty_t;
+    typedef logic [DATA_BYTE_WID-1:0][7:0] data_t;
+    typedef logic [$clog2(DATA_BYTE_WID)-1:0] mty_t;
 
     // Constructor
     function new(input string name="packet_intf_monitor", input bit BIGENDIAN=1);
@@ -81,9 +78,9 @@ class packet_intf_monitor #(
         // Signals
         automatic byte __data[$];
         automatic data_t _data;
-        automatic bit    eop = 0;
+        automatic logic  eop = 0;
+        automatic logic  __err;
         automatic mty_t  mty;
-        automatic bit tlast = 0;
         automatic int byte_idx = 0;
         automatic int word_idx = 0;
         automatic int byte_cnt = 0;
@@ -91,7 +88,7 @@ class packet_intf_monitor #(
         debug_msg("receive_raw: Waiting for data...");
 
         while (!eop) begin
-            packet_vif.receive(_data, eop, mty, err, meta);
+            packet_vif.receive(_data, eop, mty, __err, meta);
             trace_msg($sformatf("receive_raw: Received word %0d.", word_idx));
             if (this.__BIGENDIAN) begin
                 _data = {<<byte{_data}};
@@ -108,6 +105,7 @@ class packet_intf_monitor #(
             while (stall()) packet_vif._wait(1);
         end
         data = __data;
+        err = __err;
         __data.delete();
         debug_msg($sformatf("receive_raw: Done. Received %0d bytes.", byte_cnt));
     endtask

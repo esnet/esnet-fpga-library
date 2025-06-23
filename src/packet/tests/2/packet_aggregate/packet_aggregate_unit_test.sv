@@ -1,44 +1,25 @@
 `include "svunit_defines.svh"
 
-module packet_q_core_unit_test #(
-    parameter int NUM_INPUT_IFS = 1,
-    parameter int NUM_OUTPUT_IFS = 1
-);
+module packet_aggregate_unit_test;
     import svunit_pkg::svunit_testcase;
     import packet_verif_pkg::*;
 
-    string name = "packet_q_core_ut";
+    string name = "packet_aggregate_ut";
     svunit_testcase svunit_ut;
 
     //===================================
     // Parameters
     //===================================
-    localparam int  DATA_IN_BYTE_WID = 64;
-    localparam int  NUM_MEM_WR_IFS = 2;
+    localparam int NUM_INPUTS = 3;
+    localparam int DATA_IN_BYTE_WID = 16;
 
-    localparam int  DATA_OUT_BYTE_WID = 64;
-    localparam int  NUM_MEM_RD_IFS = 2;
-
-    localparam int  MEM_DATA_BYTE_WID = 32;
-    localparam int  MEM_DATA_WID = MEM_DATA_BYTE_WID * 8;
-
-    localparam int  BUFFER_SIZE = 2048;
-    localparam int  BUFFER_WORDS = BUFFER_SIZE / MEM_DATA_BYTE_WID;
-    localparam int  PTR_WID = 10;
-    localparam int  NUM_PTRS = 2**PTR_WID;
-    localparam int  MEM_DEPTH = NUM_PTRS * BUFFER_WORDS;
-    localparam int  ADDR_WID = $clog2(MEM_DEPTH);
-
-    localparam int  PACKET_Q_CAPACITY = BUFFER_SIZE * NUM_PTRS;
-
-    localparam type PTR_T = logic[PTR_WID-1:0];
-    localparam type ADDR_T = logic[ADDR_WID-1:0];
+    localparam int DATA_OUT_BYTE_WID = 64;
     localparam type META_T = logic[31:0];
 
-    typedef packet#(META_T) PACKET_T;
+    localparam int CTXT_WID = $clog2(NUM_INPUTS);
+    localparam type CTXT_T = logic[CTXT_WID-1:0];
 
-    localparam type DESC_T = alloc_pkg::alloc#(BUFFER_SIZE, PTR_T, META_T)::desc_t;
-    localparam int  DESC_WID = $bits(DESC_T);
+    typedef packet#(META_T) PACKET_T;
 
     //===================================
     // DUT
@@ -46,102 +27,29 @@ module packet_q_core_unit_test #(
     logic clk;
     logic srst;
 
-    logic init_done;
+    packet_intf #(.DATA_BYTE_WID(DATA_IN_BYTE_WID),  .META_T(META_T)) packet_in_if  [NUM_INPUTS] (.clk, .srst);
+    packet_intf #(.DATA_BYTE_WID(DATA_OUT_BYTE_WID), .META_T(META_T)) packet_out_if              (.clk, .srst);
 
-    packet_intf #(.DATA_BYTE_WID(DATA_IN_BYTE_WID), .META_T(META_T)) packet_in_if [NUM_INPUT_IFS]   (.clk(clk), .srst(srst));
+    packet_event_intf event_in_if  [NUM_INPUTS] (.clk);
+    packet_event_intf event_out_if (.clk);
 
-    mem_wr_intf #(.DATA_WID(MEM_DATA_WID), .ADDR_WID(PTR_WID))  desc_mem_wr_if (.clk);
-    mem_wr_intf #(.DATA_WID(MEM_DATA_WID), .ADDR_WID(ADDR_WID)) mem_wr_if [NUM_MEM_WR_IFS] (.clk);
+    CTXT_T ctxt_sel;
+    logic  ctxt_list_append_rdy;
+    logic  ctxt_out_valid;
+    CTXT_T ctxt_out;
 
-    packet_descriptor_intf #(.ADDR_T(PTR_T), .META_T(META_T)) desc_in_if  [NUM_INPUT_IFS] (.clk);
-    packet_descriptor_intf #(.ADDR_T(PTR_T), .META_T(META_T)) desc_out_if [NUM_OUTPUT_IFS] (.clk);
-
-    mem_rd_intf #(.DATA_WID(MEM_DATA_WID), .ADDR_WID(PTR_WID))  desc_mem_rd_if (.clk);
-    mem_rd_intf #(.DATA_WID(MEM_DATA_WID), .ADDR_WID(ADDR_WID)) mem_rd_if [NUM_MEM_RD_IFS] (.clk);
-
-    packet_intf #(.DATA_BYTE_WID(DATA_OUT_BYTE_WID), .META_T(META_T)) packet_out_if [NUM_OUTPUT_IFS] (.clk(clk), .srst(srst));
-
-    logic mem_init_done;
-
-    packet_q_core      #(
-        .NUM_INPUT_IFS  ( NUM_INPUT_IFS ),
-        .NUM_OUTPUT_IFS ( NUM_OUTPUT_IFS ),
-        .NUM_MEM_WR_IFS ( NUM_MEM_WR_IFS ),
-        .NUM_MEM_RD_IFS ( NUM_MEM_RD_IFS ),
-        .BUFFER_SIZE    ( BUFFER_SIZE ),
-        .PTR_T          ( PTR_T ),
-        .SIM__FAST_INIT ( 0 ),
-        .SIM__RAM_MODEL ( 0 )
+    packet_aggregate #(
+        .NUM_INPUTS   ( NUM_INPUTS )
     ) DUT (.*);
-
-    //===================================
-    // Memory
-    //===================================
-    localparam int NUM_MEM_CHANNELS = NUM_MEM_WR_IFS + NUM_MEM_RD_IFS + 1;
-    localparam int AXI_ADDR_WID = $clog2(PACKET_Q_CAPACITY + NUM_PTRS);
-    axi3_intf #(.DATA_BYTE_WID(MEM_DATA_BYTE_WID), .ADDR_WID(AXI_ADDR_WID)) axi3_if [NUM_MEM_CHANNELS] (.aclk(clk));
-    axi3_mem_bfm #(
-        .CHANNELS ( NUM_MEM_CHANNELS)
-    ) i_axi3_mem_bfm (
-        .axi3_if
-    );
-
-    for (genvar g_if = 0; g_if < NUM_MEM_WR_IFS; g_if++) begin : g_mem_wr_if
-        mem_rd_intf #(.DATA_WID(MEM_DATA_WID), .ADDR_WID(ADDR_WID)) mem_rd_if__unused (.clk);
-        axi3_from_mem_adapter #(
-            .SIZE(axi3_pkg::SIZE_32BYTES)
-        ) i_axi3_from_mem_adapter (
-            .clk,
-            .srst,
-            .init_done (),
-            .mem_wr_if ( mem_wr_if [g_if] ),
-            .mem_rd_if ( mem_rd_if__unused ),
-            .axi3_if   ( axi3_if[g_if] )
-        );
-        mem_rd_intf_controller_term i_mem_rd_intf_controller_term (.to_peripheral(mem_rd_if__unused));
-    end
-    for (genvar g_if = 0; g_if < NUM_MEM_RD_IFS; g_if++) begin : g_mem_rd_if
-        mem_wr_intf #(.DATA_WID(MEM_DATA_WID), .ADDR_WID(ADDR_WID)) mem_wr_if__unused (.clk);
-        axi3_from_mem_adapter #(
-            .SIZE(axi3_pkg::SIZE_32BYTES)
-        ) i_axi3_from_mem_adapter (
-            .clk,
-            .srst,
-            .init_done (),
-            .mem_wr_if ( mem_wr_if__unused ),
-            .mem_rd_if ( mem_rd_if[g_if] ),
-            .axi3_if   ( axi3_if[NUM_MEM_WR_IFS + g_if] )
-        );
-        mem_wr_intf_controller_term i_mem_wr_intf_controller_term (.to_peripheral(mem_wr_if__unused));
-    end
-
-    axi3_from_mem_adapter #(
-        .SIZE(axi3_pkg::SIZE_32BYTES),
-        .BASE_ADDR ( PACKET_Q_CAPACITY )
-    ) i_axi3_from_mem_adapter__desc (
-        .clk,
-        .srst,
-        .init_done (),
-        .mem_wr_if ( desc_mem_wr_if ),
-        .mem_rd_if ( desc_mem_rd_if ),
-        .axi3_if   ( axi3_if[NUM_MEM_WR_IFS + NUM_MEM_RD_IFS] )
-    );
-
-    generate
-        for (genvar g_if = 0; g_if < NUM_INPUT_IFS; g_if++) begin : g__if
-            packet_descriptor_fifo i_packet_descriptor_fifo (
-                .from_tx ( desc_in_if[g_if] ),
-                .to_rx   ( desc_out_if[g_if] )
-            );
-        end : g__if
-    endgenerate
-
-    assign mem_init_done = 1'b1;
 
     //===================================
     // Testbench
     //===================================
     packet_component_env #(META_T) env;
+
+    for (genvar g_input = 1; g_input < NUM_INPUTS; g_input++) begin : g__input
+        packet_intf_tx_term i_packet_intf_tx_term (.to_rx (packet_in_if[g_input]));
+    end : g__input
 
     packet_intf_driver#(DATA_IN_BYTE_WID, META_T) driver;
     packet_intf_monitor#(DATA_OUT_BYTE_WID, META_T) monitor;
@@ -171,7 +79,7 @@ module packet_q_core_unit_test #(
 
         // Monitor
         monitor = new(.BIGENDIAN(1));
-        monitor.packet_vif = packet_out_if[0];
+        monitor.packet_vif = packet_out_if;
 
         model = new();
         scoreboard = new();
@@ -242,8 +150,22 @@ module packet_q_core_unit_test #(
         `SVTEST_END
 
         `SVTEST(one_packet_good)
-            len = $urandom_range(64, 511);
             one_packet();
+            #10us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
+        `SVTEST_END
+
+        `SVTEST(one_packet_63B)
+            one_packet(.len(63));
+            #10us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
+        `SVTEST_END
+
+        `SVTEST(one_packet_64B)
+            one_packet(.len(64));
+            #10us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
+        `SVTEST_END
+
+        `SVTEST(one_packet_65B)
+            one_packet(.len(65));
             #10us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
         `SVTEST_END
 
@@ -319,29 +241,4 @@ module packet_q_core_unit_test #(
 
     `SVUNIT_TESTS_END
 
-endmodule
-
-
-// 'Boilerplate' unit test wrapper code
-//  Builds unit test for a parameterized
-//  packet_q_core instance that maintains
-//  SVUnit compatibility
-`define PACKET_Q_CORE_TEST(INPUT_IFS,OUTPUT_IFS)\
-  import svunit_pkg::svunit_testcase;\
-  svunit_testcase svunit_ut;\
-  packet_q_core_unit_test #(INPUT_IFS,OUTPUT_IFS) test();\
-  function void build();\
-    test.build();\
-    svunit_ut = test.svunit_ut;\
-  endfunction\
-  function void __register_tests();\
-    test.__register_tests();\
-  endfunction\
-  task run();\
-    test.run();\
-  endtask
-
-
-module packet_q_core_1in_1out_unit_test;
-`PACKET_Q_CORE_TEST(1,1)
 endmodule

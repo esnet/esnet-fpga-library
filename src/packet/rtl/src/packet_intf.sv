@@ -2,27 +2,27 @@ interface packet_intf #(
     parameter int  DATA_BYTE_WID = 1,
     parameter type META_T = logic
 ) (
-    input wire logic clk,
-    input wire logic srst = 1'b0
+    input logic clk,
+    input logic srst = 1'b0
 );
 
     // Parameters
     localparam int MTY_WID = $clog2(DATA_BYTE_WID);
-    
+
     // Typedefs
     typedef logic [0:DATA_BYTE_WID-1][7:0] data_t;
     typedef logic [MTY_WID-1:0] mty_t;
 
     // Signals
-    wire logic  valid;
-    wire logic  rdy;
-    wire data_t data;
-    wire logic  eop;
-    wire mty_t  mty;
-    wire logic  err;
-    wire META_T meta;
-    
-    var  logic  sop;
+    logic  valid;
+    logic  rdy;
+    data_t data;
+    logic  eop;
+    mty_t  mty;
+    logic  err;
+    META_T meta;
+
+    logic  sop;
 
     // Modports
     modport tx(
@@ -48,7 +48,7 @@ interface packet_intf #(
         input  eop,
         input  mty,
         input  err,
-        input meta
+        input  meta
     );
 
     // Track SOP
@@ -159,15 +159,78 @@ module packet_intf_connector (
     packet_intf.rx from_tx,
     packet_intf.tx to_rx
 );
+    // Parameters
+    localparam int DATA_BYTE_WID = $bits(from_tx.DATA_BYTE_WID);
+    localparam int DATA_WID = DATA_BYTE_WID * 8;
+    localparam int MTY_WID = $clog2(DATA_BYTE_WID);
+    localparam int META_WID = $bits(from_tx.META_T);
+
+    // Parameter checking
+    initial begin
+        std_pkg::param_check($bits(to_rx.DATA_BYTE_WID), DATA_BYTE_WID, "to_rx.DATA_BYTE_WID");
+        std_pkg::param_check($bits(to_rx.META_T), META_WID, "to_rx.META_T");
+    end
+
+    // Signals
+    logic                valid;
+    logic                rdy;
+    logic [DATA_WID-1:0] data;
+    logic                eop;
+    logic [MTY_WID-1:0]  mty;
+    logic                err;
+    logic [META_WID-1:0] meta;
+
     // Connect signals (tx -> rx)
-    assign to_rx.valid = from_tx.valid;
-    assign to_rx.data  = from_tx.data;
-    assign to_rx.eop   = from_tx.eop;
-    assign to_rx.mty   = from_tx.mty;
-    assign to_rx.err   = from_tx.err;
-    assign to_rx.meta  = from_tx.meta;
+    assign valid = from_tx.valid;
+    assign data  = from_tx.data;
+    assign eop   = from_tx.eop;
+    assign mty   = from_tx.mty;
+    assign err   = from_tx.err;
+    assign meta  = from_tx.meta;
+
+    assign to_rx.valid = valid;
+    assign to_rx.data  = data;
+    assign to_rx.eop   = eop;
+    assign to_rx.mty   = mty;
+    assign to_rx.err   = err;
+    assign to_rx.meta  = meta;
 
     // Connect signals (rx -> tx)
-    assign from_tx.rdy = to_rx.rdy;
+    assign rdy = to_rx.rdy;
+
+    assign from_tx.rdy = rdy;
 
 endmodule : packet_intf_connector
+
+// Packet transmitter termination
+module packet_intf_tx_term (
+    packet_intf.tx to_rx
+);
+    assign to_rx.valid = 1'b0;
+    assign to_rx.data  = 'x;
+    assign to_rx.eop   = 1'bx;
+    assign to_rx.mty   = 'x;
+    assign to_rx.err   = 1'bx;
+    assign to_rx.meta  = 'x;
+
+endmodule : packet_intf_tx_term
+
+// Packet receiver termination (open circuit)
+module packet_intf_rx_block (
+    packet_intf.rx from_tx
+);
+    logic rdy;
+    assign rdy = 1'b0;
+
+    assign from_tx.rdy = rdy;
+endmodule : packet_intf_rx_block
+
+// Packet receiver termination (short circuit)
+module packet_intf_rx_sink (
+    packet_intf.rx from_tx
+);
+    logic rdy;
+    assign rdy = 1'b1;
+
+    assign from_tx.rdy = rdy;
+endmodule : packet_intf_rx_sink

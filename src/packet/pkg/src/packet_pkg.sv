@@ -34,4 +34,10 @@ package packet_pkg;
         STATUS_LONG = 5
     } status_t;
 
+    typedef enum {
+        MUX_MODE_SEL  = 0,
+        MUX_MODE_RR   = 1,
+        MUX_MODE_LIST = 2
+    } mux_mode_t;
+
 endpackage : packet_pkg

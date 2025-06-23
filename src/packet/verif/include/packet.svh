@@ -172,16 +172,20 @@ virtual class packet#(parameter type META_T = bit) extends std_verif_pkg::transa
             msg = $sformatf("Packet error indication mismatch. A: %b, B: %b.", this.is_errored(), b.is_errored());
             return 0;
         end else begin
-            byte a_data [] = this.to_bytes();
-            byte b_data [] = b.to_bytes();
-            for (int i = 0; i < this.size(); i++) begin
-                if (a_data[i] != b_data[i]) begin
+            int i = 0;
+            byte a_data [$] = this.to_bytes();
+            byte b_data [$] = b.to_bytes();
+            while (a_data.size() > 0) begin
+                byte a_byte = a_data.pop_front();
+                byte b_byte = b_data.pop_front();
+                if (a_byte != b_byte) begin
                     msg = $sformatf(
                         "Packet data mismatch at byte %0d. A[%0d]: %2x, B[%0d]: %2x",
-                        i, i, a_data[i], i, b_data[i]
+                        i, i, a_byte, i, b_byte
                     );
                     return 0;
                 end
+                i++;
             end
         end
         msg = "Packets match.";

@@ -237,7 +237,7 @@ class packet_playback_driver #(parameter type META_T=bit) extends packet_driver#
                 else                       meta_reg[j] = 0;
             end
             control_agent.write_meta(i, meta_reg);
-            debug_msg($sformatf("_set_meta: Wrote 0%0x to meta reg %0d", meta_reg, i));
+            debug_msg($sformatf("_set_meta: Wrote 0x%0x to meta reg %0d", meta_reg, i));
         end
     endtask
 

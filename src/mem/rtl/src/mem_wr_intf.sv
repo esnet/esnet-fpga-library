@@ -107,3 +107,22 @@ module mem_wr_intf_connector (
     assign mem_wr_if_from_controller.rdy = mem_wr_if_to_peripheral.rdy;
     assign mem_wr_if_from_controller.ack = mem_wr_if_to_peripheral.ack;
 endmodule : mem_wr_intf_connector
+
+// Memory write interface controller termination
+module mem_wr_intf_controller_term (
+    input srst = 1'b0,
+    mem_wr_intf.controller to_peripheral
+);
+    assign to_peripheral.rst = srst;
+    assign to_peripheral.en = 1'b0;
+    assign to_peripheral.req = 1'b0;
+endmodule : mem_wr_intf_controller_term
+
+// Memory write interface peripheral termination
+module mem_wr_intf_peripheral_term (
+    input srst = 1'b0,
+    mem_wr_intf.peripheral from_controller
+);
+    assign from_controller.rdy = 1'b0;
+    assign from_controller.ack = 1'b0;
+endmodule : mem_wr_intf_peripheral_term
