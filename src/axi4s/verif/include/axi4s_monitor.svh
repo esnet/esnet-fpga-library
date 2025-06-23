@@ -56,6 +56,16 @@ class axi4s_monitor #(
         _trace_msg(msg, __CLASS_NAME);
     endfunction
 
+    // Configure for little-endianness
+    function automatic void set_little_endian();
+        this.__BIGENDIAN = 0;
+    endfunction
+
+    // Configure for big-endianness
+    function automatic void set_big_endian();
+        this.__BIGENDIAN = 1;
+    endfunction
+
     // Set tpause value used by monitor (for stalling receive transactions)
     function automatic void set_tpause(input int tpause);
         this.__tpause = tpause;

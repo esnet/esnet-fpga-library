@@ -59,6 +59,16 @@ class axi4s_driver #(
         _trace_msg(msg, __CLASS_NAME);
     endfunction
 
+    // Configure for little-endianness
+    function automatic void set_little_endian();
+        this.__BIGENDIAN = 0;
+    endfunction
+
+    // Configure for big-endianness
+    function automatic void set_big_endian();
+        this.__BIGENDIAN = 1;
+    endfunction
+
     // Set minimum inter-packet gap (in clock cycles)
     function automatic void set_min_gap(input int min_pkt_gap);
         this.__min_pkt_gap = min_pkt_gap;

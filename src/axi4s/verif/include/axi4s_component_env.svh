@@ -73,4 +73,16 @@ class axi4s_component_env #(
         trace_msg("_build() Done.");
     endfunction
 
+    // Configure for little-endianness
+    function automatic void set_little_endian();
+        this.driver.set_little_endian();
+        this.monitor.set_little_endian();
+    endfunction
+
+    // Configure for big-endianness
+    function automatic void set_big_endian();
+        this.driver.set_big_endian();
+        this.monitor.set_big_endian();
+    endfunction
+
 endclass : axi4s_component_env
