@@ -36,6 +36,11 @@ module packet_intf_unit_test #(
             "packet_pipe_auto": packet_pipe_auto DUT (.*);
             "packet_pipe_slr": packet_pipe_slr DUT (.*);
             "packet_pipe_slr_p1_p1": packet_pipe_slr #(.PRE_PIPE_STAGES(1), .POST_PIPE_STAGES(1)) DUT (.*);
+            "packet_intf_width_converter": begin : g__packet_intf_width_converter
+                packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID*8), .META_T(META_T)) __packet_if (.clk, .srst);
+                packet_intf_width_converter DUT1 (.from_tx, .to_rx(__packet_if));
+                packet_intf_width_converter DUT2 (.from_tx(__packet_if), .to_rx);
+            end : g__packet_intf_width_converter
         endcase
     endgenerate
 
@@ -292,3 +297,6 @@ module packet_pipe_slr_p1_p1_unit_test;
 `PACKET_UNIT_TEST("packet_pipe_slr_p1_p1")
 endmodule
 
+module packet_intf_width_converter_unit_test;
+`PACKET_UNIT_TEST("packet_intf_width_converter")
+endmodule
