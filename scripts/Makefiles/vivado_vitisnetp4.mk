@@ -25,12 +25,12 @@ IP_SRC_DIR = $(COMPONENT_OUT_PATH)
 # -----------------------------------------------
 VITISNETP4_TCL_FILE = $(IP_SRC_DIR)/$(VITISNETP4_IP_NAME).tcl
 
-SRC_FILES = $(shell find $(XILINX_VIVADO)/data/ip/xilinx/vitis_net_p4* -name "vitis_net_p4_dpi_pkg.sv")
-
 IP_SIM_SRC_FILES += \
     $(VITISNETP4_IP_NAME)/src/verilog/$(VITISNETP4_IP_NAME)_top_pkg.sv \
     $(VITISNETP4_IP_NAME)/src/verilog/$(VITISNETP4_IP_NAME)_pkg.sv \
     $(VITISNETP4_IP_NAME)/src/verilog/$(VITISNETP4_IP_NAME)_sync_fifos.sv \
+    $(VITISNETP4_IP_NAME)/src/verilog/$(VITISNETP4_IP_NAME)_counter_extern.sv \
+    $(VITISNETP4_IP_NAME)/src/verilog/$(VITISNETP4_IP_NAME)_counter_top.sv \
     $(VITISNETP4_IP_NAME)/src/verilog/$(VITISNETP4_IP_NAME)_header_sequence_identifier.sv \
     $(VITISNETP4_IP_NAME)/src/verilog/$(VITISNETP4_IP_NAME)_header_field_extractor.sv \
     $(VITISNETP4_IP_NAME)/src/verilog/$(VITISNETP4_IP_NAME)_error_check_module.sv \
@@ -45,17 +45,18 @@ IP_SIM_SRC_FILES += \
     $(VITISNETP4_IP_NAME)/src/verilog/$(VITISNETP4_IP_NAME)_top.sv \
     $(VITISNETP4_IP_NAME)/src/verilog/$(VITISNETP4_IP_NAME).sv
 
+# Import IP core revision details from version-specific tool config
+include $(CFG_ROOT)/vivado_ip.mk
+
+ifeq ($(VIVADO_ACTIVE_VERSION__MAJOR),2023.2)
 IP_SIM_INC_DIRS += \
     $(VITISNETP4_IP_NAME)/hdl/fpga_asic_macros_v1_0/hdl/include/fpga \
-    $(VITISNETP4_IP_NAME)/hdl/mcfh_v1_0/hdl/mcfh_include \
+    $(VITISNETP4_IP_NAME)/hdl/mcfh_v1_0/hdl/include \
     $(VITISNETP4_IP_NAME)/hdl/cue_v1_0/hdl \
     $(VITISNETP4_IP_NAME)/hdl/infrastructure_v6_4/ic_infrastructure/libs/axi \
     $(VITISNETP4_IP_NAME)/hdl/axil_mil_v2_4/axil_mil/sv/axil_mil \
     $(VITISNETP4_IP_NAME)/src/hw/simulation \
     $(VITISNETP4_IP_NAME)/src/verilog
-
-# Import IP core revision details from version-specific tool config
-include $(CFG_ROOT)/vivado_ip.mk
 
 EXT_LIBS += \
     cam_v$(IP_VER_CAM) \
@@ -65,6 +66,59 @@ EXT_LIBS += \
     unisims_ver \
     unisims_macro \
     xpm
+else
+ifeq ($(VIVADO_ACTIVE_VERSION__MAJOR),2024.2)
+IP_SIM_INC_DIRS += \
+     $(VITISNETP4_IP_NAME)/hdl/include \
+     $(VITISNETP4_IP_NAME)/hdl/fpga_asic_macros_v1_0/hdl/include/fpga \
+     $(VITISNETP4_IP_NAME)/hdl/mcfh_v3_0/hdl/include \
+     $(VITISNETP4_IP_NAME)/hdl/cue_v2_0/hdl \
+     $(VITISNETP4_IP_NAME)/hdl/infrastructure_v6_4/ic_infrastructure/libs/axi \
+     $(VITISNETP4_IP_NAME)/hdl/atom_v1_1/hdl \
+     $(VITISNETP4_IP_NAME)/hdl/dbpl_v1_1/hdl \
+     $(VITISNETP4_IP_NAME)/hdl/axil_mil_v2_4/axil_mil/sv/axil_mil \
+     $(VITISNETP4_IP_NAME)/src/hw/simulation \
+     $(VITISNETP4_IP_NAME)/src/hw/top/hdl \
+     $(VITISNETP4_IP_NAME)/src/verilog
+
+EXT_LIBS += \
+    cam_v$(IP_VER_CAM) \
+    cam_blk_lib_v1_2_0 \
+    cdcam_v$(IP_VER_CDCAM) \
+    vitis_net_p4_v$(IP_VER_VITIS_NET_P4) \
+    unisims_ver \
+    unisims_macro \
+    xpm
+else
+ifeq ($(VIVADO_ACTIVE_VERSION__MAJOR),2025.1)
+IP_SIM_INC_DIRS += \
+     $(VITISNETP4_IP_NAME)/hdl/include \
+     $(VITISNETP4_IP_NAME)/hdl/fpga_asic_macros_v1_0/hdl/include/fpga \
+     $(VITISNETP4_IP_NAME)/hdl/mcfh_v3_0/hdl/include \
+     $(VITISNETP4_IP_NAME)/hdl/cue_v2_0/hdl \
+     $(VITISNETP4_IP_NAME)/hdl/infrastructure_v6_4/ic_infrastructure/libs/axi \
+     $(VITISNETP4_IP_NAME)/hdl/atom_v1_1/hdl \
+     $(VITISNETP4_IP_NAME)/hdl/dbpl_v1_1/hdl \
+     $(VITISNETP4_IP_NAME)/hdl/axil_mil_v2_4/axil_mil/sv/axil_mil \
+     $(VITISNETP4_IP_NAME)/src/hw/simulation \
+     $(VITISNETP4_IP_NAME)/src/hw/top/hdl \
+     $(VITISNETP4_IP_NAME)/src/verilog
+
+EXT_LIBS += \
+ 	$(XILINX_VIVADO)/data/rsb/busdef \
+	cam_v$(IP_VER_CAM) \
+    cam_blk_lib_v1_3_0 \
+    cdcam_v$(IP_VER_CDCAM) \
+    vitis_net_p4_v$(IP_VER_VITIS_NET_P4) \
+    unisims_ver \
+    unisims_macro \
+    xpm
+endif
+endif
+endif
+
+SUBCOMPONENTS += \
+    xilinx.vitisnetp4.dpi$(if $(COMMON_LIB_NAME),$(lib_separator)$(COMMON_LIB_NAME),)
 
 # -----------------------------------------------
 # Include base Vivado IP management Make instructions
@@ -134,7 +188,7 @@ $(IP_XCI_PROXY_DIR)/.vitisnetp4_refreshed: $(VITISNETP4_TCL_FILE) $(IP_XCI_PROXY
 
 _vitisnetp4_dpi_drv: $(VITISNETP4_DPI_DRV_FILE)
 
-_vitisnetp4_compile: _ip_exdes _vitisnetp4_dpi_drv _ip_compile
+_vitisnetp4_compile: _vitisnetp4_dpi_drv _ip_compile
 
 _vitisnetp4_synth: _ip_synth | $(COMPONENT_OUT_SYNTH_PATH)
 	@rm -rf $(COMPONENT_OUT_SYNTH_PATH)/sv_pkg_srcs.f
