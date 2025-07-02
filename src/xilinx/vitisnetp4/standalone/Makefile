@@ -42,7 +42,7 @@ VITIS_NET_P4_INCLUDES = \
     -i $(VITIS_NET_P4_IP_NAME)/hdl/axil_mil_v2_4/axil_mil/sv/axil_mil \
     -i $(VITIS_NET_P4_IP_NAME)/src/hw/simulation \
     -i $(VITIS_NET_P4_IP_NAME)/src/verilog
-VITIS_NET_P4_LIBS = -L vitis_net_p4_v2_0_0 -L cam_v2_6_0
+VITIS_NET_P4_LIBS = -L vitis_net_p4_v2_0_0 -L cam_v2_6_0 -L cam_blk_lib_v1_0_0 -L cdcam_v_1_0_0
 else
 ifeq ($(VIVADO_MAJOR_VERSION), 2024.2)
 VITIS_NET_P4_FILES = $(VITIS_NET_P4_V2_FILES)
