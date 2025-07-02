@@ -48,30 +48,43 @@ module test;
     USER_EXTERN_IN_T    user_extern_in;
     USER_EXTERN_VALID_T user_extern_in_valid;
 
-    logic [13:0] s_axi_araddr;
-    logic        s_axi_arready;
-    logic        s_axi_arvalid;
-    logic [13:0] s_axi_awaddr;
-    logic        s_axi_awready;
-    logic        s_axi_awvalid;
-    logic        s_axi_bready;
-    logic [1:0]  s_axi_bresp;
-    logic        s_axi_bvalid;
-    logic [31:0] s_axi_rdata;
-    logic        s_axi_rready;
-    logic [1:0]  s_axi_rresp;
-    logic        s_axi_rvalid;
-    logic [31:0] s_axi_wdata;
-    logic        s_axi_wready;
-    logic [3:0]  s_axi_wstrb;
-    logic        s_axi_wvalid;
+    logic [S_AXI_ADDR_WIDTH-1:0] s_axi_araddr;
+    logic                        s_axi_arready;
+    logic                        s_axi_arvalid;
+    logic [S_AXI_ADDR_WIDTH-1:0] s_axi_awaddr;
+    logic                        s_axi_awready;
+    logic                        s_axi_awvalid;
+    logic                        s_axi_bready;
+    logic [1:0]                  s_axi_bresp;
+    logic                        s_axi_bvalid;
+    logic [S_AXI_DATA_WIDTH-1:0] s_axi_rdata;
+    logic                        s_axi_rready;
+    logic [1:0]                  s_axi_rresp;
+    logic                        s_axi_rvalid;
+    logic [S_AXI_DATA_WIDTH-1:0] s_axi_wdata;
+    logic                        s_axi_wready;
+    logic [3:0]                  s_axi_wstrb;
+    logic                        s_axi_wvalid;
 
     vitis_net_p4_0 DUT (.*);
+
+    // Extern models
+    extern_model  #(4, bit[2:0], bit, 1'b1) i_extern_model__counter (
+        .clk       ( s_axis_aclk ),
+        .srst      ( !s_axis_aresetn ),
+        .valid_in  ( user_extern_out_valid.counter ),
+        .data_in   ( user_extern_out.counter ),
+        .valid_out ( user_extern_in_valid.counter ),
+        .data_out  ( user_extern_in.counter )
+    );
 
     //===================================
     // Testbench
     //===================================
     logic s_axis_sop;
+
+    // Class managing VitisNetP4 DPI-C driver functions
+    driver_pkg::driver vitisnetp4_drv;
 
     //===================================
     // Clocks
@@ -89,43 +102,43 @@ module test;
     //===================================
     bit [0:13][7:0] eth = {
         // MAC
-        48'haaaaaaaaaaaa,
-        48'haaaaaaaaaaaa,
+        48'h4574687B7E7E,
+        48'h7E7E7E7E7E7D,
         // Ethertype
         16'h8100
     };
 
     bit [0:3][7:0] vlan_0 = {
-        16'hbbbb,
+        16'h564C,
         // Ethertype (IPv4)
         16'h0800
     };
 
     bit [0:19][7:0] ipv4 = {
         4'h4, // Version
-        4'hc, // IHL
-        8'hcc, // DSCP/ECN
+        4'h5, // IHL
+        8'h00, // DSCP/ECN
         16'h006e, // Total length
-        16'hcccc, // ID
-        16'hcccc, // Flags / Fragment offset
-        8'hcc, // TTL
+        16'h4950, // ID
+        16'h0000, // Flags / Fragment offset
+        8'h00, // TTL
         8'h06, // Protocol (TCP)
-        16'hcccc, // Checksum
-        32'hcccccccc, // SRC address,
-        32'hcccccccc  // DST address
+        16'h7634, // Checksum
+        32'h7B7E7E7E, // SRC address,
+        32'h7E7E7E7D  // DST address
     };
 
     bit [0:19][7:0] tcp = {
-        16'hdddd, // SRC port
-        16'hdddd, // DST port,
-        32'hdddddddd, // SEQ
-        32'hdddddddd, // ACK
+        16'h5443, // SRC port
+        16'h507B, // DST port,
+        32'h7E7E7E7E, // SEQ
+        32'h7E7E7E7E, // ACK
         4'h5, // Header length
-        4'hd, // RSVD
-        8'hdd, // Flags
-        16'hdddd, // Window size
-        16'hdddd, // Checksum
-        16'hdddd  // Urgent pointer
+        4'h0, // RSVD
+        8'h7E, // Flags
+        16'h7E7E, // Window size
+        16'h7E7E, // Checksum
+        16'h7E7D  // Urgent pointer
     };
 
     bit [0:1][0:63][7:0] ipv4_tcp_pkt = {
@@ -133,7 +146,9 @@ module test;
         vlan_0,
         ipv4,
         tcp,
-        {80{8'hee}}
+        40'h50796C647B,
+        {64{8'h7E}},
+        8'h7D
     };
 
     //===================================
@@ -148,6 +163,11 @@ module test;
         s_axis_aresetn = 1'b1;
         s_axi_aresetn = 1'b1;
         #100ns;
+        $display($sformatf("[%0t] Initialize driver...", $time));
+        vitisnetp4_drv = new($sformatf("%m"));
+        vitisnetp4_drv.init();
+        $display($sformatf("[%0t] Writing table rules...", $time));
+        add_rules();
         fork
             begin
                 fork
@@ -163,18 +183,20 @@ module test;
         disable fork;
         #100ns;
         $display($sformatf("[%0t] Done.", $time));
+        vitisnetp4_drv.cleanup();
         $finish;
     end
     assign cam_mem_aresetn = s_axis_aresetn;
-
-    // Flush AXI-S output interface
-    assign m_axis_tready = 1'b1;
 
     task s_axis_idle();
         s_axis_tvalid <= 1'b0;
         s_axis_tlast <= 1'b0;
         s_axis_tkeep <= '0;
         s_axis_tdata <= '0;
+    endtask
+
+    task m_axis_idle();
+        m_axis_tready <= 1'b0;
     endtask
 
     initial s_axis_sop = 1'b1;
@@ -202,6 +224,7 @@ module test;
 
     task idle();
         s_axis_idle();
+        m_axis_idle();
         s_axi_idle();
     endtask
 
@@ -253,51 +276,46 @@ module test;
     export "DPI-C" task axi_lite_wr;
     task axi_lite_wr(input int address, input int data);
         @(posedge s_axi_aclk);
+        fork
+            begin
+                s_axi_awvalid <= 1'b1;
+                s_axi_awaddr <= address;
+                do @(posedge s_axi_aclk); while (!s_axi_awready);
+                s_axi_awvalid <= 1'b0;
+                s_axi_awaddr <= 'x;
+            end
+            begin
+                s_axi_wvalid <= 1'b1;
+                s_axi_wstrb <= '1;
+                s_axi_wdata <= data;
+                do @(posedge s_axi_aclk); while (!s_axi_wready);
+                s_axi_wvalid <= 1'b0;
+                s_axi_wstrb <= 'x;
+                s_axi_wdata <= 'x;
+            end
+        join
+        s_axi_bready <= 1'b1;
+        do @(posedge s_axi_aclk); while (!s_axi_bvalid);
+        s_axi_bready <= 1'b0;
+        if (s_axi_bresp != 2'b00) $error("Bad AXI-L write");
     endtask
 
     export "DPI-C" task axi_lite_rd;
     task axi_lite_rd(input int address, inout int data);
         @(posedge s_axi_aclk);
-        data = '0;
+        s_axi_arvalid <= 1'b1;
+        s_axi_araddr <= address;
+        do @(posedge s_axi_aclk); while (!s_axi_arready);
+        s_axi_arvalid <= 1'b0;
+        s_axi_araddr <= 'x;
+        s_axi_rready <= 1'b1;
+        do @(posedge s_axi_aclk); while (!s_axi_rvalid);
+        s_axi_rready <= 1'b0;
+        data = s_axi_rdata;
+        if (s_axi_rresp != 2'b00) $error("Bad AXI-L read");
     endtask
 
-    // Extern models
-    extern_model  #(4, bit[2:0], bit, 1'b1) i_extern_model__counter (
-        .clk       ( s_axis_aclk ),
-        .srst      ( !s_axis_aresetn ),
-        .valid_in  ( user_extern_out_valid.counter ),
-        .data_in   ( user_extern_out.counter ),
-        .valid_out ( user_extern_in_valid.counter ),
-        .data_out  ( user_extern_in.counter )
-    );
+    task add_rules();
+    endtask
 
 endmodule
-
-module extern_model #(
-    parameter int LATENCY = 4,
-    parameter type DATA_IN_T = bit,
-    parameter type DATA_OUT_T = bit,
-    parameter DATA_OUT_T DATA_OUT = '0
-)(
-    input logic       clk,
-    input logic       srst,
-    input logic       valid_in,
-    input DATA_IN_T   data_in,
-    output logic      valid_out,
-    output DATA_OUT_T data_out
-);
-    logic valid_p [LATENCY];
-
-    initial valid_p = '{LATENCY{1'b0}};
-    always @(posedge clk) begin
-        if (srst) valid_p <= '{LATENCY{1'b0}};
-        else begin
-            for (int i = 1; i < LATENCY; i++) valid_p[i] <= valid_p[i-1];
-            valid_p[0] <= valid_in;
-        end
-    end
-    assign valid_out = valid_p[LATENCY-1];
-
-    assign data_out = DATA_OUT;
-
-endmodule : extern_model
