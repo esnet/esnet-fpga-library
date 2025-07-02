@@ -102,43 +102,43 @@ module test;
     //===================================
     bit [0:13][7:0] eth = {
         // MAC
-        48'haaaaaaaaaaaa,
-        48'haaaaaaaaaaaa,
+        48'h4574687B7E7E,
+        48'h7E7E7E7E7E7D,
         // Ethertype
         16'h8100
     };
 
     bit [0:3][7:0] vlan_0 = {
-        16'hbbbb,
+        16'h564C,
         // Ethertype (IPv4)
         16'h0800
     };
 
     bit [0:19][7:0] ipv4 = {
         4'h4, // Version
-        4'hc, // IHL
-        8'hcc, // DSCP/ECN
+        4'h5, // IHL
+        8'h00, // DSCP/ECN
         16'h006e, // Total length
-        16'hcccc, // ID
-        16'hcccc, // Flags / Fragment offset
-        8'hcc, // TTL
+        16'h4950, // ID
+        16'h0000, // Flags / Fragment offset
+        8'h00, // TTL
         8'h06, // Protocol (TCP)
-        16'hcccc, // Checksum
-        32'hcccccccc, // SRC address,
-        32'hcccccccc  // DST address
+        16'h7634, // Checksum
+        32'h7B7E7E7E, // SRC address,
+        32'h7E7E7E7D  // DST address
     };
 
     bit [0:19][7:0] tcp = {
-        16'hdddd, // SRC port
-        16'hdddd, // DST port,
-        32'hdddddddd, // SEQ
-        32'hdddddddd, // ACK
+        16'h5443, // SRC port
+        16'h507B, // DST port,
+        32'h7E7E7E7E, // SEQ
+        32'h7E7E7E7E, // ACK
         4'h5, // Header length
-        4'hd, // RSVD
-        8'hdd, // Flags
-        16'hdddd, // Window size
-        16'hdddd, // Checksum
-        16'hdddd  // Urgent pointer
+        4'h0, // RSVD
+        8'h7E, // Flags
+        16'h7E7E, // Window size
+        16'h7E7E, // Checksum
+        16'h7E7D  // Urgent pointer
     };
 
     bit [0:1][0:63][7:0] ipv4_tcp_pkt = {
@@ -146,7 +146,9 @@ module test;
         vlan_0,
         ipv4,
         tcp,
-        {80{8'hee}}
+        40'h50796C647B,
+        {64{8'h7E}},
+        8'h7D
     };
 
     //===================================
