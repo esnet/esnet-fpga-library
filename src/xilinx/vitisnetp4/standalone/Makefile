@@ -101,14 +101,17 @@ sim: elab
 $(VITIS_NET_P4_IP_NAME)/$(VITIS_NET_P4_IP_NAME).xci: pipeline.p4 create_ip.tcl
 	@vivado -mode batch -source create_ip.tcl
 
-xsim.dir/work/work.rlx : xsim.dir/vitisnetp4/vitisnetp4.rlx test.sv
-	@xvlog --sv -L vitisnetp4 string_pkg.sv test.sv $(XILINX_VIVADO)/data/verilog/src/glbl.v
+xsim.dir/work/work.rlx : xsim.dir/vitisnetp4/vitisnetp4.rlx xsim.dir/support/support.rlx test.sv
+	@xvlog --sv -L vitisnetp4 -L support test.sv $(XILINX_VIVADO)/data/verilog/src/glbl.v
+
+xsim.dir/support/support.rlx: src/string_pkg.sv src/extern_model.sv
+	@xvlog --sv -work support src/string_pkg.sv src/extern_model.sv
 
 xsim.dir/vitisnetp4/vitisnetp4.rlx : ip
 	@xvlog --sv $(VITIS_NET_P4_INCLUDES) -work vitisnetp4 $(VITIS_NET_P4_FILES)
 
 xsim.dir/snapshot/xsimk: compile
-	@xelab test glbl --relax -debug typical $(VITIS_NET_P4_INCLUDES) -L vitisnetp4 $(VITIS_NET_P4_LIBS) -L xpm -timescale 1ns/1ps -s snapshot
+	@xelab test glbl --relax -debug typical $(VITIS_NET_P4_INCLUDES) -L vitisnetp4 $(VITIS_NET_P4_LIBS) -L xpm -L support -timescale 1ns/1ps -s snapshot
 
 clean:
 	@rm -rf xsim.dir
