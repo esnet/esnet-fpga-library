@@ -167,14 +167,15 @@ module test;
     end
     assign cam_mem_aresetn = s_axis_aresetn;
 
-    // Flush AXI-S output interface
-    assign m_axis_tready = 1'b1;
-
     task s_axis_idle();
         s_axis_tvalid <= 1'b0;
         s_axis_tlast <= 1'b0;
         s_axis_tkeep <= '0;
         s_axis_tdata <= '0;
+    endtask
+
+    task m_axis_idle();
+        m_axis_tready <= 1'b0;
     endtask
 
     initial s_axis_sop = 1'b1;
@@ -202,6 +203,7 @@ module test;
 
     task idle();
         s_axis_idle();
+        m_axis_idle();
         s_axi_idle();
     endtask
 
