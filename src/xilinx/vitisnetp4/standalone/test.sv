@@ -83,6 +83,9 @@ module test;
     //===================================
     logic s_axis_sop;
 
+    // Class managing VitisNetP4 DPI-C driver functions
+    driver_pkg::driver vitisnetp4_drv;
+
     //===================================
     // Clocks
     //===================================
@@ -158,6 +161,11 @@ module test;
         s_axis_aresetn = 1'b1;
         s_axi_aresetn = 1'b1;
         #100ns;
+        $display($sformatf("[%0t] Initialize driver...", $time));
+        vitisnetp4_drv = new($sformatf("%m"));
+        vitisnetp4_drv.init();
+        $display($sformatf("[%0t] Writing table rules...", $time));
+        add_rules();
         fork
             begin
                 fork
@@ -173,6 +181,7 @@ module test;
         disable fork;
         #100ns;
         $display($sformatf("[%0t] Done.", $time));
+        vitisnetp4_drv.cleanup();
         $finish;
     end
     assign cam_mem_aresetn = s_axis_aresetn;
@@ -265,12 +274,46 @@ module test;
     export "DPI-C" task axi_lite_wr;
     task axi_lite_wr(input int address, input int data);
         @(posedge s_axi_aclk);
+        fork
+            begin
+                s_axi_awvalid <= 1'b1;
+                s_axi_awaddr <= address;
+                do @(posedge s_axi_aclk); while (!s_axi_awready);
+                s_axi_awvalid <= 1'b0;
+                s_axi_awaddr <= 'x;
+            end
+            begin
+                s_axi_wvalid <= 1'b1;
+                s_axi_wstrb <= '1;
+                s_axi_wdata <= data;
+                do @(posedge s_axi_aclk); while (!s_axi_wready);
+                s_axi_wvalid <= 1'b0;
+                s_axi_wstrb <= 'x;
+                s_axi_wdata <= 'x;
+            end
+        join
+        s_axi_bready <= 1'b1;
+        do @(posedge s_axi_aclk); while (!s_axi_bvalid);
+        s_axi_bready <= 1'b0;
+        if (s_axi_bresp != 2'b00) $error("Bad AXI-L write");
     endtask
 
     export "DPI-C" task axi_lite_rd;
     task axi_lite_rd(input int address, inout int data);
         @(posedge s_axi_aclk);
-        data = '0;
+        s_axi_arvalid <= 1'b1;
+        s_axi_araddr <= address;
+        do @(posedge s_axi_aclk); while (!s_axi_arready);
+        s_axi_arvalid <= 1'b0;
+        s_axi_araddr <= 'x;
+        s_axi_rready <= 1'b1;
+        do @(posedge s_axi_aclk); while (!s_axi_rvalid);
+        s_axi_rready <= 1'b0;
+        data = s_axi_rdata;
+        if (s_axi_rresp != 2'b00) $error("Bad AXI-L read");
+    endtask
+
+    task add_rules();
     endtask
 
 endmodule

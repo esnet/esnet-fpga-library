@@ -43,6 +43,7 @@ VITIS_NET_P4_INCLUDES = \
     -i $(VITIS_NET_P4_IP_NAME)/src/hw/simulation \
     -i $(VITIS_NET_P4_IP_NAME)/src/verilog
 VITIS_NET_P4_LIBS = -L vitis_net_p4_v2_0_0 -L cam_v2_6_0 -L cam_blk_lib_v1_0_0 -L cdcam_v_1_0_0
+VITIS_NET_P4_DEFINES = -d DPI_PKG_V2_0
 else
 ifeq ($(VIVADO_MAJOR_VERSION), 2024.2)
 VITIS_NET_P4_FILES = $(VITIS_NET_P4_V2_FILES)
@@ -79,6 +80,11 @@ endif
 endif
 endif
 
+# DPI-C config
+VITIS_NET_P4_DRV_DPI_LIB = vitisnetp4_drv_dpi
+VITIS_NET_P4_DRV_DPI_FILE = $(shell find $(XILINX_VIVADO)/data/ip/xilinx/vitis_net_p4* -name "$(VITIS_NET_P4_DRV_DPI_LIB).so")
+VITIS_NET_P4_DRV_DPI_DIR = $(dir $(VITIS_NET_P4_DRV_DPI_FILE))
+
 # Export 'global' variables to reference in Tcl scripts
 export VITIS_NET_P4_IP_NAME
 export __P4_FILE = $(abspath $(P4_FILE))
@@ -107,11 +113,11 @@ xsim.dir/work/work.rlx : xsim.dir/vitisnetp4/vitisnetp4.rlx xsim.dir/support/sup
 xsim.dir/support/support.rlx: src/string_pkg.sv src/extern_model.sv
 	@xvlog --sv -work support src/string_pkg.sv src/extern_model.sv
 
-xsim.dir/vitisnetp4/vitisnetp4.rlx : ip
-	@xvlog --sv $(VITIS_NET_P4_INCLUDES) -work vitisnetp4 $(VITIS_NET_P4_FILES)
+xsim.dir/vitisnetp4/vitisnetp4.rlx : ip src/driver_pkg.sv
+	@xvlog --sv $(VITIS_NET_P4_INCLUDES) -d VITIS_NET_P4_PKG=$(VITIS_NET_P4_IP_NAME)_pkg $(VITIS_NET_P4_DEFINES) -work vitisnetp4 $(VITIS_NET_P4_FILES) src/driver_pkg.sv
 
 xsim.dir/snapshot/xsimk: compile
-	@xelab test glbl --relax -debug typical $(VITIS_NET_P4_INCLUDES) -L vitisnetp4 $(VITIS_NET_P4_LIBS) -L xpm -L support -timescale 1ns/1ps -s snapshot
+	@xelab test glbl --relax -debug typical --sv_root $(VITIS_NET_P4_DRV_DPI_DIR) --sv_lib $(VITIS_NET_P4_DRV_DPI_LIB) $(VITIS_NET_P4_INCLUDES) -L vitisnetp4 $(VITIS_NET_P4_LIBS) -L xpm -L support -timescale 1ns/1ps -s snapshot
 
 clean:
 	@rm -rf xsim.dir
