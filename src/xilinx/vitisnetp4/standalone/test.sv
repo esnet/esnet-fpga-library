@@ -141,13 +141,13 @@ module test;
         16'h7E7D  // Urgent pointer
     };
 
-    bit [0:1][0:63][7:0] ipv4_tcp_pkt = {
+    bit [0:117][7:0] ipv4_tcp_pkt = {
         eth,
         vlan_0,
         ipv4,
         tcp,
         40'h50796C647B,
-        {64{8'h7E}},
+        {54{8'h7E}},
         8'h7D
     };
 
@@ -231,24 +231,32 @@ module test;
     task send_packet(input byte pkt[]);
         automatic byte __pkt[$] = pkt;
         automatic int size = __pkt.size();
-        automatic int byte_idx = 0;
+        automatic int byte_idx;
         $display($sformatf("[%0t] Sent packet:",$time));
         $display(string_pkg::byte_array_to_string(pkt));
 
         @(posedge s_axis_aclk);
         while (__pkt.size() > 0) begin
-            s_axis_tdata[byte_idx] <= __pkt.pop_front();
-            s_axis_tkeep[byte_idx] <= 1'b1;
-            byte_idx++;
-            if ((byte_idx == AXIS_DATA_BYTE_WID) || (__pkt.size() == 0)) begin
-                if (__pkt.size() == 0) s_axis_tlast <= 1'b1;
-                else s_axis_tlast <= 1'b0;
-                s_axis_tvalid <= 1'b1;
-                byte_idx = 0;
-                do @(posedge s_axis_aclk); while (!s_axis_tready);
+            byte_idx = 0;
+            s_axis_tvalid <= 1'b1;
+            while (byte_idx < AXIS_DATA_BYTE_WID) begin
+                if (__pkt.size() > 0) begin
+                    s_axis_tdata[byte_idx] <= __pkt.pop_front();
+                    s_axis_tkeep[byte_idx] <= 1'b1;
+                end else begin
+                    s_axis_tdata[byte_idx] <= '0;
+                    s_axis_tkeep[byte_idx] <= 1'b0;
+                end
+                byte_idx++;
             end
+            if (__pkt.size() > 0) s_axis_tlast <= 1'b0;
+            else s_axis_tlast <= 1'b1;
+            do @(posedge s_axis_aclk); while (!s_axis_tready);
         end
         s_axis_tvalid <= 1'b0;
+        s_axis_tlast <= 'x;
+        s_axis_tkeep <= 'x;
+        s_axis_tdata <= 'x;
     endtask
 
     task receive_packet();
