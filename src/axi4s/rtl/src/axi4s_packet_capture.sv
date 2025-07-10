@@ -29,7 +29,8 @@ module axi4s_packet_capture #(
     localparam type TID_T   = logic[$bits(axis_if.TID_T)-1:0];
     localparam type TDEST_T = logic[$bits(axis_if.TDEST_T)-1:0];
     localparam type TUSER_T = logic[$bits(axis_if.TUSER_T)-1:0];
-    localparam type META_T = struct packed {TID_T tid; TDEST_T tdest; TUSER_T tuser;};
+    // renamed localparam META_T to avoid vivado segmentation fault.
+    localparam type _META_T = struct packed {TID_T tid; TDEST_T tdest; TUSER_T tuser;};
 
     // Parameter checking
     initial begin
@@ -39,12 +40,13 @@ module axi4s_packet_capture #(
     // Interfaces
     packet_intf #(
         .DATA_BYTE_WID(DATA_BYTE_WID),
-        .META_T(struct packed {TID_T tid; TDEST_T tdest; TUSER_T tuser;})
+//        .META_T(struct packed {TID_T tid; TDEST_T tdest; TUSER_T tuser;})
+        .META_T(_META_T) // reinstantiated with localparam _META_T to avoid vivado parameterization error.
     ) packet_if (.clk(clk), .srst(srst));
 
     // Signals
     logic  err;
-    META_T meta;
+    _META_T meta;
 
     // Logic
     assign err = 1'b0;
@@ -53,7 +55,7 @@ module axi4s_packet_capture #(
     assign meta.tuser = axis_if.tuser;
 
     axi4s_to_packet_adapter #(
-        .META_T ( META_T ),
+        .META_T ( _META_T ),
         .NETWORK_BYTE_ORDER ( NETWORK_BYTE_ORDER )
     ) i_axi4s_to_packet_adapter (.*);
 
