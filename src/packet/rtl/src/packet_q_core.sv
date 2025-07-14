@@ -171,7 +171,7 @@ module packet_q_core
                 logic ctxt_ack;
                 logic  __desc_in_if_valid [N];
                 PTR_T  __desc_in_if_addr  [N];
-                SIZE_T __desc_in_if_size  [N];
+                PKT_SIZE_T __desc_in_if_size  [N];
                 logic  __desc_in_if_err   [N];
                 META_T __desc_in_if_meta  [N];
 
