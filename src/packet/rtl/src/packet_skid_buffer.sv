@@ -75,7 +75,7 @@ module packet_skid_buffer
         .wr_data  ( from_tx_data ),
         .oflow    ( oflow ),
         .rd       ( to_rx.rdy ),
-        .rd_rdy   ( to_rx.valid ),
+        .rd_vld   ( to_rx.valid ),
         .rd_data  ( to_rx_data )
     );
 

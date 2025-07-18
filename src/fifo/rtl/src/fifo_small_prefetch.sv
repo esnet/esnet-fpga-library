@@ -32,7 +32,7 @@ module fifo_small_prefetch #(
 
     // Read interface
     input  logic        rd,
-    output logic        rd_rdy,
+    output logic        rd_vld,
     output DATA_T       rd_data
 );
     // -----------------------------
@@ -117,6 +117,6 @@ module fifo_small_prefetch #(
     // Read
     assign rd_data = mem[rd_ptr];
 
-    assign rd_rdy = (count > 0);
+    assign rd_vld = (count > 0);
 
 endmodule : fifo_small_prefetch

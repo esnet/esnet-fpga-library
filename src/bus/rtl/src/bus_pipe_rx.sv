@@ -52,7 +52,7 @@ module bus_pipe_rx #(
                 .wr_data ( from_tx.data ),
                 .oflow   ( ),
                 .rd      ( __ready ),
-                .rd_rdy  ( __valid ),
+                .rd_vld  ( __valid ),
                 .rd_data ( __data )
             );
 

@@ -80,7 +80,7 @@ module axi4s_skid_buffer #(
         .wr_data  ( axi4s_in_data ),
         .oflow    ( oflow ),
         .rd       ( axi4s_out.tready ),
-        .rd_rdy   ( axi4s_out.tvalid ),
+        .rd_vld   ( axi4s_out.tvalid ),
         .rd_data  ( axi4s_out_data )
     );
 
