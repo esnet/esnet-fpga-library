@@ -1,5 +1,5 @@
 // Small, synchronous prefetch buffer implementation
-// Low latency, targeted at registers or distributed RAM
+// Low latency, low-fanout; targeted at registers or distributed RAM
 // 
 // NOTE: this FIFO will attempt to prefetch entries (by
 //       asserting wr_rdy) as long as there is a headroom
@@ -7,6 +7,12 @@
 //
 //       Can be used to implement memory read prefetch
 //       buffers, interface pipelining stages, etc.
+//
+// NOTE: this FIFO is only suitable where downstream
+//       fanout is low, since rd_data is driven directly
+//       from LUTRAMs (not registered). If this is not
+//       the case (or unknown) consider using fifo_prefetch
+//       instead.
 //
 module fifo_small_prefetch #(
     parameter type DATA_T = logic[15:0],
