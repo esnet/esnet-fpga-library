@@ -222,7 +222,11 @@ module packet_aggregate
                 .event_if         ( event_in_if[g_if] ),
                 .mem_wr_if        ( __mem_wr_if ),
                 .mem_wr_ctxt      ( ),
-                .mem_init_done    ( mem_init_done )
+                .mem_init_done    ( mem_init_done ),
+                // Unused for single-context implementation
+                .ctxt_list_append_rdy ( ),
+                .ctxt_out_valid       ( ),
+                .ctxt_out             ( )
             );
 
             // Write transactions go into a write queue, to smooth out address/column mismatches

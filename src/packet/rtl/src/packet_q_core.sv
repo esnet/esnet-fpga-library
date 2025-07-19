@@ -190,7 +190,9 @@ module packet_q_core
                     .ctxt_out      ( ctxt ),
                     .ctxt_out_ack  ( ctxt_ack ),
                     .packet_out_if ( __packet_in_if ),
-                    .event_out_if  ( __event_if__unused )
+                    .event_out_if  ( __event_if__unused ),
+                    // Unused for mux mode RR
+                    .ctxt_list_append_rdy ( )
                 );
 
                 assign ctxt_ack = desc_in_if[g_if].valid && desc_in_if[g_if].rdy;
@@ -335,6 +337,8 @@ module packet_q_core
                     .ctxt_list_append_req  ( desc_out_if[g_if].valid && desc_out_if[g_if].rdy ),
                     .ctxt_list_append_data ( sel ),
                     .ctxt_list_append_rdy  ( ),
+                    .ctxt_out_valid ( ),
+                    .ctxt_out       ( ),
                     .packet_out_if  ( packet_out_if       [g_if] ),
                     .event_out_if   ( event_out_if__unused[g_if] )
                 );
