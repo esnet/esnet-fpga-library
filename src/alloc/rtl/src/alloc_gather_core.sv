@@ -89,7 +89,7 @@ module alloc_gather_core #(
             // (Local) signals
             logic         __load_in_progress;
             logic         __rd_done;
-            logic         __buffer_not_valid;
+            logic         __buffer_valid;
             buffer_ctxt_t __buffer_ctxt_in;
             buffer_ctxt_t __buffer_ctxt_out;
 
@@ -132,23 +132,23 @@ module alloc_gather_core #(
             assign __buffer_ctxt_in.meta = _desc.meta;
             assign __buffer_ctxt_in.err  = _desc.err;
 
-            fifo_small #(
+            fifo_ctxt #(
                 .DATA_T ( buffer_ctxt_t ),
                 .DEPTH  ( Q_DEPTH )
-            ) i_fifo_small (
+            ) i_fifo_ctxt (
                 .clk,
                 .srst,
+                .wr_rdy  ( ),
                 .wr      ( __rd_done ),
                 .wr_data ( __buffer_ctxt_in ),
-                .full    ( ),
-                .oflow   ( ),
                 .rd      ( gather_if[g_ctxt].ack ),
+                .rd_vld  ( __buffer_valid ),
                 .rd_data ( __buffer_ctxt_out ),
-                .empty   ( __buffer_not_valid ),
+                .oflow   ( ),
                 .uflow   ( )
             );
 
-            assign gather_if[g_ctxt].valid   = !__buffer_not_valid;
+            assign gather_if[g_ctxt].valid   = __buffer_valid;
             assign gather_if[g_ctxt].nxt_ptr = __buffer_ctxt_out.ptr;
             assign gather_if[g_ctxt].eof     = __buffer_ctxt_out.eof;
             assign gather_if[g_ctxt].size    = __buffer_ctxt_out.size;
