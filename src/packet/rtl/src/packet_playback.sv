@@ -306,6 +306,7 @@ module packet_playback #(
     assign descriptor_if.valid = send;
     assign descriptor_if.addr = '0;
     assign descriptor_if.size = packet_bytes;
+    assign descriptor_if.err = 1'b0;
     assign descriptor_if.meta = meta;
 
     // -- Convert state to status code
