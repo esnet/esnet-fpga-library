@@ -303,6 +303,34 @@ module axi4s_intf_connector (
 endmodule : axi4s_intf_connector
 
 
+// AXI4-Stream set TID helper module
+module axi4s_intf_set_meta #(
+    parameter type TID_T = logic,
+    parameter type TDEST_T = logic,
+    parameter type TUSER_T = logic
+) (
+    axi4s_intf.rx axi4s_from_tx,
+    axi4s_intf.tx axi4s_to_rx,
+    input TID_T tid = '0,
+    input TDEST_T tdest = '0,
+    input TUSER_T tuser = '0
+);
+    // Connect signals (rx -> tx)
+    assign axi4s_to_rx.aclk    = axi4s_from_tx.aclk;
+    assign axi4s_to_rx.aresetn = axi4s_from_tx.aresetn;
+    assign axi4s_to_rx.tvalid  = axi4s_from_tx.tvalid;
+    assign axi4s_to_rx.tdata   = axi4s_from_tx.tdata;
+    assign axi4s_to_rx.tkeep   = axi4s_from_tx.tkeep;
+    assign axi4s_to_rx.tlast   = axi4s_from_tx.tlast;
+    assign axi4s_to_rx.tid     = tid;
+    assign axi4s_to_rx.tdest   = tdest;
+    assign axi4s_to_rx.tuser   = tuser;
+
+    // Connect signals (tx -> rx)
+    assign axi4s_from_tx.tready = axi4s_to_rx.tready;
+
+endmodule
+
 // AXI4-Stream monitor helper module
 module axi4s_intf_monitor (
     axi4s_intf.rx  axi4s_from_tx,
