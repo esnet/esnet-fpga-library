@@ -1,25 +1,34 @@
-// Small, synchronous FIFO implementation, with single-cycle write-to-read latency
+// Small, synchronous, FWFT FIFO implementation, with single-cycle write-to-read latency
+//
+// NOTE: this FIFO is only suitable where downstream fanout is low,
+//       since rd_data is driven directly from LUTRAMs (not registered).
+//       If this is not the case (or unknown) use fifo_sync instead.
+//
 module fifo_small #(
     parameter type DATA_T = logic[15:0],
-    parameter int  DEPTH = 4 // Intended for 'small' FIFOs
-                             // Targets distributed RAM; depends on FPGA arch
-                             // (typical max == 256),
+    parameter int  DEPTH = 4, // Intended for 'small' FIFOs
+                              // Targets distributed RAM; depends on FPGA arch
+                              // (typical max is 256, assuming LUT6 + F7/F8 Muxes)
+    // Derived parameters (don't override)
+    parameter int CNT_WID = $clog2(DEPTH + 1)
 ) (
     // Clock/reset
-    input  logic        clk,
-    input  logic        srst,
+    input  logic               clk,
+    input  logic               srst,
 
     // Write interface
-    input  logic        wr,
-    input  DATA_T       wr_data,
-    output logic        full,
-    output logic        oflow,
+    input  logic               wr,
+    input  DATA_T              wr_data,
+    output logic               full,
+    output logic               oflow,
 
     // Read interface
-    input  logic        rd,
-    output DATA_T       rd_data,
-    output logic        empty,
-    output logic        uflow
+    input  logic               rd,
+    output DATA_T              rd_data,
+    output logic               empty,
+    output logic               uflow,
+
+    output logic [CNT_WID-1:0] count
 );
     // -----------------------------
     // Parameters
@@ -31,7 +40,7 @@ module fifo_small #(
     // Parameter checking
     // -----------------------------
     initial begin
-        std_pkg::param_check_lt(DEPTH, 256, "DEPTH");
+        std_pkg::param_check_lt(MEM_DEPTH, 256, "MEM_DEPTH");
     end
 
     // -----------------------------
@@ -61,7 +70,7 @@ module fifo_small #(
         .wr       ( wr ),
         .wr_safe  ( wr_safe ),
         .wr_ptr   ( wr_ptr ),
-        .wr_count ( ),
+        .wr_count ( count ),
         .wr_full  ( full ),
         .wr_oflow ( oflow ),
         .rd_clk   ( clk ),

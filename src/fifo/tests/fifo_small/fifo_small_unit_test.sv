@@ -40,11 +40,13 @@ module fifo_small_unit_test #(
 
     logic   wr;
     DATA_T  wr_data;
-    logic   full;
-    logic   oflow;
 
     logic   rd;
     DATA_T  rd_data;
+
+    logic   [CNT_WID-1:0] count;
+    logic   full;
+    logic   oflow;
     logic   empty;
     logic   uflow;
 
@@ -83,7 +85,8 @@ module fifo_small_unit_test #(
 
     clocking cb @(posedge clk);
         default input #1step output #1step;
-        input empty, full, uflow, oflow;
+        output wr, wr_data, rd;
+        input rd_data, empty, full, count, uflow, oflow;
     endclocking
 
     // Assign clock (100MHz)
@@ -388,7 +391,12 @@ module fifo_small_depth32_unit_test;
 `FIFO_SMALL_UNIT_TEST(32)
 endmodule
 
-// 98-entry FIFO
-module fifo_sync_std_depth98_unit_test;
-`FIFO_SMALL_UNIT_TEST(98)
+// 63-entry FIFO
+module fifo_sync_std_depth63_unit_test;
+`FIFO_SMALL_UNIT_TEST(63)
+endmodule
+
+// 64-entry FIFO
+module fifo_sync_std_depth64_unit_test;
+`FIFO_SMALL_UNIT_TEST(64)
 endmodule
