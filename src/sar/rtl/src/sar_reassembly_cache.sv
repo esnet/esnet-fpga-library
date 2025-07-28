@@ -292,19 +292,19 @@ module sar_reassembly_cache
     // these tables are identical so this should never happen
     assign lookup_error = lookup_if__append.ack ^ lookup_if__prepend.ack;
 
-    fifo_small  #(
+    fifo_small_ctxt  #(
         .DATA_T  ( segment_ctxt_t ),
         .DEPTH   ( NUM_RD_TRANSACTIONS )
-    ) i_fifo_small__lookup_req_ctxt (
+    ) i_fifo_small_ctxt__lookup_req (
         .clk     ( clk ),
         .srst    ( __srst ),
+        .wr_rdy  ( ),
         .wr      ( seg_valid && seg_ready ),
         .wr_data ( lookup_ctxt_in ),
-        .full    ( ),
-        .oflow   ( ),
         .rd      ( lookup_done ),
+        .rd_vld  ( ),
         .rd_data ( lookup_ctxt_out ),
-        .empty   ( ),
+        .oflow   ( ),
         .uflow   ( )
     );
 
@@ -494,7 +494,8 @@ module sar_reassembly_cache
         .rd      ( delete_q__append__rd ),
         .rd_data ( delete_q__append__rd_data ),
         .empty   ( delete_q__append__empty ),
-        .uflow   ( )
+        .uflow   ( ),
+        .count   ( )
     );
 
     assign delete_q__append__wr_data.buf_id = lookup_ctxt_out.buf_id;
@@ -513,7 +514,8 @@ module sar_reassembly_cache
         .rd      ( delete_q__prepend__rd ),
         .rd_data ( delete_q__prepend__rd_data ),
         .empty   ( delete_q__prepend__empty ),
-        .uflow   ( )
+        .uflow   ( ),
+        .count   ( )
     );
    
     assign delete_q__prepend__wr_data.buf_id = lookup_ctxt_out.buf_id;

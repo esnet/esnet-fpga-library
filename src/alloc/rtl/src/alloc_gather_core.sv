@@ -218,19 +218,19 @@ module alloc_gather_core #(
         end
     end
 
-    fifo_small   #(
+    fifo_small_ctxt   #(
         .DATA_T   ( rd_ctxt_t ),
         .DEPTH    ( CONTEXTS )
-    ) i_fifo_small__rd_ctxt (
+    ) i_fifo_small_ctxt__rd_ctxt (
         .clk,
         .srst,
+        .wr_rdy   ( ),
         .wr       ( mem_rd_req && mem_rd_rdy ),
         .wr_data  ( rd_ctxt_in ),
-        .full     ( ),
-        .oflow    ( ),
         .rd       ( desc_mem_rd_if.ack ),
+        .rd_vld   ( ),
         .rd_data  ( rd_ctxt_out ),
-        .empty    ( ),
+        .oflow    ( ),
         .uflow    ( )
     );
 

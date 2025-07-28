@@ -175,6 +175,8 @@ module htable_multi_stash_core
     assign stash_lookup_resp_in.valid = stash_lookup_if.valid;
     assign stash_lookup_resp_in.value = stash_lookup_if.value;
 
+    // This assumes tbl lookup takes at least one cycle longer than stash lookup;
+    // use fifo_small_* here for single-cycle write-to-read latency
     fifo_small  #(
         .DATA_T  ( stash_lookup_resp_t ),
         .DEPTH   ( NUM_RD_TRANSACTIONS )
@@ -188,7 +190,8 @@ module htable_multi_stash_core
         .rd      ( tbl_lookup_if.ack ),
         .rd_data ( stash_lookup_resp ),
         .empty   ( stash_lookup_resp_fifo_empty ),
-        .uflow   ( )
+        .uflow   ( ),
+        .count   ( )
     );
 
     // ----------------------------------

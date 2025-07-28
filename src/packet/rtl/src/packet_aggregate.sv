@@ -120,8 +120,6 @@ module packet_aggregate
     logic  __ctxt_out_valid;
     CTXT_T __ctxt_out;
     logic  __ctxt_out_rdy;
-    logic  __ctxt_out_full;
-    logic  __ctxt_out_empty;
 
     SEL_T sel;
 
@@ -194,9 +192,7 @@ module packet_aggregate
             // (Local) signals
             SEL_T     __col;
             wr_ctxt_t __fifo_wr_q_wr_data;
-            logic     __fifo_wr_q_full;
             wr_ctxt_t __fifo_wr_q_rd_data;
-            logic     __fifo_wr_q_empty;
             logic     __mem_wr_rdy;
             logic     __wr_col_sel;
             logic     __wr_rdy;
@@ -230,7 +226,6 @@ module packet_aggregate
             );
 
             // Write transactions go into a write queue, to smooth out address/column mismatches
-            assign __mem_wr_if.rdy = !__fifo_wr_q_full;
             assign __fifo_wr_q_wr_data.addr = __mem_wr_if.addr;
             assign __fifo_wr_q_wr_data.data = __mem_wr_if.data;
             assign __fifo_wr_q_wr_data.desc_valid = __wr_descriptor_if[0].valid;
@@ -240,19 +235,19 @@ module packet_aggregate
             assign __fifo_wr_q_wr_data.desc_err = __wr_descriptor_if[0].err;
             assign __wr_descriptor_if[0].rdy = 1'b1;
 
-            fifo_small  #(
+            fifo_ctxt  #(
                 .DATA_T  ( wr_ctxt_t ),
                 .DEPTH   ( 2*N )
-            ) i_fifo_small__wr_q (
+            ) i_fifo_ctxt__wr_q (
                 .clk     ( clk_in ),
                 .srst    ( srst_in ),
+                .wr_rdy  ( __mem_wr_if.rdy ),
                 .wr      ( __mem_wr_if.req ),
                 .wr_data ( __fifo_wr_q_wr_data ),
-                .full    ( __fifo_wr_q_full ),
-                .oflow   ( ),
                 .rd      ( __wr_rdy ),
+                .rd_vld  ( __fifo_wr_q_rd_vld ),
                 .rd_data ( __fifo_wr_q_rd_data ),
-                .empty   ( __fifo_wr_q_empty ),
+                .oflow   ( ),
                 .uflow   ( )
             );
 
@@ -260,13 +255,13 @@ module packet_aggregate
             assign __wr_col_sel = __fifo_wr_q_rd_data.addr % N == __col;
             assign __mem_wr_rdy = wr_col_rdy[__col];
             assign __wr_rdy = __wr_col_sel && __mem_wr_rdy;
-            assign wr_in_req  [g_if] = !__fifo_wr_q_empty && __wr_col_sel;
+            assign wr_in_req  [g_if] = __fifo_wr_q_rd_vld && __wr_col_sel;
             assign wr_in_en   [g_if] = 1'b1;
             assign wr_in_addr [g_if] = __fifo_wr_q_rd_data.addr / N;
             assign wr_in_data [g_if] = __fifo_wr_q_rd_data.data;
 
             // Pass packet write completions to read side
-            assign __wr_descriptor_in_if.valid = __wr_rdy && !__fifo_wr_q_empty &&  __fifo_wr_q_rd_data.desc_valid;
+            assign __wr_descriptor_in_if.valid = __wr_rdy && __fifo_wr_q_rd_vld &&  __fifo_wr_q_rd_data.desc_valid;
             assign __wr_descriptor_in_if.addr = __fifo_wr_q_rd_data.desc_addr;
             assign __wr_descriptor_in_if.size = __fifo_wr_q_rd_data.desc_size;
             assign __wr_descriptor_in_if.meta = __fifo_wr_q_rd_data.desc_meta;
@@ -381,22 +376,20 @@ module packet_aggregate
     );
 
     // Context queue
-    fifo_small  #(
+    fifo_ctxt  #(
         .DATA_T  ( CTXT_T ),
         .DEPTH   ( 16 )
-    ) i_fifo_small__ctxt (
+    ) i_fifo_ctxt (
         .clk     ( clk_out ),
         .srst    ( srst_out ),
+        .wr_rdy  ( __ctxt_out_rdy ),
         .wr      ( __ctxt_out_valid ),
         .wr_data ( __ctxt_out ),
-        .full    ( __ctxt_out_full ),
-        .oflow   ( ),
         .rd      ( ctxt_out_ack ),
-        .empty   ( __ctxt_out_empty ),
+        .rd_vld  ( ctxt_out_valid ),
         .rd_data ( ctxt_out ),
+        .oflow   ( ),
         .uflow   ( )  
     );
-    assign __ctxt_out_rdy = !__ctxt_out_full;
-    assign ctxt_out_valid = !__ctxt_out_empty;
 
 endmodule : packet_aggregate

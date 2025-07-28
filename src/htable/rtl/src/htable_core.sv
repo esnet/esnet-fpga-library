@@ -264,19 +264,19 @@ module htable_core
     // ----------------------------------
     // Store read context
     // ----------------------------------
-    fifo_small   #(
+    fifo_small_ctxt   #(
         .DATA_T  ( rd_ctxt_t ),
         .DEPTH   ( NUM_RD_TRANSACTIONS )
     ) i_fifo_small__rd_ctxt (
         .clk     ( clk ),
         .srst    ( srst || tbl_init ),
+        .wr_rdy  ( ),
         .wr      ( rd_req ),
         .wr_data ( rd_ctxt_in ),
-        .full    ( ),
-        .oflow   ( ),
         .rd      ( __lookup_if.ack ),
+        .rd_vld  ( ),
         .rd_data ( rd_ctxt_out ),
-        .empty   ( ),
+        .oflow   ( ),
         .uflow   ( rd_ctxt_uflow )
     );
 

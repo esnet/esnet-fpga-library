@@ -135,15 +135,13 @@ module db_core #(
             // (Local) signals
             cache_ctxt_t  cache_ctxt_in;
             cache_ctxt_t  cache_ctxt_out;
-
-            logic         cache_ctxt_q_empty;
+            logic         cache_ctxt_out_vld;
             logic         cache_ctxt_q_oflow;
             logic         cache_ctxt_q_uflow;
 
             rd_ctxt_t     rd_ctxt_in;
             rd_ctxt_t     rd_ctxt_out;
-
-            logic         rd_ctxt_q_empty;
+            logic         rd_ctxt_out_vld;
             logic         rd_ctxt_q_oflow;
             logic         rd_ctxt_q_uflow;
 
@@ -189,19 +187,19 @@ module db_core #(
             assign cache_ctxt_in.valid = cache_rd_if.value.ins_del_n;
             assign cache_ctxt_in.value = cache_rd_if.value.value;
 
-            fifo_small #(
+            fifo_small_ctxt #(
                 .DATA_T ( cache_ctxt_t ),
                 .DEPTH  ( NUM_RD_TRANSACTIONS )
-            ) i_fifo_small__cache_ctxt (
+            ) i_fifo_small_ctxt__cache (
                 .clk     ( clk ),
                 .srst    ( __srst ),
+                .wr_rdy  ( ),
                 .wr      ( cache_rd_if.ack ),
                 .wr_data ( cache_ctxt_in ),
-                .full    ( ),
-                .oflow   ( cache_ctxt_q_oflow ),
                 .rd      ( ctxt_fifo_rd ),
+                .rd_vld  ( cache_ctxt_out_vld ),
                 .rd_data ( cache_ctxt_out ),
-                .empty   ( cache_ctxt_q_empty ),
+                .oflow   ( cache_ctxt_q_oflow ),
                 .uflow   ( cache_ctxt_q_uflow )
             );
 
@@ -211,23 +209,23 @@ module db_core #(
             assign rd_ctxt_in.valid    = db_rd_if.valid;
             assign rd_ctxt_in.value    = db_rd_if.value;
 
-            fifo_small  #(
+            fifo_small_ctxt  #(
                 .DATA_T  ( rd_ctxt_t ),
                 .DEPTH   ( 2 )
-            ) i_fifo_small__rd_ctxt (
+            ) i_fifo_small_ctxt__rd (
                 .clk     ( clk ),
                 .srst    ( __srst ),
+                .wr_rdy  ( ),
                 .wr      ( db_rd_if.ack ),
                 .wr_data ( rd_ctxt_in ),
-                .full    ( ),
-                .oflow   ( rd_ctxt_q_oflow ),
                 .rd      ( ctxt_fifo_rd ),
+                .rd_vld  ( rd_ctxt_out_vld ),
                 .rd_data ( rd_ctxt_out ),
-                .empty   ( rd_ctxt_q_empty ),
+                .oflow   ( rd_ctxt_q_oflow ),
                 .uflow   ( rd_ctxt_q_uflow )
             );
 
-            assign ctxt_fifo_rd = !rd_ctxt_q_empty && !cache_ctxt_q_empty;
+            assign ctxt_fifo_rd = rd_ctxt_out_vld && cache_ctxt_out_vld;
 
             // Incorporate cache result and drive read response
             initial __db_rd_if.ack = 1'b0;
@@ -285,7 +283,7 @@ module db_core #(
             // (Local) signals
             rd_req_ctxt_t  rd_req_ctxt_in;
             rd_req_ctxt_t  rd_req_ctxt_out;
-            logic          rd_req_ctxt_q_empty;
+            logic          rd_req_ctxt_out_vld;
 
             logic   app_rd_if__valid;
             VALUE_T app_rd_if__value;
@@ -317,19 +315,19 @@ module db_core #(
             assign cache_wr_if.next = 1'b0; // Unused
 
             // Read request context (wait for read to complete)
-            fifo_small #(
+            fifo_small_ctxt #(
                 .DATA_T ( rd_req_ctxt_t ),
                 .DEPTH  ( NUM_RD_TRANSACTIONS )
-            ) i_fifo_small__rd_req (
+            ) i_fifo_small_ctxt__rd_req (
                 .clk     ( clk ),
                 .srst    ( __srst ),
+                .wr_rdy  ( ),
                 .wr      ( app_rd_if.req && app_rd_if.rdy ),
                 .wr_data ( rd_req_ctxt_in ),
-                .full    ( ),
-                .oflow   ( ),
                 .rd      ( __app_rd_if.ack ),
+                .rd_vld  ( ),
                 .rd_data ( rd_req_ctxt_out ),
-                .empty   ( rd_req_ctxt_q_empty ),
+                .oflow   ( ),
                 .uflow   ( )
             );
 

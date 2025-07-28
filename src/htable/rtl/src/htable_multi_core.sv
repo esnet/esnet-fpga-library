@@ -117,8 +117,8 @@ module htable_multi_core
         for (genvar g_tbl = 0; g_tbl < NUM_TABLES; g_tbl++) begin : g__tbl
             // (Local) signals
             lookup_resp_t lookup_resp_in;
+            logic         lookup_resp_out_vld;
             lookup_resp_t lookup_resp_out;
-            logic         lookup_resp_q_empty;
 
             // (Local) interfaces
             db_info_intf __info_if ();
@@ -166,23 +166,23 @@ module htable_multi_core
             assign lookup_resp_in.valid = __lookup_if.valid;
             assign lookup_resp_in.value = __lookup_if.value;
 
-            fifo_small #(
+            fifo_small_ctxt #(
                 .DATA_T ( lookup_resp_t ),
                 .DEPTH  ( NUM_RD_TRANSACTIONS )
-            ) i_fifo_small__lookup_resp (
-                .clk  ( clk ),
-                .srst ( srst || tbl_init [g_tbl] ),
-                .wr   ( __lookup_if.ack ),
+            ) i_fifo_small_ctxt__lookup_resp (
+                .clk     ( clk ),
+                .srst    ( srst || tbl_init [g_tbl] ),
+                .wr_rdy  ( ),
+                .wr      ( __lookup_if.ack ),
                 .wr_data ( lookup_resp_in ),
-                .full    ( ),
-                .oflow   ( ),
                 .rd      ( lookup_done ),
+                .rd_vld  ( lookup_resp_out_vld ),
                 .rd_data ( lookup_resp_out ),
-                .empty   ( lookup_resp_q_empty ),
+                .oflow   ( ),
                 .uflow   ( )
             );
 
-            assign lookup_done__tbl[g_tbl] = !lookup_resp_q_empty;
+            assign lookup_done__tbl[g_tbl] = lookup_resp_out_vld;
             assign lookup_error__tbl[g_tbl] = lookup_resp_out.error;
             assign lookup_valid__tbl[g_tbl] = lookup_resp_out.valid;
             assign lookup_value__tbl[g_tbl] = lookup_resp_out.value;

@@ -373,19 +373,19 @@ module db_intf_mux #(
             end
 
             // Maintain context for open transactions
-            fifo_small   #(
+            fifo_small_ctxt #(
                 .DATA_T  ( mux_sel_t ),
                 .DEPTH   ( NUM_TRANSACTIONS )
-            ) i_fifo_small__ctxt (
+            ) i_fifo_small_ctxt (
                 .clk     ( clk ),
                 .srst    ( srst ),
+                .wr_rdy  ( ),
                 .wr      ( db_if_to_responder.req && db_if_to_responder.rdy ),
                 .wr_data ( __mux_sel ),
-                .full    ( ),
-                .oflow   ( ),
                 .rd      ( db_if_to_responder.ack ),
+                .rd_vld  ( ),
                 .rd_data ( __demux_sel ),
-                .empty   ( ),
+                .oflow   ( ),
                 .uflow   ( )
             );
 
@@ -513,19 +513,19 @@ module db_intf_2to1_mux #(
     end
 
     // Maintain context for open transactions
-    fifo_small   #(
+    fifo_small_ctxt   #(
         .DATA_T  ( mux_sel_t ),
         .DEPTH   ( NUM_TRANSACTIONS )
-    ) i_fifo_small__ctxt (
+    ) i_fifo_small_ctxt (
         .clk     ( clk ),
         .srst    ( srst ),
+        .wr_rdy  ( ),
         .wr      ( db_if_to_responder.req && db_if_to_responder.rdy ),
         .wr_data ( __mux_sel ),
-        .full    ( ),
-        .oflow   ( ),
         .rd      ( db_if_to_responder.ack ),
+        .rd_vld  ( ),
         .rd_data ( __demux_sel ),
-        .empty   ( ),
+        .oflow   ( ),
         .uflow   ( )
     );
 
@@ -736,19 +736,19 @@ module db_intf_demux #(
             end
 
             // Maintain context for open transactions
-            fifo_small  #(
+            fifo_small_cxt  #(
                 .DATA_T  ( mux_sel_t ),
                 .DEPTH   ( NUM_TRANSACTIONS )
-            ) i_fifo_small__ctxt (
+            ) i_fifo_small_ctxt (
                 .clk     ( clk ),
                 .srst    ( srst ),
+                .wr_rdy  ( ),
                 .wr      ( db_if_from_requester.req && db_if_from_requester.rdy ),
                 .wr_data ( __demux_sel ),
-                .full    ( ),
-                .oflow   ( ),
                 .rd      ( db_if_from_requester.ack ),
+                .rd_vld  ( ),
                 .rd_data ( __mux_sel ),
-                .empty   ( ),
+                .oflow   ( ),
                 .uflow   ( )
             );
 

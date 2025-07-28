@@ -278,19 +278,19 @@ module alloc_bv_core #(
     //  and read operations occuring during scanning)
     assign rd_ctxt_in.scan = !rd;
 
-    fifo_small #(
+    fifo_small_ctxt #(
         .DATA_T ( rd_ctxt_t ),
         .DEPTH  ( MEM_RD_LATENCY )
-    ) i_fifo_small__rd_ctxt (
+    ) i_fifo_small_ctxt__rd_ctxt (
         .clk,
         .srst,
+        .wr_rdy  ( ),
         .wr      ( mem_rd_if.req && mem_rd_if.rdy ),
         .wr_data ( rd_ctxt_in ),
-        .full    (),
-        .oflow   (),
         .rd      ( mem_rd_if.ack ),
+        .rd_vld  ( ),
         .rd_data ( rd_ctxt_out ),
-        .empty   (),
+        .oflow   (),
         .uflow   ()
     );
     assign rd_ack      = mem_rd_if.ack && !rd_ctxt_out.scan;
