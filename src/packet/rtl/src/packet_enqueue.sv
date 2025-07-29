@@ -198,27 +198,21 @@ module packet_enqueue
                 assign __ctxt_valid = 1'b1;
             end : g__mux_rr
             else begin : g__mux_list
-                // (Local) signals
-                logic __ctxt_full;
-                logic __ctxt_empty;
-
-                fifo_small  #(
+                fifo_small_ctxt  #(
                     .DATA_T  ( CTXT_T ),
                     .DEPTH   ( 16 )
-                ) i_fifo_small__mux_ctxt (
+                ) i_fifo_small_ctxt__mux (
                     .clk     ( clk ),
                     .srst    ( srst ),
+                    .wr_rdy  ( ctxt_list_append_rdy ),
                     .wr      ( ctxt_list_append_req ),
                     .wr_data ( ctxt_list_append_data ),
-                    .full    ( __ctxt_full ),
-                    .oflow   ( ),
                     .rd      ( packet_if.valid && packet_if.rdy && packet_if.eop ),
+                    .rd_rdy  ( __ctxt_valid ),
                     .rd_data ( __ctxt ),
-                    .empty   ( __ctxt_empty ),
+                    .oflow   ( ),
                     .uflow   ( )
                 );
-                assign ctxt_list_append_rdy = !__ctxt_full;
-                assign __ctxt_valid = !__ctxt_empty;
             end : g__mux_list
         end : g__multi_ctxt
         else begin : g__single_ctxt

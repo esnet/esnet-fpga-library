@@ -65,6 +65,13 @@ class bus_monitor #(
         this.__stall_cycles_max = max_stall;
     endfunction
 
+    // Reset monitor
+    // [[ overrides std_verif_pkg::monitor._reset() ]]
+    protected function automatic void _reset();
+        disable_stalls();
+        super._reset();
+    endfunction
+
     // Quiesce monitored interface
     // [[ implements std_verif_pkg::component._idle() ]]
     protected task _idle();

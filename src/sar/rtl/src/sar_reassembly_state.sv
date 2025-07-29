@@ -270,7 +270,8 @@ module sar_reassembly_state
         .rd      ( q_done__rd ),
         .rd_data ( q_done__rd_data ),
         .empty   ( q_done__empty ),
-        .uflow   ( )
+        .uflow   ( ),
+        .count   ( )
     );
 
     assign q_done__wr = notify_if.evt && (notify_if.msg._type == REASSEMBLY_NOTIFY_DONE);
@@ -291,7 +292,8 @@ module sar_reassembly_state
         .rd      ( q_expired__rd ),
         .rd_data ( q_expired__rd_data ),
         .empty   ( q_expired__empty ),
-        .uflow   ( )
+        .uflow   ( ),
+        .count   ( )
     );
 
     assign q_expired__wr = notify_if.evt && (notify_if.msg._type == REASSEMBLY_NOTIFY_EXPIRED);
@@ -311,7 +313,8 @@ module sar_reassembly_state
         .rd      ( q_merged__rd ),
         .rd_data ( q_merged__rd_data ),
         .empty   ( q_merged__empty ),
-        .uflow   ( )
+        .uflow   ( ),
+        .count   ( )
     );
    
     assign q_merged__wr = frag_merged;

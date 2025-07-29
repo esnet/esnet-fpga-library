@@ -183,19 +183,19 @@ module state_vector_core
     always_ff @(posedge clk) if (__update_if.req && __update_if.rdy) last_update_id <= __update_if.id;
     assign rmw_ctxt_in.back_to_back = (__update_if.id == last_update_id);
 
-    fifo_small  #(
+    fifo_small_ctxt #(
         .DATA_T  ( rmw_ctxt_t ),
         .DEPTH   ( NUM_RD_TRANSACTIONS )
-    ) i_fifo_small__rmw_ctxt (
+    ) i_fifo_small_ctxt__rmw (
         .clk     ( clk ),
         .srst    ( srst ),
+        .wr_rdy  ( ),
         .wr      ( __update_if.req && __update_if.rdy ),
         .wr_data ( rmw_ctxt_in ),
-        .full    ( ),
-        .oflow   ( ),
         .rd      ( __app_rd_if.ack ),
+        .rd_vld  ( ),
         .rd_data ( rmw_ctxt_out ),
-        .empty   ( ),
+        .oflow   ( ),
         .uflow   ( )
     );
 

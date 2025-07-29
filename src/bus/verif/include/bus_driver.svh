@@ -65,6 +65,13 @@ class bus_driver #(
         this.__stall_cycles_max = max_stall;
     endfunction
 
+    // Reset driver
+    // [[ overrides std_verif_pkg::driver._reset() ]]
+    protected function automatic void _reset();
+        disable_stalls();
+        super._reset();
+    endfunction
+
     // Quiesce driven interface
     // [[ implements std_verif_pkg::component._idle() ]]
     protected task _idle();

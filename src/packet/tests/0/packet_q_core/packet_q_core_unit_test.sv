@@ -242,7 +242,6 @@ module packet_q_core_unit_test #(
         `SVTEST_END
 
         `SVTEST(one_packet_good)
-            len = $urandom_range(64, 511);
             one_packet();
             #10us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
         `SVTEST_END
@@ -263,6 +262,12 @@ module packet_q_core_unit_test #(
             //env.monitor.set_tpause(2);
             //env.driver.set_twait(2);
             one_packet();
+            #10us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
+        `SVTEST_END
+
+        `SVTEST(one_jumbo_packet)
+            len = $urandom_range(2049, 9000);
+            one_packet(.len(len));
             #10us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
         `SVTEST_END
 

@@ -200,8 +200,10 @@ module packet_scatter #(
                             buffer_done = 1'b1;
                             nxt_state = SOP;
                         end else if (pkt_words == MAX_PKT_WORDS-1) nxt_state = FLUSH;
-                        else if (words == BUFFER_WORDS-1) nxt_state = MOP_NXT;
-                        else nxt_state = MOP;
+                        else if (words == BUFFER_WORDS-1) begin
+                            buffer_done = 1'b1;
+                            nxt_state = MOP_NXT;
+                        end else nxt_state = MOP;
                     end
                 end
             end

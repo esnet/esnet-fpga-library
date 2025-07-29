@@ -76,7 +76,11 @@ module packet_fifo_core
                 .event_if         ( event_in_if ),
                 .mem_wr_if,
                 .mem_wr_ctxt      ( ),
-                .mem_init_done
+                .mem_init_done,
+                // Unused for single-context implementation
+                .ctxt_list_append_rdy ( ),
+                .ctxt_out_valid       ( ),
+                .ctxt_out             ( )
             );
             // Descriptor FIFOs
             // -- Forward (in to out)
@@ -117,7 +121,11 @@ module packet_fifo_core
                 .event_if         ( event_out_if ),
                 .mem_rd_if,
                 .mem_rd_ctxt      ( ),
-                .mem_init_done
+                .mem_init_done,
+                // Unused for single-context implementation
+                .ctxt_list_append_rdy ( ),
+                .ctxt_out_valid       ( ),
+                .ctxt_out             ( )
             );
 
         end : g__store_and_forward

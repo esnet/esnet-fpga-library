@@ -111,40 +111,37 @@ module alloc_scatter_core #(
         for (genvar g_ctxt = 0; g_ctxt < CONTEXTS; g_ctxt++) begin : g__ctxt
             // (Local) signals
             logic      __alloc_q_wr;
-            logic      __alloc_q_full;
-            logic      __alloc_q_empty;
+            logic      __alloc_ptr_valid;
             PTR_T      __alloc_ptr;
-            logic      __req_q_full;
-            logic      __req_q_empty;
             logic      __req_q_rd;
             req_ctxt_t __req_ctxt_in;
             req_ctxt_t __req_ctxt_nxt;
+            logic      __req_ctxt_nxt_valid;
             logic      __req_ctxt_valid;
             req_ctxt_t __req_ctxt;
 
             // Pre-fetch pointers to available buffers into per-context queues
-            fifo_small #(
+            fifo_ctxt #(
                 .DATA_T ( PTR_T ),
                 .DEPTH  ( Q_DEPTH )
-            ) i_fifo_small__alloc_q (
+            ) i_fifo_ctxt__alloc_q (
                 .clk,
                 .srst,
+                .wr_rdy   ( alloc_q_wr_rdy[g_ctxt] ),
                 .wr       ( __alloc_q_wr ),
                 .wr_data  ( alloc_ptr ),
-                .full     ( __alloc_q_full ),
-                .oflow    ( ),
                 .rd       ( scatter_if[g_ctxt].req ),
+                .rd_vld   ( __alloc_ptr_valid ),
                 .rd_data  ( __alloc_ptr ),
-                .empty    ( __alloc_q_empty ),
+                .oflow    ( ),
                 .uflow    ( )
             );
 
             assign __alloc_q_wr = (alloc_ctxt_sel == g_ctxt) && alloc_rdy;
-            assign alloc_q_wr_rdy[g_ctxt] = !__alloc_q_full;
 
             // Ready for next buffer request when a buffer is available
             // and there is somewhere to hold on to the request
-            assign scatter_if[g_ctxt].rdy = !__alloc_q_empty;
+            assign scatter_if[g_ctxt].rdy = __alloc_ptr_valid;
             assign scatter_if[g_ctxt].ptr = __alloc_ptr;
 
             // Request queue
@@ -155,29 +152,27 @@ module alloc_scatter_core #(
             assign __req_ctxt_in.meta = scatter_if[g_ctxt].meta;
             assign __req_ctxt_in.err  = scatter_if[g_ctxt].err;
   
-            fifo_small #(
+            fifo_ctxt #(
                 .DATA_T ( req_ctxt_t ),
                 .DEPTH  ( Q_DEPTH )
-            ) i_fifo_small__req_q (
+            ) i_fifo_ctxt__req_q (
                 .clk,
                 .srst,
+                .wr_rdy   ( scatter_if[g_ctxt].ack ),
                 .wr       ( scatter_if[g_ctxt].valid ),
                 .wr_data  ( __req_ctxt_in ),
-                .full     ( __req_q_full ),
-                .oflow    ( ),
                 .rd       ( __req_q_rd ),
+                .rd_vld   ( __req_ctxt_nxt_valid ),
                 .rd_data  ( __req_ctxt_nxt ),
-                .empty    ( __req_q_empty ),
+                .oflow    ( ),
                 .uflow    ( )
             );
-
-            assign scatter_if[g_ctxt].ack = !__req_q_full;
 
             // Register to allow peeking at allocated pointer for next frame segment
             initial __req_ctxt_valid = 1'b0;
             always @(posedge clk) begin
                 if (srst) __req_ctxt_valid <= 1'b0;
-                else if (__req_q_rd) __req_ctxt_valid <= !__req_q_empty;
+                else if (__req_q_rd) __req_ctxt_valid <= __req_ctxt_nxt_valid;
             end
 
             assign __req_q_rd = !__req_ctxt_valid || ((ctxt_sel_r == g_ctxt) && mem_wr_req && mem_wr_rdy);
@@ -204,7 +199,7 @@ module alloc_scatter_core #(
                 else if (__req_ctxt.err) _frame_error[g_ctxt] <= 1'b1;
             end
 
-            assign desc_valid[g_ctxt] = __req_ctxt_valid && (__req_ctxt.eof || !__req_q_empty);
+            assign desc_valid[g_ctxt] = __req_ctxt_valid && (__req_ctxt.eof || __req_ctxt_nxt_valid);
             assign desc_ptr[g_ctxt]     = __req_ctxt.ptr;
             assign desc[g_ctxt].sof     = __req_ctxt.sof;
             assign desc[g_ctxt].eof     = __req_ctxt.eof;

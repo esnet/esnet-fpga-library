@@ -359,19 +359,19 @@ module state_intf_control_mux #(
     assign state_if_to_target.update = ctrl_sel_in ? __state_if_from_control.update : state_if_from_datapath.update;
 
     // Maintain context for open transactions
-    fifo_small   #(
+    fifo_small_ctxt #(
         .DATA_T  ( logic ),
         .DEPTH   ( NUM_TRANSACTIONS )
-    ) i_fifo_small__ctxt (
+    ) i_fifo_small_ctxt (
         .clk     ( clk ),
         .srst    ( srst ),
+        .wr_rdy  ( ),
         .wr      ( state_if_to_target.req && state_if_to_target.rdy ),
         .wr_data ( ctrl_sel_in ),
-        .full    ( ),
-        .oflow   ( ),
         .rd      ( state_if_to_target.ack ),
+        .rd_vld  ( ),
         .rd_data ( ctrl_sel_out ),
-        .empty   ( ),
+        .oflow   ( ),
         .uflow   ( )
     );
 

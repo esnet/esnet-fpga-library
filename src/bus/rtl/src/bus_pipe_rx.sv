@@ -32,45 +32,22 @@ module bus_pipe_rx #(
             assign from_tx.ready = 1'b1;
         end : g__ignore_ready
         else begin : g__obey_ready
-            // (Local) signals
-            logic  __valid;
-            logic  __ready;
-            DATA_T __data;
-            logic  valid;
-            DATA_T data;
-
             // Implement Rx FIFO to accommodate specified slack
             // in valid <-> ready handshake protocol
-            fifo_small_prefetch #(
+            fifo_prefetch #(
                 .DATA_T         ( DATA_T ),
                 .PIPELINE_DEPTH ( TOTAL_SLACK )
-            ) i_fifo_small_prefetch (
+            ) i_fifo_prefetch (
                 .clk     ( from_tx.clk ),
                 .srst    ( from_tx.srst ),
                 .wr      ( from_tx.valid ),
                 .wr_rdy  ( from_tx.ready ),
                 .wr_data ( from_tx.data ),
                 .oflow   ( ),
-                .rd      ( __ready ),
-                .rd_rdy  ( __valid ),
-                .rd_data ( __data )
+                .rd      ( to_rx.ready ),
+                .rd_vld  ( to_rx.valid ),
+                .rd_data ( to_rx.data )
             );
-
-            assign __ready = !valid || to_rx.ready;
-
-            initial valid = 1'b0;
-            always @(posedge from_tx.clk) begin
-                if (from_tx.srst) valid <= 1'b0;
-                else if (__ready) valid <= __valid;
-            end
-
-            always_ff @(posedge from_tx.clk) begin
-                if (__ready) data <= __data;
-            end
-
-            assign to_rx.valid = valid;
-            assign to_rx.data = data;
-
         end : g__obey_ready
     endgenerate
 

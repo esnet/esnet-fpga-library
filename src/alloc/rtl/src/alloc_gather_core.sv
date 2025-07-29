@@ -89,7 +89,7 @@ module alloc_gather_core #(
             // (Local) signals
             logic         __load_in_progress;
             logic         __rd_done;
-            logic         __buffer_not_valid;
+            logic         __buffer_valid;
             buffer_ctxt_t __buffer_ctxt_in;
             buffer_ctxt_t __buffer_ctxt_out;
 
@@ -132,23 +132,23 @@ module alloc_gather_core #(
             assign __buffer_ctxt_in.meta = _desc.meta;
             assign __buffer_ctxt_in.err  = _desc.err;
 
-            fifo_small #(
+            fifo_ctxt #(
                 .DATA_T ( buffer_ctxt_t ),
                 .DEPTH  ( Q_DEPTH )
-            ) i_fifo_small (
+            ) i_fifo_ctxt (
                 .clk,
                 .srst,
+                .wr_rdy  ( ),
                 .wr      ( __rd_done ),
                 .wr_data ( __buffer_ctxt_in ),
-                .full    ( ),
-                .oflow   ( ),
                 .rd      ( gather_if[g_ctxt].ack ),
+                .rd_vld  ( __buffer_valid ),
                 .rd_data ( __buffer_ctxt_out ),
-                .empty   ( __buffer_not_valid ),
+                .oflow   ( ),
                 .uflow   ( )
             );
 
-            assign gather_if[g_ctxt].valid   = !__buffer_not_valid;
+            assign gather_if[g_ctxt].valid   = __buffer_valid;
             assign gather_if[g_ctxt].nxt_ptr = __buffer_ctxt_out.ptr;
             assign gather_if[g_ctxt].eof     = __buffer_ctxt_out.eof;
             assign gather_if[g_ctxt].size    = __buffer_ctxt_out.size;
@@ -218,19 +218,19 @@ module alloc_gather_core #(
         end
     end
 
-    fifo_small   #(
+    fifo_small_ctxt   #(
         .DATA_T   ( rd_ctxt_t ),
         .DEPTH    ( CONTEXTS )
-    ) i_fifo_small__rd_ctxt (
+    ) i_fifo_small_ctxt__rd_ctxt (
         .clk,
         .srst,
+        .wr_rdy   ( ),
         .wr       ( mem_rd_req && mem_rd_rdy ),
         .wr_data  ( rd_ctxt_in ),
-        .full     ( ),
-        .oflow    ( ),
         .rd       ( desc_mem_rd_if.ack ),
+        .rd_vld   ( ),
         .rd_data  ( rd_ctxt_out ),
-        .empty    ( ),
+        .oflow    ( ),
         .uflow    ( )
     );
 

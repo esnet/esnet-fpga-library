@@ -64,7 +64,7 @@ module packet_skid_buffer
     // Pipeline skid buffer
     // (catch SKID cycles of data already in flight after
     //  deassertion axi4s_in.tready)
-    fifo_small_prefetch #(
+    fifo_prefetch #(
         .DATA_T          ( fifo_data_t ),
         .PIPELINE_DEPTH  ( SKID )
     ) i_fifo_prefetch (
@@ -75,7 +75,7 @@ module packet_skid_buffer
         .wr_data  ( from_tx_data ),
         .oflow    ( oflow ),
         .rd       ( to_rx.rdy ),
-        .rd_rdy   ( to_rx.valid ),
+        .rd_vld   ( to_rx.valid ),
         .rd_data  ( to_rx_data )
     );
 

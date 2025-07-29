@@ -7,6 +7,7 @@ module bus_intf_unit_test #(
     parameter string COMPONENT_NAME = "bus_intf"
 );
     import svunit_pkg::svunit_testcase;
+    import bus_verif_pkg::*;
     import tb_pkg::*;
 
     // Synthesize testcase name from parameters
@@ -34,7 +35,11 @@ module bus_intf_unit_test #(
                 bus_intf_connector #(DATA_T) DUT (.*);
             end : g__bus_intf_connector
             
-            "bus_pipe" : begin : g__bus_pipe
+            "bus_pipe_1st" : begin : g__bus_pipe
+                bus_pipe #(DATA_T, .STAGES(1)) DUT (.*);
+            end : g__bus_pipe
+
+            "bus_pipe_4st" : begin : g__bus_pipe
                 bus_pipe #(DATA_T, .STAGES(4)) DUT (.*);
             end : g__bus_pipe
 
@@ -236,6 +241,25 @@ module bus_intf_unit_test #(
 
         //===================================
         // Test:
+        //   stream_backpressure
+        //
+        // Desc:
+        //   send stream of packets with (randomized) receive stalls
+        //===================================
+        `SVTEST(stream_max_rate)
+            localparam NUM = 1000;
+            env.driver.set_tx_mode(TX_MODE_PUSH);
+            // Send stream of transactions
+            send_stream(NUM);
+            #60us 
+            env.driver.set_tx_mode(TX_MODE_SEND);
+            // Check
+            `FAIL_IF_LOG( env.scoreboard.report(msg) > 0, msg );
+            `FAIL_UNLESS_EQUAL( env.scoreboard.got_matched(), 1000);
+        `SVTEST_END
+
+        //===================================
+        // Test:
         //   stream_random
         //
         // Desc:
@@ -282,9 +306,14 @@ module bus_intf_connector_unit_test;
     `BUS_INTF_UNIT_TEST("bus_intf_connector");
 endmodule
 
-// Bus pipeline component
-module bus_pipe_unit_test;
-    `BUS_INTF_UNIT_TEST("bus_pipe");
+// Bus pipeline component (1-stage)
+module bus_pipe_1st_unit_test;
+    `BUS_INTF_UNIT_TEST("bus_pipe_1st");
+endmodule
+
+// Bus pipeline component (4-stage)
+module bus_pipe_4st_unit_test;
+    `BUS_INTF_UNIT_TEST("bus_pipe_4st");
 endmodule
 
 // SLR crossing pipeline stage

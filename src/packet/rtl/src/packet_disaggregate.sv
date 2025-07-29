@@ -121,8 +121,6 @@ module packet_disaggregate
     logic  __ctxt_out_valid;
     CTXT_T __ctxt_out;
     logic  __ctxt_out_rdy;
-    logic  __ctxt_out_full;
-    logic  __ctxt_out_empty;
 
     SEL_T sel;
 
@@ -193,23 +191,21 @@ module packet_disaggregate
     );
 
     // Context queue
-    fifo_small  #(
+    fifo_small_ctxt  #(
         .DATA_T  ( CTXT_T ),
         .DEPTH   ( 16 )
-    ) i_fifo_small__ctxt (
+    ) i_fifo_small_ctxt (
         .clk     ( clk_in ),
         .srst    ( srst_in ),
+        .wr_rdy  ( __ctxt_out_rdy ),
         .wr      ( __ctxt_out_valid ),
         .wr_data ( __ctxt_out ),
-        .full    ( __ctxt_out_full ),
-        .oflow   ( ),
         .rd      ( ctxt_out_ack ),
-        .empty   ( __ctxt_out_empty ),
+        .rd_vld  ( ctxt_out_valid ),
         .rd_data ( ctxt_out ),
+        .oflow   ( ),
         .uflow   ( )  
     );
-    assign __ctxt_out_rdy = !__ctxt_out_full;
-    assign ctxt_out_valid = !__ctxt_out_empty;
 
     generate
         for (genvar g_if = 0; g_if < NUM_OUTPUTS; g_if++) begin : g__if
@@ -229,11 +225,11 @@ module packet_disaggregate
             // (Local) signals
             SEL_T         __col;
             logic         __desc_valid;
+            logic         __fifo_rd_req_q_wr_rdy;
             logic         __fifo_rd_req_q_wr;
             rd_req_ctxt_t __fifo_rd_req_q_wr_data;
-            logic         __fifo_rd_req_q_full;
+            logic         __fifo_rd_req_q_rd_vld;
             rd_req_ctxt_t __fifo_rd_req_q_rd_data;
-            logic         __fifo_rd_req_q_empty;
             logic         __rd_rdy;
             logic         __rd_col_sel;
             logic         __rd_ack;
@@ -259,7 +255,7 @@ module packet_disaggregate
 
             packet_read        #(
                 .IGNORE_RDY     ( IGNORE_RDY_OUT ),
-                .MAX_RD_LATENCY ( MAX_RD_LATENCY + 2*N )
+                .MAX_RD_LATENCY ( MAX_RD_LATENCY + 2*N + 1) // Account for memory read + column 'alignment' FIFO delay
             ) i_packet_read     (
                 .clk            ( clk_out ),
                 .srst           ( srst_out ),
@@ -273,26 +269,26 @@ module packet_disaggregate
 
             // Read requests go into a queue, to smooth out address/column mismatches
             assign __fifo_rd_req_q_wr = __mem_rd_if.req;
-            assign __mem_rd_if.rdy = !__fifo_rd_req_q_full;
+            assign __mem_rd_if.rdy = __fifo_rd_req_q_wr_rdy;
             assign __fifo_rd_req_q_wr_data.addr = __mem_rd_if.addr;
             assign __fifo_rd_req_q_wr_data.desc_valid = __desc_valid;
             assign __fifo_rd_req_q_wr_data.desc_addr  = __wr_descriptor_out_if.addr;
             assign __fifo_rd_req_q_wr_data.desc_size  = __wr_descriptor_out_if.size;
             assign __fifo_rd_req_q_wr_data.desc_meta  = __wr_descriptor_out_if.meta;
             assign __fifo_rd_req_q_wr_data.desc_err   = __wr_descriptor_out_if.err;
-            fifo_small #(
-                .DATA_T ( rd_req_ctxt_t ),
-                .DEPTH  ( 2*N )
-            ) i_fifo_small__rd_req_q (
-                .clk  ( clk_out ),
-                .srst ( srst_out ),
-                .wr   ( __fifo_rd_req_q_wr ),
+            fifo_ctxt   #(
+                .DATA_T  ( rd_req_ctxt_t ),
+                .DEPTH   ( 2*N )
+            ) i_fifo_ctxt__rd_req_q (
+                .clk     ( clk_out ),
+                .srst    ( srst_out ),
+                .wr_rdy  ( __fifo_rd_req_q_wr_rdy ),
+                .wr      ( __fifo_rd_req_q_wr ),
                 .wr_data ( __fifo_rd_req_q_wr_data ),
-                .full    ( __fifo_rd_req_q_full ),
-                .oflow   ( ),
                 .rd      ( __rd_rdy ),
+                .rd_vld  ( __fifo_rd_req_q_rd_vld ),
                 .rd_data ( __fifo_rd_req_q_rd_data ),
-                .empty   ( __fifo_rd_req_q_empty ),
+                .oflow   ( ),
                 .uflow   ( )
             );
 
@@ -305,7 +301,7 @@ module packet_disaggregate
             assign __rd_col_sel = __fifo_rd_req_q_rd_data.addr % N == __col;
             assign __mem_rd_rdy = rd_col_rdy[__col];
             assign __rd_rdy = __rd_col_sel && __mem_rd_rdy;
-            assign rd_out_req [g_if] = !__fifo_rd_req_q_empty && __rd_col_sel;
+            assign rd_out_req [g_if] = __fifo_rd_req_q_rd_vld && __rd_col_sel;
             assign rd_out_addr[g_if] = __fifo_rd_req_q_rd_data.addr/N;
 
             always_comb begin
@@ -323,7 +319,7 @@ module packet_disaggregate
             assign __mem_rd_if.data = __rd_data;
 
             // Pass packet read completions to write side
-            assign __rd_descriptor_out_if.valid = __rd_rdy && !__fifo_rd_req_q_empty && __fifo_rd_req_q_rd_data.desc_valid;
+            assign __rd_descriptor_out_if.valid = __rd_rdy && __fifo_rd_req_q_rd_vld && __fifo_rd_req_q_rd_data.desc_valid;
             assign __rd_descriptor_out_if.addr  = __fifo_rd_req_q_rd_data.desc_addr/N;
             assign __rd_descriptor_out_if.size  = __fifo_rd_req_q_rd_data.desc_size;
             assign __rd_descriptor_out_if.meta  = __fifo_rd_req_q_rd_data.desc_meta;
@@ -386,19 +382,19 @@ module packet_disaggregate
             assign __mem_rd_if.addr = __rd_addr;
             assign rd_col_rdy[g_col] = __mem_rd_if.rdy;
 
-            fifo_small #(
-                .DATA_T ( SEL_T ),
-                .DEPTH  ( MAX_RD_LATENCY+1 )
-            ) i_fifo_small__rd_resp (
-                .clk    ( clk_out ),
-                .srst   ( srst_out ),
-                .wr     ( __rd_req ),
+            fifo_small_ctxt #(
+                .DATA_T  ( SEL_T ),
+                .DEPTH   ( MAX_RD_LATENCY+1 )
+            ) i_fifo_small_ctxt__rd_resp (
+                .clk     ( clk_out ),
+                .srst    ( srst_out ),
+                .wr_rdy  ( ),
+                .wr      ( __rd_req ),
                 .wr_data ( __sel ),
-                .full    ( ),
-                .oflow   ( ),
                 .rd      ( __mem_rd_if.ack ),
+                .rd_vld  ( ),
                 .rd_data ( __rd_ack_sel ),
-                .empty   ( ),
+                .oflow   ( ),
                 .uflow   ( )
             );
 

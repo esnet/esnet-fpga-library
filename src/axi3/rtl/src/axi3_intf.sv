@@ -267,13 +267,14 @@ endmodule : axi3_intf_peripheral_term
 
 // AXI3 controller termination helper module
 module axi3_intf_controller_term (
-    axi3_intf.controller axi3_if
+    axi3_intf.controller axi3_if,
+    input logic aresetn = 1'b1
 );
     import axi3_pkg::*;
 
     // Tie off controller outputs
     // Reset
-    assign axi3_if.aresetn = 1'b0;
+    assign axi3_if.aresetn = aresetn;
     // Write address
     assign axi3_if.awid = '0;
     assign axi3_if.awaddr = '0;

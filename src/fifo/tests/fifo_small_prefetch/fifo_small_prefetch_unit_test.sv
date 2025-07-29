@@ -38,7 +38,7 @@ module fifo_small_prefetch_unit_test #(
     logic   oflow;
 
     logic   rd;
-    logic   rd_rdy;
+    logic   rd_vld;
     DATA_T  rd_data;
 
     fifo_small_prefetch  #(
@@ -87,8 +87,8 @@ module fifo_small_prefetch_unit_test #(
 
     assign rd = rd_if.ready;
     assign rd_if.data = rd_data;
-    assign rd_if.valid = rd_rdy;
-    assign empty = !rd_rdy;
+    assign rd_if.valid = rd_vld;
+    assign empty = !rd_vld;
 
     clocking cb @(posedge clk);
         default input #1step output #1step;

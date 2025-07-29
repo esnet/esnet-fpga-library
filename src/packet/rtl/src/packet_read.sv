@@ -67,6 +67,7 @@ module packet_read
     typedef struct packed {
         logic  eop;
         MTY_T  mty;
+        logic  err;
         META_T meta;
     } ctxt_t;
 
@@ -188,102 +189,102 @@ module packet_read
     always_ff @(posedge clk) begin
         case (state)
             READY : begin
+                ctxt_in.err <= descriptor_if.err;
                 ctxt_in.meta <= descriptor_if.meta;
             end
         endcase
     end
+
+    // Read context
+    fifo_small_ctxt  #(
+        .DATA_T  ( ctxt_t ),
+        .DEPTH   ( MAX_RD_LATENCY )
+    ) i_fifo_small_ctxt (
+        .clk,
+        .srst,
+        .wr_rdy  ( ),
+        .wr      ( mem_rd_if.req && mem_rd_if.rdy ),
+        .wr_data ( ctxt_in ),
+        .rd      ( mem_rd_if.ack ),
+        .rd_vld  ( ),
+        .rd_data ( ctxt_out ),
+        .oflow   ( ),
+        .uflow   ( )
+    );
 
     generate
         if (IGNORE_RDY) begin : g__ignore_rdy
             // Backpressure from receiver not supported; no prefetch needed
             assign prefetch_rdy = 1'b1;
 
-            assign packet_if.valid = mem_rd_if.ack;
-            assign packet_if.data = mem_rd_if.data;
+            logic     __valid;
+            DATA_T    __data;
+            ctxt_t    __ctxt_out;
 
-            fifo_small  #(
-                .DATA_T  ( ctxt_t ),
-                .DEPTH   ( MAX_RD_LATENCY )
-            ) i_fifo_small__ctxt (
-                .clk,
-                .srst,
-                .wr      ( mem_rd_if.req && mem_rd_if.rdy ),
-                .wr_data ( ctxt_in ),
-                .full    ( ),
-                .oflow   ( ),
-                .rd      ( mem_rd_if.ack ),
-                .rd_data ( ctxt_out ),
-                .empty   ( ),
-                .uflow   ( )
-            );
+            initial __valid = 1'b0;
+            always @(posedge clk) begin
+                if (srst) __valid <= 1'b0;
+                else      __valid <= mem_rd_if.ack;
+            end
+
+            always_ff @(posedge clk) begin
+                __data <= mem_rd_if.data;
+                __ctxt_out <= ctxt_out;
+            end
+
+            assign packet_if.valid = __valid;
+            assign packet_if.data = __data;
+            assign packet_if.eop = __ctxt_out.eop;
+            assign packet_if.mty = __ctxt_out.mty;
+            assign packet_if.err = __ctxt_out.err;
+            assign packet_if.meta = __ctxt_out.meta;
 
         end : g__ignore_rdy
         else begin : g__obey_rdy
             // Backpressure from receiver supported; prefetch needed
-
-            // (Local) parameters
-            localparam int PREFETCH_DEPTH = MAX_RD_LATENCY * 2 > 8 ? MAX_RD_LATENCY * 2 : 8;
-            localparam int PREFETCH_CNT_WID = $clog2(PREFETCH_DEPTH+1);
             // (Local) typedefs
-            typedef logic[PREFETCH_CNT_WID-1:0] prefetch_cnt_t;
+            typedef struct packed {
+                DATA_T data;
+                logic  eop;
+                MTY_T  mty;
+                logic  err;
+                META_T meta;
+            } prefetch_data_t;
             // (Local) signals
-            prefetch_cnt_t __prefetch_cnt;
-            logic          __prefetch_oflow;
+            prefetch_data_t __prefetch_wr_data;
+            prefetch_data_t __prefetch_rd_data;
+            logic           __prefetch_oflow;
+
+            assign __prefetch_wr_data.data = mem_rd_if.data;
+            assign __prefetch_wr_data.eop = ctxt_out.eop;
+            assign __prefetch_wr_data.mty = ctxt_out.mty;
+            assign __prefetch_wr_data.err = ctxt_out.err;
+            assign __prefetch_wr_data.meta = ctxt_out.meta;
 
             // Prefetch buffer (data)
-            fifo_sync    #(
-                .DATA_T   ( DATA_T ),
-                .DEPTH    ( PREFETCH_DEPTH ),
-                .FWFT     ( 1 )
-            ) i_fifo_sync__prefetch_data (
+            fifo_prefetch #(
+                .DATA_T          ( prefetch_data_t ),
+                .PIPELINE_DEPTH  ( MAX_RD_LATENCY )
+            ) i_fifo_prefetch__data (
                 .clk,
                 .srst,
-                .wr_rdy   ( ),
+                .wr_rdy   ( prefetch_rdy ),
                 .wr       ( mem_rd_if.ack ),
-                .wr_data  ( mem_rd_if.data ),
-                .wr_count ( __prefetch_cnt ),
-                .full     ( ),
+                .wr_data  ( __prefetch_wr_data ),
                 .oflow    ( __prefetch_oflow ),
                 .rd       ( packet_if.rdy ),
-                .rd_ack   ( packet_if.valid ),
-                .rd_data  ( packet_if.data ),
-                .rd_count ( ),
-                .empty    ( ),
-                .uflow    ( )
+                .rd_vld   ( packet_if.valid ),
+                .rd_data  ( __prefetch_rd_data )
             );
 
-            // Prefetch buffer (context)
-            fifo_sync    #(
-                .DATA_T   ( ctxt_t ),
-                .DEPTH    ( PREFETCH_DEPTH ),
-                .FWFT     ( 1 )
-            ) i_fifo_sync__prefetch_ctxt (
-                .clk,
-                .srst,
-                .wr_rdy   ( ),
-                .wr       ( mem_rd_if.req && mem_rd_if.rdy),
-                .wr_data  ( ctxt_in ),
-                .wr_count ( ),
-                .full     ( ),
-                .oflow    ( ),
-                .rd       ( packet_if.valid && packet_if.rdy ),
-                .rd_data  ( ctxt_out ),
-                .rd_ack   ( ),
-                .rd_count ( ),
-                .empty    ( ),
-                .uflow    ( )
-            );
-
-            // Ready
-            assign prefetch_rdy = (__prefetch_cnt < PREFETCH_DEPTH / 2);
+            assign packet_if.data = __prefetch_rd_data.data;
+            assign packet_if.eop = __prefetch_rd_data.eop;
+            assign packet_if.mty = __prefetch_rd_data.mty;
+            assign packet_if.err = __prefetch_rd_data.err;
+            assign packet_if.meta = __prefetch_rd_data.meta;
 
         end : g__obey_rdy
     endgenerate
-
-    assign packet_if.eop  = ctxt_out.eop;
-    assign packet_if.mty  = ctxt_out.mty;
-    assign packet_if.err  = 1'b0;
-    assign packet_if.meta = ctxt_out.meta;
 
     // Drive event interface
     assign event_if.evt = packet_if.valid && (packet_if.rdy || IGNORE_RDY) && packet_if.eop;
