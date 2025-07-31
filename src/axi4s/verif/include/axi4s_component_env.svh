@@ -39,12 +39,11 @@ class axi4s_component_env #(
     function new(
             input string name="axi4s_component_env",
             std_verif_pkg::model#(axi4s_transaction#(TID_T, TDEST_T, TUSER_T)) model,
-            std_verif_pkg::scoreboard#(axi4s_transaction#(TID_T, TDEST_T, TUSER_T)) scoreboard,
-            input bit BIGENDIAN=1
+            std_verif_pkg::scoreboard#(axi4s_transaction#(TID_T, TDEST_T, TUSER_T)) scoreboard
         );
         super.new(name);
-        this.driver = new(.BIGENDIAN(BIGENDIAN));
-        this.monitor = new(.BIGENDIAN(BIGENDIAN));
+        this.driver = new();
+        this.monitor = new();
         this.model = model;
         this.scoreboard = scoreboard;
         // WORKAROUND-INIT-PROPS {
@@ -71,18 +70,6 @@ class axi4s_component_env #(
         this.driver.axis_vif = axis_in_vif;
         this.monitor.axis_vif = axis_out_vif;
         trace_msg("_build() Done.");
-    endfunction
-
-    // Configure for little-endianness
-    function automatic void set_little_endian();
-        this.driver.set_little_endian();
-        this.monitor.set_little_endian();
-    endfunction
-
-    // Configure for big-endianness
-    function automatic void set_big_endian();
-        this.driver.set_big_endian();
-        this.monitor.set_big_endian();
     endfunction
 
 endclass : axi4s_component_env

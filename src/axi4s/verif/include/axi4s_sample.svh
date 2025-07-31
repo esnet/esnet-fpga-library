@@ -6,11 +6,6 @@ class axi4s_sample #(
 );
 
     //===================================
-    // Properties
-    //===================================
-    bit __BIGENDIAN;
-
-    //===================================
     // Interfaces
     //===================================
     virtual axi4s_intf #(
@@ -27,8 +22,7 @@ class axi4s_sample #(
     typedef bit [DATA_BYTE_WID-1:0]      tkeep_t;
 
     // Constructor
-    function new(input bit BIGENDIAN=1);
-        __BIGENDIAN = BIGENDIAN;
+    function new();
     endfunction
 
     task capture_pkt_data(output byte data[$]);
@@ -43,10 +37,6 @@ class axi4s_sample #(
 
         while (!tlast) begin
             @(negedge axis_vif.aclk) axis_vif.sample(tdata, tkeep, tlast, tid, tdest, tuser);
-            if (__BIGENDIAN) begin
-                tdata = {<<byte{tdata}};
-                tkeep = {<<{tkeep}};
-            end
             while (byte_idx < DATA_BYTE_WID) begin
                 if (tkeep[byte_idx]) data.push_back(tdata[byte_idx]);
                 byte_idx++;

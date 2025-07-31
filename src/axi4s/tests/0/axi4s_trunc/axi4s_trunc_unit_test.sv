@@ -38,7 +38,7 @@ module axi4s_trunc_unit_test;
 
     // axi4s_split_join instantiation
     int length;
-    axi4s_trunc #(.BIGENDIAN(0)) DUT (.*);
+    axi4s_trunc #() DUT (.*);
 
     assign srst = !rstn;
 
@@ -65,8 +65,8 @@ module axi4s_trunc_unit_test;
     function void build();
         svunit_ut = new(name);
 
-        axis_driver  = new(.BIGENDIAN(0));  // Configure for little-endian
-        axis_monitor = new(.BIGENDIAN(0));
+        axis_driver  = new();
+        axis_monitor = new();
 
         axis_driver.axis_vif  = axi4s_in;
         axis_monitor.axis_vif = axi4s_out;

@@ -25,7 +25,7 @@ module axi4s_pad_unit_test;
     axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID)) axis_in_if ();
     axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID)) axis_out_if ();
 
-    axi4s_pad #(.BIGENDIAN(1)) DUT (.axi4s_in(axis_in_if), .axi4s_out(axis_out_if));
+    axi4s_pad #() DUT (.axi4s_in(axis_in_if), .axi4s_out(axis_out_if));
 
     //===================================
     // Testbench

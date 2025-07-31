@@ -10,7 +10,6 @@ class axi4s_monitor #(
     //===================================
     // Properties
     //===================================
-    local bit __BIGENDIAN;
     local int __tpause = 0;
 
     //===================================
@@ -30,9 +29,8 @@ class axi4s_monitor #(
     typedef bit [DATA_BYTE_WID-1:0]      tkeep_t;
 
     // Constructor
-    function new(input string name="axi4s_monitor", input bit BIGENDIAN=1);
+    function new(input string name="axi4s_monitor");
         super.new(name);
-        this.__BIGENDIAN = BIGENDIAN;
         // WORKAROUND-INIT-PROPS {
         //     Provide/repeat default assignments for all remaining instance properties here.
         //     Works around an apparent object initialization bug (as of Vivado 2024.2)
@@ -54,16 +52,6 @@ class axi4s_monitor #(
     // [[ overrides std_verif_pkg::base.trace_msg() ]]
     function automatic void trace_msg(input string msg);
         _trace_msg(msg, __CLASS_NAME);
-    endfunction
-
-    // Configure for little-endianness
-    function automatic void set_little_endian();
-        this.__BIGENDIAN = 0;
-    endfunction
-
-    // Configure for big-endianness
-    function automatic void set_big_endian();
-        this.__BIGENDIAN = 1;
     endfunction
 
     // Set tpause value used by monitor (for stalling receive transactions)
@@ -109,10 +97,6 @@ class axi4s_monitor #(
         while (!tlast) begin
             axis_vif.receive(tdata, tkeep, tlast, tid, tdest, tuser, tpause);
             trace_msg($sformatf("receive_raw: Received word %0d.", word_idx));
-            if (this.__BIGENDIAN) begin
-                tdata = {<<byte{tdata}};
-                tkeep = {<<{tkeep}};
-            end
 
             while (byte_idx < DATA_BYTE_WID) begin
                 if (tkeep[byte_idx]) data.push_back(tdata[byte_idx]);

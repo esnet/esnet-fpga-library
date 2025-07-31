@@ -26,8 +26,6 @@ module axi4s_split_join_unit_test
     localparam type TDEST_T = bit;
     localparam type TUSER_T = bit;
 
-    localparam BIGENDIAN = 1;
-
     logic [15:0] hdr_slice_length = 16;
 
     byte drop_hdr [];     // drop header (used on packets that will be dropped by header processing logic).
@@ -78,7 +76,6 @@ module axi4s_split_join_unit_test
 
     // axi4s_split_join instantiation.
     axi4s_split_join #(
-      .BIGENDIAN  (BIGENDIAN),
       .FIFO_DEPTH (512)
     ) DUT (
       .clk,
@@ -93,7 +90,6 @@ module axi4s_split_join_unit_test
 
    // axi4s header processor instantiation.
    axi4s_hdr_proc #(
-      .BIGENDIAN (BIGENDIAN),
       .DATA_BYTE_WID(DATA_BYTE_WID)
    ) axi4s_hdr_proc_0 ( 
       .clk,
@@ -164,7 +160,7 @@ module axi4s_split_join_unit_test
         split_join_reg_blk_agent = new("split_join_reg_blk", 'h0000);
         split_join_reg_blk_agent.reg_agent = reg_agent;
 
-        env = new("env", model, scoreboard, BIGENDIAN);
+        env = new("env", model, scoreboard);
         env.reset_vif = reset_if;
         env.axis_in_vif = axi4s_in;
         env.axis_out_vif = axi4s_out;
@@ -450,7 +446,6 @@ endmodule
 module axi4s_hdr_proc
    import axi4s_pkg::*;
 #(
-   parameter int BIGENDIAN = 0,
    parameter int DATA_BYTE_WID = 16
 ) (
    input logic clk,
@@ -500,9 +495,7 @@ module axi4s_hdr_proc
 
 
    // axi4s_prefix instance.
-   axi4s_prefix #(
-      .BIGENDIAN (BIGENDIAN)
-   ) axi4s_prefix_0 ( 
+   axi4s_prefix #() axi4s_prefix_0 ( 
       .axi4s_in   (axi4s_to_prefix),
       .axi4s_out  (axi4s_to_trunc),
       .prefix     (prefix)
@@ -510,9 +503,7 @@ module axi4s_hdr_proc
 
 
    // axi4s_trunc instance.
-   axi4s_trunc #(
-      .BIGENDIAN (BIGENDIAN)
-   ) axi4s_trunc_0 (
+   axi4s_trunc #() axi4s_trunc_0 (
       .clk,
       .srst,
       .axi4s_in   (axi4s_to_trunc),
@@ -553,9 +544,7 @@ endmodule
 // -----------------------------------------------------------------------------
 module axi4s_prefix
    import axi4s_pkg::*;
-#(
-   parameter int BIGENDIAN = 0
-) ( 
+( 
    axi4s_intf.rx       axi4s_in,
    axi4s_intf.tx       axi4s_out,
 
@@ -594,8 +583,7 @@ module axi4s_prefix
    logic [DATA_BYTE_WID-1:0][7:0] prefix_tdata;
    always @(*) begin
       for (int i=0; i<DATA_BYTE_WID; i++)
-         if (BIGENDIAN) prefix_tdata[DATA_BYTE_WID-1-i] = prefix[(index*DATA_BYTE_WID)+i];
-         else           prefix_tdata[i]                 = prefix[(index*DATA_BYTE_WID)+i];
+         prefix_tdata[i] = prefix[(index*DATA_BYTE_WID)+i];
    end
 
    // axis4s input interface signalling.

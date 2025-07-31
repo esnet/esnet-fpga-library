@@ -27,8 +27,7 @@ module axi4s_intf_unit_test #(
                                    DUT_SELECT == 18 ? "axi4s_pipe_slr_b2b" :
                                    DUT_SELECT == 19 ? "axi4s_pipe_slr_to_pipe" :
                                    DUT_SELECT == 20 ? "axi4s_pipe_to_pipe_slr" :
-                                   DUT_SELECT == 21 ? "axi4s_width_converter_le" :
-                                   DUT_SELECT == 22 ? "axi4s_width_converter_be" : "undefined";
+                                   DUT_SELECT == 21 ? "axi4s_width_converter_le" : "undefined";
 
     string name = $sformatf("axi4s_intf_dut_%s_ut", dut_string);
     svunit_testcase svunit_ut;
@@ -158,16 +157,8 @@ module axi4s_intf_unit_test #(
         end
         21 : begin
             axi4s_intf #(.DATA_BYTE_WID(2*DATA_BYTE_WID), .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) __axis_if ();
-            axi4s_width_converter #(.BIGENDIAN(0)) DUT1 (.from_tx ( axis_in_if ), .to_rx (__axis_if ));
-            axi4s_width_converter #(.BIGENDIAN(0)) DUT2 (.from_tx (__axis_if ), .to_rx ( axis_out_if ));
-            initial begin
-                wait(env != null) env.set_little_endian();
-            end
-        end
-        22 : begin
-            axi4s_intf #(.DATA_BYTE_WID(2*DATA_BYTE_WID), .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) __axis_if ();
-            axi4s_width_converter #(.BIGENDIAN(1)) DUT1 (.from_tx ( axis_in_if ), .to_rx (__axis_if ));
-            axi4s_width_converter #(.BIGENDIAN(1)) DUT2 (.from_tx (__axis_if ), .to_rx ( axis_out_if ));
+            axi4s_width_converter #() DUT1 (.from_tx ( axis_in_if ), .to_rx (__axis_if ));
+            axi4s_width_converter #() DUT2 (.from_tx (__axis_if ), .to_rx ( axis_out_if ));
         end
       endcase
    endgenerate
@@ -472,10 +463,6 @@ module axi4s_pipe_to_pipe_slr_unit_test;
 `AXI4S_UNIT_TEST(20)
 endmodule
 
-module axi4s_width_converter_le_unit_test;
+module axi4s_width_converter_unit_test;
 `AXI4S_UNIT_TEST(21)
-endmodule
-
-module axi4s_width_converter_be_unit_test;
-`AXI4S_UNIT_TEST(22)
 endmodule

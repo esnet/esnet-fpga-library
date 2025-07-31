@@ -10,7 +10,6 @@ class axi4s_driver #(
     //===================================
     // Properties
     //===================================
-    local bit __BIGENDIAN;
     local int __min_pkt_gap = 0;
     local int __twait = 0;
 
@@ -34,9 +33,8 @@ class axi4s_driver #(
     // Methods
     //===================================
     // Constructor
-    function new(input string name="axi4s_driver", input bit BIGENDIAN=1);
+    function new(input string name="axi4s_driver");
         super.new(name);
-        this.__BIGENDIAN = BIGENDIAN;
         // WORKAROUND-INIT-PROPS {
         //     Provide/repeat default assignments for all remaining instance properties here.
         //     Works around an apparent object initialization bug (as of Vivado 2024.2)
@@ -57,16 +55,6 @@ class axi4s_driver #(
     // [[ overrides std_verif_pkg::base.trace_msg() ]]
     function automatic void trace_msg(input string msg);
         _trace_msg(msg, __CLASS_NAME);
-    endfunction
-
-    // Configure for little-endianness
-    function automatic void set_little_endian();
-        this.__BIGENDIAN = 0;
-    endfunction
-
-    // Configure for big-endianness
-    function automatic void set_big_endian();
-        this.__BIGENDIAN = 1;
     endfunction
 
     // Set minimum inter-packet gap (in clock cycles)
@@ -116,10 +104,6 @@ class axi4s_driver #(
             tkeep[byte_idx] = 1'b1;
             byte_idx++;
             if ((byte_idx == DATA_BYTE_WID) || (__data.size() == 0)) begin
-                if (this.__BIGENDIAN) begin
-                    tdata = {<<byte{tdata}};
-                    tkeep = {<<{tkeep}};
-                end
                 if (__data.size() == 0) tlast = 1'b1;
                 trace_msg($sformatf("send_raw: Sending word %0d.", word_idx));
                 axis_vif.send(tdata, tkeep, tlast, id, dest, user, this.__twait);
