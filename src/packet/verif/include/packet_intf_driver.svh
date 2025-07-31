@@ -8,7 +8,6 @@ class packet_intf_driver #(
     //===================================
     // Properties
     //===================================
-    local bit __BIGENDIAN;
     local int __min_pkt_gap;
     local real __stall_rate;
 
@@ -20,16 +19,15 @@ class packet_intf_driver #(
     //===================================
     // Typedefs
     //===================================
-    typedef logic [DATA_BYTE_WID-1:0][7:0] data_t;
+    typedef logic [0:DATA_BYTE_WID-1][7:0] data_t;
     typedef logic [$clog2(DATA_BYTE_WID)-1:0] mty_t;
 
     //===================================
     // Methods
     //===================================
     // Constructor
-    function new(input string name="packet_intf_driver", input bit BIGENDIAN=1);
+    function new(input string name="packet_intf_driver");
         super.new(name);
-        this.__BIGENDIAN = BIGENDIAN;
         this.__stall_rate = 0.0;
     endfunction
 
@@ -102,9 +100,6 @@ class packet_intf_driver #(
             mty = 0;
             byte_idx++;
             if ((byte_idx == DATA_BYTE_WID) || (__data.size() == 0)) begin
-                if (this.__BIGENDIAN) begin
-                    _data = {<<byte{_data}};
-                end
                 if (__data.size() == 0) begin
                     eop = 1'b1;
                     mty = DATA_BYTE_WID - byte_idx;

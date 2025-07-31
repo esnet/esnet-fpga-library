@@ -166,11 +166,11 @@ module packet_q_core_unit_test #(
         svunit_ut = new(name);
 
         // Driver
-        driver = new(.BIGENDIAN(1));
+        driver = new();
         driver.packet_vif = packet_in_if[0];
 
         // Monitor
-        monitor = new(.BIGENDIAN(1));
+        monitor = new();
         monitor.packet_vif = packet_out_if[0];
 
         model = new();

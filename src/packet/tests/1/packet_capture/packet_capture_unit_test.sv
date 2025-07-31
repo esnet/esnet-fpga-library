@@ -82,7 +82,7 @@ module packet_capture_unit_test;
         reg_agent.axil_vif = axil_if;
 
         // Driver
-        driver = new(.BIGENDIAN(1));
+        driver = new();
         driver.packet_vif = packet_if;
 
         // Monitor

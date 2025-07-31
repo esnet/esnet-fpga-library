@@ -73,11 +73,11 @@ module packet_intf_unit_test #(
         svunit_ut = new(name);
 
         // Driver
-        driver = new(.BIGENDIAN(1));
+        driver = new();
         driver.packet_vif = from_tx;
 
         // Monitor
-        monitor = new(.BIGENDIAN(1));
+        monitor = new();
         monitor.packet_vif = to_rx;
 
         model = new();

@@ -85,7 +85,7 @@ module packet_playback_unit_test;
         driver = new("packet_playback_driver", PACKET_MEM_SIZE, DATA_WID, reg_agent);
 
         // Monitor
-        monitor = new(.BIGENDIAN(1));
+        monitor = new();
         monitor.packet_vif = packet_if;
 
         // Model

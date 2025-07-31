@@ -8,7 +8,6 @@ class packet_intf_monitor #(
     //===================================
     // Properties
     //===================================
-    local bit __BIGENDIAN;
     local real __stall_rate;
 
     //===================================
@@ -19,13 +18,12 @@ class packet_intf_monitor #(
     //===================================
     // Typedefs
     //===================================
-    typedef logic [DATA_BYTE_WID-1:0][7:0] data_t;
+    typedef logic [0:DATA_BYTE_WID-1][7:0] data_t;
     typedef logic [$clog2(DATA_BYTE_WID)-1:0] mty_t;
 
     // Constructor
-    function new(input string name="packet_intf_monitor", input bit BIGENDIAN=1);
+    function new(input string name="packet_intf_monitor");
         super.new(name);
-        this.__BIGENDIAN = BIGENDIAN;
         _reset();
     endfunction
 
@@ -90,9 +88,6 @@ class packet_intf_monitor #(
         while (!eop) begin
             packet_vif.receive(_data, eop, mty, __err, meta);
             trace_msg($sformatf("receive_raw: Received word %0d.", word_idx));
-            if (this.__BIGENDIAN) begin
-                _data = {<<byte{_data}};
-            end
             while (byte_idx < DATA_BYTE_WID) begin
                 if (!eop || (byte_idx < DATA_BYTE_WID - mty)) begin
                     __data.push_back(_data[byte_idx]);
