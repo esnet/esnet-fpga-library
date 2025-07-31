@@ -4,8 +4,7 @@
 module axi4s_from_packet_adapter #(
     parameter type TID_T = bit,
     parameter type TDEST_T = bit,
-    parameter type TUSER_T = bit,
-    parameter bit  NETWORK_BYTE_ORDER = 1
+    parameter type TUSER_T = bit
 ) (
     // Packet data interface
     packet_intf.rx packet_if,
@@ -18,11 +17,11 @@ module axi4s_from_packet_adapter #(
 );
     // Parameters
     localparam int DATA_BYTE_WID = packet_if.DATA_BYTE_WID;
+    localparam int MTY_WID = $clog2(DATA_BYTE_WID);
     localparam int TKEEP_WID = DATA_BYTE_WID;
-    localparam int MTY_WID = packet_if.MTY_WID;
 
     localparam type TKEEP_T = logic[TKEEP_WID-1:0];
-    localparam type TDATA_T = logic[DATA_BYTE_WID-1:0][7:0];
+    localparam type TDATA_T = logic[DATA_BYTE_WID-1:0][7:0]; // AXI-S is little-endian
     localparam type MTY_T   = logic[MTY_WID-1:0];
 
     // Parameter checking
@@ -40,8 +39,7 @@ module axi4s_from_packet_adapter #(
             if (mty > TKEEP_WID-i-1) __tkeep[i] = 1'b0; 
             else                     __tkeep[i] = 1'b1;
         end
-        if (NETWORK_BYTE_ORDER) return {<<{__tkeep}};
-        else return __tkeep;
+        return __tkeep;
     endfunction
 
     // Interfaces
@@ -60,11 +58,8 @@ module axi4s_from_packet_adapter #(
         else                    __axis_if.tvalid <= packet_if.valid && packet_if.rdy;
     end
 
-    logic [DATA_BYTE_WID-1:0][7:0] byte_reversed_data;
-    assign byte_reversed_data = {<<8{packet_if.data}};
-
     always_ff @(posedge __axis_if.aclk) begin
-        __axis_if.tdata <= NETWORK_BYTE_ORDER ? packet_if.data : byte_reversed_data;
+        __axis_if.tdata <= {<<8{packet_if.data}};
         __axis_if.tkeep <= packet_if.eop ? mty_to_tkeep(packet_if.mty) : '1;
         __axis_if.tlast <= packet_if.eop;
         __axis_if.tid   <= tid;
@@ -85,8 +80,7 @@ endmodule : axi4s_from_packet_adapter
 //
 // Description: Adapts an AXI-S interface to a 'generic' packet interface (packet_intf).
 module axi4s_to_packet_adapter #(
-    parameter type META_T = bit,
-    parameter bit  NETWORK_BYTE_ORDER = 1
+    parameter type META_T = bit
 ) (
     // AXI-S data interface
     axi4s_intf.rx  axis_if,
@@ -98,10 +92,10 @@ module axi4s_to_packet_adapter #(
 );
     // Parameters
     localparam int DATA_BYTE_WID = axis_if.DATA_BYTE_WID;
+    localparam int MTY_WID = $clog2(DATA_BYTE_WID);
     localparam int TKEEP_WID = DATA_BYTE_WID;
-    localparam int MTY_WID = packet_if.MTY_WID;
 
-    localparam type DATA_T  = logic[0:DATA_BYTE_WID-1][7:0];
+    localparam type DATA_T  = logic[0:DATA_BYTE_WID-1][7:0]; // packet_intf uses network byte order
     localparam type TKEEP_T = logic[TKEEP_WID-1:0];
     localparam type MTY_T   = logic[MTY_WID-1:0];
 
@@ -122,7 +116,7 @@ module axi4s_to_packet_adapter #(
     endfunction
 
     // Interfaces
-    packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_T(META_T)) __packet_if (.clk(axis_if.aclk), .srst(!axis_if.aresetn));
+    packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_T(META_T)) __packet_if (.clk(packet_if.clk), .srst(packet_if.srst));
 
     // Signals
     logic  __valid;
@@ -142,11 +136,8 @@ module axi4s_to_packet_adapter #(
         else                  __valid <= axis_if.tvalid && axis_if.tready;
     end
 
-    logic [DATA_BYTE_WID-1:0][7:0] byte_reversed_data;
-    assign byte_reversed_data = {<<8{axis_if.tdata}};
-
     always_ff @(posedge __packet_if.clk) begin
-        __data <= NETWORK_BYTE_ORDER ? axis_if.tdata : byte_reversed_data;
+        __data <= {<<8{axis_if.tdata}};
         __eop  <= axis_if.tlast;
         __mty  <= axis_if.tlast ? tkeep_to_mty(axis_if.tkeep) : 0;
         __err  <= err;

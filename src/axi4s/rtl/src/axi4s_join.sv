@@ -7,9 +7,7 @@
 
 module axi4s_join
    import axi4s_pkg::*;
-#(
-   parameter logic BIGENDIAN = 0  // Little endian by default.
-)  (
+(
    input logic     clk,
    input logic     srst,
 
@@ -195,7 +193,6 @@ module axi4s_join
 
    // axi4s barrel shifter instantiation.
    axi4s_shift #(
-      .BIGENDIAN (BIGENDIAN),
       .SHIFT_WID (COUNT_WID)
    ) axi4s_shift_0 (
       .axi4s_in   (pipe_pyld[2]),
@@ -398,11 +395,8 @@ module axi4s_join
    // tkeep_to_shift function 
    function automatic logic[COUNT_WID:0] tkeep_to_shift (input [DATA_BYTE_WID-1:0] tkeep);
       automatic logic[COUNT_WID:0] shift = 0;
-      automatic logic[DATA_BYTE_WID-1:0] __tkeep;
 
-      __tkeep = BIGENDIAN ? {<<{tkeep}} : tkeep;  // convert to little endian prior to for loop.
-
-      for (int i=0; i<DATA_BYTE_WID; i++) if (__tkeep[DATA_BYTE_WID-1-i]==1'b1) begin
+      for (int i=0; i<DATA_BYTE_WID; i++) if (tkeep[DATA_BYTE_WID-1-i]==1'b1) begin
          shift = DATA_BYTE_WID-i;
          return shift;
       end
@@ -415,16 +409,8 @@ module axi4s_join
       (input [COUNT_WID:0] shift, input [DATA_BYTE_WID-1:0][7:0] tdata_lsb, tdata_msb);
 
       automatic logic[DATA_BYTE_WID-1:0][7:0] tdata_out;
-      automatic logic[DATA_BYTE_WID-1:0][7:0] __tdata_lsb, __tdata_msb, __tdata_out;
 
-      // convert to little endian prior to for loop.
-      __tdata_lsb = BIGENDIAN ? {<<byte{tdata_lsb}} : tdata_lsb; 
-      __tdata_msb = BIGENDIAN ? {<<byte{tdata_msb}} : tdata_msb;
-
-      for (int i=0; i<DATA_BYTE_WID; i++) __tdata_out[i] = (i < shift) ? __tdata_lsb[i] : __tdata_msb[i];
-
-      // convert back to big endian if required.
-      tdata_out = BIGENDIAN ? {<<byte{__tdata_out}} : __tdata_out; 
+      for (int i=0; i<DATA_BYTE_WID; i++) tdata_out[i] = (i < shift) ? tdata_lsb[i] : tdata_msb[i];
 
       return tdata_out;
    endfunction
@@ -435,17 +421,9 @@ module axi4s_join
       (input [COUNT_WID:0] shift, input [DATA_BYTE_WID-1:0] tkeep_lsb, tkeep_msb);
 
       automatic logic[DATA_BYTE_WID-1:0] tkeep_out;
-      automatic logic[DATA_BYTE_WID-1:0] __tkeep_lsb, __tkeep_msb, __tkeep_out;
-
-      // convert to little endian prior to for loop.
-      __tkeep_lsb = BIGENDIAN ? {<<{tkeep_lsb}} : tkeep_lsb;
-      __tkeep_msb = BIGENDIAN ? {<<{tkeep_msb}} : tkeep_msb;
 
       for (int i=0; i<DATA_BYTE_WID; i++) 
-         __tkeep_out[i] = (i < shift) ? __tkeep_lsb[i] : __tkeep_msb[i];
-
-      // convert back to big endian if required.
-      tkeep_out = BIGENDIAN ? {<<{__tkeep_out}} : __tkeep_out;
+         tkeep_out[i] = (i < shift) ? tkeep_lsb[i] : tkeep_msb[i];
 
       return tkeep_out;
    endfunction

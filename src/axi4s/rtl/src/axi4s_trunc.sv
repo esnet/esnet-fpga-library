@@ -7,7 +7,6 @@
 module axi4s_trunc
    import axi4s_pkg::*;
 #(
-   parameter logic BIGENDIAN = 0,  // Little endian by default.
    parameter logic IN_PIPE  = 0,
    parameter logic OUT_PIPE = 1
 ) (
@@ -41,16 +40,10 @@ module axi4s_trunc
    function automatic logic[DATA_BYTE_WID-1:0] trunc_tkeep (input [DATA_BYTE_WID-1:0] tkeep_in, input [15:0] length);
       automatic logic [DATA_BYTE_WID-1:0] tkeep_out = 0;
 
-      automatic logic [DATA_BYTE_WID-1:0] __tkeep_in, __tkeep_out;
-
-      __tkeep_in = BIGENDIAN ? {<<{tkeep_in}} : tkeep_in;  // convert to little endian prior to for loop.
-
       for (int i=0; i<DATA_BYTE_WID; i++) begin
-         if (i < length) __tkeep_out[i] = __tkeep_in[i];
-         else            __tkeep_out[i] = 1'b0;
+         if (i < length) tkeep_out[i] = tkeep_in[i];
+         else            tkeep_out[i] = 1'b0;
       end
-
-      tkeep_out = BIGENDIAN ? {<<{__tkeep_out}} : __tkeep_out;  // convert back to big endian if required.
 
       return tkeep_out;
    endfunction

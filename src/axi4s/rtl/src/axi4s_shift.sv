@@ -8,7 +8,6 @@
 module axi4s_shift
    import axi4s_pkg::*;
 #(
-   parameter logic BIGENDIAN = 0,  // little endian by default.
    parameter int   SHIFT_WID = 6
 ) (
    axi4s_intf.rx   axi4s_in,
@@ -28,15 +27,11 @@ module axi4s_shift
    logic [DATA_BYTE_WID-1:0][7:0] tdata, _tdata;
    logic [DATA_BYTE_WID-1:0]      tkeep, _tkeep;
 
-   // convert to little endian.
-   assign _tdata = BIGENDIAN ? {<<byte{axi4s_in.tdata}} : axi4s_in.tdata;
-   assign _tkeep = BIGENDIAN ?     {<<{axi4s_in.tkeep}} : axi4s_in.tkeep;
+   assign _tdata = axi4s_in.tdata;
+   assign _tkeep = axi4s_in.tkeep;
 
    // circular shift
    always_comb begin  
-      tdata = _tdata;
-      tkeep = _tkeep;
-
       tkeep = ({_tkeep, _tkeep} << shift)   >> DATA_BYTE_WID;
       tdata = ({_tdata, _tdata} << shift*8) >> DATA_BYTE_WID*8;
    end
@@ -53,8 +48,8 @@ module axi4s_shift
    assign axi4s_shift.tid     = axi4s_in.tid;
    assign axi4s_shift.tdest   = axi4s_in.tdest;
    assign axi4s_shift.tuser   = axi4s_in.tuser;
-   assign axi4s_shift.tdata   = BIGENDIAN ? {<<byte{tdata}} : tdata; // convert back to big endian.
-   assign axi4s_shift.tkeep   = BIGENDIAN ?     {<<{tkeep}} : tkeep;
+   assign axi4s_shift.tdata   = tdata; // convert back to big endian.
+   assign axi4s_shift.tkeep   = tkeep;
 
    // output pipeline stage (optional)
 //   axi4s_intf_pipe axi4s_intf_pipe_0 (

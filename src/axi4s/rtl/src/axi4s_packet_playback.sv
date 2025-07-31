@@ -9,8 +9,7 @@
 module axi4s_packet_playback #(
     parameter bit  IGNORE_TREADY = 0,
     parameter int  MAX_RD_LATENCY = 8,
-    parameter int  PACKET_MEM_SIZE = 16384,
-    parameter bit  NETWORK_BYTE_ORDER = 1
+    parameter int  PACKET_MEM_SIZE = 16384
 ) (
     // Clock/Reset
     input  logic                clk,
@@ -62,8 +61,7 @@ module axi4s_packet_playback #(
     axi4s_from_packet_adapter #(
         .TID_T   ( TID_T),
         .TDEST_T ( TDEST_T ),
-        .TUSER_T ( TUSER_T ),
-        .NETWORK_BYTE_ORDER ( NETWORK_BYTE_ORDER )
+        .TUSER_T ( TUSER_T )
     ) i_axi4s_from_packet_adapter (.*);
 
 endmodule : axi4s_packet_playback

@@ -8,7 +8,6 @@
 module axi4s_split_join
    import axi4s_pkg::*;
 #(
-   parameter logic BIGENDIAN    = 0,  // Little endian by default.
    parameter int   FIFO_DEPTH   = 512,
    parameter logic IN_PIPE      = 1,
    parameter logic OUT_PIPE     = 1,
@@ -129,7 +128,6 @@ module axi4s_split_join
 
    // header splitter instantiation
    axi4s_split #(
-      .BIGENDIAN (BIGENDIAN),
       .PTR_LEN   (PTR_LEN)
    ) axi4s_split_0 (
       .clk,
@@ -211,7 +209,6 @@ module axi4s_split_join
 
    // payload joiner instantiation.
    axi4s_join #(
-      .BIGENDIAN (BIGENDIAN)
    ) axi4s_join_0 (
       .clk,
       .srst,

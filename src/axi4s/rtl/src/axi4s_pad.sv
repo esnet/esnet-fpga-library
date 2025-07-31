@@ -5,9 +5,7 @@
 
 module axi4s_pad
    import axi4s_pkg::*;
-#(
-   parameter logic BIGENDIAN = 0  // Little endian by default.
-) (
+(
    axi4s_intf.rx axi4s_in,
    axi4s_intf.tx axi4s_out
 );
@@ -21,13 +19,9 @@ module axi4s_pad
 
    // pad_tkeep function 
    function automatic logic[DATA_BYTE_WID-1:0] pad_tkeep (input [DATA_BYTE_WID-1:0] tkeep_in);
-      automatic logic [DATA_BYTE_WID-1:0] __tkeep_in, __tkeep_out, tkeep_out;
+      automatic logic [DATA_BYTE_WID-1:0] tkeep_out;
 
-      __tkeep_in = BIGENDIAN ? {<<{tkeep_in}} : tkeep_in;  // convert to little endian prior to for loop.
-
-      __tkeep_out = { __tkeep_in[DATA_BYTE_WID-1:60], 60'hfff_ffff_ffff_ffff };
-
-      tkeep_out = BIGENDIAN ? {<<{__tkeep_out}} : __tkeep_out;  // convert back to big endian if required.
+      tkeep_out = { tkeep_in[DATA_BYTE_WID-1:60], 60'hfff_ffff_ffff_ffff };
 
       return tkeep_out;
    endfunction

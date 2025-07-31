@@ -11,7 +11,6 @@
 module axi4s_split
    import axi4s_pkg::*;
 #(
-   parameter logic BIGENDIAN = 0,  // Little endian by default.
    parameter int   PTR_LEN = 16    // wordlength of wr_ptr (for buffer context, or pkt_id).
 )  (
    input logic       clk,
@@ -87,7 +86,6 @@ module axi4s_split
 
    // axi4s_trunc instance.
    axi4s_trunc #(
-      .BIGENDIAN (BIGENDIAN),
       .OUT_PIPE  (0)
    ) axi4s_trunc_0 (
       .clk,

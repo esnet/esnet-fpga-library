@@ -5,9 +5,8 @@
 // (unpack the larger input interface to multiple output words).
 // NOTE: (for now at least) only integer multiples of output/input interface sizes are supported
 module axi4s_width_converter #(
-    parameter bit LATCH_METADATA_ON_SOP = 0, // When set, latch metadata (tid/tdest/tuser signals) only on SOP, ignore for all subsequent cycles
-                                             // Default behaviour is to latch metadata on EOP
-    parameter bit BIGENDIAN = 0 // Pack/(unpack) first word into/(out of) MSbs of larger interface
+    parameter bit LATCH_METADATA_ON_SOP = 0 // When set, latch metadata (tid/tdest/tuser signals) only on SOP, ignore for all subsequent cycles
+                                            // Default behaviour is to latch metadata on EOP
 ) (
     axi4s_intf.rx   from_tx,
     axi4s_intf.tx   to_rx
@@ -47,17 +46,16 @@ module axi4s_width_converter #(
 
     generate
         if (CONVERSION_TYPE == UPSIZE) begin : g__upsize
-            logic [0:CONVERT_RATIO-1] valid;
-            logic [0:CONVERT_RATIO-1][0:DATA_IN_BYTE_WID-1][7:0] tdata;
-
-            logic [0:CONVERT_RATIO-1][0:DATA_IN_BYTE_WID-1] tkeep;
+            logic [CONVERT_RATIO-1:0] valid;
+            logic [CONVERT_RATIO-1:0][DATA_IN_BYTE_WID-1:0][7:0] tdata;
+            logic [CONVERT_RATIO-1:0][DATA_IN_BYTE_WID-1:0] tkeep;
             logic tlast;
             conv_state_t pack_state;
 
             assign to_rx.tvalid = (pack_state == CONVERT_RATIO) || ((pack_state > 0) && tlast);
             assign from_tx.tready = to_rx.tready || !to_rx.tvalid;
 
-            // Pack (narrow) input words into (wide) output interface, starting from left (i.e, big-endian, network byte order)
+            // Pack (narrow) input words into (wide) output interface, starting from left (i.e, little-endian, AXI-S byte order)
             initial pack_state = '0;
             always @(posedge from_tx.aclk) begin
                 if (!from_tx.aresetn) pack_state <= '0;
@@ -71,8 +69,8 @@ module axi4s_width_converter #(
 
             always_ff @(posedge from_tx.aclk) begin
                 if (to_rx.tvalid && to_rx.tready) begin
-                    tdata[1:CONVERT_RATIO-1] <= '0;
-                    tkeep[1:CONVERT_RATIO-1] <= '0;
+                    tdata[CONVERT_RATIO-1:1] <= '0;
+                    tkeep[CONVERT_RATIO-1:1] <= '0;
                     if (from_tx.tvalid && from_tx.tready) begin
                         tdata[0] <= from_tx.tdata;
                         tkeep[0] <= from_tx.tkeep;
@@ -87,64 +85,45 @@ module axi4s_width_converter #(
                 if (from_tx.tvalid && from_tx.tready) tlast <= from_tx.tlast;
             end
 
-            if (BIGENDIAN) begin : g__big_endian
-                assign to_rx.tdata = tdata;
-                assign to_rx.tkeep = tkeep;
-            end : g__big_endian
-            else begin : g__little_endian
-                assign to_rx.tdata = {<<DATA_IN_BYTE_WID*8{tdata}};
-                assign to_rx.tkeep = {<<DATA_IN_BYTE_WID{tkeep}};
-            end
+            assign to_rx.tdata = tdata;
+            assign to_rx.tkeep = tkeep;
             assign to_rx.tlast = tlast;
 
         end : g__upsize
         if (CONVERSION_TYPE == DOWNSIZE) begin : g__downsize
-            logic [0:CONVERT_RATIO-1] valid;
-            logic [0:CONVERT_RATIO-1][0:DATA_OUT_BYTE_WID-1][7:0] tdata;
-            logic [0:CONVERT_RATIO-1][0:DATA_OUT_BYTE_WID-1] tkeep;
-            logic [0:DATA_IN_BYTE_WID-1][7:0] tdata_in;
-            logic [0:DATA_IN_BYTE_WID-1] tkeep_in;
+            logic [CONVERT_RATIO-1:0] valid;
+            logic [CONVERT_RATIO-1:0][DATA_OUT_BYTE_WID-1:0][7:0] tdata;
+            logic [CONVERT_RATIO-1:0][DATA_OUT_BYTE_WID-1:0] tkeep;
+            logic [DATA_IN_BYTE_WID-1:0] tkeep_in;
             logic tlast;
 
             assign to_rx.tvalid = valid[0];
             assign from_tx.tready = !valid[0] || (!valid[1] && to_rx.tready);
 
-            // Unpack (narrow) words to output interface from (wide) input interface, starting from left (i.e, big-endian, network byte order)
+            // Unpack (narrow) words to output interface from (wide) input interface, starting from right (i.e, little-endian, AXI-S byte order)
             initial valid = '0;
             always @(posedge from_tx.aclk) begin
                 if (!from_tx.aresetn) valid <= '0;
                 else begin
                     if (from_tx.tvalid && from_tx.tready) begin
                         for (int i = 0; i < CONVERT_RATIO; i++) begin
-                            if (BIGENDIAN) begin
-                                if (tkeep_in[i*DATA_OUT_BYTE_WID]) valid[i] <= 1'b1;
-                                else valid[i] <= 1'b0;
-                            end else begin
-                                if (tkeep_in[(i+1)*DATA_OUT_BYTE_WID-1]) valid[i] <= 1'b1;
-                                else valid[i] <= 1'b0;
-                            end
+                            if (tkeep_in[i*DATA_OUT_BYTE_WID]) valid[i] <= 1'b1;
+                            else valid[i] <= 1'b0;
                         end
                     end
-                    else if (to_rx.tvalid && to_rx.tready) valid <= valid << 1;
+                    else if (to_rx.tvalid && to_rx.tready) valid <= valid >> 1;
                 end
             end
 
-            if (BIGENDIAN) begin : g__big_endian
-                assign tdata_in = from_tx.tdata;
-                assign tkeep_in = from_tx.tkeep;
-            end : g__big_endian
-            else begin : g__little_endian
-                assign tdata_in = {<<DATA_OUT_BYTE_WID*8{from_tx.tdata}};
-                assign tkeep_in = {<<DATA_OUT_BYTE_WID{from_tx.tkeep}};
-            end : g__little_endian
+            assign tkeep_in = from_tx.tkeep;
 
             always_ff @(posedge from_tx.aclk) begin
                 if (from_tx.tvalid && from_tx.tready) begin
-                    tdata <= tdata_in;
+                    tdata <= from_tx.tdata;
                     tkeep <= tkeep_in;
                 end else if (to_rx.tvalid && to_rx.tready) begin
-                    tdata <= (tdata << (DATA_OUT_BYTE_WID*8));
-                    tkeep <= (tkeep << DATA_OUT_BYTE_WID);
+                    tdata <= (tdata >> (DATA_OUT_BYTE_WID*8));
+                    tkeep <= (tkeep >> DATA_OUT_BYTE_WID);
                 end
             end
 

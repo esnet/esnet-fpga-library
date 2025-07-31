@@ -8,8 +8,7 @@
 //              register-by-register (i.e. slowly)
 module axi4s_packet_capture #(
     parameter bit  IGNORE_TREADY = 0,
-    parameter int  PACKET_MEM_SIZE = 16384,
-    parameter bit  NETWORK_BYTE_ORDER = 1
+    parameter int  PACKET_MEM_SIZE = 16384
 ) (
     // Clock/Reset
     input  logic                clk,
@@ -55,8 +54,7 @@ module axi4s_packet_capture #(
     assign meta.tuser = axis_if.tuser;
 
     axi4s_to_packet_adapter #(
-        .META_T ( _META_T ),
-        .NETWORK_BYTE_ORDER ( NETWORK_BYTE_ORDER )
+        .META_T ( _META_T )
     ) i_axi4s_to_packet_adapter (.*);
 
     packet_capture     #(
