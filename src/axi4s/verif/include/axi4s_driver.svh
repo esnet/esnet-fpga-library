@@ -18,16 +18,10 @@ class axi4s_driver #(
     //===================================
     virtual axi4s_intf #(
         .DATA_BYTE_WID(DATA_BYTE_WID),
-        .TID_T(TID_T),
-        .TDEST_T(TDEST_T),
-        .TUSER_T(TUSER_T)
+        .TID_T  (logic[$bits(TID_T)-1:0]),
+        .TDEST_T(logic[$bits(TDEST_T)-1:0]),
+        .TUSER_T(logic[$bits(TUSER_T)-1:0])
     ) axis_vif;
-
-    //===================================
-    // Typedefs
-    //===================================
-    typedef bit [DATA_BYTE_WID-1:0][7:0] tdata_t;
-    typedef bit [DATA_BYTE_WID-1:0]      tkeep_t;
 
     //===================================
     // Methods
@@ -91,9 +85,9 @@ class axi4s_driver #(
         );
         byte __data[$] = data;
         // Signals
-        tdata_t tdata = '1;
-        tkeep_t tkeep = 0;
-        bit     tlast = 0;
+        bit [DATA_BYTE_WID-1:0][7:0] tdata = '1;
+        bit [DATA_BYTE_WID-1:0] tkeep = 0;
+        bit tlast = 0;
         int byte_idx = 0;
         int word_idx = 0;
 

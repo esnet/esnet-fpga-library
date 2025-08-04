@@ -20,16 +20,16 @@ class axi4s_component_env #(
     //===================================
     virtual axi4s_intf #(
         .DATA_BYTE_WID(DATA_BYTE_WID),
-        .TID_T(TID_T),
-        .TDEST_T(TDEST_T),
-        .TUSER_T(TUSER_T)
+        .TID_T  (logic[$bits(TID_T)-1:0]),
+        .TDEST_T(logic[$bits(TDEST_T)-1:0]),
+        .TUSER_T(logic[$bits(TUSER_T)-1:0])
     ) axis_in_vif;
 
     virtual axi4s_intf #(
         .DATA_BYTE_WID(DATA_BYTE_WID),
-        .TID_T(TID_T),
-        .TDEST_T(TDEST_T),
-        .TUSER_T(TUSER_T)
+        .TID_T  (logic[$bits(TID_T)-1:0]),
+        .TDEST_T(logic[$bits(TDEST_T)-1:0]),
+        .TUSER_T(logic[$bits(TUSER_T)-1:0])
     ) axis_out_vif;
 
     //===================================

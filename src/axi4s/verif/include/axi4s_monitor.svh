@@ -17,17 +17,14 @@ class axi4s_monitor #(
     //===================================
     virtual axi4s_intf #(
         .DATA_BYTE_WID(DATA_BYTE_WID),
-        .TID_T(TID_T),
-        .TDEST_T(TDEST_T),
-        .TUSER_T(TUSER_T)
+        .TID_T  (logic[$bits(TID_T)-1:0]),
+        .TDEST_T(logic[$bits(TDEST_T)-1:0]),
+        .TUSER_T(logic[$bits(TUSER_T)-1:0])
     ) axis_vif;
 
     //===================================
-    // Typedefs
+    // Methods
     //===================================
-    typedef bit [DATA_BYTE_WID-1:0][7:0] tdata_t;
-    typedef bit [DATA_BYTE_WID-1:0]      tkeep_t;
-
     // Constructor
     function new(input string name="axi4s_monitor");
         super.new(name);
