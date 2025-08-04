@@ -2,9 +2,9 @@
 //
 // Description: Adapts a 'generic' packet interface (packet_intf) to an AXI-S interface.
 module axi4s_from_packet_adapter #(
-    parameter type TID_T = bit,
-    parameter type TDEST_T = bit,
-    parameter type TUSER_T = bit
+    parameter type TID_T = logic,
+    parameter type TDEST_T = logic,
+    parameter type TUSER_T = logic
 ) (
     // Packet data interface
     packet_intf.rx packet_if,

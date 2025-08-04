@@ -4,9 +4,9 @@ interface axi4s_intf
     parameter axi4s_mode_t MODE = STANDARD,
     parameter axi4s_tuser_mode_t TUSER_MODE = USER,
     parameter int  DATA_BYTE_WID = 8,
-    parameter type TID_T = bit,
-    parameter type TDEST_T = bit,
-    parameter type TUSER_T = bit
+    parameter type TID_T = logic,
+    parameter type TDEST_T = logic,
+    parameter type TUSER_T = logic
 );
     // Signals
     logic                          aclk;
@@ -522,9 +522,9 @@ module axi4s_intf_mux
 #(
     parameter int  N = 2,  // number of ingress axi4s interfaces.
     parameter int  DATA_BYTE_WID = 8,
-    parameter type TID_T         = bit,
-    parameter type TDEST_T       = bit,
-    parameter type TUSER_T       = bit
+    parameter type TID_T         = logic,
+    parameter type TDEST_T       = logic,
+    parameter type TUSER_T       = logic
 ) (
     axi4s_intf.rx                axi4s_in_if[N],
     axi4s_intf.tx                axi4s_out_if,
@@ -691,9 +691,9 @@ endmodule
 module axi4s_intf_bypass_mux #(
     parameter int   PIPE_STAGES = 1,
     parameter int   DATA_BYTE_WID = 8,
-    parameter type  TID_T = bit,
-    parameter type  TDEST_T = bit,
-    parameter type  TUSER_T = bit
+    parameter type TID_T = logic,
+    parameter type TDEST_T = logic,
+    parameter type TUSER_T = logic
 ) (
     axi4s_intf.rx axi4s_in,
     axi4s_intf.tx axi4s_to_block,
@@ -813,9 +813,9 @@ endmodule : axi4s_adv_tlast
 // group flattened AXI-S signals (from tx) into interface (to rx)
 module axi4s_intf_from_signals #(
     parameter int  DATA_BYTE_WID = 8,
-    parameter type TID_T = bit,
-    parameter type TDEST_T = bit,
-    parameter type TUSER_T = bit
+    parameter type TID_T = logic,
+    parameter type TDEST_T = logic,
+    parameter type TUSER_T = logic
 ) (
     // Signals (from tx)
     input  logic                          aclk,
@@ -852,9 +852,9 @@ endmodule : axi4s_intf_from_signals
 // expand interface (from tx) into flattened AXI-S signals (to rx)
 module axi4s_intf_to_signals #(
     parameter int  DATA_BYTE_WID = 8,
-    parameter type TID_T = bit,
-    parameter type TDEST_T = bit,
-    parameter type TUSER_T = bit
+    parameter type TID_T = logic,
+    parameter type TDEST_T = logic,
+    parameter type TUSER_T = logic
 ) (
     // Signals (to rx)
     output logic                          aclk,

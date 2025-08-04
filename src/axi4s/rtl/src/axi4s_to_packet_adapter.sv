@@ -2,7 +2,7 @@
 //
 // Description: Adapts an AXI-S interface to a 'generic' packet interface (packet_intf).
 module axi4s_to_packet_adapter #(
-    parameter type META_T = bit
+    parameter type META_T = logic
 ) (
     // AXI-S data interface
     axi4s_intf.rx  axis_if,
