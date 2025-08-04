@@ -60,8 +60,6 @@ module fifo_prefetch
     // -----------------------------
     // Signals
     // -----------------------------
-    DATA_T mem [MEM_DEPTH];
-
     logic [CNT_WID-1:0]  __count;
     logic [PIPELINE_CNT_WID-1:0] __reserved_slots;
     logic [PIPELINE_DEPTH-1:0] __empty_vec;
