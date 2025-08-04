@@ -10,27 +10,27 @@ module packet_descriptor_fifo
     // -----------------------------
     // Parameters
     // -----------------------------
-    localparam type ADDR_T = from_tx.ADDR_T;
-    localparam type SIZE_T = from_tx.SIZE_T;
-    localparam type META_T = from_tx.META_T;
+    localparam int ADDR_WID = $bits(from_tx.ADDR_T);
+    localparam int SIZE_WID = $bits(from_tx.SIZE_T);
+    localparam int META_WID = $bits(from_tx.META_T);
 
     // -----------------------------
     // Parameter checking
     // -----------------------------
     initial begin
-        std_pkg::param_check($bits(from_tx.ADDR_T), $bits(to_rx.ADDR_T), "ADDR_T");
-        std_pkg::param_check($bits(from_tx.SIZE_T), $bits(to_rx.SIZE_T), "SIZE_T");
-        std_pkg::param_check($bits(from_tx.META_T), $bits(to_rx.META_T), "META_T");
+        std_pkg::param_check($bits(to_rx.ADDR_T), ADDR_WID, "ADDR_T");
+        std_pkg::param_check($bits(to_rx.SIZE_T), SIZE_WID, "SIZE_T");
+        std_pkg::param_check($bits(to_rx.META_T), META_WID, "META_T");
     end
 
     // -----------------------------
     // Typedefs
     // -----------------------------
     typedef struct packed {
-        ADDR_T addr;
-        SIZE_T size;
-        META_T meta;
-        logic  err;
+        logic[ADDR_WID-1:0] addr;
+        logic[SIZE_WID-1:0] size;
+        logic[META_WID-1:0] meta;
+        logic               err;
     } desc_t;
 
     // -----------------------------

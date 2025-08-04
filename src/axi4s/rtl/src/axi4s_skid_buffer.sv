@@ -26,15 +26,10 @@ module axi4s_skid_buffer #(
 );
     // Parameters
     localparam int  DATA_BYTE_WID = axi4s_in.DATA_BYTE_WID;
+    localparam int  TDATA_WID = DATA_BYTE_WID * 8;
     localparam int  TID_WID = $bits(axi4s_in.TID_T);
     localparam int  TDEST_WID = $bits(axi4s_in.TDEST_T);
     localparam int  TUSER_WID = $bits(axi4s_in.TUSER_T);
-
-    localparam type TDATA_T = logic[DATA_BYTE_WID-1:0][7:0];
-    localparam type TKEEP_T = logic[DATA_BYTE_WID-1:0];
-    localparam type TID_T   = logic[TID_WID-1:0];
-    localparam type TDEST_T = logic[TDEST_WID-1:0];
-    localparam type TUSER_T = logic[TUSER_WID-1:0];
 
     // Parameter checking
     initial begin
@@ -46,12 +41,12 @@ module axi4s_skid_buffer #(
 
     // Typedefs
     typedef struct packed {
-        TUSER_T tuser;
-        TDEST_T tdest;
-        TID_T   tid;
-        logic   tlast;
-        TKEEP_T tkeep;
-        TDATA_T tdata;
+        logic[TUSER_WID-1:0]     tuser;
+        logic[TDEST_WID-1:0]     tdest;
+        logic[TID_WID-1:0]       tid;
+        logic                    tlast;
+        logic[DATA_BYTE_WID-1:0] tkeep;
+        logic[TDATA_WID-1:0]     tdata;
     } fifo_data_t;
 
     // Signals

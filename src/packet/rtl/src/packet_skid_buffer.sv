@@ -28,12 +28,9 @@ module packet_skid_buffer
                             // to monitor for that scenario
 );
     localparam int  DATA_BYTE_WID = from_tx.DATA_BYTE_WID;
+    localparam int  DATA_WID = DATA_BYTE_WID * 8;
     localparam int  MTY_WID  = $clog2(DATA_BYTE_WID);
     localparam int  META_WID = $bits(from_tx.META_T);
-
-    localparam type DATA_T = logic[DATA_BYTE_WID*8-1:0];
-    localparam type META_T = logic[META_WID-1:0];
-    localparam type MTY_T  = logic[MTY_WID-1:0];
 
     // Parameter checking
     initial begin
@@ -43,11 +40,11 @@ module packet_skid_buffer
 
     // Typedefs
     typedef struct packed {
-        META_T  meta;
-        logic   err;
-        MTY_T   mty;
-        logic   eop;
-        DATA_T  data;
+        logic[META_WID-1:0] meta;
+        logic               err;
+        logic[MTY_WID-1:0]  mty;
+        logic               eop;
+        logic[DATA_WID-1:0] data;
     } fifo_data_t;
 
     // Signals
