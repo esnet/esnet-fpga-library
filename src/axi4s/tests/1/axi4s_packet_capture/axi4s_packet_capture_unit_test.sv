@@ -110,7 +110,6 @@ module axi4s_packet_capture_unit_test;
 
         // Monitor
         monitor = new("packet_capture_monitor", PACKET_MEM_SIZE, DATA_WID, reg_agent);
-        monitor.disable_autostart();
 
         // Model
         model = new();
@@ -209,7 +208,6 @@ module axi4s_packet_capture_unit_test;
         `SVTEST_END
 
         `SVTEST(single_packet)
-            monitor.start();
             len = $urandom_range(64, 256);
             one_packet();
             `FAIL_IF(error);
@@ -232,7 +230,6 @@ module axi4s_packet_capture_unit_test;
 
         `SVTEST(packet_stream)
             localparam NUM_PKTS = 50;
-            monitor.start();
             for (int i = 0; i < NUM_PKTS; i++) begin
                 one_packet(i);
             end
