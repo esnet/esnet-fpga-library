@@ -7,4 +7,7 @@ package axi4s_verif_pkg;
     `include "axi4s_sample.svh"
     `include "axi4s_component_env.svh"
 
+    `include "axi4s_playback_driver.svh"
+    `include "axi4s_capture_monitor.svh"
+
 endpackage : axi4s_verif_pkg
