@@ -144,7 +144,8 @@ class packet_capture_monitor #(parameter type META_T=bit) extends packet_monitor
     // Generic transaction (no timeout protection)
     task _transact(
             input packet_capture_reg_pkg::fld_command_code_t _command,
-            output bit                                       _error
+            output bit                                       _error,
+            input  int                                       _poll_delay=0
         );
         // Signals
         packet_capture_reg_pkg::reg_status_t status;
@@ -163,9 +164,10 @@ class packet_capture_monitor #(parameter type META_T=bit) extends packet_monitor
         control_agent.write_command(_command);
 
         // Poll status until done/error/timeout reported
-        do
+        do begin
+            if (_poll_delay > 0) wait_n(_poll_delay);
             control_agent.read_status(status);
-        while ((status.done == 1'b0) && (status.error == 1'b0));
+        end while ((status.done == 1'b0) && (status.error == 1'b0));
 
         _error = status.error;
 
@@ -180,7 +182,8 @@ class packet_capture_monitor #(parameter type META_T=bit) extends packet_monitor
             input packet_capture_reg_pkg::fld_command_code_t _command,
             output bit                                       _error,
             output bit                                       _timeout,
-            input  int                                        TIMEOUT=0
+            input  int                                        TIMEOUT=0,
+            input  int                                       _poll_delay=0
         );
         trace_msg($sformatf("transact(command=%s)", _command.name()));
         fork
@@ -222,7 +225,7 @@ class packet_capture_monitor #(parameter type META_T=bit) extends packet_monitor
         automatic bit err;
         trace_msg("capture()");
         // Issue transaction
-        transact(packet_capture_reg_pkg::COMMAND_CODE_CAPTURE, capture_error, capture_timeout, TIMEOUT);
+        transact(packet_capture_reg_pkg::COMMAND_CODE_CAPTURE, capture_error, capture_timeout, TIMEOUT, 100);
         // Get size of captured packets
         __get_captured_bytes(size);
         // Get metadata
