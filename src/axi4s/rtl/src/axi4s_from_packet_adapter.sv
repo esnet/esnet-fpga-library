@@ -11,9 +11,9 @@ module axi4s_from_packet_adapter #(
     // AXI-S data interface
     axi4s_intf.tx  axis_if,
     // AXI-S metadata
-    input TID_T    tid,
-    input TDEST_T  tdest,
-    input TUSER_T  tuser
+    input TID_T    tid = '0,
+    input TDEST_T  tdest = '0,
+    input TUSER_T  tuser = '0
 );
     // Parameters
     localparam int DATA_BYTE_WID = packet_if.DATA_BYTE_WID;

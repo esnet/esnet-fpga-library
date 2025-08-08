@@ -9,8 +9,8 @@ module axi4s_to_packet_adapter #(
     // Packet data interface
     packet_intf.tx packet_if,
     // Packet metadata
-    input logic    err,
-    input META_T   meta
+    input META_T   meta = '0,
+    input logic    err = 1'b0
 );
     // Parameters
     localparam int DATA_BYTE_WID = axis_if.DATA_BYTE_WID;
