@@ -60,8 +60,11 @@ module axi4s_from_packet_adapter #(
         else                    __axis_if.tvalid <= packet_if.valid && packet_if.rdy;
     end
 
+    logic [DATA_BYTE_WID-1:0][7:0] byte_reversed_data;
+    assign byte_reversed_data = {<<8{packet_if.data}};
+
     always_ff @(posedge __axis_if.aclk) begin
-        __axis_if.tdata <= NETWORK_BYTE_ORDER ? packet_if.data : {>>8{packet_if.data}};
+        __axis_if.tdata <= NETWORK_BYTE_ORDER ? packet_if.data : byte_reversed_data;
         __axis_if.tkeep <= packet_if.eop ? mty_to_tkeep(packet_if.mty) : '1;
         __axis_if.tlast <= packet_if.eop;
         __axis_if.tid   <= tid;
@@ -139,8 +142,11 @@ module axi4s_to_packet_adapter #(
         else                  __valid <= axis_if.tvalid && axis_if.tready;
     end
 
+    logic [DATA_BYTE_WID-1:0][7:0] byte_reversed_data;
+    assign byte_reversed_data = {<<8{axis_if.tdata}};
+
     always_ff @(posedge __packet_if.clk) begin
-        __data <= NETWORK_BYTE_ORDER ? axis_if.tdata : {>>8{axis_if.tdata}};
+        __data <= NETWORK_BYTE_ORDER ? axis_if.tdata : byte_reversed_data;
         __eop  <= axis_if.tlast;
         __mty  <= axis_if.tlast ? tkeep_to_mty(axis_if.tkeep) : 0;
         __err  <= err;
