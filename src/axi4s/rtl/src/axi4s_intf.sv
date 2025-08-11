@@ -8,6 +8,11 @@ interface axi4s_intf
     parameter type TDEST_T = logic,
     parameter type TUSER_T = logic
 );
+    // Parameters
+    localparam int TID_WID = $bits(TID_T);
+    localparam int TDEST_WID = $bits(TDEST_T);
+    localparam int TUSER_WID = $bits(TUSER_T);
+
     // Signals
     logic                          aclk;
     logic                          aresetn;
@@ -17,9 +22,9 @@ interface axi4s_intf
     logic [DATA_BYTE_WID-1:0][7:0] tdata;
     logic [DATA_BYTE_WID-1:0]      tkeep;
     logic                          tlast;
-    TID_T                          tid;
-    TDEST_T                        tdest;
-    TUSER_T                        tuser;
+    logic [TID_WID-1:0]            tid;
+    logic [TDEST_WID-1:0]          tdest;
+    logic [TUSER_WID-1:0]          tuser;
 
     // Status
     logic                          sop;
@@ -287,6 +292,14 @@ module axi4s_intf_connector (
 );
     import axi4s_pkg::*;
 
+    // Parameter checking
+    initial begin
+        std_pkg::param_check(axi4s_from_tx.DATA_BYTE_WID, axi4s_to_rx.DATA_BYTE_WID, "DATA_BYTE_WID");
+        std_pkg::param_check($bits(axi4s_from_tx.TID_T), $bits(axi4s_to_rx.TID_T), "TID_T");
+        std_pkg::param_check($bits(axi4s_from_tx.TDEST_T), $bits(axi4s_to_rx.TDEST_T), "TDEST_T");
+        std_pkg::param_check($bits(axi4s_from_tx.TUSER_T), $bits(axi4s_to_rx.TUSER_T), "TUSER_T");
+    end
+
     // Connect signals (rx -> tx)
     assign axi4s_to_rx.aclk    = axi4s_from_tx.aclk;
     assign axi4s_to_rx.aresetn = axi4s_from_tx.aresetn;
@@ -315,6 +328,15 @@ module axi4s_intf_set_meta #(
     input TDEST_T tdest = '0,
     input TUSER_T tuser = '0
 );
+
+    // Parameter checking
+    initial begin
+        std_pkg::param_check(axi4s_from_tx.DATA_BYTE_WID, axi4s_to_rx.DATA_BYTE_WID, "DATA_BYTE_WID");
+        std_pkg::param_check($bits(axi4s_from_tx.TID_T), $bits(axi4s_to_rx.TID_T), "TID_T");
+        std_pkg::param_check($bits(axi4s_from_tx.TDEST_T), $bits(axi4s_to_rx.TDEST_T), "TDEST_T");
+        std_pkg::param_check($bits(axi4s_from_tx.TUSER_T), $bits(axi4s_to_rx.TUSER_T), "TUSER_T");
+    end
+
     // Connect signals (rx -> tx)
     assign axi4s_to_rx.aclk    = axi4s_from_tx.aclk;
     assign axi4s_to_rx.aresetn = axi4s_from_tx.aresetn;
@@ -336,7 +358,13 @@ module axi4s_intf_monitor (
     axi4s_intf.rx  axi4s_from_tx,
     axi4s_intf.prb axi4s_to_prb
 );
-    import axi4s_pkg::*;
+    // Parameter checking
+    initial begin
+        std_pkg::param_check(axi4s_from_tx.DATA_BYTE_WID, axi4s_to_prb.DATA_BYTE_WID, "DATA_BYTE_WID");
+        std_pkg::param_check($bits(axi4s_from_tx.TID_T), $bits(axi4s_to_prb.TID_T), "TID_T");
+        std_pkg::param_check($bits(axi4s_from_tx.TDEST_T), $bits(axi4s_to_prb.TDEST_T), "TDEST_T");
+        std_pkg::param_check($bits(axi4s_from_tx.TUSER_T), $bits(axi4s_to_prb.TUSER_T), "TUSER_T");
+    end
 
     // Connect signals (rx -> tx)
     assign axi4s_to_prb.aclk    = axi4s_from_tx.aclk;
@@ -362,6 +390,15 @@ module axi4s_intf_pipe
     axi4s_intf.rx axi4s_if_from_tx,
     axi4s_intf.tx axi4s_if_to_rx
 );
+
+    // Parameter checking
+    initial begin
+        std_pkg::param_check(axi4s_if_from_tx.DATA_BYTE_WID, axi4s_if_to_rx.DATA_BYTE_WID, "DATA_BYTE_WID");
+        std_pkg::param_check($bits(axi4s_if_from_tx.TID_T), $bits(axi4s_if_to_rx.TID_T), "TID_T");
+        std_pkg::param_check($bits(axi4s_if_from_tx.TDEST_T), $bits(axi4s_if_to_rx.TDEST_T), "TDEST_T");
+        std_pkg::param_check($bits(axi4s_if_from_tx.TUSER_T), $bits(axi4s_if_to_rx.TUSER_T), "TUSER_T");
+    end
+
     logic ready;
 
     // ACLK
@@ -409,6 +446,14 @@ module axi4s_tready_pipe (
     axi4s_intf.tx axi4s_if_to_rx
 );
     import axi4s_pkg::*;
+
+    // Parameter checking
+    initial begin
+        std_pkg::param_check(axi4s_if_from_tx.DATA_BYTE_WID, axi4s_if_to_rx.DATA_BYTE_WID, "DATA_BYTE_WID");
+        std_pkg::param_check($bits(axi4s_if_from_tx.TID_T), $bits(axi4s_if_to_rx.TID_T), "TID_T");
+        std_pkg::param_check($bits(axi4s_if_from_tx.TDEST_T), $bits(axi4s_if_to_rx.TDEST_T), "TDEST_T");
+        std_pkg::param_check($bits(axi4s_if_from_tx.TUSER_T), $bits(axi4s_if_to_rx.TUSER_T), "TUSER_T");
+    end
 
     localparam int  DATA_BYTE_WID = axi4s_if_from_tx.DATA_BYTE_WID;
     localparam type TID_T         = axi4s_if_from_tx.TID_T;
@@ -501,6 +546,14 @@ module axi4s_full_pipe
     axi4s_intf.tx axi4s_if_to_rx
 );
     import axi4s_pkg::*;
+
+    // Parameter checking
+    initial begin
+        std_pkg::param_check(axi4s_if_from_tx.DATA_BYTE_WID, axi4s_if_to_rx.DATA_BYTE_WID, "DATA_BYTE_WID");
+        std_pkg::param_check($bits(axi4s_if_from_tx.TID_T), $bits(axi4s_if_to_rx.TID_T), "TID_T");
+        std_pkg::param_check($bits(axi4s_if_from_tx.TDEST_T), $bits(axi4s_if_to_rx.TDEST_T), "TDEST_T");
+        std_pkg::param_check($bits(axi4s_if_from_tx.TUSER_T), $bits(axi4s_if_to_rx.TUSER_T), "TUSER_T");
+    end
 
     localparam int  DATA_BYTE_WID = axi4s_if_from_tx.DATA_BYTE_WID;
     localparam type TID_T         = axi4s_if_from_tx.TID_T;
@@ -833,6 +886,14 @@ module axi4s_intf_from_signals #(
 );
     import axi4s_pkg::*;
 
+    // Parameter checking
+    initial begin
+        std_pkg::param_check(DATA_BYTE_WID, axi4s_if.DATA_BYTE_WID, "DATA_BYTE_WID");
+        std_pkg::param_check($bits(TID_T), $bits(axi4s_if.TID_T), "TID_T");
+        std_pkg::param_check($bits(TDEST_T), $bits(axi4s_if.TDEST_T), "TDEST_T");
+        std_pkg::param_check($bits(TUSER_T), $bits(axi4s_if.TUSER_T), "TUSER_T");
+    end
+
     // Connect signals to interface (tx -> rx)
     assign axi4s_if.aclk = aclk;
     assign axi4s_if.aresetn = aresetn;
@@ -871,6 +932,14 @@ module axi4s_intf_to_signals #(
     axi4s_intf.rx axi4s_if
 );
     import axi4s_pkg::*;
+
+    // Parameter checking
+    initial begin
+        std_pkg::param_check(DATA_BYTE_WID, axi4s_if.DATA_BYTE_WID, "DATA_BYTE_WID");
+        std_pkg::param_check($bits(TID_T), $bits(axi4s_if.TID_T), "TID_T");
+        std_pkg::param_check($bits(TDEST_T), $bits(axi4s_if.TDEST_T), "TDEST_T");
+        std_pkg::param_check($bits(TUSER_T), $bits(axi4s_if.TUSER_T), "TUSER_T");
+    end
 
     // Connect interface to signals (tx -> rx)
     assign axi4s_if.tready = (axi4s_if.MODE == IGNORES_TREADY) ? 1'b1 : tready;
