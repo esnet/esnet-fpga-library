@@ -15,21 +15,25 @@ class axi4s_component_env #(
 
     local static const string __CLASS_NAME = "axi4s_verif_pkg::axi4s_component_env";
 
+    localparam int TID_WID = $bits(TID_T);
+    localparam int TDEST_WID = $bits(TDEST_T);
+    localparam int TUSER_WID = $bits(TUSER_T);
+
     //===================================
-    // Properties
+    // Interfaces
     //===================================
     virtual axi4s_intf #(
         .DATA_BYTE_WID(DATA_BYTE_WID),
-        .TID_T  (logic[$bits(TID_T)-1:0]),
-        .TDEST_T(logic[$bits(TDEST_T)-1:0]),
-        .TUSER_T(logic[$bits(TUSER_T)-1:0])
+        .TID_WID  (TID_WID),
+        .TDEST_WID(TDEST_WID),
+        .TUSER_WID(TUSER_WID)
     ) axis_in_vif;
 
     virtual axi4s_intf #(
         .DATA_BYTE_WID(DATA_BYTE_WID),
-        .TID_T  (logic[$bits(TID_T)-1:0]),
-        .TDEST_T(logic[$bits(TDEST_T)-1:0]),
-        .TUSER_T(logic[$bits(TUSER_T)-1:0])
+        .TID_WID  (TID_WID),
+        .TDEST_WID(TDEST_WID),
+        .TUSER_WID(TUSER_WID)
     ) axis_out_vif;
 
     //===================================

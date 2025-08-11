@@ -7,6 +7,10 @@ class axi4s_monitor #(
 
     local static const string __CLASS_NAME = "axi4s_verif_pkg::axi4s_monitor";
 
+    localparam int TID_WID = $bits(TID_T);
+    localparam int TDEST_WID = $bits(TDEST_T);
+    localparam int TUSER_WID = $bits(TUSER_T);
+
     //===================================
     // Properties
     //===================================
@@ -17,9 +21,9 @@ class axi4s_monitor #(
     //===================================
     virtual axi4s_intf #(
         .DATA_BYTE_WID(DATA_BYTE_WID),
-        .TID_T  (logic[$bits(TID_T)-1:0]),
-        .TDEST_T(logic[$bits(TDEST_T)-1:0]),
-        .TUSER_T(logic[$bits(TUSER_T)-1:0])
+        .TID_WID  (TID_WID),
+        .TDEST_WID(TDEST_WID),
+        .TUSER_WID(TUSER_WID)
     ) axis_vif;
 
     //===================================
@@ -72,22 +76,23 @@ class axi4s_monitor #(
 
     // Receive transaction (represented as raw byte array with associated metadata)
     task receive_raw(
-            output byte    data[$],
+            output byte    data[],
             output TID_T   id,
             output TDEST_T dest,
             output TUSER_T user,
             input  int     tpause = 0
         );
+        byte __data[$];
         // Signals
         bit [DATA_BYTE_WID-1:0][7:0] tdata;
         bit [DATA_BYTE_WID-1:0] tkeep;
-        bit tlast = 0;
+        bit tlast = 1'b0;
+        bit [TID_WID-1:0] tid;
+        bit [TDEST_WID-1:0] tdest;
+        bit [TUSER_WID-1:0] tuser;
         int byte_idx = 0;
         int word_idx = 0;
         int byte_cnt = 0;
-        TID_T tid;
-        TDEST_T tdest;
-        TUSER_T tuser;
 
         debug_msg("receive_raw: Waiting for data...");
 
@@ -96,7 +101,7 @@ class axi4s_monitor #(
             trace_msg($sformatf("receive_raw: Received word %0d.", word_idx));
 
             while (byte_idx < DATA_BYTE_WID) begin
-                if (tkeep[byte_idx]) data.push_back(tdata[byte_idx]);
+                if (tkeep[byte_idx]) __data.push_back(tdata[byte_idx]);
                 byte_idx++;
             end
             byte_cnt += byte_idx;
@@ -104,6 +109,7 @@ class axi4s_monitor #(
             word_idx++;
         end
         debug_msg($sformatf("receive_raw: Done. Received %0d bytes.", byte_cnt));
+        data = __data;
         id = tid;
         dest = tdest;
         user = tuser;

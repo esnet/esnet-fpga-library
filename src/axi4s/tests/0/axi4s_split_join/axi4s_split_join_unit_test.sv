@@ -26,6 +26,15 @@ module axi4s_split_join_unit_test
     localparam type TDEST_T = bit;
     localparam type TUSER_T = bit;
 
+    localparam int FIFO_DEPTH = 512;
+    localparam int PTR_LEN = $clog2(FIFO_DEPTH);
+
+    typedef struct packed {
+        TUSER_T             opaque;
+        logic [PTR_LEN-1:0] pid;
+        logic               hdr_tlast;
+    } tuser_int_t;
+
     logic [15:0] hdr_slice_length = 16;
 
     byte drop_hdr [];     // drop header (used on packets that will be dropped by header processing logic).
@@ -42,46 +51,22 @@ module axi4s_split_join_unit_test
     logic clk;
     logic srst;
 
-    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID)) axi4s_in  ();
-    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID)) axi4s_out ();
+    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID($bits(TID_T)), .TDEST_WID($bits(TDEST_T)), .TUSER_WID($bits(TUSER_T))) axi4s_in  (.aclk(clk), .aresetn(!srst));
+    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID($bits(TID_T)), .TDEST_WID($bits(TDEST_T)), .TUSER_WID($bits(TUSER_T))) axi4s_out  (.aclk(clk), .aresetn(!srst));
 
-    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TUSER_T(tuser_split_join_t)) __axi4s_in();
-    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TUSER_T(tuser_split_join_t)) __axi4s_out();
-    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TUSER_T(tuser_split_join_t)) axi4s_hdr_in();
-    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TUSER_T(tuser_split_join_t)) axi4s_hdr_out();
+    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TUSER_WID($bits(tuser_int_t))) axi4s_hdr_in(.aclk(clk), .aresetn(!srst));
+    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TUSER_WID($bits(tuser_int_t))) axi4s_hdr_out(.aclk(clk), .aresetn(!srst));
 
     axi4l_intf axil_if ();
 
-    assign __axi4s_in.aclk    = axi4s_in.aclk;
-    assign __axi4s_in.aresetn = axi4s_in.aresetn;
-    assign __axi4s_in.tvalid  = axi4s_in.tvalid;
-    assign __axi4s_in.tdata   = axi4s_in.tdata;
-    assign __axi4s_in.tkeep   = axi4s_in.tkeep;
-    assign __axi4s_in.tlast   = axi4s_in.tlast;
-    assign __axi4s_in.tid     = axi4s_in.tid;
-    assign __axi4s_in.tdest   = axi4s_in.tdest;
-    assign __axi4s_in.tuser   = '0;
-    assign axi4s_in.tready    = __axi4s_in.tready;
-
-    assign axi4s_out.aclk     = __axi4s_out.aclk;
-    assign axi4s_out.aresetn  = __axi4s_out.aresetn;
-    assign axi4s_out.tvalid   = __axi4s_out.tvalid;
-    assign axi4s_out.tdata    = __axi4s_out.tdata;
-    assign axi4s_out.tkeep    = __axi4s_out.tkeep;
-    assign axi4s_out.tlast    = __axi4s_out.tlast;
-    assign axi4s_out.tid      = __axi4s_out.tid;
-    assign axi4s_out.tdest    = __axi4s_out.tdest;
-    assign axi4s_out.tuser    = '0;
-    assign __axi4s_out.tready = axi4s_out.tready;
-
     // axi4s_split_join instantiation.
     axi4s_split_join #(
-      .FIFO_DEPTH (512)
+      .FIFO_DEPTH (FIFO_DEPTH)
     ) DUT (
       .clk,
       .srst,
-      .axi4s_in      (__axi4s_in),
-      .axi4s_out     (__axi4s_out),
+      .axi4s_in      (axi4s_in),
+      .axi4s_out     (axi4s_out),
       .axi4s_hdr_in  (axi4s_hdr_in),
       .axi4s_hdr_out (axi4s_hdr_out),
       .axil_if       (axil_if),
@@ -133,13 +118,11 @@ module axi4s_split_join_unit_test
     std_reset_intf reset_if (.clk);
 
     assign srst = reset_if.reset;
-    assign axi4s_in.aresetn = !srst;
     assign axil_if.aresetn  = !reset_if.reset;
     assign reset_if.ready   = !reset_if.reset;
 
     // Assign axi4s clock (100MHz)
     `SVUNIT_CLK_GEN(clk, 5ns);
-    assign axi4s_in.aclk = clk;
 
     // Assign axi4l clock (50MHz)
     `SVUNIT_CLK_GEN(axil_if.aclk, 10ns);
@@ -458,11 +441,14 @@ module axi4s_hdr_proc
    input byte  prefix [],
    input int   hdr_trunc_length
 );
+   localparam int TID_WID = axi4s_in.TID_WID;
+   localparam int TDEST_WID = axi4s_in.TDEST_WID;
+   localparam int TUSER_WID = axi4s_in.TUSER_WID;
 
    // local axi4s interface instantiations
-   axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TUSER_T(tuser_split_join_t)) axi4s_to_prefix();
-   axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TUSER_T(tuser_split_join_t)) axi4s_to_trunc();
-   axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TUSER_T(tuser_split_join_t)) axi4s_to_fifo();
+   axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID)) axi4s_to_prefix(.aclk(axi4s_in.aclk), .aresetn(axi4s_in.aresetn));
+   axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID)) axi4s_to_trunc(.aclk(axi4s_in.aclk), .aresetn(axi4s_in.aresetn));
+   axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID)) axi4s_to_fifo(.aclk(axi4s_in.aclk), .aresetn(axi4s_in.aresetn));
 
 
    assign axi4s_in.tready = axi4s_to_prefix.tready;
@@ -483,8 +469,6 @@ module axi4s_hdr_proc
    logic  deassert_tvalid;
    assign deassert_tvalid = drop_hdr_mode ? (drop_pkt || drop_pkt_latch) : drop_pkt_latch;
 
-   assign axi4s_to_prefix.aclk    = axi4s_in.aclk;
-   assign axi4s_to_prefix.aresetn = axi4s_in.aresetn;
    assign axi4s_to_prefix.tvalid  = deassert_tvalid ? '0 : axi4s_in.tvalid;
    assign axi4s_to_prefix.tdata   = axi4s_in.tdata;
    assign axi4s_to_prefix.tkeep   = drop_pkt ? '0 : axi4s_in.tkeep;
@@ -551,17 +535,17 @@ module axi4s_prefix
    input byte prefix []
 );
 
-   localparam int  DATA_BYTE_WID = axi4s_in.DATA_BYTE_WID;
-   localparam type TID_T         = axi4s_in.TID_T;
-   localparam type TDEST_T       = axi4s_in.TDEST_T;
-   localparam type TUSER_T       = axi4s_in.TUSER_T;
+   localparam int DATA_BYTE_WID = axi4s_in.DATA_BYTE_WID;
+   localparam int TID_WID       = axi4s_in.TID_WID;
+   localparam int TDEST_WID     = axi4s_in.TDEST_WID;
+   localparam int TUSER_WID     = axi4s_in.TUSER_WID;
 
-   axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) axi4s_pipe ();
+   axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID)) axi4s_pipe (.aclk(axi4s_in.aclk), .aresetn(axi4s_in.aresetn));
 
    // axi4s pipe stage.
    axi4s_intf_pipe axi4s_in_pipe (
-      .axi4s_if_from_tx (axi4s_in),
-      .axi4s_if_to_rx   (axi4s_pipe)
+      .from_tx (axi4s_in),
+      .to_rx   (axi4s_pipe)
    );
 
    logic [15:0] index;
@@ -590,8 +574,6 @@ module axi4s_prefix
    assign axi4s_pipe.tready = axi4s_out.tready && !add_prefix;
 
    // axis4s output 0 interface signalling.
-   assign axi4s_out.aclk    = axi4s_pipe.aclk;
-   assign axi4s_out.aresetn = axi4s_pipe.aresetn;
    assign axi4s_out.tvalid  = axi4s_pipe.tvalid;
    assign axi4s_out.tdata   = add_prefix ? prefix_tdata : axi4s_pipe.tdata;
    assign axi4s_out.tkeep   = add_prefix ?           '1 : axi4s_pipe.tkeep;

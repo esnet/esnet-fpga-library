@@ -35,8 +35,6 @@ module axi4s_pad
    assign axi4s_in.tready = axi4s_out.tready;
    
    // axis4s output signalling.
-   assign axi4s_out.aclk    = axi4s_in.aclk;
-   assign axi4s_out.aresetn = axi4s_in.aresetn;
    assign axi4s_out.tvalid  = axi4s_in.tvalid;
    assign axi4s_out.tdata   = pad_tdata;
    assign axi4s_out.tkeep   = short_pkt ? pad_tkeep(axi4s_in.tkeep) : axi4s_in.tkeep;

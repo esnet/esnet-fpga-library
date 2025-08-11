@@ -23,16 +23,18 @@ module axi4s_pkt_buffer
    output logic [ADDR_WID:0] wr_ptr_p  // pipelined wr_ptr, can be used for empty detection.
 );
 
-   localparam int  DATA_BYTE_WID = axi4s_in.DATA_BYTE_WID;
-   localparam type TID_T         = axi4s_in.TID_T;
-   localparam type TDEST_T       = axi4s_in.TDEST_T;
-   localparam type TUSER_T       = axi4s_in.TUSER_T;
+   localparam int DATA_BYTE_WID = axi4s_in.DATA_BYTE_WID;
+   localparam int TID_WID       = axi4s_in.TID_WID;
+   localparam int TDEST_WID     = axi4s_in.TDEST_WID;
+   localparam int TUSER_WID     = axi4s_in.TUSER_WID;
+
+   axi4s_intf_parameter_check param_check_0 (.from_tx(axi4s_in), .to_rx(axi4s_out));
 
    typedef struct packed {
        logic                          tlast;
-       TID_T                          tid;
-       TDEST_T                        tdest;
-       TUSER_T                        tuser;
+       logic [TID_WID-1:0]            tid;
+       logic [TDEST_WID-1:0]          tdest;
+       logic [TUSER_WID-1:0]          tuser;
        logic [DATA_BYTE_WID-1:0]      tkeep;
        logic [DATA_BYTE_WID-1:0][7:0] tdata;
    } mem_data_t;
@@ -130,8 +132,6 @@ module axi4s_pkt_buffer
 
    
    // axis4s output signalling.
-   assign axi4s_out.aclk    = axi4s_in.aclk;
-   assign axi4s_out.aresetn = axi4s_in.aresetn;
    assign axi4s_out.tvalid  = rd_req_p[RD_PIPELINE_STAGES];  // connect tvalid to output of rd pipeline.
    assign axi4s_out.tlast   = rd_data.tlast;
    assign axi4s_out.tid     = rd_data.tid;

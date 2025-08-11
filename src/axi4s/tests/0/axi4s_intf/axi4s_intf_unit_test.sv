@@ -27,7 +27,7 @@ module axi4s_intf_unit_test #(
                                    DUT_SELECT == 18 ? "axi4s_pipe_slr_b2b" :
                                    DUT_SELECT == 19 ? "axi4s_pipe_slr_to_pipe" :
                                    DUT_SELECT == 20 ? "axi4s_pipe_to_pipe_slr" :
-                                   DUT_SELECT == 21 ? "axi4s_width_converter_le" : "undefined";
+                                   DUT_SELECT == 21 ? "axi4s_width_converter" : "undefined";
 
     string name = $sformatf("axi4s_intf_dut_%s_ut", dut_string);
     svunit_testcase svunit_ut;
@@ -36,17 +36,25 @@ module axi4s_intf_unit_test #(
     // Parameters
     //===================================
     localparam int DATA_BYTE_WID = 8;
-    localparam type TID_T = logic[7:0];
-    localparam type TDEST_T = logic[11:0];
-    localparam type TUSER_T = logic[31:0];
+    localparam type TID_T = bit[7:0];
+    localparam type TDEST_T = bit[11:0];
+    localparam type TUSER_T = bit[31:0];
 
     typedef axi4s_transaction#(TID_T,TDEST_T,TUSER_T) AXI4S_TRANSACTION_T;
+
+    localparam int TID_WID = $bits(TID_T);
+    localparam int TDEST_WID = $bits(TDEST_T);
+    localparam int TUSER_WID = $bits(TUSER_T);
 
     //===================================
     // DUT
     //===================================
-    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) axis_in_if ();
-    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) axis_out_if ();
+    logic aclk_in;
+    logic aclk_out;
+    logic aclk_out_gen;
+    logic aresetn;
+    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID)) from_tx (.aclk(aclk_in),  .aresetn);
+    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID)) to_rx   (.aclk(aclk_out), .aresetn);
 
     axi4l_intf  axil_to_probe ();
     axi4l_intf  axil_to_ovfl  ();
@@ -58,107 +66,103 @@ module axi4s_intf_unit_test #(
 
     logic tvalid_check = 0;
 
+    bit ASYNC = 0;
+
     generate
       case (DUT_SELECT)
-         0: axi4s_intf_connector DUT (   .axi4s_from_tx(axis_in_if), .   axi4s_to_rx(axis_out_if));
-         1: axi4s_intf_pipe      DUT (.axi4s_if_from_tx(axis_in_if), .axi4s_if_to_rx(axis_out_if));
-         2: axi4s_tready_pipe    DUT (.axi4s_if_from_tx(axis_in_if), .axi4s_if_to_rx(axis_out_if));
-         3: axi4s_full_pipe      DUT (.axi4s_if_from_tx(axis_in_if), .axi4s_if_to_rx(axis_out_if));
+         0: axi4s_intf_connector DUT (.*);
+         1: axi4s_intf_pipe      DUT (.*);
+         2: axi4s_tready_pipe    DUT (.*);
+         3: axi4s_full_pipe      DUT (.*);
 
-         4: axi4s_fifo_sync  #(.DEPTH(  32)) DUT (.axi4s_in(axis_in_if), .axi4s_out(axis_out_if));
-         5: axi4s_fifo_sync  #(.DEPTH( 512)) DUT (.axi4s_in(axis_in_if), .axi4s_out(axis_out_if));
-         6: axi4s_fifo_sync  #(.DEPTH(8192)) DUT (.axi4s_in(axis_in_if), .axi4s_out(axis_out_if));
+         4: axi4s_fifo_sync  #(.DEPTH(  32)) DUT (.*);
+         5: axi4s_fifo_sync  #(.DEPTH( 512)) DUT (.*);
+         6: axi4s_fifo_sync  #(.DEPTH(8192)) DUT (.*);
 
          7: begin
-                axi4s_fifo_async #(.DEPTH(  32)) DUT (.axi4s_in(axis_in_if), .axi4s_out(axis_out_if));
-               `SVUNIT_CLK_GEN(axis_out_if.aclk, 1.0ns);  // slow to fast
-                assign axis_out_if.aresetn = axis_in_if.aresetn;
+                axi4s_fifo_async #(.DEPTH(  32)) DUT (.*);
+                assign ASYNC = 1;
+               `SVUNIT_CLK_GEN(aclk_out_gen, 1.0ns);  // slow to fast
             end
 
          8: begin
-                axi4s_fifo_async #(.DEPTH( 512)) DUT (.axi4s_in(axis_in_if), .axi4s_out(axis_out_if));
-               `SVUNIT_CLK_GEN(axis_out_if.aclk, 1.5ns);
-                assign axis_out_if.aresetn = axis_in_if.aresetn;
+                axi4s_fifo_async #(.DEPTH( 512)) DUT (.*);
+                assign ASYNC = 1;
+               `SVUNIT_CLK_GEN(aclk_out_gen, 1.5ns);
             end
 
          9: begin
-                axi4s_fifo_async #(.DEPTH(8192)) DUT (.axi4s_in(axis_in_if), .axi4s_out(axis_out_if));
-               `SVUNIT_CLK_GEN(axis_out_if.aclk, 2.0ns);  // fast to slow
-                assign axis_out_if.aresetn = axis_in_if.aresetn;
+                axi4s_fifo_async #(.DEPTH(8192)) DUT (.*);
+                assign ASYNC = 1;
+               `SVUNIT_CLK_GEN(aclk_out_gen, 2.0ns);  // fast to slow
             end
 
          10: begin
-                axi4s_pkt_fifo_async DUT ( .axi4s_in(axis_in_if), .axi4s_out(axis_out_if), .clk_out(axis_out_if.aclk),
+                axi4s_pkt_fifo_async DUT ( .axi4s_in(from_tx), .axi4s_out(to_rx),
                                            .flow_ctl_thresh('0), .flow_ctl(),
                                            .axil_to_probe(axil_to_probe), .axil_to_ovfl(axil_to_ovfl), .axil_if(axil_if) );
-
-               `SVUNIT_CLK_GEN(axis_out_if.aclk, 2.0ns);  // fast to slow
+                assign ASYNC = 1;
+               `SVUNIT_CLK_GEN(aclk_out_gen, 2.0ns);  // fast to slow
             end
 
          11: begin
                 assign tvalid_check = 1;
 
                 axi4s_pkt_fifo_async #(.TX_THRESHOLD(512)) DUT (
-                                           .axi4s_in(axis_in_if), .axi4s_out(axis_out_if), .clk_out(axis_out_if.aclk),
+                                           .axi4s_in(from_tx), .axi4s_out(to_rx),
                                            .flow_ctl_thresh('0), .flow_ctl(),
                                            .axil_to_probe(axil_to_probe), .axil_to_ovfl(axil_to_ovfl), .axil_if(axil_if) );
-
-               `SVUNIT_CLK_GEN(axis_out_if.aclk, 1.0ns);  // slow to fast
+                assign ASYNC = 1;
+               `SVUNIT_CLK_GEN(aclk_out_gen, 1.0ns);  // slow to fast
             end
 
          12: begin
-                axi4s_pkt_fifo_sync DUT ( .srst(reset_if.reset), .axi4s_in(axis_in_if), .axi4s_out(axis_out_if),
+                axi4s_pkt_fifo_sync DUT ( .srst(reset_if.reset), .axi4s_in(from_tx), .axi4s_out(to_rx),
                                           .axil_to_probe(axil_to_probe), .axil_to_ovfl(axil_to_ovfl), .axil_if(axil_if),
                                           .oflow() );
             end
          13: begin
                 localparam type META_T = struct packed {TID_T tid; TDEST_T tdest; TUSER_T tuser;};
-                bit err; META_T meta;
+                localparam int META_WID = $bits(META_T);
+                bit err; META_T meta, packet_if_meta;
                 TID_T tid; TDEST_T tdest; TUSER_T tuser;
 
-                packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_T(META_T)) packet_if (.clk(axis_in_if.aclk), .srst(reset_if.reset));
+                packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_WID(META_WID)) packet_if (.clk(from_tx.aclk), .srst(!from_tx.aresetn));
 
                 assign err = 1'b0;
-                assign meta.tid = axis_in_if.tid;
-                assign meta.tdest = axis_in_if.tdest;
-                assign meta.tuser = axis_in_if.tuser;
-                axi4s_to_packet_adapter #(.META_T(META_T)) DUT_0 (.axis_if(axis_in_if), .*);
-                assign tid = packet_if.meta.tid;
-                assign tdest = packet_if.meta.tdest;
-                assign tuser = packet_if.meta.tuser;
-                axi4s_from_packet_adapter #(TID_T, TDEST_T, TUSER_T) DUT_1 (.axis_if(axis_out_if), .*);
-         end
-         14 : begin
-             axi4s_pipe #(.STAGES(2)) DUT (.from_tx ( axis_in_if ), .to_rx ( axis_out_if ));
-         end
-         15 : begin
-             axi4s_pipe_auto DUT (.from_tx ( axis_in_if ), .to_rx ( axis_out_if ));
-         end
-         16 : begin
-             axi4s_pipe_slr DUT (.from_tx ( axis_in_if ), .to_rx ( axis_out_if ));
-         end
-         17 : begin
-             axi4s_pipe_slr #(.PRE_PIPE_STAGES(1), .POST_PIPE_STAGES(1)) DUT (.from_tx ( axis_in_if ), .to_rx ( axis_out_if ));
-         end
-         18 : begin
-            axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) __axis_if ();
-            axi4s_pipe_slr #(.PRE_PIPE_STAGES(1), .POST_PIPE_STAGES(1)) DUT1 (.from_tx ( axis_in_if ), .to_rx ( __axis_if ));
-            axi4s_pipe_slr #(.PRE_PIPE_STAGES(1), .POST_PIPE_STAGES(1)) DUT2 (.from_tx ( __axis_if ),  .to_rx ( axis_out_if ));
+                assign meta.tid = from_tx.tid;
+                assign meta.tdest = from_tx.tdest;
+                assign meta.tuser = from_tx.tuser;
+                axi4s_to_packet_adapter #(.META_WID(META_WID)) DUT_0 (.axis_if(from_tx), .*);
+                assign packet_if_meta = packet_if.meta;
+                assign tid = packet_if_meta.tid;
+                assign tdest = packet_if_meta.tdest;
+                assign tuser = packet_if_meta.tuser;
+                axi4s_from_packet_adapter #(.TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID)) DUT_1 (.axis_if(to_rx), .*);
+        end
+        14 : axi4s_pipe #(.STAGES(2)) DUT (.*);
+        15 : axi4s_pipe_auto DUT (.*);
+        16 : axi4s_pipe_slr DUT (.*);
+        17 : axi4s_pipe_slr #(.PRE_PIPE_STAGES(1), .POST_PIPE_STAGES(1)) DUT (.*);
+        18 : begin
+            axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID)) __axis_if (.aclk(aclk_in), .aresetn);
+            axi4s_pipe_slr #(.PRE_PIPE_STAGES(1), .POST_PIPE_STAGES(1)) DUT1 (.from_tx, .to_rx ( __axis_if ));
+            axi4s_pipe_slr #(.PRE_PIPE_STAGES(1), .POST_PIPE_STAGES(1)) DUT2 (.from_tx ( __axis_if ),  .to_rx);
         end
         19 : begin
-            axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) __axis_if ();
-            axi4s_pipe_slr #(.PRE_PIPE_STAGES(1), .POST_PIPE_STAGES(1)) DUT1 (.from_tx ( axis_in_if ), .to_rx ( __axis_if ));
-            axi4s_pipe #(.STAGES(1)) DUT2 (.from_tx ( __axis_if ), .to_rx ( axis_out_if ));
+            axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID)) __axis_if (.aclk(aclk_in), .aresetn);
+            axi4s_pipe_slr #(.PRE_PIPE_STAGES(1), .POST_PIPE_STAGES(1)) DUT1 (.from_tx, .to_rx ( __axis_if ));
+            axi4s_pipe #(.STAGES(1)) DUT2 (.from_tx ( __axis_if ), .to_rx);
         end
         20 : begin
-            axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) __axis_if ();
-            axi4s_pipe #(.STAGES(1)) DUT1 (.from_tx ( axis_in_if ), .to_rx ( __axis_if ));
-            axi4s_pipe_slr #(.PRE_PIPE_STAGES(1), .POST_PIPE_STAGES(1)) DUT2 (.from_tx ( __axis_if ), .to_rx ( axis_out_if ));
+            axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID)) __axis_if (.aclk(aclk_in), .aresetn);
+            axi4s_pipe #(.STAGES(1)) DUT1 (.from_tx, .to_rx ( __axis_if ));
+            axi4s_pipe_slr #(.PRE_PIPE_STAGES(1), .POST_PIPE_STAGES(1)) DUT2 (.from_tx ( __axis_if ), .to_rx);
         end
         21 : begin
-            axi4s_intf #(.DATA_BYTE_WID(2*DATA_BYTE_WID), .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) __axis_if ();
-            axi4s_width_converter #() DUT1 (.from_tx ( axis_in_if ), .to_rx (__axis_if ));
-            axi4s_width_converter #() DUT2 (.from_tx (__axis_if ), .to_rx ( axis_out_if ));
+            axi4s_intf #(.DATA_BYTE_WID(4*DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID)) __axis_if (.aclk(aclk_in), .aresetn);
+            axi4s_width_converter #() DUT1 (.from_tx, .to_rx (__axis_if ));
+            axi4s_width_converter #() DUT2 (.from_tx (__axis_if ), .to_rx);
         end
       endcase
    endgenerate
@@ -179,27 +183,32 @@ module axi4s_intf_unit_test #(
     std_verif_pkg::event_scoreboard#(AXI4S_TRANSACTION_T) scoreboard;
 
     // Reset
-    std_reset_intf reset_if (.clk(axis_in_if.aclk));
-    assign axis_in_if.aresetn = !reset_if.reset;
+    std_reset_intf reset_if (.clk(from_tx.aclk));
+    assign aresetn = !reset_if.reset;
     assign reset_if.ready = !reset_if.reset;
 
     // Assign clock (333MHz)
-    `SVUNIT_CLK_GEN(axis_in_if.aclk, 1.5ns);
+    `SVUNIT_CLK_GEN(aclk_in, 1.5ns);
+
+    always_comb begin
+        if (ASYNC) aclk_out = aclk_out_gen;
+        else       aclk_out = aclk_in;
+    end
 
     // Checking logic
     logic pkt_pending, pkt_pending_ff;
 
-    always @(posedge axis_out_if.aclk) begin
-        if (!axis_out_if.aresetn)                          pkt_pending_ff <=  0;
-        else if (axis_out_if.tvalid && axis_out_if.tready) pkt_pending_ff <=  pkt_pending_ff ? !axis_out_if.tlast : axis_out_if.sop;
+    always @(posedge to_rx.aclk) begin
+        if (!to_rx.aresetn)                          pkt_pending_ff <=  0;
+        else if (to_rx.tvalid && to_rx.tready) pkt_pending_ff <=  pkt_pending_ff ? !to_rx.tlast : to_rx.sop;
     end
 
-    assign pkt_pending = pkt_pending_ff || (axis_out_if.tvalid && axis_out_if.tready && axis_out_if.sop);
+    assign pkt_pending = pkt_pending_ff || (to_rx.tvalid && to_rx.tready && to_rx.sop);
 
     logic tvalid_fail;
-    always @(posedge axis_out_if.aclk) begin
-        if (!axis_out_if.aresetn) tvalid_fail <= 0;
-        else if (tvalid_check)    tvalid_fail <= tvalid_fail || (pkt_pending && axis_out_if.tready && !axis_out_if.tvalid);
+    always @(posedge to_rx.aclk) begin
+        if (!to_rx.aresetn) tvalid_fail <= 0;
+        else if (tvalid_check)    tvalid_fail <= tvalid_fail || (pkt_pending && to_rx.tready && !to_rx.tvalid);
     end
 
     //===================================
@@ -214,8 +223,8 @@ module axi4s_intf_unit_test #(
 
         env = new("env", model, scoreboard);
         env.reset_vif = reset_if;
-        env.axis_in_vif = axis_in_if;
-        env.axis_out_vif = axis_out_if;
+        env.axis_in_vif = from_tx;
+        env.axis_out_vif = to_rx;
         env.build();
 
     endfunction
@@ -278,56 +287,56 @@ module axi4s_intf_unit_test #(
     `SVUNIT_TESTS_BEGIN
 
         `SVTEST(reset)
-            axis_in_if._wait(1);
+            from_tx._wait(1);
         `SVTEST_END
 
         `SVTEST(one_packet_good)
             len = $urandom_range(64, 511);
             one_packet();
-            #10us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg ); `FAIL_IF_LOG( tvalid_fail, "Unexpected stall on axis_out_if.tvalid" );
+            #10us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg ); `FAIL_IF_LOG( tvalid_fail, "Unexpected stall on to_rx.tvalid" );
         `SVTEST_END
 
         `SVTEST(one_packet_tpause_2)
             env.monitor.set_tpause(2);
             one_packet();
-            #10us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg ); `FAIL_IF_LOG( tvalid_fail, "Unexpected stall on axis_out_if.tvalid" );
+            #10us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg ); `FAIL_IF_LOG( tvalid_fail, "Unexpected stall on to_rx.tvalid" );
         `SVTEST_END
 
         `SVTEST(one_packet_twait_2)
             env.driver.set_twait(2);
             one_packet();
-            #10us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg ); `FAIL_IF_LOG( tvalid_fail, "Unexpected stall on axis_out_if.tvalid" );
+            #10us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg ); `FAIL_IF_LOG( tvalid_fail, "Unexpected stall on to_rx.tvalid" );
         `SVTEST_END
 
         `SVTEST(one_packet_tpause_2_twait_2)
             env.monitor.set_tpause(2);
             env.driver.set_twait(2);
             one_packet();
-            #10us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg ); `FAIL_IF_LOG( tvalid_fail, "Unexpected stall on axis_out_if.tvalid" );
+            #10us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg ); `FAIL_IF_LOG( tvalid_fail, "Unexpected stall on to_rx.tvalid" );
         `SVTEST_END
 
         `SVTEST(packet_stream_good)
             packet_stream();
-            #100us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg ); `FAIL_IF_LOG( tvalid_fail, "Unexpected stall on axis_out_if.tvalid" );
+            #100us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg ); `FAIL_IF_LOG( tvalid_fail, "Unexpected stall on to_rx.tvalid" );
         `SVTEST_END
 
         `SVTEST(packet_stream_tpause_2)
             env.monitor.set_tpause(2);
             packet_stream();
-            #100us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg ); `FAIL_IF_LOG( tvalid_fail, "Unexpected stall on axis_out_if.tvalid" );
+            #100us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg ); `FAIL_IF_LOG( tvalid_fail, "Unexpected stall on to_rx.tvalid" );
         `SVTEST_END
 
         `SVTEST(packet_stream_twait_2)
             env.driver.set_twait(2);
             packet_stream();
-            #100us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg ); `FAIL_IF_LOG( tvalid_fail, "Unexpected stall on axis_out_if.tvalid" );
+            #100us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg ); `FAIL_IF_LOG( tvalid_fail, "Unexpected stall on to_rx.tvalid" );
         `SVTEST_END
 
         `SVTEST(packet_stream_tpause_2_twait_2)
             env.monitor.set_tpause(2);
             env.driver.set_twait(2);
             packet_stream();
-            #100us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg ); `FAIL_IF_LOG( tvalid_fail, "Unexpected stall on axis_out_if.tvalid" );
+            #100us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg ); `FAIL_IF_LOG( tvalid_fail, "Unexpected stall on to_rx.tvalid" );
         `SVTEST_END
 
         `SVTEST(one_packet_bad)
@@ -345,7 +354,7 @@ module axi4s_intf_unit_test #(
             bad_byte_data = 8'hFF ^ bad_transaction.get_byte(bad_byte_idx);
             bad_transaction.set_byte(bad_byte_idx, bad_byte_data);
             env.driver.inbox.put(bad_transaction);
-            axis_in_if._wait(1000);
+            from_tx._wait(1000);
             `FAIL_UNLESS_LOG(
                 scoreboard.report(msg),
                 "Passed unexpectedly."

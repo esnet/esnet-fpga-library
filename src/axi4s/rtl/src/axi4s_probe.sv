@@ -2,7 +2,8 @@
 module axi4s_probe
    import axi4s_pkg::*;
 #(
-   parameter axi4s_probe_mode_t MODE = GOOD
+   parameter axi4s_probe_mode_t MODE = GOOD,
+   parameter axi4s_tuser_mode_t TUSER_MODE = USER
 )  (
    axi4s_intf.prb          axi4s_if, 
    axi4l_intf.peripheral   axi4l_if
@@ -50,7 +51,7 @@ module axi4s_probe
    end
 
    logic  pkt_error;
-   always @(posedge axi4s_if.aclk) pkt_error <= (axi4s_if.TUSER_MODE == PKT_ERROR) && axi4s_if.tuser;
+   always @(posedge axi4s_if.aclk) pkt_error <= (TUSER_MODE == PKT_ERROR) && axi4s_if.tuser;
 
    logic [DATA_BYTE_WID-1:0] axi4s_if_tkeep_p;
    logic                     axi4s_if_tlast_p;

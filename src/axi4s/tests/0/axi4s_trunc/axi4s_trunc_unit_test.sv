@@ -30,15 +30,12 @@ module axi4s_trunc_unit_test;
     axi4s_monitor #(.DATA_BYTE_WID(DATA_BYTE_WID)) axis_monitor;
 
     // local axi4s interface instantiations
-    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID)) axi4s_in ();
-    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID)) axi4s_out();
-
-    assign axi4s_in.aclk = clk;
-    assign axi4s_in.aresetn = rstn;
+    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID)) axi4s_in (.aclk(clk), .aresetn(rstn));
+    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID)) axi4s_out(.aclk(clk), .aresetn(rstn));
 
     // axi4s_split_join instantiation
     int length;
-    axi4s_trunc #() DUT (.*);
+    axi4s_trunc #(.OUT_PIPE(0)) DUT (.*);
 
     assign srst = !rstn;
 
@@ -49,10 +46,12 @@ module axi4s_trunc_unit_test;
                         $sformatf("FAIL!!! tkeep=0 but packet bytes NOT zeroed at byte_idx: 0x%0h (d:%0d)", i, i) )
 
     // monitor for zeroed axi4s signals when tvalid==0
-    always @(negedge axi4s_out.aclk)  if (!axi4s_out.tvalid)
-          `FAIL_IF_LOG( ((axi4s_out.tdata != '0) && (axi4s_out.tkeep != '0) && (axi4s_out.tlast != 1'b0) &&
-                         (axi4s_out.tid   != '0) && (axi4s_out.tdest != '0) && (axi4s_out.tuser != '0) ),
-                        $sformatf("FAIL!!! tvalid=0 but axi4s signals NOT all zeroes.") )
+    always @(negedge axi4s_out.aclk)  if (axi4s_out.aresetn && !axi4s_out.tvalid) begin
+       for (int i=0; i<DATA_BYTE_WID; i++) `FAIL_IF_LOG(|axi4s_out.tdata[i], "FAILED");
+       `FAIL_IF_LOG( ((|axi4s_out.tkeep) || (axi4s_out.tlast) ||
+                      (|axi4s_out.tid) || (|axi4s_out.tdest) || (|axi4s_out.tuser) ),
+                       $sformatf("FAIL!!! tvalid=0 but axi4s signals NOT all zeroes.") )
+    end
 
     //===================================
     // Import common testcase tasks
@@ -83,14 +82,13 @@ module axi4s_trunc_unit_test;
        // Flush packets from pipeline
        axis_monitor.flush();
 
+       rstn <= 0;
+       @(posedge clk);
+
        // Put AXI-S interfaces into quiescent state
        axis_driver.idle();
        axis_monitor.idle();
 
-       rstn = 1;
-       @(posedge clk);
-       rstn <= 0;
-       @(posedge clk);
        rstn <= 1;
        @(posedge clk);
 

@@ -8,8 +8,8 @@ module axi4s_fifo_async
 #(
     parameter int DEPTH = 32
 ) (
-    axi4s_intf.rx       axi4s_in,
-    axi4s_intf.tx_async axi4s_out
+    axi4s_intf.rx from_tx,
+    axi4s_intf.tx to_rx
 );
     //----------------------------------------------
     // AXI-S FIFO instance
@@ -17,9 +17,6 @@ module axi4s_fifo_async
     axi4s_fifo_core       #(
         .DEPTH             ( DEPTH ),
         .ASYNC             ( 1 )
-    ) i_axi4s_fifo_core    (
-        .axi4s_in          ( axi4s_in ),
-        .axi4s_out         ( axi4s_out )
-    );
+    ) i_axi4s_fifo_core    ( .* );
 
 endmodule : axi4s_fifo_async

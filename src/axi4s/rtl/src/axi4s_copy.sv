@@ -16,8 +16,6 @@ module axi4s_copy
    assign axi4s_in.tready = axi4s_out.tready;
 
    // axis4s output interface signalling.
-   assign axi4s_out.aclk   = axi4s_in.aclk;
-   assign axi4s_out.aresetn= axi4s_in.aresetn;
    assign axi4s_out.tvalid = axi4s_in.tvalid;
    assign axi4s_out.tdata  = axi4s_in.tdata;
    assign axi4s_out.tkeep  = axi4s_in.tkeep;
@@ -27,8 +25,6 @@ module axi4s_copy
    assign axi4s_out.tuser  = axi4s_in.tuser;
 
    // axis4s copy interface signalling.
-   assign axi4s_cp_out.aclk   = axi4s_in.aclk;
-   assign axi4s_cp_out.aresetn= axi4s_in.aresetn;
    assign axi4s_cp_out.tvalid = axi4s_in.tvalid && axi4s_in.tready;
    assign axi4s_cp_out.tdata  = axi4s_in.tdata;
    assign axi4s_cp_out.tkeep  = axi4s_in.tkeep;

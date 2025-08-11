@@ -13,14 +13,18 @@ class axi4s_driver #(
     local int __min_pkt_gap = 0;
     local int __twait = 0;
 
+    localparam int TID_WID   = $bits(TID_T);
+    localparam int TDEST_WID = $bits(TDEST_T);
+    localparam int TUSER_WID = $bits(TUSER_T);
+
     //===================================
     // Interfaces
     //===================================
     virtual axi4s_intf #(
         .DATA_BYTE_WID(DATA_BYTE_WID),
-        .TID_T  (logic[$bits(TID_T)-1:0]),
-        .TDEST_T(logic[$bits(TDEST_T)-1:0]),
-        .TUSER_T(logic[$bits(TUSER_T)-1:0])
+        .TID_WID  (TID_WID),
+        .TDEST_WID(TDEST_WID),
+        .TUSER_WID(TUSER_WID)
     ) axis_vif;
 
     //===================================
@@ -79,15 +83,18 @@ class axi4s_driver #(
     // Send transaction (represented as raw byte array with associated metadata)
     protected task _send_raw(
             input byte    data[],
-            input TID_T   id=0,
-            input TDEST_T dest=0,
-            input TUSER_T user=0
+            input TID_T   id = '0,
+            input TDEST_T dest = '0,
+            input TUSER_T user = '0
         );
         byte __data[$] = data;
         // Signals
         bit [DATA_BYTE_WID-1:0][7:0] tdata = '1;
-        bit [DATA_BYTE_WID-1:0] tkeep = 0;
-        bit tlast = 0;
+        bit [DATA_BYTE_WID-1:0] tkeep = '0;
+        bit tlast = 1'b0;
+        bit [TID_WID-1:0] tid = id;
+        bit [TDEST_WID-1:0] tdest = dest;
+        bit [TUSER_WID-1:0] tuser = user;
         int byte_idx = 0;
         int word_idx = 0;
 
@@ -100,7 +107,7 @@ class axi4s_driver #(
             if ((byte_idx == DATA_BYTE_WID) || (__data.size() == 0)) begin
                 if (__data.size() == 0) tlast = 1'b1;
                 trace_msg($sformatf("send_raw: Sending word %0d.", word_idx));
-                axis_vif.send(tdata, tkeep, tlast, id, dest, user, this.__twait);
+                axis_vif.send(tdata, tkeep, tlast, tid, tdest, tuser, this.__twait);
                 tdata = '1;
                 tkeep = 0;
                 byte_idx = 0;

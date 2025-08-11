@@ -26,9 +26,4 @@ package axi4s_pkg;
         HDR_TLAST
     } axi4s_sync_mode_t;
 
-    typedef struct packed {
-        logic [8:0]  pid;
-        logic        hdr_tlast;
-    } tuser_split_join_t;
-
 endpackage : axi4s_pkg

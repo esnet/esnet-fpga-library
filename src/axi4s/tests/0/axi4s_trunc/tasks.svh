@@ -51,7 +51,7 @@ task run_pkt_test (input bit dest_port=0, input int size=0, input VERBOSE=0 );
    // variables for receiving (monitoring) packet data
    automatic int rx_pkt_cnt = 0;    
    automatic bit rx_done = 0;
-   byte          rx_data[$];
+   byte          rx_data[];
    bit           id;
    bit           dest;
    bit           user;

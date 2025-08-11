@@ -20,9 +20,9 @@ module axi4s_width_converter #(
     // Parameters
     localparam int DATA_IN_BYTE_WID = from_tx.DATA_BYTE_WID;
     localparam int DATA_OUT_BYTE_WID = to_rx.DATA_BYTE_WID;
-    localparam type TID_T = from_tx.TID_T;
-    localparam type TDEST_T = from_tx.TDEST_T;
-    localparam type TUSER_T = from_tx.TUSER_T;
+    localparam int TID_WID = from_tx.TID_WID;
+    localparam int TDEST_WID = from_tx.TDEST_WID;
+    localparam int TUSER_WID = from_tx.TUSER_WID;
     localparam conversion_type_t CONVERSION_TYPE = DATA_OUT_BYTE_WID > DATA_IN_BYTE_WID ? UPSIZE : DOWNSIZE;
     localparam int CONVERT_RATIO = CONVERSION_TYPE == UPSIZE ? DATA_OUT_BYTE_WID / DATA_IN_BYTE_WID : DATA_IN_BYTE_WID / DATA_OUT_BYTE_WID;
 
@@ -32,17 +32,14 @@ module axi4s_width_converter #(
     initial begin
         if (CONVERSION_TYPE == UPSIZE)   std_pkg::param_check(DATA_OUT_BYTE_WID % DATA_IN_BYTE_WID,  0, "For upsize, output interface width must be integer multiple of input interface width.");
         if (CONVERSION_TYPE == DOWNSIZE) std_pkg::param_check(DATA_IN_BYTE_WID  % DATA_OUT_BYTE_WID, 0, "For downsize, input interface width must be integer multiple of output interface width.");
-        std_pkg::param_check($bits(to_rx.TID_T),$bits(from_tx.TID_T), "TID width must be the same on input and output interfaces.");
-        std_pkg::param_check($bits(to_rx.TDEST_T),$bits(from_tx.TDEST_T), "TDEST width must be the same on input and output interfaces.");
-        std_pkg::param_check($bits(to_rx.TUSER_T),$bits(from_tx.TUSER_T), "TUSER width must be the same on input and output interfaces.");
+        std_pkg::param_check(to_rx.TID_WID,   from_tx.TID_WID,   "TID width must be the same on input and output interfaces.");
+        std_pkg::param_check(to_rx.TDEST_WID, from_tx.TDEST_WID, "TDEST width must be the same on input and output interfaces.");
+        std_pkg::param_check(to_rx.TUSER_WID, from_tx.TUSER_WID, "TUSER width must be the same on input and output interfaces.");
     end
 
-    TID_T   tid;
-    TDEST_T tdest;
-    TUSER_T tuser;
-
-    assign to_rx.aclk = from_tx.aclk;
-    assign to_rx.aresetn = from_tx.aresetn;
+    logic [TID_WID-1:0]   tid;
+    logic [TDEST_WID-1:0] tdest;
+    logic [TUSER_WID-1:0] tuser;
 
     generate
         if (CONVERSION_TYPE == UPSIZE) begin : g__upsize
@@ -98,7 +95,7 @@ module axi4s_width_converter #(
             logic tlast;
 
             assign to_rx.tvalid = valid[0];
-            assign from_tx.tready = !valid[0] || (!valid[1] && to_rx.tready);
+            assign from_tx.tready = !valid[0] || ((!valid[1] || CONVERT_RATIO == 1) && to_rx.tready);
 
             // Unpack (narrow) words to output interface from (wide) input interface, starting from right (i.e, little-endian, AXI-S byte order)
             initial valid = '0;
@@ -132,7 +129,7 @@ module axi4s_width_converter #(
             end
 
             assign to_rx.tdata = tdata[0];
-            assign to_rx.tlast = !valid[1] && tlast;
+            assign to_rx.tlast = (!valid[1] || CONVERT_RATIO == 1) && tlast;
             assign to_rx.tkeep = tkeep[0];
 
         end : g__downsize

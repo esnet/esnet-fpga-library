@@ -20,13 +20,13 @@ module axi4s_drop
    input logic drop_pkt
 );
 
-   localparam int  DATA_BYTE_WID = axi4s_in.DATA_BYTE_WID;
-   localparam type TID_T         = axi4s_in.TID_T;
-   localparam type TDEST_T       = axi4s_in.TDEST_T;
-   localparam type TUSER_T       = axi4s_in.TUSER_T;
+   localparam int DATA_BYTE_WID = axi4s_in.DATA_BYTE_WID;
+   localparam int TID_WID       = axi4s_in.TID_WID;
+   localparam int TDEST_WID     = axi4s_in.TDEST_WID;
+   localparam int TUSER_WID     = axi4s_in.TUSER_WID;
 
-   axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) __axi4s_in  ();
-   axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) axi4s_out_p ();
+   axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID)) __axi4s_in  (.aclk(axi4s_in.aclk), .aresetn(axi4s_in.aresetn));
+   axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID)) axi4s_out_p (.aclk(axi4s_in.aclk), .aresetn(axi4s_in.aresetn));
 
    logic drop_pkt_latch, drop;
 
@@ -41,8 +41,6 @@ module axi4s_drop
    assign axi4s_in.tready = axi4s_out_p.tready || drop;
 
    // axis4s out interface signalling.
-   assign axi4s_out_p.aclk    = axi4s_in.aclk;
-   assign axi4s_out_p.aresetn = axi4s_in.aresetn;
    assign axi4s_out_p.tvalid  = axi4s_in.tvalid && !drop;
    assign axi4s_out_p.tdata   = axi4s_in.tdata;
    assign axi4s_out_p.tkeep   = axi4s_in.tkeep;
@@ -51,15 +49,13 @@ module axi4s_drop
    assign axi4s_out_p.tdest   = axi4s_in.tdest;
    assign axi4s_out_p.tuser   = axi4s_in.tuser;
 
-   axi4s_intf_pipe #(.MODE(OUT_PIPE_MODE)) out_pipe_0 (.axi4s_if_from_tx(axi4s_out_p), .axi4s_if_to_rx(axi4s_out));
+   axi4s_intf_pipe #(.MODE(OUT_PIPE_MODE)) out_pipe_0 (.from_tx(axi4s_out_p), .to_rx(axi4s_out));
 
 
    // axi4s drop counter instantiation and signalling.
    assign __axi4s_in.tready = axi4s_in.tready && drop;
 
    // axis4s out interface signalling.
-   assign __axi4s_in.aclk    = axi4s_in.aclk;
-   assign __axi4s_in.aresetn = axi4s_in.aresetn;
    assign __axi4s_in.tvalid  = axi4s_in.tvalid;
    assign __axi4s_in.tdata   = axi4s_in.tdata;
    assign __axi4s_in.tkeep   = axi4s_in.tkeep;

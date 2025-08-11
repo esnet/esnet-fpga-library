@@ -4,22 +4,25 @@
 // mode) to arbitrate between the ingress axi4s interfaces.
 // -----------------------------------------------------------------------------
 
-module axi4s_mux
-   import axi4s_pkg::*;
-   import arb_pkg::*;
-#(
+module axi4s_mux #(
    parameter int   N = 2    // number of ingress axi4s interfaces.
  ) (
    axi4s_intf.rx    axi4s_in[N],
    axi4s_intf.tx    axi4s_out
 );
-   localparam int  DATA_BYTE_WID = axi4s_out.DATA_BYTE_WID;
-   localparam type TID_T         = axi4s_out.TID_T;
-   localparam type TDEST_T       = axi4s_out.TDEST_T;
-   localparam type TUSER_T       = axi4s_out.TUSER_T;
+   localparam int DATA_BYTE_WID = axi4s_out.DATA_BYTE_WID;
+   localparam int TID_WID       = axi4s_out.TID_WID;
+   localparam int TDEST_WID     = axi4s_out.TDEST_WID;
+   localparam int TUSER_WID     = axi4s_out.TUSER_WID;
 
-   axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) axi4s_in_p[N] ();
-   axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) axi4s_out_p ();
+   logic aclk;
+   logic aresetn;
+
+   assign aclk = axi4s_out.aclk;
+   assign aresetn = axi4s_out.aresetn;
+
+   axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID)) axi4s_in_p[N] (.*);
+   axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID)) axi4s_out_p (.*);
 
    logic [N-1:0] axi4s_in_req;
    logic [N-1:0] axi4s_in_grant;
@@ -43,23 +46,21 @@ module axi4s_mux
 */
 
    // --- flatten axi4s_intf_mux instance to work around a Vivado elaboration failure (missing port?).
-   logic                          aresetn[N];
    logic                          tvalid[N];
    logic [DATA_BYTE_WID-1:0][7:0] tdata[N];
    logic [DATA_BYTE_WID-1:0]      tkeep[N];
    logic                          tlast[N];
-   TID_T                          tid[N];
-   TDEST_T                        tdest[N];
-   TUSER_T                        tuser[N];
+   logic [TID_WID-1:0]            tid[N];
+   logic [TDEST_WID-1:0]          tdest[N];
+   logic [TUSER_WID-1:0]          tuser[N];
 
    logic                          tready[N];
 
    // Convert between array of signals and array of interfaces
    generate
        for (genvar g_if = 0; g_if < N; g_if++) begin : g__if
-           axi4s_tready_pipe in_pipe (.axi4s_if_from_tx(axi4s_in[g_if]), .axi4s_if_to_rx(axi4s_in_p[g_if]));
+           axi4s_tready_pipe in_pipe (.from_tx(axi4s_in[g_if]), .to_rx(axi4s_in_p[g_if]));
 
-           assign aresetn[g_if] = axi4s_in_p[g_if].aresetn;
            assign  tvalid[g_if] = axi4s_in_p[g_if].tvalid;
            assign   tdata[g_if] = axi4s_in_p[g_if].tdata;
            assign   tkeep[g_if] = axi4s_in_p[g_if].tkeep;
@@ -73,11 +74,7 @@ module axi4s_mux
    endgenerate
 
    always_comb begin
-       // all interfaces must be synchronous to axi4s_in_p[0].
-       axi4s_out_p.aclk    = axi4s_in_p[0].aclk;
-
        // mux logic
-       axi4s_out_p.aresetn = aresetn [sel];
        axi4s_out_p.tvalid  = tvalid  [sel];
        axi4s_out_p.tlast   = tlast   [sel];
        axi4s_out_p.tkeep   = tkeep   [sel];
@@ -98,7 +95,7 @@ module axi4s_mux
    endgenerate
 
    // arbitrate between axi4s ingress interfaces (work-conserving round-robin mode).
-   arb_rr #(.MODE(WCRR), .N(N)) arb_rr_0 (
+   arb_rr #(.MODE(arb_pkg::WCRR), .N(N)) arb_rr_0 (
     .clk   (  axi4s_out.aclk ),
     .srst  ( ~axi4s_out.aresetn ),
     .en    (  1'b1 ),
@@ -108,6 +105,6 @@ module axi4s_mux
     .sel   (  sel )
    );
 
-   axi4s_full_pipe out_pipe (.axi4s_if_from_tx(axi4s_out_p), .axi4s_if_to_rx(axi4s_out));
+   axi4s_full_pipe out_pipe (.from_tx(axi4s_out_p), .to_rx(axi4s_out));
 
 endmodule // axi4s_mux

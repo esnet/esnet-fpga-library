@@ -5,9 +5,9 @@
 // interface. It drives the joined packet stream out the egress axi4s interface.
 // -----------------------------------------------------------------------------
 
-module axi4s_join
-   import axi4s_pkg::*;
-(
+module axi4s_join #(
+   parameter int PTR_LEN = 16 // wordlength of wr_ptr (for buffer context, or pkt_id).
+) (
    input logic     clk,
    input logic     srst,
 
@@ -19,11 +19,30 @@ module axi4s_join
    output logic    sop_mismatch
 );
 
-   localparam int  DATA_BYTE_WID = axi4s_hdr_in.DATA_BYTE_WID;
-   localparam type TID_T         = axi4s_hdr_in.TID_T;
-   localparam type TDEST_T       = axi4s_hdr_in.TDEST_T;
-   localparam type TUSER_T       = axi4s_hdr_in.TUSER_T;
-   localparam int  COUNT_WID     = $clog2(DATA_BYTE_WID);
+   import axi4s_pkg::*;
+
+   localparam int DATA_BYTE_WID = axi4s_hdr_in.DATA_BYTE_WID;
+   localparam int TID_WID       = axi4s_hdr_in.TID_WID;
+   localparam int TDEST_WID     = axi4s_hdr_in.TDEST_WID;
+   localparam int TUSER_IN_WID  = axi4s_hdr_in.TUSER_WID;
+   localparam int TUSER_OUT_WID = axi4s_out.TUSER_WID;
+   localparam int COUNT_WID     = $clog2(DATA_BYTE_WID);
+
+   typedef struct packed {
+       logic [TUSER_OUT_WID-1:0] opaque;
+       logic [PTR_LEN-1:0]       pid;
+       logic                     hdr_tlast;
+   } tuser_t;
+
+   // parameter checking
+   initial begin
+       std_pkg::param_check_gt(TUSER_IN_WID, $bits(tuser_t), "axi4s_hdr_in.TUSER_WID");
+       std_pkg::param_check_gt(axi4s_in.TID_WID, TID_WID, "axi4s_in.TID_WID");
+       std_pkg::param_check_gt(axi4s_in.TDEST_WID, TDEST_WID, "axi4s_in.TDEST_WID");
+       std_pkg::param_check_gt(axi4s_in.TUSER_WID, TUSER_IN_WID, "axi4s_in.TUSER_WID");
+       std_pkg::param_check_gt(axi4s_out.TID_WID, TID_WID, "axi4s_out.TID_WID");
+       std_pkg::param_check_gt(axi4s_out.TDEST_WID, TDEST_WID, "axi4s_out.TDEST_WID");
+   end
 
    // signals
    typedef enum logic[1:0] {
@@ -35,9 +54,9 @@ module axi4s_join
 
    state_t state, state_nxt; 
 
-   TID_T    hdr_tid;
-   TDEST_T  hdr_tdest;
-   TUSER_T  hdr_tuser;
+   logic [TID_WID-1:0]        hdr_tid;
+   logic [TDEST_WID-1:0]      hdr_tdest;
+   logic [TUSER_OUT_WID-1:0]  hdr_tuser;
 
    logic [COUNT_WID:0] hdr_shift;
    logic [COUNT_WID:0] hdr_shift_pipe[7];
@@ -51,47 +70,47 @@ module axi4s_join
 
    // internal axi4s interfaces.
    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID),
-                .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) sync_hdr[2] ();
+                .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_IN_WID)) sync_hdr[2] (.aclk(axi4s_in.aclk), .aresetn(axi4s_in.aresetn));
 
    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID),
-                .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) sync_pyld[2] ();
+                .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_IN_WID)) sync_pyld[2] (.aclk(axi4s_in.aclk), .aresetn(axi4s_in.aresetn));
 
    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID),
-                .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) drop_hdr[2] ();
+                .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_IN_WID)) drop_hdr[2] (.aclk(axi4s_in.aclk), .aresetn(axi4s_in.aresetn));
 
    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID),
-                .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) drop_pyld[2] ();
+                .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_IN_WID)) drop_pyld[2] (.aclk(axi4s_in.aclk), .aresetn(axi4s_in.aresetn));
 
    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID),
-                .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) pipe_hdr[7] ();
+                .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_OUT_WID)) pipe_hdr[7] (.aclk(axi4s_in.aclk), .aresetn(axi4s_in.aresetn));
 
    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID),
-                .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) pipe_pyld[7] ();
+                .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_OUT_WID)) pipe_pyld[7] (.aclk(axi4s_in.aclk), .aresetn(axi4s_in.aresetn));
 
    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID),
-                .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) shifted_pyld ();
+                .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_OUT_WID)) shifted_pyld (.aclk(axi4s_in.aclk), .aresetn(axi4s_in.aresetn));
 
    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID),
-                .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) b2b_hdr ();
+                .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_OUT_WID)) b2b_hdr (.aclk(axi4s_in.aclk), .aresetn(axi4s_in.aresetn));
 
    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID),
-                .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) joined ();
+                .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_OUT_WID)) joined (.aclk(axi4s_in.aclk), .aresetn(axi4s_in.aresetn));
 
    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID),
-                .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) joined_mux ();
+                .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_OUT_WID)) joined_mux (.aclk(axi4s_in.aclk), .aresetn(axi4s_in.aresetn));
 
    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID),
-                .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) joined_pipe ();
+                .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_OUT_WID)) joined_pipe (.aclk(axi4s_in.aclk), .aresetn(axi4s_in.aresetn));
 
    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID),
-                .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) axi4s_to_fifo ();
+                .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_OUT_WID)) axi4s_to_fifo (.aclk(axi4s_in.aclk), .aresetn(axi4s_in.aresetn));
 
 
    logic resetn;
    assign resetn = !srst && enable;
 
    // axi4s SOP synchronizer instantiation.
-   axi4s_sync #(.MODE(SOP)) axi4s_sync_0 (
+   axi4s_sync #(.MODE(SOP), .PTR_LEN(PTR_LEN)) axi4s_sync_0 (
       .axi4s_in0   (axi4s_hdr_in),
       .axi4s_in1   (axi4s_in),
       .axi4s_out0  (sync_hdr[0]),
@@ -99,8 +118,8 @@ module axi4s_join
       .sop_mismatch (sop_mismatch)
    );
 
-   axi4s_full_pipe #(.MODE(PUSH)) sync_hdr_pipe  (.axi4s_if_from_tx (sync_hdr[0]),  .axi4s_if_to_rx   (drop_hdr[0]));
-   axi4s_full_pipe #(.MODE(PUSH)) sync_pyld_pipe (.axi4s_if_from_tx (sync_pyld[0]), .axi4s_if_to_rx   (drop_pyld[0]));
+   axi4s_full_pipe #(.MODE(PUSH)) sync_hdr_pipe  (.from_tx (sync_hdr[0]),  .to_rx   (drop_hdr[0]));
+   axi4s_full_pipe #(.MODE(PUSH)) sync_pyld_pipe (.from_tx (sync_pyld[0]), .to_rx   (drop_pyld[0]));
 
    always @(posedge clk) drop_pkt <= sync_hdr[0].tvalid && sync_hdr[0].sop && sync_hdr[0].tlast && sync_hdr[0].tkeep == '0;
 
@@ -133,7 +152,7 @@ module axi4s_join
    axi4l_intf_controller_term axi4l_to_drop_pyld_term (.axi4l_if (axil_to_drop_pyld));
 
    // axi4s HDR_TLAST synchronizer instantiation.
-   axi4s_sync #(.MODE(HDR_TLAST)) axi4s_sync_1 (
+   axi4s_sync #(.MODE(HDR_TLAST), .PTR_LEN(PTR_LEN)) axi4s_sync_1 (
       .axi4s_in0   (drop_hdr[1]),
       .axi4s_in1   (drop_pyld[1]),
       .axi4s_out0  (sync_hdr[1]),
@@ -144,13 +163,27 @@ module axi4s_join
 
 
    // --- hdr pipeline. ---
-   axi4s_intf_connector pipe_hdr_connector (.axi4s_from_tx(sync_hdr[1]), .axi4s_to_rx(pipe_hdr[0]));
+   
+   // Done with split/join metadata
+   tuser_t sync_hdr_1_tuser;
+   assign sync_hdr_1_tuser = sync_hdr[1].tuser;
+   axi4s_intf_set_meta #(
+       .TID_WID   (TID_WID),
+       .TDEST_WID (TDEST_WID),
+       .TUSER_WID (TUSER_OUT_WID)
+   ) axi4s_intf_set_meta__hdr (
+       .from_tx (sync_hdr[1]),
+       .to_rx   (pipe_hdr[0]),
+       .tid     (sync_hdr[1].tid),
+       .tdest   (sync_hdr[1].tdest),
+       .tuser   (sync_hdr_1_tuser.opaque)
+   );
 
    generate
       for (genvar i = 0; i < 6; i += 1) begin : g__pipe_hdr
          axi4s_intf_pipe #(.MODE(PUSH)) hdr_pipe (
-            .axi4s_if_from_tx (pipe_hdr[i]),
-            .axi4s_if_to_rx   (pipe_hdr[i+1])
+            .from_tx (pipe_hdr[i]),
+            .to_rx   (pipe_hdr[i+1])
          );
       end : g__pipe_hdr
    endgenerate
@@ -170,20 +203,34 @@ module axi4s_join
    // pyld_pipe[6] - Captures next hdr when B2B_HEADER is detected.
 
    // --- pyld pipeline. ---
-   axi4s_intf_connector pipe_pyld_connector (.axi4s_from_tx(sync_pyld[1]), .axi4s_to_rx(pipe_pyld[0]));
+  
+   // Done with split/join metadata
+   tuser_t sync_pyld_1_tuser;
+   assign sync_pyld_1_tuser = sync_pyld[1].tuser;
+   axi4s_intf_set_meta #(
+       .TID_WID   (TID_WID),
+       .TDEST_WID (TDEST_WID),
+       .TUSER_WID (TUSER_OUT_WID)
+   ) axi4s_intf_set_meta__pyld (
+       .from_tx (sync_pyld[1]),
+       .to_rx   (pipe_pyld[0]),
+       .tid     (sync_pyld[1].tid),
+       .tdest   (sync_pyld[1].tdest),
+       .tuser   (sync_pyld_1_tuser.opaque)
+   );
 
    generate
       for (genvar i = 0; i < 5; i += 1) begin : g__pipe_pyld
          if (i==2) begin
             axi4s_intf_pipe #(.MODE(PUSH)) pyld_pipe (
-               .axi4s_if_from_tx (shifted_pyld),
-               .axi4s_if_to_rx   (pipe_pyld[i+1])
+               .from_tx (shifted_pyld),
+               .to_rx   (pipe_pyld[i+1])
             );
 
          end else begin
             axi4s_intf_pipe #(.MODE(PUSH)) pyld_pipe (
-               .axi4s_if_from_tx (pipe_pyld[i]),
-               .axi4s_if_to_rx   (pipe_pyld[i+1])
+               .from_tx (pipe_pyld[i]),
+               .to_rx   (pipe_pyld[i+1])
             );
          end
       end : g__pipe_pyld
@@ -296,8 +343,6 @@ module axi4s_join
 
 
    // hdr and pyld joining assignments.
-   assign joined.aclk    = pipe_pyld[5].aclk;
-   assign joined.aresetn = pipe_pyld[5].aresetn;
    assign joined.tlast   = adv_tlast || (!adv_tlast_p && pipe_pyld[5].tlast && pipe_pyld[5].tvalid);
    assign joined.tid     = hdr_tid;
    assign joined.tdest   = hdr_tdest;
@@ -337,8 +382,6 @@ module axi4s_join
 
 
    // capture sop transaction for back-to-back header case.
-   assign b2b_hdr.aclk    = pipe_hdr[6].aclk;
-   assign b2b_hdr.aresetn = pipe_hdr[6].aresetn;
    assign b2b_hdr.tvalid  = pipe_hdr[6].tvalid;
    assign b2b_hdr.tdata   = join_tdata (.shift(hdr_shift_pipe[5]), .tdata_lsb( pipe_hdr[6].tdata), .tdata_msb(pipe_pyld[5].tdata));
    assign b2b_hdr.tkeep   = join_tkeep (.shift(hdr_shift_pipe[5]), .tkeep_lsb( pipe_hdr[6].tkeep), .tkeep_msb(pipe_pyld[5].tkeep));
@@ -351,17 +394,17 @@ module axi4s_join
    assign stall_pipe = (state == B2B_HEADER);   
 
    // joined_mux instantiation - selects captured back-to-back header when pipeline is stalled (in B2B_HEADER state).
-   axi4s_intf_2to1_mux join_mux (.axi4s_in_if_0(joined), .axi4s_in_if_1(b2b_hdr), .axi4s_out_if(joined_mux), .mux_sel(stall_pipe));
+   axi4s_intf_2to1_mux join_mux (.from_tx_0(joined), .from_tx_1(b2b_hdr), .to_rx(joined_mux), .mux_sel(stall_pipe));
 
    // joined output pipe stage.
    axi4s_full_pipe join_pipe (
-      .axi4s_if_from_tx (joined_mux),
-      .axi4s_if_to_rx   (joined_pipe)
+      .from_tx (joined_mux),
+      .to_rx   (joined_pipe)
    );
 
    // advance tlast logic instantiation.  ensures clean (non zero) tlast transactions for open-nic-shell.
    // required for some hdr-to-pyld transitions (which can have empty tlast tansactions, to avoid added complexity in state machine).
-   axi4s_adv_tlast axi4s_adv_tlast_0 (.axi4s_if_from_tx(joined_pipe), .axi4s_if_to_rx(axi4s_to_fifo));
+   axi4s_adv_tlast axi4s_adv_tlast_0 (.from_tx(joined_pipe), .to_rx(axi4s_to_fifo));
 
 
    // instantiate and terminate unused AXI-L interfaces.

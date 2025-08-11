@@ -13,13 +13,17 @@ module axi4s_packet_playback_unit_test;
     //===================================
     // Parameters
     //===================================
-    localparam int  DATA_BYTE_WID = 64;
-    localparam int  DATA_WID = DATA_BYTE_WID*8;
-    localparam type TID_T = bit[7:0];
-    localparam type TDEST_T = bit[11:0];
-    localparam type TUSER_T = bit[31:0];
+    localparam int DATA_BYTE_WID = 64;
+    localparam int DATA_WID = DATA_BYTE_WID * 8;
+    localparam int TID_WID = 8;
+    localparam int TDEST_WID = 12;
+    localparam int TUSER_WID = 32;
+
+    localparam type TID_T   = bit[TID_WID-1:0];
+    localparam type TDEST_T = bit[TDEST_WID-1:0];
+    localparam type TUSER_T = bit[TUSER_WID-1:0];
     localparam type META_T = struct packed {TID_T tid; TDEST_T tdest; TUSER_T tuser;};
-    localparam int  PACKET_MEM_SIZE = 16384;
+    localparam int PACKET_MEM_SIZE = 16384;
 
     localparam type PACKET_T = packet#(META_T);
     localparam type AXI4S_TRANSACTION_T = axi4s_transaction#(TID_T,TDEST_T,TUSER_T);
@@ -33,7 +37,7 @@ module axi4s_packet_playback_unit_test;
     logic en;
 
     axi4l_intf axil_if ();
-    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) axis_if ();
+    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID)) axis_if (.aclk(clk), .aresetn(!srst));
 
     axi4s_packet_playback #(.PACKET_MEM_SIZE(PACKET_MEM_SIZE)) DUT (.*);
 
@@ -86,8 +90,6 @@ module axi4s_packet_playback_unit_test;
 
     // Assign AXI-L clock (125MHz)
     `SVUNIT_CLK_GEN(axil_if.aclk, 4ns);
-
-    assign axil_if.aresetn = !srst;
 
     //===================================
     // Build

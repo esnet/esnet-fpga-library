@@ -9,25 +9,28 @@
 module axi4s_pkt_discard_ovfl
    import axi4s_pkg::*;
 #(
-   parameter int MAX_PKT_LEN = 9100  // max number of bytes per packet.
+   parameter int MAX_PKT_LEN = 9100, // max number of bytes per packet.
+   parameter bit DROP_ERRORED = 0    // when 1, drop 'errored' packets, where error status is carried in lsb of axi4s_in.TUSER
 )  (
    axi4s_intf.rx   axi4s_in,
    axi4s_intf.tx   axi4s_out
 );
 
    // axi4s_in interface params
-   localparam int  DATA_BYTE_WID = axi4s_in.DATA_BYTE_WID;
-   localparam type TID_T         = axi4s_in.TID_T;
-   localparam type TDEST_T       = axi4s_in.TDEST_T;
-   localparam type TUSER_T       = axi4s_in.TUSER_T;
+   localparam int DATA_BYTE_WID = axi4s_in.DATA_BYTE_WID;
+   localparam int TID_WID       = axi4s_in.TID_WID;
+   localparam int TDEST_WID     = axi4s_in.TDEST_WID;
+   localparam int TUSER_WID     = axi4s_in.TUSER_WID;
+
+   axi4s_intf_parameter_check param_check_0 (.from_tx(axi4s_in), .to_rx(axi4s_out));
 
    // fifo params
    localparam int MAX_PKT_WRDS = $ceil($itor(MAX_PKT_LEN) / $itor(DATA_BYTE_WID));
    localparam int FIFO_DEPTH   = MAX_PKT_WRDS * 3;  // depth supports 3 max pkts.
    localparam int ADDR_WID     = $clog2(FIFO_DEPTH);
 
-
    // error detection signals
+   logic [TUSER_WID-1:0] tuser_in;
    logic pkt_error;
 
    // ovfl discard signals
@@ -48,11 +51,9 @@ module axi4s_pkt_discard_ovfl
 
 
    // _axis4s_in signal assignments.
-   axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) 
-              _axi4s_in ();
+   axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID)) 
+              _axi4s_in (.aclk(axi4s_in.aclk), .aresetn(axi4s_in.aresetn));
 
-   assign _axi4s_in.aclk    = axi4s_in.aclk;
-   assign _axi4s_in.aresetn = axi4s_in.aresetn;
    assign _axi4s_in.tvalid  = axi4s_in.tvalid;
    assign _axi4s_in.tdata   = axi4s_in.tdata;
    assign _axi4s_in.tkeep   = axi4s_in.tkeep;
@@ -65,7 +66,8 @@ module axi4s_pkt_discard_ovfl
 
 
    // ---- error detection logic ----
-   assign pkt_error = (axi4s_in.TUSER_MODE == PKT_ERROR) && axi4s_in.tuser;
+   assign tuser_in = axi4s_in.tuser;
+   assign pkt_error = DROP_ERRORED && tuser_in[0];
 
 
    // ---- ovfl discard logic ----

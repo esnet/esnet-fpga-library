@@ -22,8 +22,9 @@ module axi4s_pad_unit_test;
     //===================================
     // DUT
     //===================================
-    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID)) axis_in_if ();
-    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID)) axis_out_if ();
+    logic clk;
+    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID)) axis_in_if (.aclk(clk), .aresetn(!reset_if.reset));
+    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID)) axis_out_if (.aclk(clk), .aresetn(!reset_if.reset));
 
     axi4s_pad #() DUT (.axi4s_in(axis_in_if), .axi4s_out(axis_out_if));
 
@@ -61,11 +62,10 @@ module axi4s_pad_unit_test;
 
     // Reset
     std_reset_intf reset_if (.clk(axis_in_if.aclk));
-    assign axis_in_if.aresetn = !reset_if.reset;
     assign reset_if.ready = !reset_if.reset;
 
     // Assign clock (333MHz)
-    `SVUNIT_CLK_GEN(axis_in_if.aclk, 1.5ns);
+    `SVUNIT_CLK_GEN(clk, 1.5ns);
 
     //===================================
     // Build
