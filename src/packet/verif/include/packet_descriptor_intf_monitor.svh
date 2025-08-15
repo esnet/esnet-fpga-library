@@ -1,14 +1,17 @@
 class packet_descriptor_intf_monitor #(
-    parameter type ADDR_T = logic,
-    parameter type META_T = logic
+    parameter type ADDR_T = bit,
+    parameter type META_T = bit
 ) extends std_verif_pkg::monitor#(packet_descriptor#(ADDR_T,META_T));
 
     local static const string __CLASS_NAME = "packet_verif_pkg::packet_descriptor_monitor";
 
+    localparam int ADDR_WID = $bits(ADDR_T);
+    localparam int META_WID = $bits(META_T);
+
     //===================================
     // Interfaces
     //===================================
-    virtual packet_descriptor_intf #(ADDR_T,META_T) packet_descriptor_vif;
+    virtual packet_descriptor_intf #(.ADDR_WID(ADDR_WID), .META_WID(META_WID)) packet_descriptor_vif;
 
     //===================================
     // Typedefs

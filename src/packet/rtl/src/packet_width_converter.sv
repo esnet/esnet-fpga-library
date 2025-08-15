@@ -4,7 +4,7 @@
 // If the output interface is narrower than the input interface, perform a downsizing conversion.
 // (unpack the larger input interface to multiple output words).
 // NOTE: (for now at least) only integer multiples of output/input interface sizes are supported
-module packet_intf_width_converter #(
+module packet_width_converter #(
     parameter bit LATCH_METADATA_ON_SOP = 0 // When set, latch metadata (meta signal) only on SOP, ignore for all subsequent cycles
                                             // Default behaviour is to latch metadata on EOP
 ) (
@@ -20,13 +20,11 @@ module packet_intf_width_converter #(
     // Parameters
     localparam int DATA_IN_BYTE_WID = from_tx.DATA_BYTE_WID;
     localparam int DATA_OUT_BYTE_WID = to_rx.DATA_BYTE_WID;
-    localparam type META_T = from_tx.META_T;
+    localparam int META_WID = from_tx.META_WID;
     localparam conversion_type_t CONVERSION_TYPE = DATA_OUT_BYTE_WID > DATA_IN_BYTE_WID ? UPSIZE : DOWNSIZE;
     localparam int CONVERT_RATIO = CONVERSION_TYPE == UPSIZE ? DATA_OUT_BYTE_WID / DATA_IN_BYTE_WID : DATA_IN_BYTE_WID / DATA_OUT_BYTE_WID;
     localparam int MTY_IN_WID = $clog2(DATA_IN_BYTE_WID);
-    localparam type MTY_IN_T = logic[MTY_IN_WID-1:0];
     localparam int MTY_OUT_WID = $clog2(DATA_OUT_BYTE_WID);
-    localparam type MTY_OUT_T = logic[MTY_OUT_WID-1:0];
 
     typedef logic[$clog2(CONVERT_RATIO+1)-1:0] conv_state_t;
 
@@ -34,49 +32,49 @@ module packet_intf_width_converter #(
     initial begin
         if (CONVERSION_TYPE == UPSIZE)   std_pkg::param_check(DATA_OUT_BYTE_WID % DATA_IN_BYTE_WID,  0, "For upsize, output interface width must be integer multiple of input interface width.");
         if (CONVERSION_TYPE == DOWNSIZE) std_pkg::param_check(DATA_IN_BYTE_WID  % DATA_OUT_BYTE_WID, 0, "For downsize, input interface width must be integer multiple of output interface width.");
-        std_pkg::param_check($bits(to_rx.META_T),$bits(from_tx.META_T), "Metadata width must be the same on input and output interfaces.");
+        std_pkg::param_check(to_rx.META_WID, from_tx.META_WID, "Metadata width must be the same on input and output interfaces.");
     end
 
-    logic  eop;
-    META_T meta;
-    logic  err;
+    logic                eop;
+    logic [META_WID-1:0] meta;
+    logic                err;
 
     generate
         if (CONVERSION_TYPE == UPSIZE) begin : g__upsize
             logic [0:CONVERT_RATIO-1] valid;
             logic [0:CONVERT_RATIO-1][0:DATA_IN_BYTE_WID-1][7:0] data;
 
-            MTY_IN_T mty;
+            logic [MTY_IN_WID-1:0] mty;
             conv_state_t pack_state;
 
-            assign to_rx.valid = (pack_state == CONVERT_RATIO) || ((pack_state > 0) && eop);
-            assign from_tx.rdy = to_rx.rdy || !to_rx.valid;
+            assign to_rx.vld = (pack_state == CONVERT_RATIO) || ((pack_state > 0) && eop);
+            assign from_tx.rdy = to_rx.rdy || !to_rx.vld;
 
             // Pack (narrow) input words into (wide) output interface, starting from left (i.e, big-endian, network byte order)
             initial pack_state = '0;
             always @(posedge from_tx.clk) begin
                 if (from_tx.srst) pack_state <= '0;
                 else begin
-                    if (to_rx.valid && to_rx.rdy) begin
-                        if (from_tx.valid && from_tx.rdy) pack_state <= 1;
+                    if (to_rx.vld && to_rx.rdy) begin
+                        if (from_tx.vld && from_tx.rdy) pack_state <= 1;
                         else pack_state <= 0;
-                    end else if (from_tx.valid && from_tx.rdy) pack_state <= pack_state + 1;
+                    end else if (from_tx.vld && from_tx.rdy) pack_state <= pack_state + 1;
                 end
             end
 
             always_ff @(posedge from_tx.clk) begin
-                if (to_rx.valid && to_rx.rdy) begin
+                if (to_rx.vld && to_rx.rdy) begin
                     data[1:CONVERT_RATIO-1] <= '0;
-                    if (from_tx.valid && from_tx.rdy) begin
+                    if (from_tx.vld && from_tx.rdy) begin
                         data[0] <= from_tx.data;
                     end
-                end else if (from_tx.valid && from_tx.rdy) begin
+                end else if (from_tx.vld && from_tx.rdy) begin
                     data[pack_state] <= from_tx.data;
                 end
             end
 
             always_ff @(posedge from_tx.clk) begin
-                if (from_tx.valid && from_tx.rdy) begin
+                if (from_tx.vld && from_tx.rdy) begin
                     eop  <= from_tx.eop;
                     mty  <= from_tx.mty;
                 end
@@ -90,9 +88,9 @@ module packet_intf_width_converter #(
         if (CONVERSION_TYPE == DOWNSIZE) begin : g__downsize
             logic [0:CONVERT_RATIO-1] valid;
             logic [0:CONVERT_RATIO-1][0:DATA_OUT_BYTE_WID-1][7:0] data;
-            MTY_IN_T mty;
+            logic [MTY_IN_WID-1:0] mty;
 
-            assign to_rx.valid = valid[0];
+            assign to_rx.vld = valid[0];
             assign from_tx.rdy = !valid[0] || (!valid[1] && to_rx.rdy);
 
             // Unpack (narrow) words to output interface from (wide) input interface, starting from left (i.e, big-endian, network byte order)
@@ -100,26 +98,26 @@ module packet_intf_width_converter #(
             always @(posedge from_tx.clk) begin
                 if (from_tx.srst) valid <= '0;
                 else begin
-                    if (from_tx.valid && from_tx.rdy) begin
+                    if (from_tx.vld && from_tx.rdy) begin
                         for (int i = 0; i < CONVERT_RATIO; i++) begin
                             if (from_tx.mty < (DATA_IN_BYTE_WID - i*DATA_OUT_BYTE_WID)) valid[i] <= 1'b1;
                             else valid[i] <= 1'b0;
                         end
                     end
-                    else if (to_rx.valid && to_rx.rdy) valid <= valid << 1;
+                    else if (to_rx.vld && to_rx.rdy) valid <= valid << 1;
                 end
             end
 
             always_ff @(posedge from_tx.clk) begin
-                if (from_tx.valid && from_tx.rdy) begin
+                if (from_tx.vld && from_tx.rdy) begin
                     data <= from_tx.data;
-                end else if (to_rx.valid && to_rx.rdy) begin
+                end else if (to_rx.vld && to_rx.rdy) begin
                     data <= (data << (DATA_OUT_BYTE_WID*8));
                 end
             end
 
             always_ff @(posedge from_tx.clk) begin
-                if (from_tx.valid && from_tx.rdy) begin
+                if (from_tx.vld && from_tx.rdy) begin
                     eop  <= from_tx.eop;
                     mty  <= from_tx.mty;
                 end
@@ -134,7 +132,7 @@ module packet_intf_width_converter #(
 
     // Handle metadata (common to upsize/downsize operations)
     always_ff @(posedge from_tx.clk) begin
-        if (from_tx.valid && from_tx.rdy) begin
+        if (from_tx.vld && from_tx.rdy) begin
             err  <= from_tx.err;
             if (LATCH_METADATA_ON_SOP) begin
                 if (from_tx.sop) meta <= from_tx.meta;
@@ -145,4 +143,4 @@ module packet_intf_width_converter #(
     assign to_rx.err  = err;
     assign to_rx.meta = meta;
 
-endmodule : packet_intf_width_converter
+endmodule : packet_width_converter

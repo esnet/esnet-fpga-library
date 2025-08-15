@@ -1,21 +1,22 @@
 `include "svunit_defines.svh"
 
 module packet_descriptor_intf_unit_test #(
-    parameter logic[2:0] DUT_SELECT = 0
+    parameter string DUT_SELECT = "packet_descriptor_intf_connector"
 );
     import svunit_pkg::svunit_testcase;
     import packet_verif_pkg::*;
 
-    localparam string dut_string = DUT_SELECT == 0 ? "packet_descriptor_intf_connector" : "undefined";
-
-    string name = $sformatf("packet_descriptor_intf_dut_%s_ut", dut_string);
+    string name = $sformatf("packet_descriptor_intf_dut_%s_ut", DUT_SELECT);
     svunit_testcase svunit_ut;
 
     //===================================
     // Parameters
     //===================================
-    localparam type ADDR_T = logic[31:0];
-    localparam type META_T = logic[15:0];
+    localparam type ADDR_T = bit[31:0];
+    localparam type META_T = bit[15:0];
+
+    localparam int ADDR_WID = $bits(ADDR_T);
+    localparam int META_WID = $bits(META_T);
 
     typedef packet_descriptor#(ADDR_T,META_T) PACKET_DESCRIPTOR_T;
 
@@ -23,12 +24,15 @@ module packet_descriptor_intf_unit_test #(
     // DUT
     //===================================
     logic clk;
-    packet_descriptor_intf #(.ADDR_T(ADDR_T), .META_T(META_T)) packet_descriptor_in_if (.clk(clk));
-    packet_descriptor_intf #(.ADDR_T(ADDR_T), .META_T(META_T)) packet_descriptor_out_if (.clk(clk));
+    logic srst;
+
+    packet_descriptor_intf #(.ADDR_WID(ADDR_WID), .META_WID(META_WID)) from_tx (.clk, .srst);
+    packet_descriptor_intf #(.ADDR_WID(ADDR_WID), .META_WID(META_WID)) to_rx   (.clk, .srst);
 
     generate
       case (DUT_SELECT)
-         0: packet_descriptor_intf_connector DUT (.from_tx(packet_descriptor_in_if), .to_rx(packet_descriptor_out_if));
+         "packet_descriptor_intf_connector": packet_descriptor_intf_connector DUT (.*);
+         "packet_descriptor_fifo": packet_descriptor_fifo DUT (.*);
       endcase
    endgenerate
 
@@ -53,6 +57,8 @@ module packet_descriptor_intf_unit_test #(
     std_reset_intf reset_if (.clk(clk));
     assign reset_if.ready = !reset_if.reset;
 
+    assign srst = reset_if.reset;
+
     // Assign clock (333MHz)
     `SVUNIT_CLK_GEN(clk, 1.5ns);
 
@@ -64,10 +70,10 @@ module packet_descriptor_intf_unit_test #(
         svunit_ut = new(name);
 
         driver = new();
-        driver.packet_descriptor_vif = packet_descriptor_in_if;
+        driver.packet_descriptor_vif = from_tx;
 
         monitor = new();
-        monitor.packet_descriptor_vif = packet_descriptor_out_if;
+        monitor.packet_descriptor_vif = to_rx;
 
         model = new();
         scoreboard = new();
@@ -162,7 +168,7 @@ module packet_descriptor_intf_unit_test #(
             bad_packet = packet.dup("trans_0_bad");
             bad_packet.addr++;
             env.driver.inbox.put(bad_packet);
-            packet_descriptor_in_if._wait(1000);
+            from_tx._wait(1000);
             `FAIL_UNLESS_LOG(
                 scoreboard.report(msg),
                 "Passed unexpectedly."
@@ -198,5 +204,9 @@ endmodule
 
 
 module packet_descriptor_intf_connector_unit_test;
-`PACKET_DESCRIPTOR_UNIT_TEST(0)
+`PACKET_DESCRIPTOR_UNIT_TEST("packet_descriptor_intf_connector")
+endmodule
+
+module packet_descriptor_fifo_unit_test;
+`PACKET_DESCRIPTOR_UNIT_TEST("packet_descriptor_fifo")
 endmodule

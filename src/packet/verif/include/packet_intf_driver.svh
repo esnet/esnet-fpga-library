@@ -1,9 +1,11 @@
 class packet_intf_driver #(
     parameter int DATA_BYTE_WID = 8,
-    parameter type META_T = logic
+    parameter type META_T = bit
 ) extends packet_driver#(META_T);
 
     local static const string __CLASS_NAME = "packet_verif_pkg::packet_intf_driver";
+
+    localparam int META_WID = $bits(META_T);
 
     //===================================
     // Properties
@@ -14,13 +16,7 @@ class packet_intf_driver #(
     //===================================
     // Interfaces
     //===================================
-    virtual packet_intf #(DATA_BYTE_WID,META_T) packet_vif;
-
-    //===================================
-    // Typedefs
-    //===================================
-    typedef logic [0:DATA_BYTE_WID-1][7:0] data_t;
-    typedef logic [$clog2(DATA_BYTE_WID)-1:0] mty_t;
+    virtual packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_WID(META_WID)) packet_vif;
 
     //===================================
     // Methods
@@ -79,16 +75,18 @@ class packet_intf_driver #(
     // Send packet (represented as raw byte array with associated metadata)
     // [[ implements packet_verif_pkg::packet_driver._send_raw() ]]
     protected task _send_raw(
-            input byte    data[],
-            input META_T  meta = '0,
-            input bit     err = 1'b0
+            input byte   data[],
+            input META_T meta = '0,
+            input bit    err = 1'b0
         );
+        // Parameters
+        localparam int MTY_WID = $clog2(DATA_BYTE_WID);
         // Signals
         automatic byte __data[$] = data;
-        automatic data_t _data = '0;
-        automatic mty_t  mty;
-        automatic logic __err = err;
-        automatic logic  eop;
+        automatic bit [0:DATA_BYTE_WID-1][7:0] _data = '0;
+        automatic bit [MTY_WID-1:0] mty;
+        automatic bit __err = err;
+        automatic bit eop;
         automatic int byte_idx = 0;
         automatic int word_idx = 0;
 

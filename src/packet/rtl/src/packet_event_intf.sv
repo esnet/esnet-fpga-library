@@ -1,5 +1,5 @@
 interface packet_event_intf (
-    input wire logic clk
+    input logic clk
 );
     import packet_pkg::*;
 

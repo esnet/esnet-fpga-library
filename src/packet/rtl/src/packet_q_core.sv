@@ -9,8 +9,8 @@ module packet_q_core
     parameter bit  DROP_ERRORED = 1,
     parameter int  MIN_PKT_SIZE = 0,
     parameter int  MAX_PKT_SIZE = 16384,
+    parameter int  NUM_BUFFERS = 1,
     parameter int  BUFFER_SIZE = 2048,
-    parameter type PTR_T = logic,
     parameter int  MAX_RD_LATENCY = 8,
     // Simulation-only
     parameter bit  SIM__FAST_INIT = 1,
@@ -43,14 +43,13 @@ module packet_q_core
     // -----------------------------
     // Parameters
     // -----------------------------
+    localparam int  PTR_WID = $clog2(NUM_BUFFERS);
+
     localparam int  SIZE_WID = $clog2(BUFFER_SIZE);
-    localparam type SIZE_T = logic[SIZE_WID-1:0];
 
     localparam int  PKT_SIZE_WID = $clog2(MAX_PKT_SIZE+1);
-    localparam type PKT_SIZE_T = logic[PKT_SIZE_WID-1:0];
 
-    localparam int  META_WID = $bits(packet_in_if[0].META_T);
-    localparam type META_T = logic[META_WID-1:0];
+    localparam int  META_WID = packet_in_if[0].META_WID;
 
     localparam int  DATA_IN_BYTE_WID = packet_in_if[0].DATA_BYTE_WID;
     localparam int  MEM_WR_DATA_WID = mem_wr_if[0].DATA_WID;
@@ -69,15 +68,15 @@ module packet_q_core
         if (NUM_OUTPUT_IFS < NUM_MEM_RD_IFS) initial std_pkg::param_check(NUM_MEM_RD_IFS % NUM_OUTPUT_IFS, 0, "NUM_MEM_RD_IFS");
         else                                 initial std_pkg::param_check(NUM_OUTPUT_IFS % NUM_MEM_RD_IFS, 0, "NUM_OUTPUT_IFS");
         for (genvar i = 0; i < NUM_INPUT_IFS; i++) begin
-            initial std_pkg::param_check($bits(packet_in_if[i].META_T), $bits(META_T), $sformatf("packet_in_if[%0d].META_T", i));
+            initial std_pkg::param_check(packet_in_if[i].META_WID, META_WID, $sformatf("packet_in_if[%0d].META_WID", i));
             initial std_pkg::param_check(packet_in_if[i].DATA_BYTE_WID, DATA_IN_BYTE_WID, $sformatf("packet_in_if[%0d].DATA_BYTE_WID", i));
-            initial std_pkg::param_check($bits(desc_in_if[i].META_T), $bits(META_T), $sformatf("desc_in_if[%0d].META_T", i));
+            initial std_pkg::param_check(desc_in_if[i].META_WID, META_WID, $sformatf("desc_in_if[%0d].META_WID", i));
             initial std_pkg::param_check(mem_wr_if[i].DATA_WID, MEM_WR_DATA_WID, $sformatf("mem_wr_if[%0d].DATA_WID", i));
         end
         for (genvar i = 0; i < NUM_OUTPUT_IFS; i++) begin
-            initial std_pkg::param_check($bits(packet_out_if[i].META_T), $bits(META_T), $sformatf("packet_out_if[%0d].META_T", i));
+            initial std_pkg::param_check(packet_out_if[i].META_WID, META_WID, $sformatf("packet_out_if[%0d].META_WID", i));
             initial std_pkg::param_check(packet_out_if[i].DATA_BYTE_WID, DATA_OUT_BYTE_WID, $sformatf("packet_out_if[%0d].DATA_BYTE_WID", i));
-            initial std_pkg::param_check($bits(desc_out_if[i].META_T), $bits(META_T), $sformatf("desc_out_if[%0d].META_T", i));
+            initial std_pkg::param_check(desc_out_if[i].META_WID, META_WID, $sformatf("desc_out_if[%0d].META_WID", i));
             initial std_pkg::param_check(mem_rd_if[i].DATA_WID, MEM_RD_DATA_WID, $sformatf("mem_rd_if[%0d].DATA_WID", i));
         end
     endgenerate
@@ -85,14 +84,14 @@ module packet_q_core
     // -----------------------------
     // Interfaces
     // -----------------------------
-    alloc_intf #(.BUFFER_SIZE(BUFFER_SIZE), .PTR_T(PTR_T), .META_T(META_T)) scatter_if [NUM_MEM_WR_IFS] (.clk, .srst);
-    alloc_intf #(.BUFFER_SIZE(BUFFER_SIZE), .PTR_T(PTR_T), .META_T(META_T)) gather_if  [NUM_MEM_RD_IFS] (.clk, .srst);
+    alloc_intf #(.BUFFER_SIZE(BUFFER_SIZE), .PTR_WID(PTR_WID), .META_WID(META_WID)) scatter_if [NUM_MEM_WR_IFS] (.clk, .srst);
+    alloc_intf #(.BUFFER_SIZE(BUFFER_SIZE), .PTR_WID(PTR_WID), .META_WID(META_WID)) gather_if  [NUM_MEM_RD_IFS] (.clk, .srst);
 
-    packet_intf #(.DATA_BYTE_WID(MEM_WR_DATA_BYTE_WID), .META_T(META_T)) packet_to_q_if   [NUM_MEM_WR_IFS] (.clk, .srst);
-    packet_intf #(.DATA_BYTE_WID(MEM_RD_DATA_BYTE_WID), .META_T(META_T)) packet_from_q_if [NUM_MEM_RD_IFS] (.clk, .srst);
+    packet_intf #(.DATA_BYTE_WID(MEM_WR_DATA_BYTE_WID), .META_WID(META_WID)) packet_to_q_if   [NUM_MEM_WR_IFS] (.clk, .srst);
+    packet_intf #(.DATA_BYTE_WID(MEM_RD_DATA_BYTE_WID), .META_WID(META_WID)) packet_from_q_if [NUM_MEM_RD_IFS] (.clk, .srst);
 
-    packet_descriptor_intf #(.ADDR_T(PTR_T), .META_T(META_T)) desc_to_q_if   [NUM_MEM_WR_IFS] (.clk);
-    packet_descriptor_intf #(.ADDR_T(PTR_T), .META_T(META_T)) desc_from_q_if [NUM_MEM_RD_IFS] (.clk);
+    packet_descriptor_intf #(.ADDR_WID(PTR_WID), .META_WID(META_WID), .MAX_PKT_SIZE(MAX_PKT_SIZE)) desc_to_q_if   [NUM_MEM_WR_IFS] (.clk, .srst);
+    packet_descriptor_intf #(.ADDR_WID(PTR_WID), .META_WID(META_WID), .MAX_PKT_SIZE(MAX_PKT_SIZE)) desc_from_q_if [NUM_MEM_RD_IFS] (.clk, .srst);
 
     packet_event_intf event_in_if__unused  [NUM_INPUT_IFS]  (.clk);
     packet_event_intf event_out_if__unused [NUM_OUTPUT_IFS] (.clk);
@@ -103,15 +102,15 @@ module packet_q_core
     logic  init_done__alloc_sg;
 
     // -- Recycle interface
-    logic  recycle_req;
-    logic  recycle_rdy;
-    PTR_T  recycle_ptr;
+    logic               recycle_req;
+    logic               recycle_rdy;
+    logic [PTR_WID-1:0] recycle_ptr;
 
     // -- Frame completion
-    logic      frame_valid [NUM_MEM_WR_IFS];
-    logic      frame_error;
-    PTR_T      frame_ptr;
-    PKT_SIZE_T frame_size;
+    logic                    frame_valid [NUM_MEM_WR_IFS];
+    logic                    frame_error;
+    logic [PTR_WID-1:0]      frame_ptr;
+    logic [PKT_SIZE_WID-1:0] frame_size;
 
     // -----------------------------
     // Status
@@ -124,10 +123,10 @@ module packet_q_core
     alloc_sg_core #(
         .SCATTER_CONTEXTS ( NUM_MEM_WR_IFS ),
         .GATHER_CONTEXTS  ( NUM_MEM_RD_IFS ),
-        .PTR_T            ( PTR_T ),
+        .PTR_WID          ( PTR_WID ),
         .BUFFER_SIZE      ( BUFFER_SIZE ),
         .MAX_FRAME_SIZE   ( MAX_PKT_SIZE ),
-        .META_T           ( META_T ),
+        .META_WID         ( META_WID ),
         .SIM__FAST_INIT   ( SIM__FAST_INIT ),
         .SIM__RAM_MODEL   ( SIM__RAM_MODEL )
     ) i_alloc_sg_core (
@@ -153,27 +152,25 @@ module packet_q_core
     // Per-input-port processing
     generate
         for (genvar g_if = 0; g_if < NUM_INPUT_IFS; g_if++) begin : g__input_if
-
             // Disaggregation step
             // - split incoming packets across multiple narrower interfaces to impedance-match to memory write interface
             if (NUM_MEM_WR_IFS > NUM_INPUT_IFS) begin : g__disaggregate_in
                 // (Local) parameters
                 localparam int N = NUM_MEM_WR_IFS / NUM_INPUT_IFS;
                 localparam int SEL_WID = $clog2(N);
-                localparam type SEL_T = logic[SEL_WID-1:0];
                 // (Local) interfaces
-                packet_intf #(.DATA_BYTE_WID(MEM_WR_DATA_BYTE_WID), .META_T(META_T)) __packet_in_if [N] (.clk, .srst);
-                packet_descriptor_intf #(.ADDR_T(PTR_T), .META_T(META_T)) __desc_if [N] (.clk);
+                packet_intf #(.DATA_BYTE_WID(MEM_WR_DATA_BYTE_WID), .META_WID(META_WID)) __packet_in_if [N] (.clk, .srst);
+                packet_descriptor_intf #(.ADDR_WID(PTR_WID), .META_WID(META_WID), .MAX_PKT_SIZE(MAX_PKT_SIZE)) __desc_if [N] (.clk, .srst);
                 packet_event_intf __event_if__unused [N] (.clk);
                 // (Local) signals
-                logic ctxt_valid;
-                SEL_T ctxt;
-                logic ctxt_ack;
-                logic  __desc_in_if_valid [N];
-                PTR_T  __desc_in_if_addr  [N];
-                PKT_SIZE_T __desc_in_if_size  [N];
-                logic  __desc_in_if_err   [N];
-                META_T __desc_in_if_meta  [N];
+                logic               ctxt_valid;
+                logic [SEL_WID-1:0] ctxt;
+                logic               ctxt_ack;
+                logic                    __desc_in_if_vld [N];
+                logic [PTR_WID-1:0]      __desc_in_if_addr  [N];
+                logic [PKT_SIZE_WID-1:0] __desc_in_if_size  [N];
+                logic                    __desc_in_if_err   [N];
+                logic [META_WID-1:0]     __desc_in_if_meta  [N];
 
                 // Split incoming packets across multiple narrower interfaces
                 packet_disaggregate #(
@@ -195,7 +192,7 @@ module packet_q_core
                     .ctxt_list_append_rdy ( )
                 );
 
-                assign ctxt_ack = desc_in_if[g_if].valid && desc_in_if[g_if].rdy;
+                assign ctxt_ack = desc_in_if[g_if].vld && desc_in_if[g_if].rdy;
 
                 for (genvar g_mem_if = 0; g_mem_if < N; g_mem_if++) begin : g__mem_if
                     packet_intf_connector i_packet_intf_connector (.from_tx (__packet_in_if[g_mem_if]), .to_rx(packet_to_q_if[g_if*N + g_mem_if]));
@@ -205,27 +202,27 @@ module packet_q_core
                         .from_tx ( desc_to_q_if [g_if*N + g_mem_if] ),
                         .to_rx   ( __desc_if [g_mem_if])
                     );
-                    assign __desc_in_if_valid[g_mem_if] = __desc_if[g_mem_if].valid;
-                    assign __desc_in_if_addr[g_mem_if]  = __desc_if[g_mem_if].addr;
-                    assign __desc_in_if_size[g_mem_if]  = __desc_if[g_mem_if].size;
-                    assign __desc_in_if_err[g_mem_if]   = __desc_if[g_mem_if].err;
-                    assign __desc_in_if_meta[g_mem_if]  = __desc_if[g_mem_if].meta;
+                    assign __desc_in_if_vld[g_mem_if]  = __desc_if[g_mem_if].vld;
+                    assign __desc_in_if_addr[g_mem_if] = __desc_if[g_mem_if].addr;
+                    assign __desc_in_if_size[g_mem_if] = __desc_if[g_mem_if].size;
+                    assign __desc_in_if_err[g_mem_if]  = __desc_if[g_mem_if].err;
+                    assign __desc_in_if_meta[g_mem_if] = __desc_if[g_mem_if].meta;
                     assign __desc_if[g_mem_if].rdy =  ctxt_valid && (ctxt == g_mem_if) ? desc_in_if[g_if].rdy : 1'b0;
                 end : g__mem_if
 
                 // Recombine completion stream (in order)
-                assign desc_in_if[g_if].valid = ctxt_valid ? __desc_in_if_valid[ctxt] : 1'b0;
-                assign desc_in_if[g_if].addr  = __desc_in_if_addr[ctxt];
-                assign desc_in_if[g_if].size  = __desc_in_if_size[ctxt];
-                assign desc_in_if[g_if].err   = __desc_in_if_err [ctxt];
-                assign desc_in_if[g_if].meta  = __desc_in_if_meta[ctxt];
+                assign desc_in_if[g_if].vld  = ctxt_valid ? __desc_in_if_vld[ctxt] : 1'b0;
+                assign desc_in_if[g_if].addr = __desc_in_if_addr[ctxt];
+                assign desc_in_if[g_if].size = __desc_in_if_size[ctxt];
+                assign desc_in_if[g_if].err  = __desc_in_if_err [ctxt];
+                assign desc_in_if[g_if].meta = __desc_in_if_meta[ctxt];
 
             end : g__disaggregate_in
             else if (NUM_INPUT_IFS > NUM_MEM_WR_IFS) begin : g__aggregate_in
                 $fatal(2, "NOT YET SUPPORTED");
             end : g__aggregate_in
             else begin : g__direct_in
-                //packet_intf_connector i_packet_intf_connector (.from_tx(packet_in_if[g_if]), .to_rx(packet_to_q_if[g_if]));
+                packet_intf_connector i_packet_intf_connector (.from_tx(packet_in_if[g_if]), .to_rx(packet_to_q_if[g_if]));
                 packet_descriptor_intf_connector i_packet_descriptor_intf_connector (.from_tx (desc_to_q_if[g_if]), .to_rx(desc_in_if[g_if]));
             end : g__direct_in
         end : g__input_if
@@ -242,9 +239,8 @@ module packet_q_core
                 .DROP_ERRORED  ( DROP_ERRORED ),
                 .MIN_PKT_SIZE  ( MIN_PKT_SIZE ),
                 .MAX_PKT_SIZE  ( MAX_PKT_SIZE ),
-                .BUFFER_SIZE   ( BUFFER_SIZE ),
-                .PTR_T         ( PTR_T ),
-                .META_T        ( META_T )
+                .NUM_BUFFERS   ( NUM_BUFFERS ),
+                .BUFFER_SIZE   ( BUFFER_SIZE )
             ) i_packet_scatter ( 
                 .clk,
                 .srst,
@@ -255,6 +251,7 @@ module packet_q_core
                 .mem_wr_if     ( mem_wr_if     [g_if] ),
                 .mem_init_done
             );
+
         end : g__mem_wr_if
 
         // Memory read controller
@@ -266,9 +263,8 @@ module packet_q_core
             packet_gather      #(
                 .IGNORE_RDY     ( IGNORE_RDY_OUT ),
                 .MAX_PKT_SIZE   ( MAX_PKT_SIZE ),
+                .NUM_BUFFERS    ( NUM_BUFFERS ),
                 .BUFFER_SIZE    ( BUFFER_SIZE  ),
-                .PTR_T          ( PTR_T ),
-                .META_T         ( META_T ),
                 .MAX_RD_LATENCY ( MAX_RD_LATENCY )
             ) i_packet_gather   (
                 .clk,
@@ -292,19 +288,18 @@ module packet_q_core
                 // (Local) parameters
                 localparam int N = NUM_MEM_RD_IFS / NUM_OUTPUT_IFS;
                 localparam int SEL_WID = $clog2(N);
-                localparam type SEL_T = logic[SEL_WID-1:0];
                 // (Local) interfaces
-                packet_intf #(.DATA_BYTE_WID(MEM_RD_DATA_BYTE_WID), .META_T(META_T)) __packet_out_if [N] (.clk, .srst);
-                packet_descriptor_intf #(.ADDR_T(PTR_T), .META_T(META_T)) __desc_if [N] (.clk);
+                packet_intf #(.DATA_BYTE_WID(MEM_RD_DATA_BYTE_WID), .META_WID(META_WID)) __packet_out_if [N] (.clk, .srst);
+                packet_descriptor_intf #(.ADDR_WID(PTR_WID), .META_WID(META_WID), .MAX_PKT_SIZE(MAX_PKT_SIZE)) __desc_if [N] (.clk, .srst);
                 packet_event_intf __event_if__unused [N] (.clk);
                 // (Local) signals
-                SEL_T  sel;
-                logic  desc_from_q_if_rdy [N];
+                logic [SEL_WID-1:0] sel;
+                logic               desc_from_q_if_rdy [N];
 
                 // Split incoming packets across multiple narrower interfaces
                 initial sel = 0;
                 always @(posedge clk) begin
-                    if (desc_out_if[g_if].valid && desc_out_if[g_if].rdy) begin
+                    if (desc_out_if[g_if].vld && desc_out_if[g_if].rdy) begin
                         if (sel < N-1) sel <= sel + 1;
                         else           sel <= 0;
                     end
@@ -313,11 +308,11 @@ module packet_q_core
                 for (genvar g_mem_if = 0; g_mem_if < N; g_mem_if++) begin : g__mem_if
                     packet_intf_connector i_packet_intf_connector (.from_tx (packet_from_q_if[g_if*N + g_mem_if]), .to_rx(__packet_out_if[g_mem_if]));
 
-                    assign desc_from_q_if[g_if*N + g_mem_if].valid = (sel == g_mem_if) ? desc_out_if[g_if].valid : 1'b0;
-                    assign desc_from_q_if[g_if*N + g_mem_if].addr  = desc_out_if[g_if].addr;
-                    assign desc_from_q_if[g_if*N + g_mem_if].size  = desc_out_if[g_if].size;
-                    assign desc_from_q_if[g_if*N + g_mem_if].err   = desc_out_if[g_if].err;
-                    assign desc_from_q_if[g_if*N + g_mem_if].meta  = desc_out_if[g_if].meta;
+                    assign desc_from_q_if[g_if*N + g_mem_if].vld  = (sel == g_mem_if) ? desc_out_if[g_if].vld : 1'b0;
+                    assign desc_from_q_if[g_if*N + g_mem_if].addr = desc_out_if[g_if].addr;
+                    assign desc_from_q_if[g_if*N + g_mem_if].size = desc_out_if[g_if].size;
+                    assign desc_from_q_if[g_if*N + g_mem_if].err  = desc_out_if[g_if].err;
+                    assign desc_from_q_if[g_if*N + g_mem_if].meta = desc_out_if[g_if].meta;
                     assign desc_from_q_if_rdy[g_mem_if]   = desc_from_q_if[g_if*N + g_mem_if].rdy;
                 end : g__mem_if
 
@@ -334,7 +329,7 @@ module packet_q_core
                 ) i_packet_aggregate (
                     .packet_in_if   ( __packet_out_if ),
                     .event_in_if    ( __event_if__unused ),
-                    .ctxt_list_append_req  ( desc_out_if[g_if].valid && desc_out_if[g_if].rdy ),
+                    .ctxt_list_append_req  ( desc_out_if[g_if].vld && desc_out_if[g_if].rdy ),
                     .ctxt_list_append_data ( sel ),
                     .ctxt_list_append_rdy  ( ),
                     .ctxt_out_valid ( ),
@@ -342,6 +337,7 @@ module packet_q_core
                     .packet_out_if  ( packet_out_if       [g_if] ),
                     .event_out_if   ( event_out_if__unused[g_if] )
                 );
+
             end : g__aggregate_out
             else if (NUM_OUTPUT_IFS > NUM_MEM_WR_IFS) begin : g__disaggregate_out
                 $fatal(2, "NOT YET SUPPORTED");

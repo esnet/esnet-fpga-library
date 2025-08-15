@@ -1,26 +1,30 @@
 interface packet_intf #(
-    parameter int  DATA_BYTE_WID = 1,
-    parameter type META_T = logic
+    parameter int DATA_BYTE_WID = 1,
+    parameter int META_WID = 1
 ) (
     input logic clk,
     input logic srst = 1'b0
 );
+    initial begin
+        std_pkg::param_check_gt(DATA_BYTE_WID, 1, "DATA_BYTE_WID");
+        std_pkg::param_check_gt(META_WID,      1, "META_WID");
+    end
 
     // Parameters
-    localparam int MTY_WID = $clog2(DATA_BYTE_WID);
+    localparam int MTY_WID = DATA_BYTE_WID > 1 ? $clog2(DATA_BYTE_WID) : 1;
 
     // Typedefs
     typedef logic [0:DATA_BYTE_WID-1][7:0] data_t;
     typedef logic [MTY_WID-1:0] mty_t;
 
     // Signals
-    logic  valid;
-    logic  rdy;
-    data_t data;
-    logic  eop;
-    mty_t  mty;
-    logic  err;
-    META_T meta;
+    logic                          vld;
+    logic                          rdy;
+    logic [0:DATA_BYTE_WID-1][7:0] data;
+    logic                          eop;
+    logic [MTY_WID-1:0]            mty;
+    logic                          err;
+    logic [META_WID-1:0]           meta;
 
     logic  sop;
 
@@ -28,7 +32,7 @@ interface packet_intf #(
     modport tx(
         input  clk,
         input  srst,
-        output valid,
+        output vld,
         input  rdy,
         output data,
         input  sop,
@@ -41,7 +45,7 @@ interface packet_intf #(
     modport rx(
         input  clk,
         input  srst,
-        input  valid,
+        input  vld,
         output rdy,
         input  data,
         input  sop,
@@ -55,24 +59,26 @@ interface packet_intf #(
     initial sop = 1'b1;
     always @(posedge clk) begin
         if (srst) sop <= 1'b1;
-        else if (valid && rdy && eop) sop <= 1'b1;
-        else if (valid && rdy) sop <= 1'b0;
+        else begin
+            if (vld && rdy && eop) sop <= 1'b1;
+            else if (vld && rdy)   sop <= 1'b0;
+        end
     end
 
     clocking cb_tx @(posedge clk);
         default input #1step output #1step;
-        output valid, data, eop, mty, err, meta;
+        output vld, data, eop, mty, err, meta;
         input rdy;
     endclocking
 
     clocking cb_rx @(posedge clk);
         default input #1step output #1step;
-        input valid, data, eop, mty, err, meta;
+        input vld, data, eop, mty, err, meta;
         output rdy;
     endclocking
 
     task idle_tx();
-        cb_tx.valid <= 1'b0;
+        cb_tx.vld <= 1'b0;
         cb_tx.data <= 'x;
         cb_tx.eop <= 'x;
         cb_tx.mty <= 'x;
@@ -93,13 +99,13 @@ interface packet_intf #(
     endtask
 
     task send(
-            input data_t _data,
-            input logic  _eop = 1'b0,
-            input mty_t  _mty = '0,
-            input logic  _err = 1'b0,
-            input META_T _meta = '0
+            input bit [0:DATA_BYTE_WID-1][7:0] _data,
+            input bit                _eop = 1'b0,
+            input bit [MTY_WID-1:0]  _mty = '0,
+            input bit                _err = 1'b0,
+            input bit [META_WID-1:0] _meta = '0
         );
-        cb_tx.valid <= 1'b1;
+        cb_tx.vld <= 1'b1;
         cb_tx.data <= _data;
         cb_tx.eop <= _eop;
         cb_tx.mty <= _mty;
@@ -107,20 +113,20 @@ interface packet_intf #(
         cb_tx.meta <= _meta;
         @(cb_tx);
         wait(cb_tx.rdy);
-        cb_tx.valid <= 1'b0;
+        cb_tx.vld <= 1'b0;
         cb_tx.eop <= 1'b0;
     endtask
 
     task receive(
-            output data_t _data,
-            output logic  _eop,
-            output mty_t  _mty,
-            output logic  _err,
-            output META_T _meta
+            output bit [0:DATA_BYTE_WID-1][7:0] _data,
+            output bit                _eop,
+            output bit [MTY_WID-1:0]  _mty,
+            output bit                _err,
+            output bit [META_WID-1:0] _meta
         );
         cb_rx.rdy <= 1'b1;
         @(cb_rx);
-        wait(cb_rx.valid);
+        wait(cb_rx.vld);
         cb_rx.rdy <= 1'b0;
         _data = cb_rx.data;
         _eop = cb_rx.eop;
@@ -154,51 +160,35 @@ interface packet_intf #(
 
 endinterface : packet_intf
 
+// Helper module to check that parameterization of a 2-port component is consistent on rx/tx ports
+module packet_intf_parameter_check (
+    packet_intf from_tx,
+    packet_intf to_rx
+);
+    initial begin
+        std_pkg::param_check(to_rx.DATA_BYTE_WID, from_tx.DATA_BYTE_WID, "to_rx.DATA_BYTE_WID");
+        std_pkg::param_check(to_rx.META_WID, from_tx.META_WID, "to_rx.META_WID");
+    end
+endmodule
+
+
 // Packet interface (back-to-back) connector helper module
 module packet_intf_connector (
     packet_intf.rx from_tx,
     packet_intf.tx to_rx
 );
-    // Parameters
-    localparam int DATA_BYTE_WID = from_tx.DATA_BYTE_WID;
-    localparam int DATA_WID = DATA_BYTE_WID * 8;
-    localparam int MTY_WID = $clog2(DATA_BYTE_WID);
-    localparam int META_WID = $bits(from_tx.META_T);
-
-    // Parameter checking
-    initial begin
-        std_pkg::param_check(to_rx.DATA_BYTE_WID, DATA_BYTE_WID, "to_rx.DATA_BYTE_WID");
-        std_pkg::param_check($bits(to_rx.META_T), META_WID, "to_rx.META_T");
-    end
-
-    // Signals
-    logic                valid;
-    logic                rdy;
-    logic [DATA_WID-1:0] data;
-    logic                eop;
-    logic [MTY_WID-1:0]  mty;
-    logic                err;
-    logic [META_WID-1:0] meta;
+    packet_intf_parameter_check param_check (.*);
 
     // Connect signals (tx -> rx)
-    assign valid = from_tx.valid;
-    assign data  = from_tx.data;
-    assign eop   = from_tx.eop;
-    assign mty   = from_tx.mty;
-    assign err   = from_tx.err;
-    assign meta  = from_tx.meta;
-
-    assign to_rx.valid = valid;
-    assign to_rx.data  = data;
-    assign to_rx.eop   = eop;
-    assign to_rx.mty   = mty;
-    assign to_rx.err   = err;
-    assign to_rx.meta  = meta;
+    assign to_rx.vld   = from_tx.vld;
+    assign to_rx.data  = from_tx.data;
+    assign to_rx.eop   = from_tx.eop;
+    assign to_rx.mty   = from_tx.mty;
+    assign to_rx.err   = from_tx.err;
+    assign to_rx.meta  = from_tx.meta;
 
     // Connect signals (rx -> tx)
-    assign rdy = to_rx.rdy;
-
-    assign from_tx.rdy = rdy;
+    assign from_tx.rdy = to_rx.rdy;
 
 endmodule : packet_intf_connector
 
@@ -206,7 +196,7 @@ endmodule : packet_intf_connector
 module packet_intf_tx_term (
     packet_intf.tx to_rx
 );
-    assign to_rx.valid = 1'b0;
+    assign to_rx.vld = 1'b0;
     assign to_rx.data  = 'x;
     assign to_rx.eop   = 1'bx;
     assign to_rx.mty   = 'x;
@@ -219,18 +209,12 @@ endmodule : packet_intf_tx_term
 module packet_intf_rx_block (
     packet_intf.rx from_tx
 );
-    logic rdy;
-    assign rdy = 1'b0;
-
-    assign from_tx.rdy = rdy;
+    assign from_tx.rdy = 1'b0;
 endmodule : packet_intf_rx_block
 
 // Packet receiver termination (short circuit)
 module packet_intf_rx_sink (
     packet_intf.rx from_tx
 );
-    logic rdy;
-    assign rdy = 1'b1;
-
-    assign from_tx.rdy = rdy;
+    assign from_tx.rdy = 1'b1;
 endmodule : packet_intf_rx_sink

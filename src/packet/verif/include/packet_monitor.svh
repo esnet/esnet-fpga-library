@@ -32,9 +32,7 @@ virtual class packet_monitor#(
 
     // Receive packet transaction from packet interface
     // [[ implements _receive() virtual method of std_verif_pkg::monitor parent class ]]
-    protected task _receive(
-            output packet#(META_T) transaction
-        );
+    protected task _receive(output packet#(META_T) transaction);
         // Signals
         byte data [];
         bit err;

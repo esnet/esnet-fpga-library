@@ -187,27 +187,29 @@ class packet_playback_driver #(parameter type META_T=bit) extends packet_driver#
             output bit                                        _timeout,
             input  int                                        TIMEOUT=0
         );
+        automatic bit __error = 1'b0;
+        automatic bit __timeout = 1'b0;
         trace_msg($sformatf("transact(command=%s)", _command.name()));
         fork
             begin
                 fork
                     begin
-                        _error = 1'b0;
-                        _transact(_command, _error);
+                        _transact(_command, __error);
                     end
                     begin
-                        _timeout = 1'b0;
                         if (TIMEOUT > 0) begin
                             wait_n(TIMEOUT);
-                            _timeout = 1'b1;
+                            __timeout = 1'b1;
                         end else wait(0);
                     end
                 join_any
                 disable fork;
             end
         join
-        assert (_error == 0)   else info_msg($sformatf("Error detected during '%s' transaction.", _command.name));
-        assert (_timeout == 0) else error_msg($sformatf("'%s' transaction timed out.", _command.name));
+        assert (__error == 0)   else info_msg($sformatf("Error detected during '%s' transaction.", _command.name));
+        assert (__timeout == 0) else error_msg($sformatf("'%s' transaction timed out.", _command.name));
+        _error = __error;
+        _timeout = __timeout;
         trace_msg("transact() Done.");
     endtask
 

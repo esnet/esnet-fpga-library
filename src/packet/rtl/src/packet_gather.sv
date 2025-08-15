@@ -9,15 +9,11 @@
 //
 
 module packet_gather #(
-    parameter bit  IGNORE_RDY = 0,
-    parameter int  MAX_PKT_SIZE = 16384,
-    parameter int  BUFFER_SIZE = 1,
-    parameter type PTR_T = logic,
-    parameter type META_T = logic,
-    parameter int  MAX_RD_LATENCY = 8,
-    // Derived parameters (don't override)
-    parameter int  SIZE_WID = BUFFER_SIZE > 1 ? $clog2(BUFFER_SIZE) : 1,
-    parameter type SIZE_T = logic[SIZE_WID-1:0]
+    parameter bit IGNORE_RDY = 0,
+    parameter int MAX_PKT_SIZE = 16384,
+    parameter int NUM_BUFFERS = 1,
+    parameter int BUFFER_SIZE = 1,
+    parameter int MAX_RD_LATENCY = 8
 
 ) (
     // Clock/Reset
@@ -50,9 +46,7 @@ module packet_gather #(
     // -----------------------------
     localparam int  DATA_BYTE_WID = packet_if.DATA_BYTE_WID;
     localparam int  DATA_WID = DATA_BYTE_WID*8;
-    localparam type DATA_T = logic[0:DATA_BYTE_WID-1][7:0];
     localparam int  MTY_WID = $clog2(DATA_BYTE_WID);
-    localparam type MTY_T = logic[MTY_WID-1:0];
 
     localparam int  MAX_PKT_WORDS = MAX_PKT_SIZE % DATA_BYTE_WID == 0 ? MAX_PKT_SIZE / DATA_BYTE_WID : MAX_PKT_SIZE / DATA_BYTE_WID + 1;
     localparam int  PKT_WORD_CNT_WID = $clog2(MAX_PKT_WORDS+1);
@@ -60,13 +54,12 @@ module packet_gather #(
     localparam int  BUFFER_WORDS = BUFFER_SIZE / DATA_BYTE_WID;
     localparam int  BUFFER_WORD_CNT_WID = $clog2(BUFFER_WORDS);
 
-    localparam int  PTR_WID = $bits(PTR_T);
-    localparam int  NUM_PTRS = 2**PTR_WID;
-    localparam int  MEM_DEPTH = NUM_PTRS * BUFFER_WORDS;
+    localparam int  PTR_WID = NUM_BUFFERS > 1 ? $clog2(NUM_BUFFERS) : 1;
+    localparam int  MEM_DEPTH = NUM_BUFFERS * BUFFER_WORDS;
     localparam int  ADDR_WID = $clog2(MEM_DEPTH);
-    localparam type ADDR_T = logic[ADDR_WID-1:0];
 
-    localparam int  META_WID = $bits(META_T);
+    localparam int  META_WID = packet_if.META_WID;
+    localparam int  SIZE_WID = BUFFER_SIZE > 1 ? $clog2(BUFFER_SIZE) : 1;
 
     // -----------------------------
     // Parameter checking
@@ -74,10 +67,9 @@ module packet_gather #(
     initial begin
         std_pkg::param_check(mem_rd_if.DATA_WID, DATA_WID, "mem_rd_if.DATA_WID");
         std_pkg::param_check_gt(mem_rd_if.ADDR_WID, ADDR_WID,"mem_rd_if.ADDR_WID");
-        std_pkg::param_check($bits(packet_if.META_T), META_WID, "packet_if.META_T");
-        std_pkg::param_check($bits(descriptor_if.ADDR_T), PTR_WID, "descriptor_if.ADDR_WID");
-        std_pkg::param_check($bits(descriptor_if.META_T), META_WID, "descriptor_if.META_T");
-        std_pkg::param_check_gt($bits(descriptor_if.SIZE_T), $clog2(MAX_PKT_SIZE+1), "descriptor_if.SIZE_T");
+        std_pkg::param_check(descriptor_if.ADDR_WID, PTR_WID, "descriptor_if.ADDR_WID");
+        std_pkg::param_check(descriptor_if.META_WID, META_WID, "descriptor_if.META_WID");
+        std_pkg::param_check_gt(descriptor_if.MAX_PKT_SIZE, MAX_PKT_SIZE, "descriptor_if.MAX_PKT_SIZE");
         std_pkg::param_check(BUFFER_SIZE % DATA_BYTE_WID, 0, "BUFFER_SIZE");
     end
 
@@ -100,19 +92,19 @@ module packet_gather #(
     } read_state_t;
 
     typedef struct packed {
-        PTR_T  ptr;
-        logic  sof;
-        logic  eof;
-        SIZE_T size;
-        META_T meta;
-        logic  err;
+        logic [PTR_WID-1:0]  ptr;
+        logic                sof;
+        logic                eof;
+        logic [SIZE_WID-1:0] size;
+        logic [META_WID-1:0] meta;
+        logic                err;
     } buffer_ctxt_t;
 
     typedef struct packed {
-        logic  eop;
-        MTY_T  mty;
-        META_T meta;
-        logic  err;
+        logic                eop;
+        logic [MTY_WID-1:0]  mty;
+        logic [META_WID-1:0] meta;
+        logic                err;
     } rd_ctxt_t;
 
     // -----------------------------
@@ -133,9 +125,9 @@ module packet_gather #(
 
     word_cnt_t     words;
 
-    logic          rd_rdy;
-    logic          rd_eop;
-    MTY_T          rd_mty;
+    logic               rd_rdy;
+    logic               rd_eop;
+    logic [MTY_WID-1:0] rd_mty;
 
     logic          prefetch_rdy;
 
@@ -160,10 +152,10 @@ module packet_gather #(
             end
             FETCH_INIT: begin
                 fetch_init = 1'b1;
-                if (descriptor_if.valid && gather_if.rdy) nxt_fetch_state = FETCH_BUFFER;
+                if (descriptor_if.vld && gather_if.rdy) nxt_fetch_state = FETCH_BUFFER;
             end
             FETCH_BUFFER: begin
-                if (gather_if.valid && gather_if.ack) begin
+                if (gather_if.vld && gather_if.ack) begin
                     if (gather_if.eof) nxt_fetch_state = FETCH_INIT;
                 end
             end
@@ -174,7 +166,7 @@ module packet_gather #(
     end
 
     assign descriptor_if.rdy = fetch_init && gather_if.rdy;
-    assign gather_if.req     = fetch_init && descriptor_if.valid;
+    assign gather_if.req     = fetch_init && descriptor_if.vld;
     assign gather_if.ptr     = descriptor_if.addr;
 
     // -----------------------------
@@ -182,15 +174,15 @@ module packet_gather #(
     // -----------------------------
     initial buffer_valid = 1'b0;
     always @(posedge clk) begin
-        if (srst)                                  buffer_valid <= 1'b0;
-        else if (gather_if.valid && gather_if.ack) buffer_valid <= 1'b1;
-        else if (buffer_ack)                       buffer_valid <= 1'b0;
+        if (srst)                                buffer_valid <= 1'b0;
+        else if (gather_if.vld && gather_if.ack) buffer_valid <= 1'b1;
+        else if (buffer_ack)                     buffer_valid <= 1'b0;
     end
 
     assign gather_if.ack = !buffer_valid || buffer_ack;
 
     always_ff @(posedge clk) begin
-        if (gather_if.valid && gather_if.ack) begin
+        if (gather_if.vld && gather_if.ack) begin
             buffer_ctxt.ptr  <= gather_if.nxt_ptr;
             buffer_ctxt.sof  <= gather_if.sof;
             buffer_ctxt.eof  <= gather_if.eof;
@@ -247,7 +239,7 @@ module packet_gather #(
     // Read pointer management
     // -----------------------------
     always_ff @(posedge clk) begin
-        if (gather_if.valid && gather_if.ack) words <= 0;
+        if (gather_if.vld && gather_if.ack) words <= 0;
         else if (buffer_rd)                   words <= words + 1;
     end
 
@@ -276,8 +268,8 @@ module packet_gather #(
     assign rd_ctxt_in.err  = buffer_ctxt.err;
 
     fifo_small_ctxt #(
-        .DATA_T  ( rd_ctxt_t ),
-        .DEPTH   ( MAX_RD_LATENCY )
+        .DATA_WID ( $bits(rd_ctxt_t) ),
+        .DEPTH    ( MAX_RD_LATENCY )
     ) i_fifo_small_ctxt (
         .clk,
         .srst,
@@ -296,9 +288,9 @@ module packet_gather #(
             // Backpressure from receiver not supported; no prefetch needed
             assign prefetch_rdy = 1'b1;
 
-            logic     __valid;
-            DATA_T    __data;
-            rd_ctxt_t __rd_ctxt_out;
+            logic                __valid;
+            logic [DATA_WID-1:0] __data;
+            rd_ctxt_t            __rd_ctxt_out;
 
             initial __valid = 1'b0;
             always @(posedge clk) begin
@@ -311,11 +303,11 @@ module packet_gather #(
                 __rd_ctxt_out <= rd_ctxt_out;
             end
 
-            assign packet_if.valid = __valid;
+            assign packet_if.vld  = __valid;
             assign packet_if.data = __data;
-            assign packet_if.eop = __rd_ctxt_out.eop;
-            assign packet_if.mty = __rd_ctxt_out.mty;
-            assign packet_if.err = __rd_ctxt_out.err;
+            assign packet_if.eop  = __rd_ctxt_out.eop;
+            assign packet_if.mty  = __rd_ctxt_out.mty;
+            assign packet_if.err  = __rd_ctxt_out.err;
             assign packet_if.meta = __rd_ctxt_out.meta;
 
         end : g__ignore_rdy
@@ -323,11 +315,11 @@ module packet_gather #(
             // Backpressure from receiver supported; prefetch needed
             // (Local) typedefs
             typedef struct packed {
-                DATA_T data;
-                logic  eop;
-                MTY_T  mty;
-                logic  err;
-                META_T meta;
+                logic [DATA_WID-1:0] data;
+                logic                eop;
+                logic [MTY_WID-1:0]  mty;
+                logic                err;
+                logic [META_WID-1:0] meta;
             } prefetch_data_t;
             // (Local) signals
             prefetch_data_t __prefetch_wr_data;
@@ -342,7 +334,7 @@ module packet_gather #(
 
             // Prefetch buffer (data)
             fifo_prefetch #(
-                .DATA_T          ( prefetch_data_t ),
+                .DATA_WID        ( $bits(prefetch_data_t) ),
                 .PIPELINE_DEPTH  ( MAX_RD_LATENCY)
             ) i_fifo_prefetch__data (
                 .clk,
@@ -352,7 +344,7 @@ module packet_gather #(
                 .wr_data  ( __prefetch_wr_data ),
                 .oflow    ( __prefetch_oflow ),
                 .rd       ( packet_if.rdy ),
-                .rd_vld   ( packet_if.valid ),
+                .rd_vld   ( packet_if.vld ),
                 .rd_data  ( __prefetch_rd_data )
             );
 
@@ -366,7 +358,7 @@ module packet_gather #(
     endgenerate
 
     // Drive event interface
-    assign event_if.evt = packet_if.valid && (packet_if.rdy || IGNORE_RDY) && packet_if.eop;
+    assign event_if.evt = packet_if.vld && (packet_if.rdy || IGNORE_RDY) && packet_if.eop;
     assign event_if.size = 0; // TODO
     assign event_if.status = STATUS_OK;
 

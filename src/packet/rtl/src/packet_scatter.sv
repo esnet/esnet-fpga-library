@@ -12,12 +12,10 @@ module packet_scatter #(
     parameter bit  DROP_ERRORED = 1,
     parameter int  MIN_PKT_SIZE = 0,
     parameter int  MAX_PKT_SIZE = 16384,
-    parameter int  BUFFER_SIZE  = 1,
-    parameter type PTR_T = logic,
-    parameter type META_T = logic,
+    parameter int  NUM_BUFFERS = 1,
+    parameter int  BUFFER_SIZE = 1,
     // Derived parameters (don't override)
-    parameter int  SIZE_WID = BUFFER_SIZE > 1 ? $clog2(BUFFER_SIZE) : 1,
-    parameter type SIZE_T = logic[SIZE_WID-1:0]
+    parameter int  PTR_WID = NUM_BUFFERS > 1 ? $clog2(NUM_BUFFERS) : 1
 ) (
     // Clock/Reset
     input  logic                clk,
@@ -34,7 +32,7 @@ module packet_scatter #(
 
     // Descriptor 'recycle' interface
     // output logic                recycle_req,
-    // output PTR_T                recycle_ptr,
+    // output logic [PTR_WID-1:0]  recycle_ptr,
 
     // Packet reporting interface
     packet_event_intf.publisher event_if,
@@ -54,7 +52,6 @@ module packet_scatter #(
     localparam int  DATA_BYTE_WID = packet_if.DATA_BYTE_WID;
     localparam int  DATA_WID = DATA_BYTE_WID*8;
     localparam int  MTY_WID = $clog2(DATA_BYTE_WID);
-    localparam type MTY_T = logic[MTY_WID-1:0];
 
     localparam int  MIN_PKT_WORDS = MIN_PKT_SIZE % DATA_BYTE_WID == 0 ? MIN_PKT_SIZE / DATA_BYTE_WID : MIN_PKT_SIZE / DATA_BYTE_WID + 1;
     localparam int  MAX_PKT_WORDS = MAX_PKT_SIZE % DATA_BYTE_WID == 0 ? MAX_PKT_SIZE / DATA_BYTE_WID : MAX_PKT_SIZE / DATA_BYTE_WID + 1;
@@ -63,12 +60,11 @@ module packet_scatter #(
     localparam int  BUFFER_WORDS = BUFFER_SIZE / DATA_BYTE_WID;
     localparam int  BUFFER_WORD_CNT_WID = $clog2(BUFFER_WORDS);
 
-    localparam int  PTR_WID = $bits(PTR_T);
-    localparam int  NUM_PTRS = 2**PTR_WID;
-    localparam int  MEM_DEPTH = NUM_PTRS * BUFFER_WORDS;
+    localparam int  MEM_DEPTH = NUM_BUFFERS * BUFFER_WORDS;
     localparam int  ADDR_WID = $clog2(MEM_DEPTH);
 
-    localparam int  META_WID = $bits(META_T);
+    localparam int  META_WID = packet_if.META_WID;
+    localparam int  SIZE_WID = BUFFER_SIZE > 1 ? $clog2(BUFFER_SIZE) : 1;
 
     // -----------------------------
     // Parameter checking
@@ -76,13 +72,13 @@ module packet_scatter #(
     initial begin
         std_pkg::param_check(mem_wr_if.DATA_WID, DATA_WID, "mem_wr_if.DATA_WID");
         std_pkg::param_check_gt(mem_wr_if.ADDR_WID, ADDR_WID,"mem_wr_if.ADDR_WID");
-        std_pkg::param_check($bits(packet_if.META_T), META_WID, "packet_if.META_T");
+        std_pkg::param_check(packet_if.META_WID, META_WID, "packet_if.META_WID");
         std_pkg::param_check(scatter_if.BUFFER_SIZE, BUFFER_SIZE, "scatter_if.BUFFER_SIZE");
-        std_pkg::param_check($bits(scatter_if.PTR_T), PTR_WID, "scatter_if.PTR_T");
-        std_pkg::param_check($bits(scatter_if.META_T), META_WID, "scatter_if.META_T");
-        std_pkg::param_check($bits(descriptor_if.ADDR_T), PTR_WID, "descriptor_if.ADDR_WID");
-        std_pkg::param_check($bits(descriptor_if.META_T), META_WID, "descriptor_if.META_T");
-        std_pkg::param_check_gt($bits(descriptor_if.SIZE_T), $clog2(MAX_PKT_SIZE+1), "descriptor_if.SIZE_T");
+        std_pkg::param_check(scatter_if.PTR_WID, PTR_WID, "scatter_if.PTR_WID");
+        std_pkg::param_check(scatter_if.META_WID, META_WID, "scatter_if.META_WID");
+        std_pkg::param_check(descriptor_if.ADDR_WID, PTR_WID, "descriptor_if.ADDR_WID");
+        std_pkg::param_check(descriptor_if.META_WID, META_WID, "descriptor_if.META_WID");
+        std_pkg::param_check_gt(MAX_PKT_SIZE, MAX_PKT_SIZE, "descriptor_if.MAX_PKT_SIZE");
         std_pkg::param_check(BUFFER_SIZE % DATA_BYTE_WID, 0, "BUFFER_SIZE");
     end
 
@@ -111,24 +107,24 @@ module packet_scatter #(
     logic        pkt_eop;
     logic        pkt_oflow;
 
-    PTR_T        buffer_ptr;
-    PTR_T        buffer_ptr_r;
-    logic        buffer_req;
-    logic        buffer_rdy;
-    logic        buffer_wr;
-    logic        buffer_done;
+    logic [PTR_WID-1:0] buffer_ptr;
+    logic [PTR_WID-1:0] buffer_ptr_r;
+    logic               buffer_req;
+    logic               buffer_rdy;
+    logic               buffer_wr;
+    logic               buffer_done;
 
     word_cnt_t     words;
     pkt_word_cnt_t pkt_words;
 
-    PTR_T        pkt_ptr;
+    logic [PTR_WID-1:0] pkt_ptr;
 
     logic        oflow;
 
-    META_T       meta;
-    MTY_T        mty;
-    logic        err;
-    logic[31:0]  pkt_size;
+    logic [META_WID-1:0] meta;
+    logic [MTY_WID-1:0]  mty;
+    logic                err;
+    logic [SIZE_WID-1:0] pkt_size;
 
     logic        pkt_done;
     status_t     pkt_status;
@@ -138,8 +134,8 @@ module packet_scatter #(
     logic[31:0]  packet_event_size;
     status_t     packet_event_status;
 
-    logic        recycle_req;
-    PTR_T        recycle_ptr;
+    logic               recycle_req;
+    logic [PTR_WID-1:0] recycle_ptr;
 
     // -----------------------------
     // Packet write FSM
@@ -166,7 +162,7 @@ module packet_scatter #(
             SOP: begin
                 buffer_rdy = scatter_if.rdy;
                 rdy = mem_wr_if.rdy && buffer_rdy && descriptor_if.rdy;
-                if (packet_if.valid && packet_if.rdy) begin
+                if (packet_if.vld && packet_if.rdy) begin
                     if (IGNORE_RDY && !rdy) begin
                         pkt_oflow = 1'b1;
                         if (packet_if.eop) pkt_eop = 1'b1;
@@ -185,7 +181,7 @@ module packet_scatter #(
             MOP: begin
                 buffer_rdy = words < BUFFER_WORDS;
                 rdy = mem_wr_if.rdy && buffer_rdy;
-                if (packet_if.valid && packet_if.rdy) begin
+                if (packet_if.vld && packet_if.rdy) begin
                     if (IGNORE_RDY && !rdy) begin
                         pkt_oflow = 1'b1;
                         if (packet_if.eop) begin
@@ -210,7 +206,7 @@ module packet_scatter #(
             MOP_NXT: begin
                 buffer_rdy = scatter_if.rdy;
                 rdy = mem_wr_if.rdy && buffer_rdy;
-                if (packet_if.valid && packet_if.rdy) begin
+                if (packet_if.vld && packet_if.rdy) begin
                     buffer_req = 1'b1;
                     if (IGNORE_RDY && !rdy) begin
                         pkt_oflow = 1'b1;
@@ -235,7 +231,7 @@ module packet_scatter #(
             end
             FLUSH: begin
                 rdy = 1'b1;
-                if (packet_if.valid && packet_if.eop) begin
+                if (packet_if.vld && packet_if.eop) begin
                     pkt_eop = 1'b1;
                     buffer_done = 1'b1;
                     nxt_state = SOP;
@@ -264,7 +260,7 @@ module packet_scatter #(
     // Count packet words
     initial pkt_words = 0;
     always @(posedge clk) begin
-        if (packet_if.valid && packet_if.rdy) begin
+        if (packet_if.vld && packet_if.rdy) begin
             if (packet_if.sop) pkt_words <= 1;
             else if (pkt_words <= MAX_PKT_WORDS) pkt_words <= pkt_words + 1;
         end
@@ -278,7 +274,7 @@ module packet_scatter #(
         if (scatter_if.req && scatter_if.rdy) buffer_ptr = scatter_if.ptr;
     end
 
-    assign scatter_if.valid   = buffer_done;
+    assign scatter_if.vld     = buffer_done;
     assign scatter_if.nxt_ptr = buffer_ptr;
     assign scatter_if.meta    = packet_if.meta;
     assign scatter_if.eof     = packet_if.eop;
@@ -322,16 +318,16 @@ module packet_scatter #(
     // Drive memory write interface
     assign mem_wr_if.rst = 1'b0;
     assign mem_wr_if.en = rdy;
-    assign mem_wr_if.req = packet_if.valid && buffer_rdy;
+    assign mem_wr_if.req = packet_if.vld && buffer_rdy;
     assign mem_wr_if.addr = (buffer_ptr * BUFFER_WORDS) + words;
     assign mem_wr_if.data = packet_if.data;
 
     // Drive descriptor
-    assign descriptor_if.valid  = pkt_good;
-    assign descriptor_if.addr   = pkt_ptr;
-    assign descriptor_if.size   = pkt_size;
-    assign descriptor_if.meta   = meta;
-    assign descriptor_if.err    = err;
+    assign descriptor_if.vld  = pkt_good;
+    assign descriptor_if.addr = pkt_ptr;
+    assign descriptor_if.size = pkt_size;
+    assign descriptor_if.meta = meta;
+    assign descriptor_if.err  = err;
 
     // Recycle descriptors for 'bad' packets
     assign recycle_req = pkt_done && !pkt_good;

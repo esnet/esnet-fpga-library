@@ -24,20 +24,24 @@ module packet_q_core_unit_test #(
 
     localparam int  BUFFER_SIZE = 2048;
     localparam int  BUFFER_WORDS = BUFFER_SIZE / MEM_DATA_BYTE_WID;
-    localparam int  PTR_WID = 10;
-    localparam int  NUM_PTRS = 2**PTR_WID;
-    localparam int  MEM_DEPTH = NUM_PTRS * BUFFER_WORDS;
+    localparam int  NUM_BUFFERS = 1024;
+    localparam int  PTR_WID = $clog2(NUM_BUFFERS);
+    localparam int  MEM_DEPTH = NUM_BUFFERS * BUFFER_WORDS;
     localparam int  ADDR_WID = $clog2(MEM_DEPTH);
 
-    localparam int  PACKET_Q_CAPACITY = BUFFER_SIZE * NUM_PTRS;
+    localparam int  MAX_PKT_SIZE = 9200;
+
+    localparam int  PACKET_Q_CAPACITY = BUFFER_SIZE * NUM_BUFFERS;
 
     localparam type PTR_T = logic[PTR_WID-1:0];
     localparam type ADDR_T = logic[ADDR_WID-1:0];
     localparam type META_T = logic[31:0];
 
+    localparam int META_WID = $bits(META_T);
+
     typedef packet#(META_T) PACKET_T;
 
-    localparam type DESC_T = alloc_pkg::alloc#(BUFFER_SIZE, PTR_T, META_T)::desc_t;
+    localparam type DESC_T = alloc_pkg::alloc#(BUFFER_SIZE, PTR_WID, META_WID)::desc_t;
     localparam int  DESC_WID = $bits(DESC_T);
 
     //===================================
@@ -48,18 +52,18 @@ module packet_q_core_unit_test #(
 
     logic init_done;
 
-    packet_intf #(.DATA_BYTE_WID(DATA_IN_BYTE_WID), .META_T(META_T)) packet_in_if [NUM_INPUT_IFS]   (.clk(clk), .srst(srst));
+    packet_intf #(.DATA_BYTE_WID(DATA_IN_BYTE_WID), .META_WID(META_WID)) packet_in_if [NUM_INPUT_IFS]   (.clk, .srst);
 
     mem_wr_intf #(.DATA_WID(MEM_DATA_WID), .ADDR_WID(PTR_WID))  desc_mem_wr_if (.clk);
     mem_wr_intf #(.DATA_WID(MEM_DATA_WID), .ADDR_WID(ADDR_WID)) mem_wr_if [NUM_MEM_WR_IFS] (.clk);
 
-    packet_descriptor_intf #(.ADDR_T(PTR_T), .META_T(META_T)) desc_in_if  [NUM_INPUT_IFS] (.clk);
-    packet_descriptor_intf #(.ADDR_T(PTR_T), .META_T(META_T)) desc_out_if [NUM_OUTPUT_IFS] (.clk);
+    packet_descriptor_intf #(.ADDR_WID(PTR_WID), .META_WID(META_WID), .MAX_PKT_SIZE(MAX_PKT_SIZE)) desc_in_if  [NUM_INPUT_IFS] (.clk, .srst);
+    packet_descriptor_intf #(.ADDR_WID(PTR_WID), .META_WID(META_WID), .MAX_PKT_SIZE(MAX_PKT_SIZE)) desc_out_if [NUM_OUTPUT_IFS] (.clk, .srst);
 
     mem_rd_intf #(.DATA_WID(MEM_DATA_WID), .ADDR_WID(PTR_WID))  desc_mem_rd_if (.clk);
     mem_rd_intf #(.DATA_WID(MEM_DATA_WID), .ADDR_WID(ADDR_WID)) mem_rd_if [NUM_MEM_RD_IFS] (.clk);
 
-    packet_intf #(.DATA_BYTE_WID(DATA_OUT_BYTE_WID), .META_T(META_T)) packet_out_if [NUM_OUTPUT_IFS] (.clk(clk), .srst(srst));
+    packet_intf #(.DATA_BYTE_WID(DATA_OUT_BYTE_WID), .META_WID(META_WID)) packet_out_if [NUM_OUTPUT_IFS] (.clk, .srst);
 
     logic mem_init_done;
 
@@ -68,8 +72,8 @@ module packet_q_core_unit_test #(
         .NUM_OUTPUT_IFS ( NUM_OUTPUT_IFS ),
         .NUM_MEM_WR_IFS ( NUM_MEM_WR_IFS ),
         .NUM_MEM_RD_IFS ( NUM_MEM_RD_IFS ),
+        .NUM_BUFFERS    ( NUM_BUFFERS ),
         .BUFFER_SIZE    ( BUFFER_SIZE ),
-        .PTR_T          ( PTR_T ),
         .SIM__FAST_INIT ( 0 ),
         .SIM__RAM_MODEL ( 0 )
     ) DUT (.*);
@@ -78,7 +82,7 @@ module packet_q_core_unit_test #(
     // Memory
     //===================================
     localparam int NUM_MEM_CHANNELS = NUM_MEM_WR_IFS + NUM_MEM_RD_IFS + 1;
-    localparam int AXI_ADDR_WID = $clog2(PACKET_Q_CAPACITY + NUM_PTRS);
+    localparam int AXI_ADDR_WID = $clog2(PACKET_Q_CAPACITY + NUM_BUFFERS);
     axi3_intf #(.DATA_BYTE_WID(MEM_DATA_BYTE_WID), .ADDR_WID(AXI_ADDR_WID)) axi3_if [NUM_MEM_CHANNELS] (.aclk(clk));
     axi3_mem_bfm #(
         .CHANNELS ( NUM_MEM_CHANNELS)

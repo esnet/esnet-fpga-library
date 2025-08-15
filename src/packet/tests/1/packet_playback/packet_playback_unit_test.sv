@@ -17,6 +17,8 @@ module packet_playback_unit_test;
     localparam type META_T = logic[31:0];
     localparam int PACKET_MEM_SIZE = 16384;
 
+    localparam int META_WID = $bits(META_T);
+
     typedef packet#(META_T) PACKET_T;
 
     //===================================
@@ -28,7 +30,7 @@ module packet_playback_unit_test;
     logic en;
 
     axi4l_intf axil_if ();
-    packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_T(META_T)) packet_if (.clk(clk), .srst(srst));
+    packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_WID(META_WID)) packet_if (.clk, .srst);
 
     packet_playback #(
         .PACKET_MEM_SIZE ( PACKET_MEM_SIZE ),

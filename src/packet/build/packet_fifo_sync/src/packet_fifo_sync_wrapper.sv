@@ -9,7 +9,7 @@ module packet_fifo_sync_wrapper #(
     input  logic                 clk,
     input  logic                 srst,
 
-    input  logic                 packet_in_valid,
+    input  logic                 packet_in_vld,
     output logic                 packet_in_rdy,
     input  logic                 packet_in_eop,
     input  logic [DATA_WID-1:0]  packet_in_data,
@@ -17,7 +17,7 @@ module packet_fifo_sync_wrapper #(
     input  logic                 packet_in_err,
     input  logic [META_WID-1:0]  packet_in_meta,
 
-    output logic                 packet_out_valid,
+    output logic                 packet_out_vld,
     input  logic                 packet_out_rdy,
     output logic                 packet_out_eop,
     output logic [DATA_WID-1:0]  packet_out_data,
@@ -26,12 +26,10 @@ module packet_fifo_sync_wrapper #(
     output logic [META_WID-1:0]  packet_out_meta
 );
 
-    localparam type META_T = logic[META_WID-1:0];
+    packet_intf #(DATA_BYTE_WID, META_WID) packet_in_if  (.clk, .srst);
+    packet_intf #(DATA_BYTE_WID, META_WID) packet_out_if (.clk, .srst);
 
-    packet_intf #(DATA_BYTE_WID, META_T) packet_in_if  (.clk(clk), .srst(srst));
-    packet_intf #(DATA_BYTE_WID, META_T) packet_out_if (.clk(clk), .srst(srst));
-
-    assign packet_in_if.valid = packet_in_valid;
+    assign packet_in_if.vld = packet_in_vld;
     assign packet_in_if.eop = packet_in_eop;
     assign packet_in_if.data = packet_in_data;
     assign packet_in_if.mty = packet_in_mty;
@@ -39,7 +37,7 @@ module packet_fifo_sync_wrapper #(
     assign packet_in_if.meta = packet_in_meta;
     assign packet_in_rdy = packet_in_if.rdy;
 
-    assign packet_out_valid = packet_out_if.valid;
+    assign packet_out_vld = packet_out_if.vld;
     assign packet_out_eop = packet_out_if.eop;
     assign packet_out_data = packet_out_if.data;
     assign packet_out_mty = packet_out_if.mty;

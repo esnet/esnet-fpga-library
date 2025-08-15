@@ -47,15 +47,11 @@ module packet_write
     localparam int MAX_PKT_WORDS = MAX_PKT_SIZE % DATA_BYTE_WID == 0 ? MAX_PKT_SIZE / DATA_BYTE_WID : MAX_PKT_SIZE / DATA_BYTE_WID + 1;
     localparam int WORD_CNT_WID = $clog2(MAX_PKT_WORDS+1);
 
-    localparam type ADDR_T = descriptor_if.ADDR_T;
-    localparam int  ADDR_WID = $bits(ADDR_T);
-    localparam int  MEM_DEPTH = 2**ADDR_WID;
+    localparam int ADDR_WID = descriptor_if.ADDR_WID;
+    localparam int MEM_DEPTH = 2**ADDR_WID;
 
-    localparam type META_T = packet_if.META_T;
-    localparam int  META_WID = $bits(META_T);
-
-    localparam type SIZE_T = descriptor_if.SIZE_T;
-    localparam int  SIZE_WID = $bits(SIZE_T);
+    localparam int META_WID = packet_if.META_WID;
+    localparam int SIZE_WID = $clog2(MAX_PKT_SIZE+1);
 
     // -----------------------------
     // Parameter checking
@@ -63,9 +59,9 @@ module packet_write
     initial begin
         std_pkg::param_check(mem_wr_if.DATA_WID, DATA_WID, "mem_wr_if.DATA_WID");
         std_pkg::param_check(mem_wr_if.ADDR_WID, ADDR_WID,"descriptor_if.ADDR_WID");
-        std_pkg::param_check($bits(descriptor_if.META_T), META_WID,"descriptor_if.META_T");
-        std_pkg::param_check($bits(nxt_descriptor_if.ADDR_T), ADDR_WID,"nxt_descriptor_if.ADDR_WID");
-        std_pkg::param_check_gt(SIZE_WID, $clog2(MAX_PKT_SIZE), "SIZE_WID");
+        std_pkg::param_check(descriptor_if.META_WID, META_WID,"descriptor_if.META_WID");
+        std_pkg::param_check(nxt_descriptor_if.ADDR_WID, ADDR_WID,"nxt_descriptor_if.ADDR_WID");
+        std_pkg::param_check_gt(descriptor_if.MAX_PKT_SIZE, MAX_PKT_SIZE, "MAX_PKT_SIZE");
     end
 
     // -----------------------------
@@ -85,15 +81,15 @@ module packet_write
     // -----------------------------
     logic        rdy;
 
-    ADDR_T       addr;
-    ADDR_T       addr_reg;
+    logic [ADDR_WID-1:0] addr;
+    logic [ADDR_WID-1:0] addr_reg;
 
     word_cnt_t   words;
     word_cnt_t   desc_words;
 
-    logic        pkt_done;
-    status_t     pkt_status;
-    logic[31:0]  pkt_size;
+    logic                pkt_done;
+    status_t             pkt_status;
+    logic [SIZE_WID-1:0] pkt_size;
 
     state_t      state;
     state_t      nxt_state;
@@ -124,8 +120,8 @@ module packet_write
                 if (mem_init_done) nxt_state = SOP;
             end
             SOP: begin
-                rdy = mem_wr_if.rdy && nxt_descriptor_if.valid && (nxt_descriptor_if.size >= DATA_BYTE_WID) && descriptor_if.rdy;
-                if (packet_if.valid && packet_if.rdy) begin
+                rdy = mem_wr_if.rdy && nxt_descriptor_if.vld && (nxt_descriptor_if.size >= DATA_BYTE_WID) && descriptor_if.rdy;
+                if (packet_if.vld && packet_if.rdy) begin
                     if (packet_if.eop) begin
                         pkt_done = 1'b1;
                         if (DROP_ERRORED && packet_if.err) pkt_status = STATUS_ERR;
@@ -142,7 +138,7 @@ module packet_write
             end
             MOP: begin
                 rdy = mem_wr_if.rdy && (words <= desc_words);
-                if (packet_if.valid && packet_if.rdy) begin
+                if (packet_if.vld && packet_if.rdy) begin
                     if (packet_if.eop) begin
                         pkt_done = 1'b1;
                         if (DROP_ERRORED && packet_if.err) pkt_status = STATUS_ERR;
@@ -160,7 +156,7 @@ module packet_write
             end
             FLUSH: begin
                 rdy = 1'b1;
-                if (packet_if.valid) begin
+                if (packet_if.vld) begin
                     if (packet_if.eop) begin
                         pkt_done = 1'b1;
                         if (packet_if.err)                pkt_status = STATUS_ERR;
@@ -187,7 +183,7 @@ module packet_write
     always_comb begin
         addr = addr_reg;
         if (state == SOP) addr = nxt_descriptor_if.addr;
-        else if (state == MOP && packet_if.valid && rdy) addr = addr + 1;
+        else if (state == MOP && packet_if.vld && rdy) addr = addr + 1;
     end
 
     // Descriptor word count
@@ -202,7 +198,7 @@ module packet_write
         if (srst) words <= 1;
         else begin
             if (pkt_done) words <= 1;
-            else if (packet_if.valid && rdy) begin
+            else if (packet_if.vld && rdy) begin
                 if (words < MAX_PKT_WORDS) words <= words + 1;
             end
         end
@@ -212,16 +208,16 @@ module packet_write
     // Drive memory write interface
     assign mem_wr_if.rst = 1'b0;
     assign mem_wr_if.en = rdy;
-    assign mem_wr_if.req = packet_if.valid;
+    assign mem_wr_if.req = packet_if.vld;
     assign mem_wr_if.addr = addr;
     assign mem_wr_if.data = packet_if.data;
      
     // Drive descriptor
-    assign descriptor_if.valid  = desc_valid;
-    assign descriptor_if.addr   = nxt_descriptor_if.addr;
-    assign descriptor_if.size   = pkt_size;
-    assign descriptor_if.meta   = packet_if.meta;
-    assign descriptor_if.err    = packet_if.err;
+    assign descriptor_if.vld  = desc_valid;
+    assign descriptor_if.addr = nxt_descriptor_if.addr;
+    assign descriptor_if.size = pkt_size;
+    assign descriptor_if.meta = packet_if.meta;
+    assign descriptor_if.err  = packet_if.err;
 
     // Report packet event
     assign event_if.evt = pkt_done;

@@ -16,11 +16,13 @@ module packet_write_unit_test #(
     //===================================
     localparam int  DATA_BYTE_WID = 64;
     localparam int  DATA_WID = DATA_BYTE_WID*8;
-    localparam type META_T = logic[31:0];
+    localparam type META_T = bit[31:0];
     localparam int  BUFFER_WORDS = 16384;
     localparam int  ADDR_WID = $clog2(BUFFER_WORDS);
     localparam int  MIN_PKT_SIZE = 40;
     localparam int  MAX_PKT_SIZE = 1500;
+
+    localparam int  META_WID = $bits(META_T);
 
     localparam type ADDR_T = logic[ADDR_WID-1:0];
     localparam type PTR_T  = logic[ADDR_WID  :0];
@@ -35,10 +37,10 @@ module packet_write_unit_test #(
     logic clk;
     logic srst;
 
-    packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_T(META_T)) packet_if (.clk(clk));
+    packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_WID(META_WID)) packet_if (.clk, .srst);
 
-    packet_descriptor_intf #(.ADDR_T(ADDR_T), .META_T(META_T)) nxt_descriptor_if (.clk(clk));
-    packet_descriptor_intf #(.ADDR_T(ADDR_T), .META_T(META_T)) descriptor_if (.clk(clk));
+    packet_descriptor_intf #(.ADDR_WID(ADDR_WID), .META_WID(META_WID)) nxt_descriptor_if (.clk, .srst);
+    packet_descriptor_intf #(.ADDR_WID(ADDR_WID), .META_WID(META_WID)) descriptor_if (.clk, .srst);
     packet_event_intf event_if (.clk(clk));
 
     mem_wr_intf #(.ADDR_WID(ADDR_WID), .DATA_WID(DATA_WID)) mem_wr_if (.clk(clk));

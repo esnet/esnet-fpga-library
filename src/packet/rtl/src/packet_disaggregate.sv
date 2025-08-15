@@ -20,24 +20,23 @@ module packet_disaggregate
     parameter int  MAX_PKT_SIZE = 16384,
     parameter mux_mode_t MUX_MODE = MUX_MODE_SEL, // By default, drive demux select using 'ctxt' interface
     // Derived parameters (don't override)
-    parameter int  CTXT_WID = NUM_OUTPUTS > 1 ? $clog2(NUM_OUTPUTS) : 1,
-    parameter type CTXT_T = logic[CTXT_WID-1:0]
+    parameter int  CTXT_WID = NUM_OUTPUTS > 1 ? $clog2(NUM_OUTPUTS) : 1
 ) (
     // Aggregated (wide) packet interfaces
     packet_intf.rx              packet_in_if,
     packet_event_intf.publisher event_in_if,
 
     // Select aggregation context (used only for MUX_MODE == MUX_MODE_SEL; ignored otherwise)
-    input  CTXT_T               ctxt_sel = 0,
+    input  logic [CTXT_WID-1:0] ctxt_sel = 0,
 
     // Provide ordered list of aggregation contexts (used only for MUX_MODE == MUX_MODE LIST; ignored otherwise)
     input  logic                ctxt_list_append_req = 1'b0,
-    input  CTXT_T               ctxt_list_append_data = 0, 
+    input  logic [CTXT_WID-1:0] ctxt_list_append_data = 0,
     output logic                ctxt_list_append_rdy,
 
     // Aggregation context (report context for disaggregated packets, in the order they were received)
     output logic                ctxt_out_valid,
-    output CTXT_T               ctxt_out,
+    output logic [CTXT_WID-1:0] ctxt_out,
     input  logic                ctxt_out_ack = 1,
 
     // Disaggregated (narrow) packet interfaces
@@ -52,17 +51,13 @@ module packet_disaggregate
 
     localparam int  DATA_OUT_BYTE_WID = packet_out_if[0].DATA_BYTE_WID;
     localparam int  DATA_OUT_WID = DATA_OUT_BYTE_WID * 8;
-    localparam type DATA_OUT_T = logic[DATA_OUT_WID-1:0];
 
     localparam int  N = 2**$clog2(DATA_IN_BYTE_WID / DATA_OUT_BYTE_WID);
     localparam int  SEL_WID = $clog2(N);
-    localparam type SEL_T = logic[SEL_WID-1:0];
 
     localparam int  SIZE_WID = $clog2(MAX_PKT_SIZE + 1);
-    localparam type SIZE_T = logic[SIZE_WID-1:0];
 
-    localparam int  META_WID = $bits(packet_in_if.META_T);
-    localparam type META_T = logic[META_WID-1:0];
+    localparam int  META_WID = packet_in_if.META_WID;
 
     localparam int  MIN_PKT_WORDS = MAX_PKT_SIZE % DATA_IN_BYTE_WID == 0 ?
                                     MAX_PKT_SIZE / DATA_IN_BYTE_WID : MAX_PKT_SIZE / DATA_IN_BYTE_WID + 1;
@@ -70,11 +65,9 @@ module packet_disaggregate
     // Maintain isolated memory pages (one for each output context)
     localparam int  PAGE_DEPTH = 2**$clog2(MIN_PKT_WORDS);
     localparam int  PAGE_ADDR_WID = $clog2(PAGE_DEPTH);
-    localparam type PAGE_ADDR_T = logic[PAGE_ADDR_WID-1:0];
 
     localparam int  DEPTH = NUM_OUTPUTS * PAGE_DEPTH;
     localparam int  ADDR_WID = $clog2(DEPTH);
-    localparam type ADDR_T = logic[ADDR_WID-1:0];
 
     localparam int  INPUT_FIFO_DEPTH = 2**$clog2(NUM_OUTPUTS);
 
@@ -102,7 +95,7 @@ module packet_disaggregate
             initial begin
                 std_pkg::param_check(DATA_OUT_BYTE_WID, 2**$clog2(DATA_OUT_BYTE_WID), $sformatf("packet_out_if[%0d].DATA_BYTE_WID", g_if));
                 std_pkg::param_check(packet_out_if[g_if].DATA_BYTE_WID, DATA_OUT_BYTE_WID, $sformatf("packet_out_if[%0d].DATA_BYTE_WID", g_if));
-                std_pkg::param_check($bits(packet_out_if[g_if].META_T), META_WID, $sformatf("packet_out_if[%0d].META_T", g_if));
+                std_pkg::param_check(packet_out_if[g_if].META_WID, META_WID, $sformatf("packet_out_if[%0d].META_WID", g_if));
             end
         end : g__params_out
     endgenerate
@@ -118,50 +111,47 @@ module packet_disaggregate
 
     logic mem_init_done;
 
-    logic  __ctxt_out_valid;
-    CTXT_T __ctxt_out;
-    logic  __ctxt_out_rdy;
+    logic                __ctxt_out_valid;
+    logic [CTXT_WID-1:0] __ctxt_out;
+    logic                __ctxt_out_rdy;
 
-    SEL_T sel;
+    logic [SEL_WID-1:0] sel;
 
     logic                           rd_out_req [N];
-    PAGE_ADDR_T                     rd_out_addr[N];
+    logic [PAGE_ADDR_WID-1:0]       rd_out_addr[N];
 
     logic                           rd_col_ack [N];
-    SEL_T                           rd_col_sel [N];
-    DATA_OUT_T                      rd_col_data[N];
+    logic [SEL_WID-1:0]             rd_col_sel [N];
+    logic [DATA_OUT_WID-1:0]        rd_col_data[N];
     logic                           rd_col_rdy [N];
 
     logic                           mem_wr_req;
-    ADDR_T                          mem_wr_addr;
+    logic [ADDR_WID-1:0]            mem_wr_addr;
     logic [0:N-1]                   mem_wr_rdy;
     logic [0:N-1]                   mem_wr_ack;
     logic [0:N-1][DATA_OUT_WID-1:0] mem_wr_data;
     logic                           mem_wr_error;
-    CTXT_T                          mem_wr_ctxt;
+    logic [CTXT_WID-1:0]            mem_wr_ctxt;
 
     // -----------------------------
     // Interfaces
     // -----------------------------
-    packet_descriptor_intf #(.ADDR_T(PAGE_ADDR_T), .META_T(META_T), .SIZE_T(SIZE_T)) wr_descriptor_if [NUM_OUTPUTS] (.clk (clk_in), .srst (srst_in));
-    packet_descriptor_intf #(.ADDR_T(PAGE_ADDR_T), .META_T(META_T), .SIZE_T(SIZE_T)) rd_descriptor_if [NUM_OUTPUTS] (.clk (clk_in), .srst (srst_in));
+    packet_descriptor_intf #(.ADDR_WID(PAGE_ADDR_WID), .META_WID(META_WID), .MAX_PKT_SIZE(MAX_PKT_SIZE)) wr_descriptor_if [NUM_OUTPUTS] (.clk (clk_in), .srst(srst_in));
+    packet_descriptor_intf #(.ADDR_WID(PAGE_ADDR_WID), .META_WID(META_WID), .MAX_PKT_SIZE(MAX_PKT_SIZE)) rd_descriptor_if [NUM_OUTPUTS] (.clk (clk_in), .srst(srst_in));
     mem_wr_intf #(.DATA_WID(DATA_IN_WID), .ADDR_WID(PAGE_ADDR_WID)) mem_wr_if (.clk (clk_in));
 
     // -----------------------------
     // Clocks
     // -----------------------------
     assign clk_in = packet_in_if.clk;
-    assign srst_in = packet_in_if.srst;
-
     assign clk_out = packet_out_if[0].clk;
 
-    sync_reset #(.INPUT_ACTIVE_HIGH(1)) i_sync_reset (
-        .clk_in,
-        .rst_in ( srst_in ),
-        .clk_out,
-        .rst_out ( srst_out )
-    );
+    assign srst_in = packet_in_if.srst;
+    assign srst_out = packet_out_if[0].srst;
 
+    // -----------------------------
+    // Input stage
+    // -----------------------------
     // Enqueue logic (multi-context: one state machine per output context)
     packet_enqueue    #(
         .IGNORE_RDY    ( IGNORE_RDY_IN ),
@@ -192,8 +182,8 @@ module packet_disaggregate
 
     // Context queue
     fifo_small_ctxt  #(
-        .DATA_T  ( CTXT_T ),
-        .DEPTH   ( 16 )
+        .DATA_WID ( CTXT_WID ),
+        .DEPTH    ( 16 )
     ) i_fifo_small_ctxt (
         .clk     ( clk_in ),
         .srst    ( srst_in ),
@@ -207,45 +197,47 @@ module packet_disaggregate
         .uflow   ( )  
     );
 
+    // -----------------------------
+    // Input stage
+    // -----------------------------
     generate
         for (genvar g_if = 0; g_if < NUM_OUTPUTS; g_if++) begin : g__if
             // (Local) parameters
             localparam int  ADDR_OUT_WID = $clog2(PAGE_DEPTH*N); // Address in units of output words (instead of input words)
-            localparam type ADDR_OUT_T = logic[ADDR_OUT_WID-1:0];
             localparam int  DESC_FIFO_DEPTH = 2*2**$clog2(NUM_OUTPUTS);
             // (Local) typedefs
             localparam type rd_req_ctxt_t = struct packed {
-                ADDR_OUT_T  addr;
-                logic       desc_valid;
-                PAGE_ADDR_T desc_addr;
-                SIZE_T      desc_size;
-                META_T      desc_meta;
-                logic       desc_err;
+                logic [ADDR_OUT_WID-1:0]  addr;
+                logic                     desc_valid;
+                logic [PAGE_ADDR_WID-1:0] desc_addr;
+                logic [SIZE_WID-1:0]      desc_size;
+                logic [META_WID-1:0]      desc_meta;
+                logic                     desc_err;
             };
             // (Local) signals
-            SEL_T         __col;
-            logic         __desc_valid;
-            logic         __fifo_rd_req_q_wr_rdy;
-            logic         __fifo_rd_req_q_wr;
-            rd_req_ctxt_t __fifo_rd_req_q_wr_data;
-            logic         __fifo_rd_req_q_rd_vld;
-            rd_req_ctxt_t __fifo_rd_req_q_rd_data;
-            logic         __rd_rdy;
-            logic         __rd_col_sel;
-            logic         __rd_ack;
-            DATA_OUT_T    __rd_data;
-            logic         __mem_rd_rdy;
+            logic [SEL_WID-1:0]      __col;
+            logic                    __desc_valid;
+            logic                    __fifo_rd_req_q_wr_rdy;
+            logic                    __fifo_rd_req_q_wr;
+            rd_req_ctxt_t            __fifo_rd_req_q_wr_data;
+            logic                    __fifo_rd_req_q_rd_vld;
+            rd_req_ctxt_t            __fifo_rd_req_q_rd_data;
+            logic                    __rd_rdy;
+            logic                    __rd_col_sel;
+            logic                    __rd_ack;
+            logic [DATA_OUT_WID-1:0] __rd_data;
+            logic                    __mem_rd_rdy;
             // (Local) interfaces
-            packet_descriptor_intf #(.ADDR_T(ADDR_OUT_T),  .META_T(META_T), .SIZE_T(SIZE_T)) __wr_descriptor_in_if (.clk(clk_out), .srst(srst_out));
-            packet_descriptor_intf #(.ADDR_T(ADDR_OUT_T),  .META_T(META_T), .SIZE_T(SIZE_T)) __wr_descriptor_out_if (.clk(clk_out), .srst(srst_out));
-            packet_descriptor_intf #(.ADDR_T(PAGE_ADDR_T), .META_T(META_T), .SIZE_T(SIZE_T)) __rd_descriptor_out_if (.clk(clk_out), .srst(srst_out));
+            packet_descriptor_intf #(.ADDR_WID(ADDR_OUT_WID),  .META_WID(META_WID), .MAX_PKT_SIZE(MAX_PKT_SIZE)) __wr_descriptor_in_if  (.clk(clk_out), .srst(srst_out));
+            packet_descriptor_intf #(.ADDR_WID(ADDR_OUT_WID),  .META_WID(META_WID), .MAX_PKT_SIZE(MAX_PKT_SIZE)) __wr_descriptor_out_if (.clk(clk_out), .srst(srst_out));
+            packet_descriptor_intf #(.ADDR_WID(PAGE_ADDR_WID), .META_WID(META_WID), .MAX_PKT_SIZE(MAX_PKT_SIZE)) __rd_descriptor_out_if (.clk(clk_out), .srst(srst_out));
             mem_rd_intf #(.ADDR_WID(ADDR_OUT_WID), .DATA_WID(DATA_OUT_WID)) __mem_rd_if (.clk(clk_out));
 
-            assign __wr_descriptor_in_if.valid = wr_descriptor_if[g_if].valid;
-            assign __wr_descriptor_in_if.addr  = wr_descriptor_if[g_if].addr * N;
-            assign __wr_descriptor_in_if.size  = wr_descriptor_if[g_if].size;
-            assign __wr_descriptor_in_if.err   = wr_descriptor_if[g_if].err;
-            assign __wr_descriptor_in_if.meta  = wr_descriptor_if[g_if].meta;
+            assign __wr_descriptor_in_if.vld  = wr_descriptor_if[g_if].vld;
+            assign __wr_descriptor_in_if.addr = wr_descriptor_if[g_if].addr * N;
+            assign __wr_descriptor_in_if.size = wr_descriptor_if[g_if].size;
+            assign __wr_descriptor_in_if.err  = wr_descriptor_if[g_if].err;
+            assign __wr_descriptor_in_if.meta = wr_descriptor_if[g_if].meta;
             assign wr_descriptor_if[g_if].rdy = __wr_descriptor_in_if.rdy;
 
             packet_descriptor_fifo #(.DEPTH (DESC_FIFO_DEPTH), .ASYNC (ASYNC)) i_packet_descriptor_fifo__wr (
@@ -265,7 +257,7 @@ module packet_disaggregate
                 .mem_rd_if      ( __mem_rd_if )
             );
 
-            assign __desc_valid = __wr_descriptor_out_if.valid && __wr_descriptor_out_if.rdy;
+            assign __desc_valid = __wr_descriptor_out_if.vld && __wr_descriptor_out_if.rdy;
 
             // Read requests go into a queue, to smooth out address/column mismatches
             assign __fifo_rd_req_q_wr = __mem_rd_if.req;
@@ -276,9 +268,9 @@ module packet_disaggregate
             assign __fifo_rd_req_q_wr_data.desc_size  = __wr_descriptor_out_if.size;
             assign __fifo_rd_req_q_wr_data.desc_meta  = __wr_descriptor_out_if.meta;
             assign __fifo_rd_req_q_wr_data.desc_err   = __wr_descriptor_out_if.err;
-            fifo_ctxt   #(
-                .DATA_T  ( rd_req_ctxt_t ),
-                .DEPTH   ( 2*N )
+            fifo_ctxt    #(
+                .DATA_WID ( $bits(rd_req_ctxt_t) ),
+                .DEPTH    ( 2*N )
             ) i_fifo_ctxt__rd_req_q (
                 .clk     ( clk_out ),
                 .srst    ( srst_out ),
@@ -319,11 +311,11 @@ module packet_disaggregate
             assign __mem_rd_if.data = __rd_data;
 
             // Pass packet read completions to write side
-            assign __rd_descriptor_out_if.valid = __rd_rdy && __fifo_rd_req_q_rd_vld && __fifo_rd_req_q_rd_data.desc_valid;
-            assign __rd_descriptor_out_if.addr  = __fifo_rd_req_q_rd_data.desc_addr/N;
-            assign __rd_descriptor_out_if.size  = __fifo_rd_req_q_rd_data.desc_size;
-            assign __rd_descriptor_out_if.meta  = __fifo_rd_req_q_rd_data.desc_meta;
-            assign __rd_descriptor_out_if.err   = __fifo_rd_req_q_rd_data.desc_err;
+            assign __rd_descriptor_out_if.vld  = __rd_rdy && __fifo_rd_req_q_rd_vld && __fifo_rd_req_q_rd_data.desc_valid;
+            assign __rd_descriptor_out_if.addr = __fifo_rd_req_q_rd_data.desc_addr/N;
+            assign __rd_descriptor_out_if.size = __fifo_rd_req_q_rd_data.desc_size;
+            assign __rd_descriptor_out_if.meta = __fifo_rd_req_q_rd_data.desc_meta;
+            assign __rd_descriptor_out_if.err  = __fifo_rd_req_q_rd_data.desc_err;
 
             packet_descriptor_fifo #(.DEPTH (DESC_FIFO_DEPTH), .ASYNC (ASYNC)) i_packet_descriptor_fifo__rd (
                 .from_tx ( __rd_descriptor_out_if ),
@@ -350,10 +342,10 @@ module packet_disaggregate
             mem_wr_intf #(.ADDR_WID(ADDR_WID), .DATA_WID(DATA_OUT_WID)) __mem_wr_if (.clk(clk_in));
             mem_rd_intf #(.ADDR_WID(ADDR_WID), .DATA_WID(DATA_OUT_WID)) __mem_rd_if (.clk(clk_out));
             // (Local) signals
-            SEL_T     __sel;
-            logic     __rd_req;
-            ADDR_T    __rd_addr;
-            SEL_T     __rd_ack_sel;
+            logic [SEL_WID-1:0]  __sel;
+            logic                __rd_req;
+            logic [ADDR_WID-1:0] __rd_addr;
+            logic [SEL_WID-1:0]  __rd_ack_sel;
 
             mem_ram_sdp #(
                 .SPEC ( MEM_SPEC )
@@ -383,8 +375,8 @@ module packet_disaggregate
             assign rd_col_rdy[g_col] = __mem_rd_if.rdy;
 
             fifo_small_ctxt #(
-                .DATA_T  ( SEL_T ),
-                .DEPTH   ( MAX_RD_LATENCY+1 )
+                .DATA_WID ( SEL_WID ),
+                .DEPTH    ( MAX_RD_LATENCY+1 )
             ) i_fifo_small_ctxt__rd_resp (
                 .clk     ( clk_out ),
                 .srst    ( srst_out ),

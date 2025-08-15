@@ -1,14 +1,17 @@
 class packet_descriptor_intf_driver #(
-    parameter type ADDR_T = logic,
-    parameter type META_T = logic
+    parameter type ADDR_T = bit,
+    parameter type META_T = bit
 ) extends std_verif_pkg::driver#(packet_descriptor#(ADDR_T,META_T));
 
     local static const string __CLASS_NAME = "packet_verif_pkg::packet_descriptor_intf_driver";
 
+    localparam int ADDR_WID = $bits(ADDR_T);
+    localparam int META_WID = $bits(META_T);
+
     //===================================
     // Interfaces
     //===================================
-    virtual packet_descriptor_intf #(ADDR_T,META_T) packet_descriptor_vif;
+    virtual packet_descriptor_intf #(.ADDR_WID(ADDR_WID), .META_WID(META_WID)) packet_descriptor_vif;
 
     //===================================
     // Methods
@@ -39,9 +42,7 @@ class packet_descriptor_intf_driver #(
 
     // Send packet descriptor transaction on packet descriptor interface
     // [[ implements std_verif_pkg::driver._send() ]]
-    protected task _send(
-            input packet_descriptor#(ADDR_T,META_T) transaction
-        );
+    protected task _send(input packet_descriptor#(ADDR_T,META_T) transaction);
 
         debug_msg($sformatf("Sending:\n%s", transaction.to_string()));
 

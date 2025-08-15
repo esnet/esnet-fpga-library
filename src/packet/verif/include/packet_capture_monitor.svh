@@ -185,27 +185,29 @@ class packet_capture_monitor #(parameter type META_T=bit) extends packet_monitor
             input  int                                        TIMEOUT=0,
             input  int                                       _poll_delay=0
         );
+        automatic bit __error = 1'b0;
+        automatic bit __timeout = 1'b0;
         trace_msg($sformatf("transact(command=%s)", _command.name()));
         fork
             begin
                 fork
                     begin
-                        _error = 1'b0;
-                        _transact(_command, _error);
+                        _transact(_command, __error);
                     end
                     begin
-                        _timeout = 1'b0;
                         if (TIMEOUT > 0) begin
                             wait_n(TIMEOUT);
-                            _timeout = 1'b1;
+                            __timeout = 1'b1;
                         end else wait (0);
                     end
                 join_any
                 disable fork;
             end
         join
-        assert (_error == 0)   else info_msg($sformatf("Error detected during '%s' transaction.", _command.name));
-        assert (_timeout == 0) else error_msg($sformatf("'%s' transaction timed out.", _command.name));
+        assert (__error == 0)   else info_msg($sformatf("Error detected during '%s' transaction.", _command.name));
+        assert (__timeout == 0) else error_msg($sformatf("'%s' transaction timed out.", _command.name));
+        _error = __error;
+        _timeout = __timeout;
         trace_msg("transact() Done.");
     endtask
 
@@ -217,12 +219,12 @@ class packet_capture_monitor #(parameter type META_T=bit) extends packet_monitor
     endtask
 
     task capture(output packet#(META_T) packet, output bit _error, output bit _timeout, input int TIMEOUT=0 );
-        automatic byte __data[];
-        automatic bit capture_error, capture_timeout;
-        automatic bit read_error, read_timeout;
-        automatic int size;
-        automatic META_T meta;
-        automatic bit err;
+        byte __data[];
+        bit capture_error, capture_timeout;
+        bit read_error, read_timeout;
+        int size;
+        META_T meta;
+        bit err;
         trace_msg("capture()");
         // Issue transaction
         transact(packet_capture_reg_pkg::COMMAND_CODE_CAPTURE, capture_error, capture_timeout, TIMEOUT, 100);
@@ -243,9 +245,9 @@ class packet_capture_monitor #(parameter type META_T=bit) extends packet_monitor
     // [[ implements packet_verif_pkg::packet_monitor.receive_raw ]]
     protected task _receive_raw(output byte data[], output META_T meta, output bit err);
         packet#(META_T) packet;
-        automatic bit error, timeout;
-        automatic int mem_window_size;
-        automatic int size;
+        bit error, timeout;
+        int mem_window_size;
+        int size;
         trace_msg("receive_raw()");
         // Issue transaction
         capture(packet, error, timeout, 0);

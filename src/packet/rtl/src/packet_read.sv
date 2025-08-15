@@ -31,18 +31,13 @@ module packet_read
     // -----------------------------
     localparam int  DATA_BYTE_WID = packet_if.DATA_BYTE_WID;
     localparam int  DATA_WID = DATA_BYTE_WID*8;
-    localparam type DATA_T = logic[0:DATA_BYTE_WID-1][7:0];
     localparam int  MTY_WID  = $clog2(DATA_BYTE_WID);
-    localparam type MTY_T    = logic[MTY_WID-1:0];
 
-    localparam type META_T = packet_if.META_T;
-    localparam int  META_WID = $bits(META_T);
+    localparam int  META_WID = packet_if.META_WID;
 
-    localparam type ADDR_T = descriptor_if.ADDR_T;
-    localparam int  ADDR_WID = $bits(ADDR_T);
+    localparam int  ADDR_WID = descriptor_if.ADDR_WID;
 
-    localparam type SIZE_T = descriptor_if.SIZE_T;
-    localparam int  MAX_PKT_SIZE = 2**$bits(SIZE_T);
+    localparam int  MAX_PKT_SIZE = descriptor_if.MAX_PKT_SIZE;
     localparam int  MAX_PKT_WORDS = MAX_PKT_SIZE % DATA_BYTE_WID == 0 ? MAX_PKT_SIZE / DATA_BYTE_WID : MAX_PKT_SIZE / DATA_BYTE_WID + 1;
     localparam int  WORD_CNT_WID = $clog2(MAX_PKT_WORDS);
 
@@ -50,7 +45,7 @@ module packet_read
     // Parameter checking
     // -----------------------------
     initial begin
-        std_pkg::param_check($bits(descriptor_if.META_T), META_WID, "descriptor_if.META_T");
+        std_pkg::param_check(descriptor_if.META_WID, META_WID, "descriptor_if.META_WID");
         std_pkg::param_check(mem_rd_if.DATA_WID, DATA_WID, "mem_rd_if.DATA_WID");
         std_pkg::param_check(mem_rd_if.ADDR_WID, ADDR_WID, "mem_rd_if.ADDR_WID");
     end
@@ -65,10 +60,10 @@ module packet_read
     } state_t;
 
     typedef struct packed {
-        logic  eop;
-        MTY_T  mty;
-        logic  err;
-        META_T meta;
+        logic                eop;
+        logic [MTY_WID-1:0]  mty;
+        logic                err;
+        logic [META_WID-1:0] meta;
     } ctxt_t;
 
     // -----------------------------
@@ -79,12 +74,12 @@ module packet_read
 
     logic desc_ack;
 
-    ADDR_T rd_ptr;
+    logic [ADDR_WID-1:0] rd_ptr;
 
     logic [WORD_CNT_WID-1:0] rd_word;
 
     logic [WORD_CNT_WID-1:0] last_word;
-    MTY_T                    last_word_mty;
+    logic [MTY_WID-1:0]      last_word_mty;
 
     logic prefetch_req;
     logic prefetch_rdy;
@@ -111,7 +106,7 @@ module packet_read
                 nxt_state = READY;
             end
             READY: begin
-                if (descriptor_if.valid) nxt_state = BUSY;
+                if (descriptor_if.vld) nxt_state = BUSY;
             end
             BUSY : begin
                 prefetch_req = 1'b1;
@@ -137,7 +132,7 @@ module packet_read
         else begin
             case (state)
                 READY :  begin
-                    if (descriptor_if.valid) rd_ptr <= descriptor_if.addr;
+                    if (descriptor_if.vld) rd_ptr <= descriptor_if.addr;
                 end
                 BUSY : begin
                     if (mem_rd_if.rdy && prefetch_rdy) rd_ptr <= rd_ptr + 1;
@@ -197,8 +192,8 @@ module packet_read
 
     // Read context
     fifo_small_ctxt  #(
-        .DATA_T  ( ctxt_t ),
-        .DEPTH   ( MAX_RD_LATENCY )
+        .DATA_WID ( $bits(ctxt_t) ),
+        .DEPTH    ( MAX_RD_LATENCY )
     ) i_fifo_small_ctxt (
         .clk,
         .srst,
@@ -217,9 +212,9 @@ module packet_read
             // Backpressure from receiver not supported; no prefetch needed
             assign prefetch_rdy = 1'b1;
 
-            logic     __valid;
-            DATA_T    __data;
-            ctxt_t    __ctxt_out;
+            logic                __valid;
+            logic [DATA_WID-1:0] __data;
+            ctxt_t               __ctxt_out;
 
             initial __valid = 1'b0;
             always @(posedge clk) begin
@@ -232,11 +227,11 @@ module packet_read
                 __ctxt_out <= ctxt_out;
             end
 
-            assign packet_if.valid = __valid;
+            assign packet_if.vld  = __valid;
             assign packet_if.data = __data;
-            assign packet_if.eop = __ctxt_out.eop;
-            assign packet_if.mty = __ctxt_out.mty;
-            assign packet_if.err = __ctxt_out.err;
+            assign packet_if.eop  = __ctxt_out.eop;
+            assign packet_if.mty  = __ctxt_out.mty;
+            assign packet_if.err  = __ctxt_out.err;
             assign packet_if.meta = __ctxt_out.meta;
 
         end : g__ignore_rdy
@@ -244,11 +239,11 @@ module packet_read
             // Backpressure from receiver supported; prefetch needed
             // (Local) typedefs
             typedef struct packed {
-                DATA_T data;
-                logic  eop;
-                MTY_T  mty;
-                logic  err;
-                META_T meta;
+                logic [DATA_WID-1:0] data;
+                logic                eop;
+                logic [MTY_WID-1:0]  mty;
+                logic                err;
+                logic [META_WID-1:0] meta;
             } prefetch_data_t;
             // (Local) signals
             prefetch_data_t __prefetch_wr_data;
@@ -263,7 +258,7 @@ module packet_read
 
             // Prefetch buffer (data)
             fifo_prefetch #(
-                .DATA_T          ( prefetch_data_t ),
+                .DATA_WID        ( $bits(prefetch_data_t) ),
                 .PIPELINE_DEPTH  ( MAX_RD_LATENCY )
             ) i_fifo_prefetch__data (
                 .clk,
@@ -273,7 +268,7 @@ module packet_read
                 .wr_data  ( __prefetch_wr_data ),
                 .oflow    ( __prefetch_oflow ),
                 .rd       ( packet_if.rdy ),
-                .rd_vld   ( packet_if.valid ),
+                .rd_vld   ( packet_if.vld ),
                 .rd_data  ( __prefetch_rd_data )
             );
 
@@ -287,7 +282,7 @@ module packet_read
     endgenerate
 
     // Drive event interface
-    assign event_if.evt = packet_if.valid && (packet_if.rdy || IGNORE_RDY) && packet_if.eop;
+    assign event_if.evt = packet_if.vld && (packet_if.rdy || IGNORE_RDY) && packet_if.eop;
     assign event_if.size = 0; // TODO
     assign event_if.status = STATUS_OK;
 

@@ -11,7 +11,10 @@ module packet_pipe #(
     localparam int DATA_BYTE_WID = from_tx.DATA_BYTE_WID;
     localparam int DATA_WID = DATA_BYTE_WID*8;
     localparam int MTY_WID = $clog2(DATA_BYTE_WID);
-    localparam int META_WID = $bits(from_tx.META_T);
+    localparam int META_WID = from_tx.META_WID;
+
+    // Parameter checking
+    packet_intf_parameter_check param_check (.*);
 
     // Payload struct (opaque to underlying bus_intf infrastructure)
     typedef struct packed {
@@ -21,19 +24,14 @@ module packet_pipe #(
         logic                eop;
         logic [DATA_WID-1:0] data;
     } payload_t;
-
-    // Parameter checking
-    initial begin
-        std_pkg::param_check(DATA_BYTE_WID, to_rx.DATA_BYTE_WID, "to_rx.DATA_BYTE_WID");
-        std_pkg::param_check($bits(to_rx.META_T), META_WID, "to_rx.META_T");
-    end
+    localparam int PAYLOAD_WID = $bits(payload_t);
 
     // Signals
     logic clk;
     assign clk = from_tx.clk;
 
-    bus_intf #(.DATA_T(payload_t)) bus_if__from_tx (.clk);
-    bus_intf #(.DATA_T(payload_t)) bus_if__to_rx   (.clk);
+    bus_intf #(.DATA_WID(PAYLOAD_WID)) bus_if__from_tx (.clk);
+    bus_intf #(.DATA_WID(PAYLOAD_WID)) bus_if__to_rx   (.clk);
 
     packet_to_bus_adapter i_packet_to_bus_adapter (
         .packet_if_from_tx ( from_tx ),
@@ -42,7 +40,7 @@ module packet_pipe #(
 
     generate
         begin : g__fwd
-            bus_pipe #(.DATA_T(payload_t), .STAGES(STAGES), .IGNORE_READY(IGNORE_RDY)) i_bus_pipe ( .from_tx ( bus_if__from_tx ), .to_rx ( bus_if__to_rx ));
+            bus_pipe #(.STAGES(STAGES), .IGNORE_READY(IGNORE_RDY)) i_bus_pipe ( .from_tx ( bus_if__from_tx ), .to_rx ( bus_if__to_rx ));
         end : g__fwd
     endgenerate
 

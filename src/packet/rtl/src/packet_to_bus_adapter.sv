@@ -10,7 +10,7 @@ module packet_to_bus_adapter (
     localparam int DATA_BYTE_WID = packet_if_from_tx.DATA_BYTE_WID;
     localparam int DATA_WID = DATA_BYTE_WID*8;
     localparam int MTY_WID = $clog2(DATA_BYTE_WID);
-    localparam int META_WID = $bits(packet_if_from_tx.META_T);
+    localparam int META_WID = packet_if_from_tx.META_WID;
 
     // Payload struct (opaque to underlying bus_intf infrastructure)
     typedef struct packed {
@@ -23,18 +23,16 @@ module packet_to_bus_adapter (
 
     // Parameter checking
     initial begin
-        std_pkg::param_check($bits(bus_if_to_rx.DATA_T), $bits(payload_t), "bus_if_to_rx.DATA_T");
+        std_pkg::param_check(bus_if_to_rx.DATA_WID, $bits(payload_t), "bus_if_to_rx.DATA_WID");
     end
 
     // Signals
     payload_t payload;
-    logic     srst;
     logic     valid;
     logic     ready;
 
     // Terminate packet interface
-    assign srst  = packet_if_from_tx.srst;
-    assign valid = packet_if_from_tx.valid;
+    assign valid = packet_if_from_tx.vld;
     assign payload.data = packet_if_from_tx.data;
     assign payload.eop  = packet_if_from_tx.eop;
     assign payload.mty  = packet_if_from_tx.mty;
@@ -43,7 +41,6 @@ module packet_to_bus_adapter (
     assign packet_if_from_tx.rdy  = ready;
 
     // Drive bus interface
-    assign bus_if_to_rx.srst  = srst;
     assign bus_if_to_rx.valid = valid;
     assign bus_if_to_rx.data  = payload;
     assign ready = bus_if_to_rx.ready;
