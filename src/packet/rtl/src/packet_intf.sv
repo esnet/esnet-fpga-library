@@ -160,14 +160,14 @@ module packet_intf_connector (
     packet_intf.tx to_rx
 );
     // Parameters
-    localparam int DATA_BYTE_WID = $bits(from_tx.DATA_BYTE_WID);
+    localparam int DATA_BYTE_WID = from_tx.DATA_BYTE_WID;
     localparam int DATA_WID = DATA_BYTE_WID * 8;
     localparam int MTY_WID = $clog2(DATA_BYTE_WID);
     localparam int META_WID = $bits(from_tx.META_T);
 
     // Parameter checking
     initial begin
-        std_pkg::param_check($bits(to_rx.DATA_BYTE_WID), DATA_BYTE_WID, "to_rx.DATA_BYTE_WID");
+        std_pkg::param_check(to_rx.DATA_BYTE_WID, DATA_BYTE_WID, "to_rx.DATA_BYTE_WID");
         std_pkg::param_check($bits(to_rx.META_T), META_WID, "to_rx.META_T");
     end
 
