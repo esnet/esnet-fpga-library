@@ -41,7 +41,7 @@ module mem_ram_sp_unit_test #(
     //===================================
     logic clk;
 
-    mem_intf #(.ADDR_T(ADDR_T), .DATA_T(DATA_T)) mem_if (.clk(clk));
+    mem_intf #(.ADDR_WID(ADDR_WID), .DATA_WID(DATA_WID)) mem_if (.clk(clk));
 
     mem_ram_sp #(
         .SPEC           ( SPEC ),

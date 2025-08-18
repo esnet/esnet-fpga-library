@@ -34,25 +34,22 @@ module mem_ram_tdp_sync_wrapper #(
         OPT_MODE: mem_pkg::OPT_MODE_TIMING
     };
 
-    localparam type ADDR_T = logic[ADDR_WID-1:0];
-    localparam type DATA_T = logic[DATA_WID-1:0];
-
     // Interfaces
-    mem_intf #(.ADDR_T(ADDR_T), .DATA_T(DATA_T)) mem_if_0 (.clk(clk));
-    mem_intf #(.ADDR_T(ADDR_T), .DATA_T(DATA_T)) mem_if_1 (.clk(clk));
+    mem_intf #(.ADDR_WID(ADDR_WID), .DATA_WID(DATA_WID)) mem_if_0 (.clk(clk));
+    mem_intf #(.ADDR_WID(ADDR_WID), .DATA_WID(DATA_WID)) mem_if_1 (.clk(clk));
 
     // Signals
-    logic  mem_if_0__rst;
-    logic  mem_if_0__req;
-    logic  mem_if_0__wr;
-    ADDR_T mem_if_0__addr;
-    DATA_T mem_if_0__wr_data;
+    logic                mem_if_0__rst;
+    logic                mem_if_0__req;
+    logic                mem_if_0__wr;
+    logic [ADDR_WID-1:0] mem_if_0__addr;
+    logic [DATA_WID-1:0] mem_if_0__wr_data;
 
     logic  mem_if_1__rst;
     logic  mem_if_1__req;
     logic  mem_if_1__wr;
-    ADDR_T mem_if_1__addr;
-    DATA_T mem_if_1__wr_data;
+    logic [ADDR_WID-1:0] mem_if_1__addr;
+    logic [DATA_WID-1:0] mem_if_1__wr_data;
 
     // Port 0
     always_ff @(posedge clk) begin

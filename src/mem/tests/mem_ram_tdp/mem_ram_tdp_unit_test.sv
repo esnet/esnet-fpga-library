@@ -44,8 +44,8 @@ module mem_ram_tdp_unit_test #(
     logic clk_0;
     logic clk_1;
 
-    mem_intf #(.ADDR_T(ADDR_T), .DATA_T(DATA_T)) mem_if_0 (.clk(clk_0));
-    mem_intf #(.ADDR_T(ADDR_T), .DATA_T(DATA_T)) mem_if_1 (.clk(clk_1));
+    mem_intf #(.ADDR_WID(ADDR_WID), .DATA_WID(DATA_WID)) mem_if_0 (.clk(clk_0));
+    mem_intf #(.ADDR_WID(ADDR_WID), .DATA_WID(DATA_WID)) mem_if_1 (.clk(clk_1));
 
     mem_ram_tdp #(
         .SPEC           ( SPEC ),

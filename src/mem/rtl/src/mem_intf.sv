@@ -1,20 +1,20 @@
 interface mem_intf #(
-    parameter type ADDR_T = logic,
-    parameter type DATA_T = logic
+    parameter int ADDR_WID = 1,
+    parameter int DATA_WID = 1
 ) (
-    input wire logic clk
+    input logic clk
 );
 
     // Signals
-    wire logic  rst;
-    wire logic  rdy;
-    wire logic  req;
-    wire logic  wr;
-    wire ADDR_T addr;
-    wire DATA_T wr_data;
-    wire logic  wr_ack;
-    wire DATA_T rd_data;
-    wire logic  rd_ack;
+    logic                rst;
+    logic                rdy;
+    logic                req;
+    logic                wr;
+    logic [ADDR_WID-1:0] addr;
+    logic [DATA_WID-1:0] wr_data;
+    logic                wr_ack;
+    logic [DATA_WID-1:0] rd_data;
+    logic                rd_ack;
 
     // Modports
     modport controller(
@@ -62,7 +62,7 @@ interface mem_intf #(
     endtask
 
     task send_req(
-            input ADDR_T _addr
+            input bit [ADDR_WID-1:0] _addr
         );
         cb.req <= 1'b1;
         cb.addr <= _addr;
@@ -72,8 +72,8 @@ interface mem_intf #(
     endtask
 
     task write(
-            input ADDR_T _addr,
-            input DATA_T _data
+            input bit [ADDR_WID-1:0] _addr,
+            input bit [DATA_WID-1:0] _data
         );
         cb.wr_data <= _data;
         cb.wr <= 1'b1;
@@ -84,8 +84,8 @@ interface mem_intf #(
     endtask
 
     task read(
-            input  ADDR_T _addr,
-            output DATA_T _data
+            input  bit [ADDR_WID-1:0] _addr,
+            output bit [DATA_WID-1:0] _data
         );
         cb.wr <= 1'b0;
         send_req(_addr);
