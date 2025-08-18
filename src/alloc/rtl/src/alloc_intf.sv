@@ -1,29 +1,28 @@
 interface alloc_intf #(
-    parameter int  BUFFER_SIZE = 1,
-    parameter type PTR_T = logic,
-    parameter type META_T = logic
+    parameter int BUFFER_SIZE = 1,
+    parameter int PTR_WID = 1,
+    parameter int META_WID = 1
 ) (
-    input wire logic clk,
-    input wire logic srst
+    input logic clk,
+    input logic srst = 1'b0
 );
 
     // Parameters
     localparam int  SIZE_WID = $clog2(BUFFER_SIZE);
-    localparam type SIZE_T = logic[SIZE_WID-1:0];
     
     // Signals
-    wire logic  req;
-    wire logic  rdy;
-    wire PTR_T  ptr;
-    wire PTR_T  nxt_ptr;
-    wire logic  valid;
-    wire logic  ack;
-    wire logic  eof;
-    wire SIZE_T size;
-    wire META_T meta;
-    wire logic  err;
+    logic                 req;
+    logic                 rdy;
+    logic [PTR_WID-1:0]   ptr;
+    logic [PTR_WID-1:0]   nxt_ptr;
+    logic                 vld;
+    logic                 ack;
+    logic                 eof;
+    logic [SIZE_WID-1:0]  size;
+    logic [META_WID-1:0]  meta;
+    logic                 err;
     
-    var  logic  sof;
+    logic                 sof;
 
     // Modports
     modport store_tx(
@@ -33,7 +32,7 @@ interface alloc_intf #(
         input  rdy,
         input  ptr,
         output nxt_ptr,
-        output valid,
+        output vld,
         input  ack,
         output eof,
         output size,
@@ -49,7 +48,7 @@ interface alloc_intf #(
         output rdy,
         output ptr,
         input  nxt_ptr,
-        input  valid,
+        input  vld,
         output ack,
         input  eof,
         input  size,
@@ -65,7 +64,7 @@ interface alloc_intf #(
         input  rdy,
         output ptr,
         input  nxt_ptr,
-        input  valid,
+        input  vld,
         output ack,
         input  eof,
         input  size,
@@ -81,7 +80,7 @@ interface alloc_intf #(
         output rdy,
         input  ptr,
         output nxt_ptr,
-        output valid,
+        output vld,
         input  ack,
         output eof,
         output size,
@@ -94,23 +93,23 @@ interface alloc_intf #(
     initial sof = 1'b1;
     always @(posedge clk) begin
         if (srst) sof <= 1'b1;
-        else if (valid && ack && eof) sof <= 1'b1;
-        else if (valid && ack) sof <= 1'b0;
+        else if (vld && ack && eof) sof <= 1'b1;
+        else if (vld && ack) sof <= 1'b0;
     end
 
     clocking cb_store @(posedge clk);
         default input #1step output #1step;
-        output req, valid, nxt_ptr, eof, size, meta, err;
+        output req, vld, nxt_ptr, eof, size, meta, err;
         input  rdy, ptr, ack;
     endclocking
 
     clocking cb_load @(posedge clk);
         default input #1step output #1step;
         output req, ptr, ack;
-        input  rdy, nxt_ptr, valid, eof, size, meta, err;
+        input  rdy, nxt_ptr, vld, eof, size, meta, err;
     endclocking
 
-    task store_req(output PTR_T ptr);
+    task store_req(output bit [PTR_WID-1:0] ptr);
         cb_store.req <= 1'b1;
         @(cb_store);
         wait(cb_store.rdy);
@@ -118,8 +117,8 @@ interface alloc_intf #(
         cb_store.req <= 1'b0;
     endtask
 
-    task store(input PTR_T ptr, input logic eof=1'b0, input SIZE_T size=0, input META_T meta=0, input logic err=1'b0);
-        cb_store.valid <= 1'b1;
+    task store(input bit [PTR_WID-1:0] ptr, input bit eof=1'b0, input bit [SIZE_WID-1:0] size=0, input bit [META_WID-1:0] meta=0, input bit err=1'b0);
+        cb_store.vld <= 1'b1;
         cb_store.nxt_ptr <= ptr;
         cb_store.eof   <= eof;
         cb_store.size  <= size;
@@ -127,10 +126,10 @@ interface alloc_intf #(
         cb_store.err   <= err;
         @(cb_store);
         wait(cb_store.ack);
-        cb_store.valid <= 1'b0;
+        cb_store.vld <= 1'b0;
     endtask
 
-    task load_req(input PTR_T ptr);
+    task load_req(input bit [PTR_WID-1:0] ptr);
         cb_load.req <= 1'b1;
         cb_load.ptr <= ptr;
         @(cb_load);
@@ -138,10 +137,10 @@ interface alloc_intf #(
         cb_load.req <= 1'b0;
     endtask
 
-    task load(output PTR_T ptr, output logic eof, output SIZE_T size, output META_T meta, output logic err);
+    task load(output bit [PTR_WID-1:0] ptr, output bit eof, output bit [SIZE_WID-1:0] size, output bit [META_WID-1:0] meta, output bit err);
         cb_load.ack <= 1'b1;
         @(cb_load);
-        wait(cb_load.valid);
+        wait(cb_load.vld);
         ptr = cb_load.nxt_ptr;
         eof = cb_load.eof;
         size = cb_load.size;

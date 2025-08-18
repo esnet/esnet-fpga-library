@@ -3,7 +3,7 @@
 //
 // See alloc_bv_core module for details.
 module alloc_axil_bv #(
-    parameter type PTR_T = logic,
+    parameter int  PTR_WID = 1,
     parameter int  ALLOC_Q_DEPTH = 64,   // Scan process finds unallocated pointers and fills queue;
                                          // scan is a 'background' task and is 'slow', and therefore
                                          // allocation requests can be received faster than they can
@@ -16,31 +16,29 @@ module alloc_axil_bv #(
                                          // behaviour of the deallocator
     parameter bit  DEALLOC_FC = 1'b1,    // Can flow control dealloc interface,
                                          // i.e. requester waits on dealloc_rdy
-    // Derived parameters (don't override)
-    parameter int  PTR_WID = $bits(PTR_T),
     // Simulation-only
     parameter bit  SIM__FAST_INIT = 1,    // Optimize sim time by performing fast memory init
     parameter bit  SIM__RAM_MODEL = 0
 ) (
     // Clock/reset
-    input logic            clk,
-    input logic            srst,
+    input logic                clk,
+    input logic                srst,
 
     // Control
-    input  logic           en,
+    input  logic               en,
 
     // Status
-    output logic           init_done,
+    output logic               init_done,
 
     // Allocate interface
-    input  logic           alloc_req,
-    output logic           alloc_rdy,
-    output PTR_T           alloc_ptr,
+    input  logic               alloc_req,
+    output logic               alloc_rdy,
+    output logic [PTR_WID-1:0] alloc_ptr,
 
     // Deallocate interface
-    input  logic           dealloc_req,
-    output logic           dealloc_rdy,
-    input  PTR_T           dealloc_ptr,
+    input  logic               dealloc_req,
+    output logic               dealloc_rdy,
+    input  logic [PTR_WID-1:0] dealloc_ptr,
 
     // AXI-L control/monitoring
     axi4l_intf.peripheral  axil_if
@@ -66,7 +64,7 @@ module alloc_axil_bv #(
     // BV allocator instantiation
     // -----------------------------
     alloc_bv            #(
-        .PTR_T           ( PTR_T ),
+        .PTR_WID         ( PTR_WID ),
         .ALLOC_Q_DEPTH   ( ALLOC_Q_DEPTH ),
         .ALLOC_FC        ( ALLOC_FC ),
         .DEALLOC_Q_DEPTH ( DEALLOC_Q_DEPTH ),
@@ -87,7 +85,7 @@ module alloc_axil_bv #(
     // -----------------------------
     // AXI-L control/monitor core
     // -----------------------------
-    alloc_axil_core #(PTR_T) i_alloc_axil_core (
+    alloc_axil_core #(.PTR_WID(PTR_WID)) i_alloc_axil_core (
         .*
     );
 

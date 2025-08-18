@@ -46,7 +46,7 @@ module alloc_bv_unit_test #(
     alloc_mon_intf mon_if (.clk);
 
     alloc_bv #(
-        .PTR_T          ( PTR_T ),
+        .PTR_WID        ( PTR_WID ),
         .ALLOC_FC       ( ALLOC_FC ),
         .DEALLOC_FC     ( DEALLOC_FC ),
         .SIM__FAST_INIT ( 0 )
