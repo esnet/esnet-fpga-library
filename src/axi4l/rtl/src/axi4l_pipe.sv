@@ -24,20 +24,24 @@ module axi4l_pipe #(
         logic [2:0] prot;
         logic [ADDR_WID-1:0] addr;
     } ax_payload_t;
+    localparam AX_PAYLOAD_WID = $bits(ax_payload_t);
 
     typedef struct packed {
         logic [DATA_WID-1:0] data;
         logic [STRB_WID-1:0] strb;
     } w_payload_t;
+    localparam W_PAYLOAD_WID = $bits(w_payload_t);
 
     typedef struct packed {
         resp_t resp;
     } b_payload_t;
+    localparam B_PAYLOAD_WID = $bits(b_payload_t);
 
     typedef struct packed {
         logic [DATA_WID-1:0] data;
         resp_t resp;
     } r_payload_t;
+    localparam R_PAYLOAD_WID = $bits(r_payload_t);
 
     // Parameter checking
     initial begin
@@ -49,19 +53,22 @@ module axi4l_pipe #(
 
     // Signals
     logic clk;
+    logic srst;
+
     assign clk = from_controller.aclk;
+    assign srst = !from_controller.aresetn;
 
     // Bus interfaces (one for each of the AXI4-L channels)
-    bus_intf #(.DATA_T(ax_payload_t)) aw_bus_if__from_controller (.clk);
-    bus_intf #(.DATA_T(ax_payload_t)) aw_bus_if__to_peripheral   (.clk);
-    bus_intf #(.DATA_T(w_payload_t))  w_bus_if__from_controller  (.clk);
-    bus_intf #(.DATA_T(w_payload_t))  w_bus_if__to_peripheral    (.clk);
-    bus_intf #(.DATA_T(b_payload_t))  b_bus_if__from_controller  (.clk);
-    bus_intf #(.DATA_T(b_payload_t))  b_bus_if__to_peripheral    (.clk);
-    bus_intf #(.DATA_T(ax_payload_t)) ar_bus_if__from_controller (.clk);
-    bus_intf #(.DATA_T(ax_payload_t)) ar_bus_if__to_peripheral   (.clk);
-    bus_intf #(.DATA_T(r_payload_t))  r_bus_if__from_controller  (.clk);
-    bus_intf #(.DATA_T(r_payload_t))  r_bus_if__to_peripheral    (.clk);
+    bus_intf #(.DATA_WID(AX_PAYLOAD_WID)) aw_bus_if__from_controller (.clk, .srst);
+    bus_intf #(.DATA_WID(AX_PAYLOAD_WID)) aw_bus_if__to_peripheral   (.clk, .srst);
+    bus_intf #(.DATA_WID(W_PAYLOAD_WID))  w_bus_if__from_controller  (.clk, .srst);
+    bus_intf #(.DATA_WID(W_PAYLOAD_WID))  w_bus_if__to_peripheral    (.clk, .srst);
+    bus_intf #(.DATA_WID(B_PAYLOAD_WID))  b_bus_if__from_controller  (.clk, .srst);
+    bus_intf #(.DATA_WID(B_PAYLOAD_WID))  b_bus_if__to_peripheral    (.clk, .srst);
+    bus_intf #(.DATA_WID(AX_PAYLOAD_WID)) ar_bus_if__from_controller (.clk, .srst);
+    bus_intf #(.DATA_WID(AX_PAYLOAD_WID)) ar_bus_if__to_peripheral   (.clk, .srst);
+    bus_intf #(.DATA_WID(R_PAYLOAD_WID))  r_bus_if__from_controller  (.clk, .srst);
+    bus_intf #(.DATA_WID(R_PAYLOAD_WID))  r_bus_if__to_peripheral    (.clk, .srst);
 
     axi4l_to_bus_adapter i_axi4l_to_bus_adapter (
         .axi4l_if  ( from_controller ),
@@ -74,13 +81,13 @@ module axi4l_pipe #(
 
     generate
         begin : g__fwd
-            bus_pipe #(.DATA_T(ax_payload_t), .STAGES(STAGES)) i_bus_pipe__aw ( .from_tx ( aw_bus_if__from_controller ), .to_rx ( aw_bus_if__to_peripheral ));
-            bus_pipe #(.DATA_T(w_payload_t),  .STAGES(STAGES)) i_bus_pipe__w  ( .from_tx ( w_bus_if__from_controller ),  .to_rx ( w_bus_if__to_peripheral ));
-            bus_pipe #(.DATA_T(ax_payload_t), .STAGES(STAGES)) i_bus_pipe__ar ( .from_tx ( ar_bus_if__from_controller ), .to_rx ( ar_bus_if__to_peripheral ));
+            bus_pipe #(.STAGES(STAGES)) i_bus_pipe__aw ( .from_tx ( aw_bus_if__from_controller ), .to_rx ( aw_bus_if__to_peripheral ));
+            bus_pipe #(.STAGES(STAGES)) i_bus_pipe__w  ( .from_tx ( w_bus_if__from_controller ),  .to_rx ( w_bus_if__to_peripheral ));
+            bus_pipe #(.STAGES(STAGES)) i_bus_pipe__ar ( .from_tx ( ar_bus_if__from_controller ), .to_rx ( ar_bus_if__to_peripheral ));
         end : g__fwd
         begin : g__rev
-            bus_pipe #(.DATA_T(b_payload_t),  .STAGES(STAGES)) i_bus_pipe__b  ( .from_tx ( b_bus_if__to_peripheral ),  .to_rx ( b_bus_if__from_controller ));
-            bus_pipe #(.DATA_T(r_payload_t),  .STAGES(STAGES)) i_bus_pipe__r  ( .from_tx ( r_bus_if__to_peripheral ),  .to_rx ( r_bus_if__from_controller ));
+            bus_pipe #(.STAGES(STAGES)) i_bus_pipe__b  ( .from_tx ( b_bus_if__to_peripheral ),  .to_rx ( b_bus_if__from_controller ));
+            bus_pipe #(.STAGES(STAGES)) i_bus_pipe__r  ( .from_tx ( r_bus_if__to_peripheral ),  .to_rx ( r_bus_if__from_controller ));
         end : g__rev
     endgenerate
 

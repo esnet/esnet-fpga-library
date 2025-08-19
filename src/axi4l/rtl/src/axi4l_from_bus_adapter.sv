@@ -46,11 +46,11 @@ module axi4l_from_bus_adapter (
 
     // Parameter checking
     initial begin
-        std_pkg::param_check($bits(aw_bus_if.DATA_T), $bits(ax_payload_t), "aw_bus_if.DATA_T");
-        std_pkg::param_check($bits(w_bus_if.DATA_T),  $bits(w_payload_t),  "w_bus_if.DATA_T");
-        std_pkg::param_check($bits(ar_bus_if.DATA_T), $bits(ax_payload_t), "ar_bus_if.DATA_T");
-        std_pkg::param_check($bits(b_bus_if.DATA_T),  $bits(b_payload_t),  "b_bus_if.DATA_T");
-        std_pkg::param_check($bits(r_bus_if.DATA_T),  $bits(r_payload_t),  "r_bus_if.DATA_T");
+        std_pkg::param_check(aw_bus_if.DATA_WID, $bits(ax_payload_t), "aw_bus_if.DATA_WID");
+        std_pkg::param_check(w_bus_if.DATA_WID,  $bits(w_payload_t),  "w_bus_if.DATA_WID");
+        std_pkg::param_check(ar_bus_if.DATA_WID, $bits(ax_payload_t), "ar_bus_if.DATA_WID");
+        std_pkg::param_check(b_bus_if.DATA_WID,  $bits(b_payload_t),  "b_bus_if.DATA_WID");
+        std_pkg::param_check(r_bus_if.DATA_WID,  $bits(r_payload_t),  "r_bus_if.DATA_WID");
     end
 
     // Signals
@@ -89,7 +89,6 @@ module axi4l_from_bus_adapter (
     assign w_payload = w_bus_if.data;
     assign w_bus_if.ready = w_ready;
 
-    assign b_bus_if.srst = srst;
     assign b_bus_if.valid = b_valid;
     assign b_bus_if.data = b_payload;
     assign b_ready = b_bus_if.ready;
@@ -98,7 +97,6 @@ module axi4l_from_bus_adapter (
     assign ar_payload = ar_bus_if.data;
     assign ar_bus_if.ready = ar_ready;
 
-    assign r_bus_if.srst = srst;
     assign r_bus_if.valid = r_valid;
     assign r_bus_if.data = r_payload;
     assign r_ready = r_bus_if.ready;
