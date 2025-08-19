@@ -8,9 +8,7 @@
 //   closely-spaced transitions to be missed.
 // - the rdy_in output in the input clock domain can be used to
 //   monitor readiness and detect possible missed transitions.
-module sync_level
-    import sync_pkg::*;
-#(
+module sync_level #(
     parameter logic RST_VALUE = 1'bx
 ) (
     // Input clock domain
@@ -75,7 +73,7 @@ module sync_level
 
     // Synchronize input level to output
     sync_meta     #(
-        .DATA_T    ( logic ),
+        .DATA_WID  ( 1 ),
         .RST_VALUE ( RST_VALUE )
     ) i_sync_meta__lvl_in (
         .clk_in    ( clk_in ),
@@ -88,7 +86,7 @@ module sync_level
 
     // Synchronize output level to input
     sync_meta     #(
-        .DATA_T    ( logic ),
+        .DATA_WID  ( 1 ),
         .RST_VALUE ( RST_VALUE )
     ) i_sync_meta__lvl_out (
         .clk_in    ( clk_out ),

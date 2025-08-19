@@ -9,7 +9,7 @@ module sync_ctr_wrapper
 );
 
     sync_ctr #(
-        .DATA_T    ( logic[7:0] ),
+        .CNT_WID   ( 8 ),
         .RST_VALUE ( '0 )
     ) i_sync_ctr   (
         .clk_in    ( clk_in ),

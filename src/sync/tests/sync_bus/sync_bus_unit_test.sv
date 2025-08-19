@@ -7,7 +7,7 @@ module sync_bus_unit_test;
     svunit_testcase svunit_ut;
 
     localparam DATA_WID = 32;
-    localparam type DATA_T = logic[DATA_WID-1:0];
+    localparam type DATA_T = bit[DATA_WID-1:0];
     localparam int RST_VALUE = 32'h01234567;
 
     //===================================
@@ -25,7 +25,7 @@ module sync_bus_unit_test;
     DATA_T data_out;
 
     sync_bus #(
-        .DATA_T    ( DATA_T ),
+        .DATA_WID  ( DATA_WID ),
         .RST_VALUE ( RST_VALUE )
     ) DUT (.*);
 

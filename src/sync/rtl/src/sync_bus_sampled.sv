@@ -10,18 +10,18 @@
 module sync_bus_sampled
     import sync_pkg::*;
 #(
-    parameter type     DATA_T = logic,
-    parameter DATA_T   RST_VALUE = {$bits(DATA_T){1'bx}},
-    parameter handshake_mode_t HANDSHAKE_MODE = HANDSHAKE_MODE_4PHASE
+    parameter int                  DATA_WID = 1,
+    parameter logic [DATA_WID-1:0] RST_VALUE = 'x,
+    parameter handshake_mode_t     HANDSHAKE_MODE = HANDSHAKE_MODE_4PHASE
 ) (
     // Input clock domain
-    input  logic  clk_in,
-    input  logic  rst_in,
-    input  DATA_T data_in,
+    input  logic                clk_in,
+    input  logic                rst_in,
+    input  logic [DATA_WID-1:0] data_in,
     // Output clock domain
-    input  logic  clk_out,
-    input  logic  rst_out,
-    output DATA_T data_out
+    input  logic                clk_out,
+    input  logic                rst_out,
+    output logic [DATA_WID-1:0] data_out
 );
     // Bus synchronizer (two-way handshake)
     // - request is processed only when synchronizer is ready
@@ -30,7 +30,7 @@ module sync_bus_sampled
     //   happens as fast as possible given the two-way
     //   synchronizer delays
     sync_bus #(
-        .DATA_T         ( DATA_T ),
+        .DATA_WID       ( DATA_WID ),
         .RST_VALUE      ( RST_VALUE ),
         .HANDSHAKE_MODE ( HANDSHAKE_MODE )
     ) i_sync_bus  (
