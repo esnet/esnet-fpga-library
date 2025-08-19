@@ -20,7 +20,8 @@ module fifo_async_unit_test #(
     //===================================
     // Parameters
     //===================================
-    localparam type DATA_T = bit[31:0];
+    localparam int  DATA_WID = 32;
+    localparam type DATA_T = bit[DATA_WID-1:0];
 
     //===================================
     // Derived parameters
@@ -47,27 +48,25 @@ module fifo_async_unit_test #(
     logic   wr_rdy;
     logic   wr;
     DATA_T  wr_data;
+    count_t wr_count;
+    logic   wr_full;
+    logic   wr_oflow;
 
     logic   rd_clk;
     logic   rd_srst;
     logic   rd;
     logic   rd_ack;
     DATA_T  rd_data;
-
-    logic   full;
-    logic   empty;
-    count_t wr_count;
+    logic   rd_empty;
     count_t rd_count;
-
-    logic   oflow;
-    logic   uflow;
+    logic   rd_uflow;
 
     localparam FIFO_ASYNC_LATENCY = 6;  // 1 (bin2gray) + 3 (sync) + 1 (gray2bin) + 1 (phase delta)
 
-    fifo_async #(
-        .DATA_T  ( DATA_T ),
-        .DEPTH   ( DEPTH ),
-        .FWFT    ( FWFT )
+    fifo_async   #(
+        .DATA_WID ( DATA_WID ),
+        .DEPTH    ( DEPTH ),
+        .FWFT     ( FWFT )
     ) DUT (.*);
 
     //===================================
@@ -77,8 +76,8 @@ module fifo_async_unit_test #(
 
     std_reset_intf reset_if (.clk(wr_clk));
 
-    bus_intf #(DATA_T) wr_if (.clk(wr_clk));
-    bus_intf #(DATA_T) rd_if (.clk(rd_clk));
+    bus_intf #(DATA_WID) wr_if (.clk(wr_clk), .srst(wr_srst));
+    bus_intf #(DATA_WID) rd_if (.clk(rd_clk), .srst(rd_srst));
 
     // Assign reset interface
     assign wr_srst = reset_if.reset;
@@ -86,9 +85,6 @@ module fifo_async_unit_test #(
 
     initial reset_if.ready = 1'b0;
     always @(posedge wr_clk) reset_if.ready <= ~wr_srst;
-
-    assign wr_if.srst = wr_srst;
-    assign rd_if.srst = rd_srst;
 
     // Assign data interfaces
     assign wr = wr_if.valid;
@@ -101,12 +97,12 @@ module fifo_async_unit_test #(
 
     clocking cb_wr @(posedge wr_clk);
         default input #1step output #1step;
-        input full, oflow;
+        input wr_full, wr_oflow;
     endclocking
 
     clocking cb_rd @(posedge rd_clk);
         default input #1step output #1step;
-        input empty, uflow;
+        input rd_empty, rd_uflow;
     endclocking
 
     // Generate clocks
@@ -213,7 +209,7 @@ module fifo_async_unit_test #(
             env.driver.send(exp_transaction);
 
             // Receive transaction
-            if (!FWFT) wait(!empty);
+            if (!FWFT) wait(!cb_rd.rd_empty);
             env.monitor.receive(got_transaction);
 
             // Compare transactions
@@ -246,7 +242,7 @@ module fifo_async_unit_test #(
                 env.driver.send(exp_transaction);
                 @(cb_wr);
 
-                if (!FWFT) wait(!empty);
+                if (!FWFT) wait(!cb_rd.rd_empty);
                 env.monitor.receive(got_transaction);
                 match = exp_transaction.compare(got_transaction, msg);
                 `FAIL_UNLESS_LOG( match == 1, msg );
@@ -288,7 +284,7 @@ module fifo_async_unit_test #(
             // Read back all FIFO entries and compare.
             for (int i = 0; i < (__DEPTH); i++) begin
                 exp_transaction = new("exp_transaction", i);
-                if (!FWFT) wait(!empty);
+                if (!FWFT) wait(!cb_rd.rd_empty);
                 env.monitor.receive(got_transaction);
 
                 match = exp_transaction.compare(got_transaction, msg);
@@ -320,7 +316,7 @@ module fifo_async_unit_test #(
                 exp_transaction = new("exp_transaction", i);
                 env.driver.send(exp_transaction);
 
-                if (!FWFT) wait(!empty);
+                if (!FWFT) wait(!cb_rd.rd_empty);
                 env.monitor.receive(got_transaction);
                 match = exp_transaction.compare(got_transaction, msg);
                 `FAIL_UNLESS_LOG( match == 1, msg );
@@ -362,7 +358,7 @@ module fifo_async_unit_test #(
             // Read back all FIFO entries and compare.
             for (int i = 0; i < __DEPTH; i++) begin
                 exp_transaction = new("exp_transaction", i);
-                if (!FWFT) wait(!empty);
+                if (!FWFT) wait(!cb_rd.rd_empty);
                 env.monitor.receive(got_transaction);
 
                 match = exp_transaction.compare(got_transaction, msg);
@@ -388,7 +384,7 @@ module fifo_async_unit_test #(
             std_verif_pkg::raw_transaction#(DATA_T) exp_transaction;
 
             // Empty should be asserted immediately following init
-            `FAIL_UNLESS(cb_rd.empty == 1);
+            `FAIL_UNLESS(cb_rd.rd_empty == 1);
 
             // Send transaction
             exp_transaction = new("exp_transaction", exp_item);
@@ -398,14 +394,14 @@ module fifo_async_unit_test #(
             // Check that empty is deasserted immediately (once write transaction is registered by FIFO)
             rd_if._wait(FIFO_ASYNC_LATENCY);
             if (FWFT) rd_if._wait(MEM_RD_LATENCY);
-            `FAIL_UNLESS(cb_rd.empty == 0);
+            `FAIL_UNLESS(cb_rd.rd_empty == 0);
 
             // Receive transaction
             env.monitor.receive(got_transaction);
 
             // Check that empty is reasserted on next cycle
             @(cb_rd);
-            `FAIL_UNLESS(cb_rd.empty == 1);
+            `FAIL_UNLESS(cb_rd.rd_empty == 1);
         `SVTEST_END
 
 
@@ -428,12 +424,12 @@ module fifo_async_unit_test #(
             exp_transaction = new("exp_transaction", exp_item);
 
             // Full should be deasserted immediately following init
-            `FAIL_UNLESS(cb_wr.full == 0);
+            `FAIL_UNLESS(cb_wr.wr_full == 0);
 
             // Send DEPTH transactions
             for (int i = 0; i < __DEPTH; i++) begin
-                if (FWFT && cb_wr.full) repeat (MEM_RD_LATENCY) @(cb_wr);
-                `FAIL_UNLESS(cb_wr.full == 0);
+                if (FWFT && cb_wr.wr_full) repeat (MEM_RD_LATENCY) @(cb_wr);
+                `FAIL_UNLESS(cb_wr.wr_full == 0);
                 env.driver.send(exp_transaction);
             end
 
@@ -441,18 +437,18 @@ module fifo_async_unit_test #(
             // to account for possiblity of additional entries in read pipeline
             if (FWFT) begin
                 for (int i = 0; i < MEM_RD_LATENCY-1; i++) begin
-                    if (full) repeat (MEM_RD_LATENCY) @(cb_wr);
-                    if (full) break;
+                    if (cb_wr.wr_full) repeat (MEM_RD_LATENCY) @(cb_wr);
+                    if (cb_wr.wr_full) break;
                     env.driver.send(exp_transaction);
                 end
             end
 
             // Full should be asserted
             @(cb_wr);
-            `FAIL_UNLESS(cb_wr.full == 1);
+            `FAIL_UNLESS(cb_wr.wr_full == 1);
 
             // Receive single transaction
-            if (!FWFT) wait (!empty);
+            if (!FWFT) wait (!cb_rd.rd_empty);
             env.monitor.receive(got_transaction);
             @(cb_rd);
 
@@ -460,7 +456,7 @@ module fifo_async_unit_test #(
             wr_if._wait(FIFO_ASYNC_LATENCY);
 
             // Check that full is once again deasserted
-            `FAIL_UNLESS(cb_wr.full == 0);
+            `FAIL_UNLESS(cb_wr.wr_full == 0);
         `SVTEST_END
 
 
@@ -486,15 +482,15 @@ module fifo_async_unit_test #(
             int entries = 0;
 
             // Overflow should be deasserted immediately following init
-            `FAIL_UNLESS(cb_wr.full == 0);
-            `FAIL_UNLESS(cb_wr.oflow == 0);
+            `FAIL_UNLESS(cb_wr.wr_full == 0);
+            `FAIL_UNLESS(cb_wr.wr_oflow == 0);
 
             // Send DEPTH transactions
             for (int i = 0; i < __DEPTH; i++) begin
-                if (FWFT && cb_wr.full) repeat (MEM_RD_LATENCY) @(cb_wr);
+                if (FWFT && cb_wr.wr_full) repeat (MEM_RD_LATENCY) @(cb_wr);
                 // Full/overflow should be deasserted
-                `FAIL_UNLESS(cb_wr.full == 0);
-                `FAIL_UNLESS(cb_wr.oflow == 0);
+                `FAIL_UNLESS(cb_wr.wr_full == 0);
+                `FAIL_UNLESS(cb_wr.wr_oflow == 0);
                 exp_transaction = new($sformatf("exp_transaction_%d", entries), entries);
                 env.driver.send(exp_transaction);
                 entries++;
@@ -504,8 +500,8 @@ module fifo_async_unit_test #(
             // to account for possiblity of additional entries in read pipeline
             if (FWFT) begin
                 for (int i = 0; i < MEM_RD_LATENCY-1; i++) begin
-                    if (full) repeat (MEM_RD_LATENCY) @(cb_wr);
-                    if (full) break;
+                    if (cb_wr.wr_full) repeat (MEM_RD_LATENCY) @(cb_wr);
+                    if (cb_wr.wr_full) break;
                     exp_transaction = new($sformatf("exp_transaction_%d", entries), entries);
                     env.driver.send(exp_transaction);
                     entries++;
@@ -514,8 +510,8 @@ module fifo_async_unit_test #(
 
             // After filling FIFO, full should be asserted (oflow should remain deasserted)
             @(cb_wr);
-            `FAIL_UNLESS(cb_wr.full == 1);
-            `FAIL_UNLESS(cb_wr.oflow == 0);
+            `FAIL_UNLESS(cb_wr.wr_full == 1);
+            `FAIL_UNLESS(cb_wr.wr_oflow == 0);
 
             // Send one more transaction (after putting driver in push mode to allow overflows)
             env.driver.set_tx_mode(bus_verif_pkg::TX_MODE_PUSH);
@@ -523,12 +519,12 @@ module fifo_async_unit_test #(
             env.driver.send(exp_transaction);
 
             // This should trigger oflow on the same cycle
-            `FAIL_UNLESS(cb_wr.oflow == 1);
+            `FAIL_UNLESS(cb_wr.wr_oflow == 1);
 
             // Full should remain asserted, oflow should be deasserted on following cycle
             @(cb_wr);
-            `FAIL_UNLESS(cb_wr.full == 1);
-            `FAIL_UNLESS(cb_wr.oflow == 0);
+            `FAIL_UNLESS(cb_wr.wr_full == 1);
+            `FAIL_UNLESS(cb_wr.wr_oflow == 0);
 
             // Empty FIFO
             for (int i = 0; i < entries; i++) begin
@@ -543,9 +539,9 @@ module fifo_async_unit_test #(
             // Send and receive one more transaction
             exp_transaction = new($sformatf("exp_transaction_%d", entries+1), entries+1);
             env.driver.send(exp_transaction);
-            `FAIL_UNLESS(cb_wr.oflow == 0);
+            `FAIL_UNLESS(cb_wr.wr_oflow == 0);
 
-            if (!FWFT) wait (!empty);
+            if (!FWFT) wait (!cb_rd.rd_empty);
             env.monitor.receive(got_transaction);
             match = exp_transaction.compare(got_transaction, msg);
             `FAIL_UNLESS_LOG(

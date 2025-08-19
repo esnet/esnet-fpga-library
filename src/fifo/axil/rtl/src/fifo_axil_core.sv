@@ -1,8 +1,8 @@
 module fifo_axil_core
     import fifo_pkg::*;
 #(
-    parameter type DATA_T = logic[15:0],
-    parameter int DEPTH = 4,
+    parameter int DATA_WID = 1,
+    parameter int DEPTH = 32,
     parameter bit ASYNC = 1,
     parameter bit FWFT = 1,
     parameter bit OFLOW_PROT = 1,
@@ -17,7 +17,7 @@ module fifo_axil_core
     input  logic                wr_srst,
     output logic                wr_rdy,
     input  logic                wr,
-    input  DATA_T               wr_data,
+    input  logic [DATA_WID-1:0] wr_data,
     output logic [CNT_WID-1:0]  wr_count,
     output logic                wr_full,
     output logic                wr_oflow,
@@ -27,7 +27,7 @@ module fifo_axil_core
     input  logic                rd_srst,
     input  logic                rd,
     output logic                rd_ack,
-    output DATA_T               rd_data,
+    output logic [DATA_WID-1:0] rd_data,
     output logic [CNT_WID-1:0]  rd_count,
     output logic                rd_empty,
     output logic                rd_uflow,
@@ -64,11 +64,11 @@ module fifo_axil_core
     // -----------------------------
     // Instantiate FIFO core
     // -----------------------------
-    fifo_core #(
-        .DATA_T ( DATA_T ),
-        .DEPTH  ( DEPTH ),
-        .ASYNC  ( ASYNC ),
-        .FWFT   ( FWFT ),
+    fifo_core    #(
+        .DATA_WID ( DATA_WID ),
+        .DEPTH    ( DEPTH ),
+        .ASYNC    ( ASYNC ),
+        .FWFT     ( FWFT ),
         .OFLOW_PROT ( OFLOW_PROT ),
         .UFLOW_PROT ( UFLOW_PROT )
     ) i_fifo_core (
@@ -150,7 +150,7 @@ module fifo_axil_core
     assign ctrl_reg_if.info_depth_nxt = DEPTH;
 
     assign ctrl_reg_if.info_width_nxt_v = 1'b1;
-    assign ctrl_reg_if.info_width_nxt = $bits(DATA_T);
+    assign ctrl_reg_if.info_width_nxt = DATA_WID;
 
 
     // Write monitoring (cross to wr_clk domain)

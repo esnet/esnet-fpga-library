@@ -1,7 +1,7 @@
 module fifo_ctrl_fsm
     import fifo_pkg::*;
 #(
-    parameter int DEPTH = 256,
+    parameter int DEPTH = 32,
     parameter bit ASYNC = 1,
     parameter bit OFLOW_PROT = 1,
     parameter bit UFLOW_PROT = 1,

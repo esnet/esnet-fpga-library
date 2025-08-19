@@ -5,8 +5,8 @@
 //       If this is not the case (or unknown) use fifo_sync instead.
 //
 module fifo_small #(
-    parameter type DATA_T = logic[15:0],
-    parameter int  DEPTH = 4, // Intended for 'small' FIFOs
+    parameter int DATA_WID = 1,
+    parameter int DEPTH = 32, // Intended for 'small' FIFOs
                               // Targets distributed RAM; depends on FPGA arch
                               // (typical max is 256, assuming LUT6 + F7/F8 Muxes)
     // Derived parameters (don't override)
@@ -17,18 +17,18 @@ module fifo_small #(
     input  logic               srst,
 
     // Write interface
-    input  logic               wr,
-    input  DATA_T              wr_data,
-    output logic               full,
-    output logic               oflow,
+    input  logic                wr,
+    input  logic [DATA_WID-1:0] wr_data,
+    output logic                full,
+    output logic                oflow,
 
     // Read interface
-    input  logic               rd,
-    output DATA_T              rd_data,
-    output logic               empty,
-    output logic               uflow,
+    input  logic                rd,
+    output logic [DATA_WID-1:0] rd_data,
+    output logic                empty,
+    output logic                uflow,
 
-    output logic [CNT_WID-1:0] count
+    output logic [CNT_WID-1:0]  count
 );
     // -----------------------------
     // Parameters
@@ -46,12 +46,12 @@ module fifo_small #(
     // -----------------------------
     // Signals
     // -----------------------------
-    DATA_T mem [MEM_DEPTH];
+    logic [DATA_WID-1:0] mem [MEM_DEPTH];
 
-    logic                 wr_safe;
-    logic [PTR_WID-1:0]   wr_ptr;
+    logic                wr_safe;
+    logic [PTR_WID-1:0]  wr_ptr;
 
-    logic [PTR_WID-1:0]   rd_ptr;
+    logic [PTR_WID-1:0]  rd_ptr;
 
     // -----------------------------
     // Control FSM

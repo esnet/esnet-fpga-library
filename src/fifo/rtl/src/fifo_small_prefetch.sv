@@ -15,32 +15,32 @@
 //       instead.
 //
 module fifo_small_prefetch #(
-    parameter type DATA_T = logic[15:0],
-    parameter int  PIPELINE_DEPTH = 1 // Specify the depth of the prefetch pipeline;
+    parameter int DATA_WID = 1,
+    parameter int PIPELINE_DEPTH = 1 // Specify the depth of the prefetch pipeline;
                                       // This represents the (minimum) number of writes
                                       // supported without overflow *after* deassertion of wr_rdy.
                                       // This implementation is intended for 'small' buffers,
                                       // typically <= 32
 ) (
     // Clock/reset
-    input  logic        clk,
-    input  logic        srst,
+    input  logic                clk,
+    input  logic                srst,
 
     // Write interface
-    input  logic        wr,
-    output logic        wr_rdy, // Ready to receive data; accounts for available slots in FIFO,
-                                // plus in-flight transactions
-    input  DATA_T       wr_data,
+    input  logic                wr,
+    output logic                wr_rdy, // Ready to receive data; accounts for available slots in FIFO,
+                                        // plus in-flight transactions
+    input  logic [DATA_WID-1:0] wr_data,
 
     // Read interface
-    input  logic        rd,
-    output logic        rd_vld,
-    output DATA_T       rd_data,
+    input  logic                rd,
+    output logic                rd_vld,
+    output logic [DATA_WID-1:0] rd_data,
 
-    output logic        oflow  // NOTE: this does not assert when wr && !wr_rdy; instead,
-                               //       it asserts if a write cannot be received into the
-                               //       fifo. This could occur after some number of pipeline
-                               //       stages on the write interface, for example.
+    output logic                oflow  // NOTE: this does not assert when wr && !wr_rdy; instead,
+                                       //       it asserts if a write cannot be received into the
+                                       //       fifo. This could occur after some number of pipeline
+                                       //       stages on the write interface, for example.
 
 );
     // -----------------------------
@@ -69,7 +69,7 @@ module fifo_small_prefetch #(
     // Base FIFO
     // -----------------------------
     fifo_small     #(
-        .DATA_T     ( DATA_T ),
+        .DATA_WID   ( DATA_WID ),
         .DEPTH      ( DEPTH )
     ) i_fifo_small  (
         .clk,

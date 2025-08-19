@@ -10,22 +10,23 @@ module fifo_async_wrapper #(
     output logic                wr_rdy,
     input  logic                wr,
     input  logic [DATA_WID-1:0] wr_data,
+    output logic [CNT_WID-1:0]  wr_count,
+    output logic                wr_full,
+    output logic                wr_oflow,
+
     input  logic                rd_clk,
     input  logic                rd_srst,
     input  logic                rd,
     output logic                rd_ack,
     output logic [DATA_WID-1:0] rd_data,
-    output logic [CNT_WID-1:0]  wr_count,
     output logic [CNT_WID-1:0]  rd_count,
-    output logic                full,
-    output logic                empty,
-    output logic                oflow,
-    output logic                uflow
+    output logic                rd_empty,
+    output logic                rd_uflow
 );
 
-    fifo_async #(
-        .DATA_T ( logic[DATA_WID-1:0] ),
-        .DEPTH  ( DEPTH )
+    fifo_async   #(
+        .DATA_WID ( DATA_WID ),
+        .DEPTH    ( DEPTH )
     ) i_fifo_async (.*);
 
 endmodule : fifo_async_wrapper

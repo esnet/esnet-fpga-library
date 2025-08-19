@@ -20,7 +20,8 @@ module fifo_sync_unit_test #(
     //===================================
     // Parameters
     //===================================
-    localparam type DATA_T = bit[31:0];
+    localparam int DATA_WID = 32;
+    localparam type DATA_T = bit[DATA_WID-1:0];
 
     //===================================
     // Derived parameters
@@ -61,10 +62,10 @@ module fifo_sync_unit_test #(
     logic   oflow;
     logic   uflow;
 
-    fifo_sync #(
-        .DATA_T  ( DATA_T ),
-        .DEPTH   ( DEPTH ),
-        .FWFT    ( FWFT )
+    fifo_sync    #(
+        .DATA_WID ( DATA_WID ),
+        .DEPTH    ( DEPTH ),
+        .FWFT     ( FWFT )
     ) DUT (.*);
 
     //===================================
@@ -74,17 +75,14 @@ module fifo_sync_unit_test #(
 
     std_reset_intf reset_if (.clk);
 
-    bus_intf #(DATA_T) wr_if (.clk);
-    bus_intf #(DATA_T) rd_if (.clk);
+    bus_intf #(DATA_WID) wr_if (.clk, .srst);
+    bus_intf #(DATA_WID) rd_if (.clk, .srst);
 
     // Assign reset interface
     assign srst = reset_if.reset;
 
     initial reset_if.ready = 1'b0;
     always @(posedge clk) reset_if.ready <= ~srst;
-
-    assign wr_if.srst = srst;
-    assign rd_if.srst = srst;
 
     // Assign data interfaces
     assign wr = wr_if.valid;
