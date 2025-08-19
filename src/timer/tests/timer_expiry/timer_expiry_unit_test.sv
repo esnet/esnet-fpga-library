@@ -44,8 +44,8 @@ module timer_expiry_unit_test;
     axi4l_intf axil_if ();
 
     // Instantiation
-    timer_expiry #(
-        .TIMER_T  ( TIMER_T )
+    timer_expiry  #(
+        .TIMER_WID ( TIMER_WID )
     ) DUT (.*);
 
     //===================================

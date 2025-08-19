@@ -1,5 +1,5 @@
 module timer_expiry #(
-    parameter type TIMER_T = logic
+    parameter int TIMER_WID = 1
 )(
     // Clock/reset
     input  logic   clk,
@@ -17,11 +17,11 @@ module timer_expiry #(
     axi4l_intf.peripheral axil_if,
 
     // Check interface
-    input  TIMER_T timer_in,
-    output logic   expired,
+    input  logic [TIMER_WID-1:0] timer_in,
+    output logic                 expired,
 
     // Update interface
-    output TIMER_T timer_out
+    output logic [TIMER_WID-1:0] timer_out
 );
 
     // -----------------------------
@@ -32,11 +32,11 @@ module timer_expiry #(
 
     logic __freeze;
 
-    TIMER_T timer;
+    logic [TIMER_WID-1:0] timer;
     
-    TIMER_T timeout;
-    TIMER_T __timeout_thresh;
-    logic signed [$bits(TIMER_T)-1:0] time_delta;
+    logic [TIMER_WID-1:0] timeout;
+    logic [TIMER_WID-1:0] __timeout_thresh;
+    logic signed [TIMER_WID-1:0] time_delta;
 
     // -----------------------------
     // Interfaces
@@ -61,7 +61,7 @@ module timer_expiry #(
     
     // Info
     assign reg_if.info_timer_bits_nxt_v = 1'b1;
-    assign reg_if.info_timer_bits_nxt = $bits(TIMER_T);
+    assign reg_if.info_timer_bits_nxt = TIMER_WID;
 
     // Control
     initial __srst = 1'b1;
@@ -85,14 +85,14 @@ module timer_expiry #(
     assign reg_if.status_nxt.ready_mon = !__srst;
 
     // Config
-    assign timeout = reg_if.cfg_timeout[$bits(TIMER_T)-1:0];
+    assign timeout = reg_if.cfg_timeout[TIMER_WID-1:0];
     always_ff @(posedge clk) __timeout_thresh <= timer - timeout;
 
     // ----------------------------------
     // Timer
     // ----------------------------------
     timer #(
-        .TIMER_T ( TIMER_T )
+        .TIMER_WID ( TIMER_WID )
     ) i_timer (
         .clk ( clk ),
         .srst ( __srst ),
