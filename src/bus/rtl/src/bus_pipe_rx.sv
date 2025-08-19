@@ -6,23 +6,20 @@
 // to accommodate a specified number of cycles of slack in the
 // valid <-> ready handshaking protocol.
 module bus_pipe_rx #(
-    parameter type DATA_T = logic,
     parameter bit  IGNORE_READY = 1'b0,
     parameter int  TOTAL_SLACK = 16 // Number of cycles of slack supported in the valid/ready pipeline
-                                   // Count contributions around entire loop, e.g. buffers inserted
-                                   // in forward (valid) path as well as those inserted in reverse
-                                   // (ready) path
+                                    // Count contributions around entire loop, e.g. buffers inserted
+                                    // in forward (valid) path as well as those inserted in reverse
+                                    // (ready) path
 ) (
     bus_intf.rx   from_tx,
     bus_intf.tx   to_rx
 );
-    // Parameter checking
-    initial begin
-        std_pkg::param_check($bits(from_tx.DATA_T), $bits(DATA_T), "from_tx.DATA_T");
-        std_pkg::param_check($bits(to_rx.DATA_T),   $bits(DATA_T), "to_rx.DATA_T");
-    end
+    // Parameters
+    localparam int DATA_WID = from_tx.DATA_WID;
 
-    assign to_rx.srst = from_tx.srst;
+    // Parameter checking
+    bus_intf_parameter_check param_check (.*);
 
     generate
         if (IGNORE_READY) begin : g__ignore_ready
@@ -35,7 +32,7 @@ module bus_pipe_rx #(
             // Implement Rx FIFO to accommodate specified slack
             // in valid <-> ready handshake protocol
             fifo_prefetch #(
-                .DATA_T         ( DATA_T ),
+                .DATA_WID  ( DATA_WID ),
                 .PIPELINE_DEPTH ( TOTAL_SLACK )
             ) i_fifo_prefetch (
                 .clk     ( from_tx.clk ),

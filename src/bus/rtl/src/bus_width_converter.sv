@@ -5,8 +5,6 @@
 // (unpack the larger input interface to multiple output words).
 // NOTE: (for now at least) only integer multiples of output/input interface sizes are supported
 module bus_width_converter #(
-    parameter type DATA_IN_T = logic,
-    parameter type DATA_OUT_T = logic,
     parameter bit BIGENDIAN = 1 // Pack/(unpack) first word into/(out of) MSbs of larger interface
 ) (
     bus_intf.rx   from_tx,
@@ -19,8 +17,8 @@ module bus_width_converter #(
     } conversion_type_t;
 
     // Parameters
-    localparam int BUS_WIDTH_IN = $bits(DATA_IN_T);
-    localparam int BUS_WIDTH_OUT = $bits(DATA_OUT_T);
+    localparam int BUS_WIDTH_IN = from_tx.DATA_WID;
+    localparam int BUS_WIDTH_OUT = to_rx.DATA_WID;
     localparam conversion_type_t CONVERSION_TYPE = BUS_WIDTH_OUT > BUS_WIDTH_IN ? UPSIZE : DOWNSIZE;
     localparam int CONVERT_RATIO = CONVERSION_TYPE == UPSIZE ? BUS_WIDTH_OUT / BUS_WIDTH_IN : BUS_WIDTH_IN / BUS_WIDTH_OUT;
 
@@ -29,8 +27,6 @@ module bus_width_converter #(
         if (CONVERSION_TYPE == UPSIZE)   std_pkg::param_check(BUS_WIDTH_OUT % BUS_WIDTH_IN,  0, "For upsize, output bus width must be integer multiple of input bus width.");
         if (CONVERSION_TYPE == DOWNSIZE) std_pkg::param_check(BUS_WIDTH_IN  % BUS_WIDTH_OUT, 0, "For downsize, input bus width must be integer multiple of output bus width.");
     end
-
-    assign to_rx.srst = from_tx.srst;
 
     generate
         if (CONVERSION_TYPE == UPSIZE) begin : g__upsize
@@ -65,7 +61,7 @@ module bus_width_converter #(
         if (CONVERSION_TYPE == DOWNSIZE) begin : g__downsize
             logic [CONVERT_RATIO-1:0] valid;
             logic [CONVERT_RATIO-1:0][BUS_WIDTH_OUT-1:0] data;
-            DATA_IN_T data_in;
+            logic [BUS_WIDTH_IN-1:0] data_in;
 
             assign to_rx.valid = valid[0];
             assign from_tx.ready = !valid[0] || (!valid[1] && to_rx.ready);

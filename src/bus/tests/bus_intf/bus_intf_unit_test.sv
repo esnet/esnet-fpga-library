@@ -19,57 +19,59 @@ module bus_intf_unit_test #(
     // Parameters
     //===================================
     localparam type DATA_T = logic[31:0];
+    localparam int DATA_WID = $bits(DATA_T);
 
     //===================================
     // DUT
     //===================================
 
     logic   clk;
+    logic   srst;
     
-    bus_intf #(DATA_T) from_tx (.clk(clk));
-    bus_intf #(DATA_T) to_rx (.clk(clk));
+    bus_intf #(DATA_WID) from_tx (.clk, .srst);
+    bus_intf #(DATA_WID) to_rx (.clk, .srst);
 
     generate
         case (COMPONENT_NAME)
             "bus_intf_connector" : begin : g__bus_intf_connector
-                bus_intf_connector #(DATA_T) DUT (.*);
+                bus_intf_connector DUT (.*);
             end : g__bus_intf_connector
             
             "bus_pipe_1st" : begin : g__bus_pipe
-                bus_pipe #(DATA_T, .STAGES(1)) DUT (.*);
+                bus_pipe #(.STAGES(1)) DUT (.*);
             end : g__bus_pipe
 
             "bus_pipe_4st" : begin : g__bus_pipe
-                bus_pipe #(DATA_T, .STAGES(4)) DUT (.*);
+                bus_pipe #(.STAGES(4)) DUT (.*);
             end : g__bus_pipe
 
             "bus_pipe_slr" : begin : g__bus_pipe_slr
-                bus_pipe_slr #(DATA_T) DUT (.*);
+                bus_pipe_slr DUT (.*);
             end : g__bus_pipe_slr
 
             "bus_pipe_slr_b2b" : begin : g__bus_pipe_slr_b2b
-                bus_intf #(DATA_T) __bus_if (.clk);
-                bus_pipe_slr #(DATA_T, 0, 1, 1) DUT1 (.from_tx, .to_rx (__bus_if));
-                bus_pipe_slr #(DATA_T, 0, 1, 1) DUT2 (.from_tx (__bus_if), .to_rx);
+                bus_intf #(DATA_WID) __bus_if (.clk, .srst);
+                bus_pipe_slr #(0, 1, 1) DUT1 (.from_tx, .to_rx (__bus_if));
+                bus_pipe_slr #(0, 1, 1) DUT2 (.from_tx (__bus_if), .to_rx);
             end : g__bus_pipe_slr_b2b
 
             "bus_pipe_auto" : begin : g__bus_pipe_auto
-                bus_pipe_auto #(DATA_T) DUT (.*);
+                bus_pipe_auto DUT (.*);
             end : g__bus_pipe_auto
 
             "bus_width_converter_le": begin : g__bus_width_converter_le
-                localparam type __DATA_T = logic[$bits(DATA_T)*2-1:0];
-                bus_intf #(__DATA_T) __bus_if (.clk);
-                bus_width_converter #(DATA_T, __DATA_T, .BIGENDIAN(0)) DUT1 (.from_tx, .to_rx (__bus_if));
-                bus_width_converter #(__DATA_T, DATA_T, .BIGENDIAN(0)) DUT2 (.from_tx (__bus_if), .to_rx);
+                localparam int __DATA_WID = DATA_WID*2;
+                bus_intf #(__DATA_WID) __bus_if (.clk, .srst);
+                bus_width_converter #(.BIGENDIAN(0)) DUT1 (.from_tx, .to_rx (__bus_if));
+                bus_width_converter #(.BIGENDIAN(0)) DUT2 (.from_tx (__bus_if), .to_rx);
                 initial skip_single_item_tc = 1'b1;
             end : g__bus_width_converter_le
 
             "bus_width_converter_be": begin : g__bus_width_converter_be
-                localparam type __DATA_T = logic[$bits(DATA_T)*2-1:0];
-                bus_intf #(__DATA_T) __bus_if (.clk);
-                bus_width_converter #(DATA_T, __DATA_T, .BIGENDIAN(1)) DUT1 (.from_tx, .to_rx (__bus_if));
-                bus_width_converter #(__DATA_T, DATA_T, .BIGENDIAN(1)) DUT2 (.from_tx (__bus_if), .to_rx);
+                localparam int __DATA_WID = DATA_WID*2;
+                bus_intf #(__DATA_WID) __bus_if (.clk, .srst);
+                bus_width_converter #(.BIGENDIAN(1)) DUT1 (.from_tx, .to_rx (__bus_if));
+                bus_width_converter #(.BIGENDIAN(1)) DUT2 (.from_tx (__bus_if), .to_rx);
                 initial skip_single_item_tc = 1'b1;
             end : g__bus_width_converter_be
         endcase
@@ -86,10 +88,10 @@ module bus_intf_unit_test #(
                                    // (not valid for width conversion test suite)
 
     // Assign reset interface
-    assign from_tx.srst = reset_if.reset;
-
     initial reset_if.ready = 1'b0;
     always @(posedge clk) reset_if.ready <= ~reset_if.reset;
+
+    assign srst = reset_if.reset;
 
     // Assign clock (100MHz)
     `SVUNIT_CLK_GEN(clk, 5ns);

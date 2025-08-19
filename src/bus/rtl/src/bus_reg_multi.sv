@@ -5,16 +5,17 @@
 //       will be violated and must be accommodated by e.g.
 //       bookending with bus_pipe_tx and bus_pipe_rx modules
 module bus_reg_multi #(
-    parameter type DATA_T = logic,
     parameter int  STAGES = 1
 ) (
     bus_intf.rx   from_tx,
     bus_intf.tx   to_rx
 );
+    // Parameters
+    localparam int DATA_WID = from_tx.DATA_WID;
+    
     // Parameter checking
+    bus_intf_parameter_check param_check (.*);
     initial begin
-        std_pkg::param_check($bits(from_tx.DATA_T), $bits(DATA_T), "from_tx.DATA_T");
-        std_pkg::param_check($bits(to_rx.DATA_T),   $bits(DATA_T), "to_rx.DATA_T");
         std_pkg::param_check_gt(STAGES, 0, "STAGES");
     end
 
@@ -24,26 +25,28 @@ module bus_reg_multi #(
 
     generate
         if (STAGES > 0) begin : g__multi_stage
-            (* shreg_extract = "no" *) logic  srst_p  [STAGES];
-            (* shreg_extract = "no" *) logic  valid_p [STAGES];
-            (* streg_extract = "no" *) DATA_T data_p  [STAGES];
-            (* shreg_extract = "no" *) logic  ready_p [STAGES];
+            (* shreg_extract = "no" *) logic                valid_p [STAGES];
+            (* streg_extract = "no" *) logic [DATA_WID-1:0] data_p  [STAGES];
+            (* shreg_extract = "no" *) logic                ready_p [STAGES];
 
-            initial begin
-                srst_p = '{default: 1'b1};
-                valid_p = '{default: 1'b0};
-            end
+            initial valid_p = '{default: 1'b0};
             always @(posedge clk) begin
+                if (from_tx.srst) valid_p = '{default: 1'b0};
+                else begin
+                    for (int i = 1; i < STAGES; i++) begin
+                        valid_p[i] <= valid_p[i-1];
+                    end
+                    valid_p[0] <= from_tx.valid;
+                end
+            end
+
+            always_ff @(posedge clk) begin
                 for (int i = 1; i < STAGES; i++) begin
-                    srst_p [i] <= srst_p [i-1];
-                    valid_p[i] <= valid_p[i-1];
                     data_p [i] <= data_p [i-1];
                 end
-                srst_p [0] <= from_tx.srst;
-                valid_p[0] <= from_tx.valid;
                 data_p [0] <= from_tx.data;
             end
-            assign to_rx.srst  = srst_p [STAGES-1];
+
             assign to_rx.valid = valid_p[STAGES-1];
             assign to_rx.data  = data_p [STAGES-1];
             
@@ -58,7 +61,7 @@ module bus_reg_multi #(
 
         end : g__multi_stage
         else begin : g__zero_stage
-            bus_intf_connector #(.DATA_T(DATA_T)) i_bus_intf_connector (.*);
+            bus_intf_connector i_bus_intf_connector (.*);
         end : g__zero_stage
     endgenerate
 

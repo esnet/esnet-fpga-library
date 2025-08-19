@@ -4,10 +4,11 @@ class bus_monitor #(
 
     local static const string __CLASS_NAME = "bus_verif_pkg::bus_monitor";
 
+    localparam int DATA_WID = $bits(DATA_T);
     //===================================
     // Properties
     //===================================
-    virtual bus_intf #(DATA_T) bus_vif;
+    virtual bus_intf #(DATA_WID) bus_vif;
 
     local rx_mode_t __rx_mode = RX_MODE_RECEIVE;
     bit __stall = 1'b0;
