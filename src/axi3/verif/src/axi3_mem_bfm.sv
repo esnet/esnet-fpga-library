@@ -12,13 +12,13 @@ module axi3_mem_bfm #(
     localparam int ADDR_WID = axi3_if[0].ADDR_WID;
     localparam int DATA_BYTE_WID = axi3_if[0].DATA_BYTE_WID;
     localparam int BYTE_SEL_WID = $clog2(DATA_BYTE_WID);
-    localparam type AXI_ID_T = axi3_if[0].ID_T;
+    localparam int AXI_ID_WID = axi3_if[0].ID_WID;
 
     // Typedefs
     typedef logic [ADDR_WID-1:0]           addr_t;
     typedef logic [DATA_BYTE_WID-1:0][7:0] data_t;
     typedef logic [DATA_BYTE_WID-1:0]      strb_t;
-    typedef AXI_ID_T id_t;
+    typedef logic [AXI_ID_WID-1:0] id_t;
     typedef struct packed {id_t id; addr_t addr;} addr_ctxt_t;
     typedef struct packed {id_t id; data_t data; strb_t strb; logic last;} wdata_ctxt_t;
     typedef struct packed {id_t id; data_t data; logic last;} rdata_ctxt_t;

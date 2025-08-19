@@ -1,20 +1,27 @@
 interface axi3_intf
     import axi3_pkg::*;
 #(
-    parameter int  DATA_BYTE_WID = 8,
-    parameter int  ADDR_WID = 32,
-    parameter type ID_T = logic,
-    parameter type USER_T = logic
+    parameter int DATA_BYTE_WID = 8,
+    parameter int ADDR_WID = 32,
+    parameter int ID_WID = 1,
+    parameter int USER_WID = 1
 ) (
     // Clock/reset
-    input logic aclk
+    input logic aclk,
+    input logic aresetn = 1'b1
 );
 
+    // Parameter validation
+    initial begin
+        std_pkg::param_check_gt(DATA_BYTE_WID, 1, "DATA_BYTE_WID");
+        std_pkg::param_check_gt(ADDR_WID,      1, "ADDR_WID");
+        std_pkg::param_check_gt(ID_WID,        1, "ID_WID");
+        std_pkg::param_check_gt(USER_WID,      1, "USER_WID");
+    end
+
     // Signals
-    // -- Active-low synchronous reset
-    logic                          aresetn;
     // -- Write address
-    ID_T                           awid;
+    logic [ID_WID-1:0]             awid;
     logic [ADDR_WID-1:0]           awaddr;
     logic [3:0]                    awlen;
     axsize_t                       awsize;
@@ -24,25 +31,25 @@ interface axi3_intf
     axprot_t                       awprot;
     logic [3:0]                    awqos;
     logic [3:0]                    awregion;
-    USER_T                         awuser;
+    logic [USER_WID-1:0]           awuser;
     logic                          awvalid;
     logic                          awready;
     // -- Write data
-    ID_T                           wid;
+    logic [ID_WID-1:0]             wid;
     logic [DATA_BYTE_WID-1:0][7:0] wdata;
     logic [DATA_BYTE_WID-1:0]      wstrb;
     logic                          wlast;
-    USER_T                         wuser;
+    logic [USER_WID-1:0]           wuser;
     logic                          wvalid;
     logic                          wready;
     // -- Write response
-    ID_T                           bid;
+    logic [ID_WID-1:0]             bid;
     resp_t                         bresp;
-    USER_T                         buser;
+    logic [USER_WID-1:0]           buser;
     logic                          bvalid;
     logic                          bready;
     // -- Read address
-    ID_T                           arid;
+    logic [ID_WID-1:0]             arid;
     logic [ADDR_WID-1:0]           araddr;
     logic [3:0]                    arlen;
     axsize_t                       arsize;
@@ -52,15 +59,15 @@ interface axi3_intf
     axprot_t                       arprot;
     logic [3:0]                    arqos;
     logic [3:0]                    arregion;
-    USER_T                         aruser;
+    logic [USER_WID-1:0]           aruser;
     logic                          arvalid;
     logic                          arready;
     // -- Read data
-    ID_T                           rid;
+    logic [ID_WID-1:0]             rid;
     logic [DATA_BYTE_WID-1:0][7:0] rdata;
     resp_t                         rresp;
     logic                          rlast;
-    USER_T                         ruser;
+    logic [USER_WID-1:0]           ruser;
     logic                          rvalid;
     logic                          rready;
 
@@ -69,7 +76,7 @@ interface axi3_intf
         // Clock
         input  aclk,
         // Reset
-        output aresetn,
+        input  aresetn,
         // Write address
         output awid,
         output awaddr,
@@ -181,137 +188,148 @@ interface axi3_intf
 
 endinterface : axi3_intf
 
+// AXI-3 interface parameter check component
+module axi3_intf_parameter_check (
+    axi3_intf.peripheral from_controller,
+    axi3_intf.controller to_peripheral
+);
+    initial begin
+        std_pkg::param_check(from_controller.DATA_BYTE_WID, to_peripheral.DATA_BYTE_WID, "DATA_BYTE_WID");
+        std_pkg::param_check(from_controller.ADDR_WID,      to_peripheral.ADDR_WID,      "ADDR_WID");
+        std_pkg::param_check(from_controller.ID_WID,        to_peripheral.ID_WID,        "ID_WID");
+        std_pkg::param_check(from_controller.USER_WID,      to_peripheral.USER_WID,      "USER_WID");
+    end
+
+endmodule
+
 // AXI-3 (back-to-back) connector helper module
 module axi3_intf_connector (
-    axi3_intf.peripheral axi3_if_from_controller,
-    axi3_intf.controller axi3_if_to_peripheral
+    axi3_intf.peripheral from_controller,
+    axi3_intf.controller to_peripheral
 );
-    // Reset
-    assign axi3_if_to_peripheral.aresetn = axi3_if_from_controller.aresetn;
+    axi3_intf_parameter_check param_check (.*);
+
     // Write address
-    assign axi3_if_to_peripheral.awid = axi3_if_from_controller.awid;
-    assign axi3_if_to_peripheral.awaddr = axi3_if_from_controller.awaddr;
-    assign axi3_if_to_peripheral.awlen = axi3_if_from_controller.awlen;
-    assign axi3_if_to_peripheral.awsize = axi3_if_from_controller.awsize;
-    assign axi3_if_to_peripheral.awburst = axi3_if_from_controller.awburst;
-    assign axi3_if_to_peripheral.awlock = axi3_if_from_controller.awlock;
-    assign axi3_if_to_peripheral.awcache = axi3_if_from_controller.awcache;
-    assign axi3_if_to_peripheral.awprot = axi3_if_from_controller.awprot;
-    assign axi3_if_to_peripheral.awqos = axi3_if_from_controller.awqos;
-    assign axi3_if_to_peripheral.awregion = axi3_if_from_controller.awregion;
-    assign axi3_if_to_peripheral.awuser = axi3_if_from_controller.awuser;
-    assign axi3_if_to_peripheral.awvalid = axi3_if_from_controller.awvalid;
-    assign axi3_if_from_controller.awready = axi3_if_to_peripheral.awready;
+    assign to_peripheral.awid = from_controller.awid;
+    assign to_peripheral.awaddr = from_controller.awaddr;
+    assign to_peripheral.awlen = from_controller.awlen;
+    assign to_peripheral.awsize = from_controller.awsize;
+    assign to_peripheral.awburst = from_controller.awburst;
+    assign to_peripheral.awlock = from_controller.awlock;
+    assign to_peripheral.awcache = from_controller.awcache;
+    assign to_peripheral.awprot = from_controller.awprot;
+    assign to_peripheral.awqos = from_controller.awqos;
+    assign to_peripheral.awregion = from_controller.awregion;
+    assign to_peripheral.awuser = from_controller.awuser;
+    assign to_peripheral.awvalid = from_controller.awvalid;
+    assign from_controller.awready = to_peripheral.awready;
     // Write data
-    assign axi3_if_to_peripheral.wid = axi3_if_from_controller.wid;
-    assign axi3_if_to_peripheral.wdata = axi3_if_from_controller.wdata;
-    assign axi3_if_to_peripheral.wstrb = axi3_if_from_controller.wstrb;
-    assign axi3_if_to_peripheral.wlast = axi3_if_from_controller.wlast;
-    assign axi3_if_to_peripheral.wuser = axi3_if_from_controller.wuser;
-    assign axi3_if_to_peripheral.wvalid = axi3_if_from_controller.wvalid;
-    assign axi3_if_from_controller.wready = axi3_if_to_peripheral.wready;
+    assign to_peripheral.wid = from_controller.wid;
+    assign to_peripheral.wdata = from_controller.wdata;
+    assign to_peripheral.wstrb = from_controller.wstrb;
+    assign to_peripheral.wlast = from_controller.wlast;
+    assign to_peripheral.wuser = from_controller.wuser;
+    assign to_peripheral.wvalid = from_controller.wvalid;
+    assign from_controller.wready = to_peripheral.wready;
     // Write response
-    assign axi3_if_from_controller.bid = axi3_if_to_peripheral.bid;
-    assign axi3_if_from_controller.bresp = axi3_if_to_peripheral.bresp;
-    assign axi3_if_from_controller.buser = axi3_if_to_peripheral.buser;
-    assign axi3_if_from_controller.bvalid = axi3_if_to_peripheral.bvalid;
-    assign axi3_if_to_peripheral.bready = axi3_if_from_controller.bready;
+    assign from_controller.bid = to_peripheral.bid;
+    assign from_controller.bresp = to_peripheral.bresp;
+    assign from_controller.buser = to_peripheral.buser;
+    assign from_controller.bvalid = to_peripheral.bvalid;
+    assign to_peripheral.bready = from_controller.bready;
     // Read address
-    assign axi3_if_to_peripheral.arid = axi3_if_from_controller.arid;
-    assign axi3_if_to_peripheral.araddr = axi3_if_from_controller.araddr;
-    assign axi3_if_to_peripheral.arlen = axi3_if_from_controller.arlen;
-    assign axi3_if_to_peripheral.arsize = axi3_if_from_controller.arsize;
-    assign axi3_if_to_peripheral.arburst = axi3_if_from_controller.arburst;
-    assign axi3_if_to_peripheral.arlock = axi3_if_from_controller.arlock;
-    assign axi3_if_to_peripheral.arcache = axi3_if_from_controller.arcache;
-    assign axi3_if_to_peripheral.arprot = axi3_if_from_controller.arprot;
-    assign axi3_if_to_peripheral.arqos = axi3_if_from_controller.arqos;
-    assign axi3_if_to_peripheral.arregion = axi3_if_from_controller.arregion;
-    assign axi3_if_to_peripheral.aruser = axi3_if_from_controller.aruser;
-    assign axi3_if_to_peripheral.arvalid = axi3_if_from_controller.arvalid;
-    assign axi3_if_from_controller.arready = axi3_if_to_peripheral.arready;
+    assign to_peripheral.arid = from_controller.arid;
+    assign to_peripheral.araddr = from_controller.araddr;
+    assign to_peripheral.arlen = from_controller.arlen;
+    assign to_peripheral.arsize = from_controller.arsize;
+    assign to_peripheral.arburst = from_controller.arburst;
+    assign to_peripheral.arlock = from_controller.arlock;
+    assign to_peripheral.arcache = from_controller.arcache;
+    assign to_peripheral.arprot = from_controller.arprot;
+    assign to_peripheral.arqos = from_controller.arqos;
+    assign to_peripheral.arregion = from_controller.arregion;
+    assign to_peripheral.aruser = from_controller.aruser;
+    assign to_peripheral.arvalid = from_controller.arvalid;
+    assign from_controller.arready = to_peripheral.arready;
     // Read data
-    assign axi3_if_from_controller.rid = axi3_if_to_peripheral.rid;
-    assign axi3_if_from_controller.rdata = axi3_if_to_peripheral.rdata;
-    assign axi3_if_from_controller.rresp = axi3_if_to_peripheral.rresp;
-    assign axi3_if_from_controller.ruser = axi3_if_to_peripheral.ruser;
-    assign axi3_if_from_controller.rlast = axi3_if_to_peripheral.rlast;
-    assign axi3_if_from_controller.rvalid = axi3_if_to_peripheral.rvalid;
-    assign axi3_if_to_peripheral.rready = axi3_if_from_controller.rready;
+    assign from_controller.rid = to_peripheral.rid;
+    assign from_controller.rdata = to_peripheral.rdata;
+    assign from_controller.rresp = to_peripheral.rresp;
+    assign from_controller.ruser = to_peripheral.ruser;
+    assign from_controller.rlast = to_peripheral.rlast;
+    assign from_controller.rvalid = to_peripheral.rvalid;
+    assign to_peripheral.rready = from_controller.rready;
 
 endmodule : axi3_intf_connector
 
 
 // AXI3 peripheral termination helper module
-module axi3_intf_peripheral_term
-    import axi3_pkg::*;
-(
-    axi3_intf.peripheral axi3_if
+module axi3_intf_peripheral_term (
+    axi3_intf.peripheral from_controller
 );
+    import axi3_pkg::*;
+
     // Tie off peripheral outputs
-    assign axi3_if.awready = 1'b0;
-    assign axi3_if.wready = 1'b0;
-    assign axi3_if.bid = '0;
-    assign axi3_if.bresp = RESP_SLVERR;
-    assign axi3_if.buser = '0;
-    assign axi3_if.bvalid = 1'b0;
-    assign axi3_if.arready = 1'b0;
-    assign axi3_if.rid = '0;
-    assign axi3_if.rdata = '0;
-    assign axi3_if.rresp = RESP_SLVERR;
-    assign axi3_if.ruser = '0;
-    assign axi3_if.rlast = 1'b0;
-    assign axi3_if.rvalid = 1'b0;
+    assign from_controller.awready = 1'b0;
+    assign from_controller.wready = 1'b0;
+    assign from_controller.bid = '0;
+    assign from_controller.bresp = RESP_SLVERR;
+    assign from_controller.buser = '0;
+    assign from_controller.bvalid = 1'b0;
+    assign from_controller.arready = 1'b0;
+    assign from_controller.rid = '0;
+    assign from_controller.rdata = '0;
+    assign from_controller.rresp = RESP_SLVERR;
+    assign from_controller.ruser = '0;
+    assign from_controller.rlast = 1'b0;
+    assign from_controller.rvalid = 1'b0;
 endmodule : axi3_intf_peripheral_term
 
 
 // AXI3 controller termination helper module
 module axi3_intf_controller_term (
-    axi3_intf.controller axi3_if,
-    input logic aresetn = 1'b1
+    axi3_intf.controller to_peripheral
 );
     import axi3_pkg::*;
 
     // Tie off controller outputs
-    // Reset
-    assign axi3_if.aresetn = aresetn;
     // Write address
-    assign axi3_if.awid = '0;
-    assign axi3_if.awaddr = '0;
-    assign axi3_if.awlen = 4'h0;
-    assign axi3_if.awsize = SIZE_1BYTE;
-    assign axi3_if.awburst = BURST_INCR;
-    assign axi3_if.awlock = LOCK_NORMAL;
-    assign axi3_if.awcache = 4'h0;
-    assign axi3_if.awprot = 3'h0;
-    assign axi3_if.awqos = 4'h0;
-    assign axi3_if.awregion = 4'h0;
-    assign axi3_if.awuser = '0;
-    assign axi3_if.awvalid = 1'b0;
+    assign to_peripheral.awid = '0;
+    assign to_peripheral.awaddr = '0;
+    assign to_peripheral.awlen = 4'h0;
+    assign to_peripheral.awsize = SIZE_1BYTE;
+    assign to_peripheral.awburst = BURST_INCR;
+    assign to_peripheral.awlock = LOCK_NORMAL;
+    assign to_peripheral.awcache = 4'h0;
+    assign to_peripheral.awprot = 3'h0;
+    assign to_peripheral.awqos = 4'h0;
+    assign to_peripheral.awregion = 4'h0;
+    assign to_peripheral.awuser = '0;
+    assign to_peripheral.awvalid = 1'b0;
     // Write data
-    assign axi3_if.wid = '0;
-    assign axi3_if.wdata = '0;
-    assign axi3_if.wstrb = '1;
-    assign axi3_if.wlast = 1'b0;
-    assign axi3_if.wuser = 1'b0;
-    assign axi3_if.wvalid = 1'b0;
+    assign to_peripheral.wid = '0;
+    assign to_peripheral.wdata = '0;
+    assign to_peripheral.wstrb = '1;
+    assign to_peripheral.wlast = 1'b0;
+    assign to_peripheral.wuser = 1'b0;
+    assign to_peripheral.wvalid = 1'b0;
     // Write response
-    assign axi3_if.bready = 1'b0;
+    assign to_peripheral.bready = 1'b0;
     // Read address
-    assign axi3_if.arid = '0;
-    assign axi3_if.araddr = '0;
-    assign axi3_if.arlen = 4'h0;
-    assign axi3_if.arsize = SIZE_1BYTE;
-    assign axi3_if.arburst = BURST_INCR;
-    assign axi3_if.arlock = LOCK_NORMAL;
-    assign axi3_if.arcache = 4'h0;
-    assign axi3_if.arprot = 3'h0;
-    assign axi3_if.arqos = 4'h0;
-    assign axi3_if.arregion = 4'h0;
-    assign axi3_if.aruser = '0;
-    assign axi3_if.arvalid = 1'b0;
+    assign to_peripheral.arid = '0;
+    assign to_peripheral.araddr = '0;
+    assign to_peripheral.arlen = 4'h0;
+    assign to_peripheral.arsize = SIZE_1BYTE;
+    assign to_peripheral.arburst = BURST_INCR;
+    assign to_peripheral.arlock = LOCK_NORMAL;
+    assign to_peripheral.arcache = 4'h0;
+    assign to_peripheral.arprot = 3'h0;
+    assign to_peripheral.arqos = 4'h0;
+    assign to_peripheral.arregion = 4'h0;
+    assign to_peripheral.aruser = '0;
+    assign to_peripheral.arvalid = 1'b0;
     // Read data
-    assign axi3_if.rready = 1'b0;
+    assign to_peripheral.rready = 1'b0;
 endmodule : axi3_intf_controller_term
 
 
@@ -321,14 +339,12 @@ module axi3_intf_from_signals
 #(
     parameter int DATA_BYTE_WID = 8,
     parameter int ADDR_WID = 32,
-    parameter type ID_T = logic,
-    parameter type USER_T = logic
+    parameter int ID_WID = 1,
+    parameter int USER_WID = 1
 ) (
     // Signals (from controller)
-    // -- Reset
-    input  logic                          aresetn,
     // -- Write address
-    input  ID_T                           awid,
+    input  logic [ID_WID-1:0]             awid,
     input  logic [ADDR_WID-1:0]           awaddr,
     input  logic [3:0]                    awlen,
     input  logic [2:0]                    awsize,
@@ -338,25 +354,25 @@ module axi3_intf_from_signals
     input  logic [2:0]                    awprot,
     input  logic [3:0]                    awqos,
     input  logic [3:0]                    awregion,
-    input  USER_T                         awuser,
+    input  logic [USER_WID-1:0]           awuser,
     input  logic                          awvalid,
     output logic                          awready,
     // -- Write data
-    input  ID_T                           wid,
+    input  logic [ID_WID-1:0]             wid,
     input  logic [DATA_BYTE_WID-1:0][7:0] wdata,
     input  logic [DATA_BYTE_WID-1:0]      wstrb,
     input  logic                          wlast,
-    input  USER_T                         wuser,
+    input  logic [USER_WID-1:0]           wuser,
     input  logic                          wvalid,
     output logic                          wready,
     // -- Write response
-    output ID_T                           bid,
+    output logic [ID_WID-1:0]             bid,
     output logic [1:0]                    bresp,
-    output USER_T                         buser,
+    output logic [USER_WID-1:0]           buser,
     output logic                          bvalid,
     input  logic                          bready,
     // -- Read address
-    input  ID_T                           arid,
+    input  logic [ID_WID-1:0]             arid,
     input  logic [ADDR_WID-1:0]           araddr,
     input  logic [3:0]                    arlen,
     input  logic [2:0]                    arsize,
@@ -366,23 +382,29 @@ module axi3_intf_from_signals
     input  logic [2:0]                    arprot,
     input  logic [3:0]                    arqos,
     input  logic [3:0]                    arregion,
-    input  USER_T                         aruser,
+    input  logic [USER_WID-1:0]           aruser,
     input  logic                          arvalid,
     output logic                          arready,
     // -- Read data
-    output ID_T                           rid,
+    output logic [ID_WID-1:0]             rid,
     output logic [DATA_BYTE_WID-1:0][7:0] rdata,
     output logic [1:0]                    rresp,
     output logic                          rlast,
-    output USER_T                         ruser,
+    output logic [USER_WID-1:0]           ruser,
     output logic                          rvalid,
     input  logic                          rready,
 
     // Interface (to peripheral)
     axi3_intf.controller                  axi3_if
 );
-    // Reset
-    assign axi3_if.aresetn = aresetn;
+    // Parameter check
+    initial begin
+        std_pkg::param_check(axi3_if.DATA_BYTE_WID, DATA_BYTE_WID, "axi3_if.DATA_BYTE_WID");
+        std_pkg::param_check(axi3_if.ADDR_WID,      ADDR_WID,      "axi3_if.ADDR_WID");
+        std_pkg::param_check(axi3_if.ID_WID,        ID_WID,        "axi3_if.ID_WID");
+        std_pkg::param_check(axi3_if.USER_WID,      USER_WID,      "axi3_if.USER_WID");
+    end
+
     // Write address
     assign axi3_if.awid = awid;
     assign axi3_if.awaddr = awaddr;
@@ -443,17 +465,18 @@ module axi3_intf_to_signals
 #(
     parameter int DATA_BYTE_WID = 8,
     parameter int ADDR_WID = 32,
-    parameter type ID_T = logic,
-    parameter type USER_T = logic
+    parameter int ID_WID = 1,
+    parameter int USER_WID = 1
 ) (
-    // Interface (from controller)
+     // Interface (from controller)
     axi3_intf.peripheral                  axi3_if,
  
     // Signals (to peripheral)
-    // -- Reset
+    // -- Clock/reset
+    output logic                          aclk,
     output logic                          aresetn,
     // -- Write address
-    output ID_T                           awid,
+    output logic [ID_WID-1:0]             awid,
     output logic [ADDR_WID-1:0]           awaddr,
     output logic [3:0]                    awlen,
     output logic [2:0]                    awsize,
@@ -463,25 +486,25 @@ module axi3_intf_to_signals
     output logic [2:0]                    awprot,
     output logic [3:0]                    awqos,
     output logic [3:0]                    awregion,
-    output USER_T                         awuser,
+    output logic [USER_WID-1:0]           awuser,
     output logic                          awvalid,
     input  logic                          awready,
     // -- Write data
-    output ID_T                           wid,
+    output logic [ID_WID-1:0]             wid,
     output logic [DATA_BYTE_WID-1:0][7:0] wdata,
     output logic [DATA_BYTE_WID-1:0]      wstrb,
     output logic                          wlast,
-    output USER_T                         wuser,
+    output logic [USER_WID-1:0]           wuser,
     output logic                          wvalid,
     input  logic                          wready,
     // -- Write response
-    input  ID_T                           bid,
+    input  logic [ID_WID-1:0]             bid,
     input  logic [1:0]                    bresp,
-    input  USER_T                         buser,
+    input  logic [USER_WID-1:0]           buser,
     input  logic                          bvalid,
     output logic                          bready,
     // -- Read address
-    output ID_T                           arid,
+    output logic [ID_WID-1:0]             arid,
     output logic [ADDR_WID-1:0]           araddr,
     output logic [3:0]                    arlen,
     output logic [2:0]                    arsize,
@@ -491,20 +514,30 @@ module axi3_intf_to_signals
     output logic [2:0]                    arprot,
     output logic [3:0]                    arqos,
     output logic [3:0]                    arregion,
-    output USER_T                         aruser,
+    output logic [USER_WID-1:0]           aruser,
     output logic                          arvalid,
     input  logic                          arready,
     // -- Read data
-    input  ID_T                           rid,
+    input  logic [ID_WID-1:0]             rid,
     input  logic [DATA_BYTE_WID-1:0][7:0] rdata,
     input  logic [1:0]                    rresp,
     input  logic                          rlast,
-    input  USER_T                         ruser,
+    input  logic [USER_WID-1:0]           ruser,
     input  logic                          rvalid,
     output logic                          rready
 );
-    // Reset
+    // Parameter check
+    initial begin
+        std_pkg::param_check(axi3_if.DATA_BYTE_WID, DATA_BYTE_WID, "axi3_if.DATA_BYTE_WID");
+        std_pkg::param_check(axi3_if.ADDR_WID,      ADDR_WID,      "axi3_if.ADDR_WID");
+        std_pkg::param_check(axi3_if.ID_WID,        ID_WID,        "axi3_if.ID_WID");
+        std_pkg::param_check(axi3_if.USER_WID,      USER_WID,      "axi3_if.USER_WID");
+    end
+
+    // Clock/reset
+    assign aclk = axi3_if.aclk;
     assign aresetn = axi3_if.aresetn;
+
     // Write address
     assign awid = axi3_if.awid;
     assign awaddr = axi3_if.awaddr;

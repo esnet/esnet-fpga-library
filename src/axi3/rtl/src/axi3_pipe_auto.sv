@@ -20,8 +20,11 @@ module axi3_pipe_auto (
     localparam int DATA_WID = DATA_BYTE_WID*8;
     localparam int STRB_WID = DATA_BYTE_WID;
     localparam int ADDR_WID = from_controller.ADDR_WID;
-    localparam int ID_WID   = $bits(from_controller.ID_T);
-    localparam int USER_WID = $bits(from_controller.USER_T);
+    localparam int ID_WID   = from_controller.ID_WID;
+    localparam int USER_WID = from_controller.USER_WID;
+
+    // Parameter checking
+    axi3_intf_parameter_check param_check (.*);
 
     // Payload structs
     typedef struct packed {
@@ -37,6 +40,7 @@ module axi3_pipe_auto (
         logic [3:0]          region;
         logic [USER_WID-1:0] user;
     } ax_payload_t;
+    localparam int AX_PAYLOAD_WID = $bits(ax_payload_t);
 
     typedef struct packed {
         logic [ID_WID-1:0]   id;
@@ -45,12 +49,14 @@ module axi3_pipe_auto (
         logic                last;
         logic [USER_WID-1:0] user;
     } w_payload_t;
+    localparam int W_PAYLOAD_WID = $bits(w_payload_t);
 
     typedef struct packed {
         logic [ID_WID-1:0]   id;
         resp_t               resp;
         logic [USER_WID-1:0] user;
     } b_payload_t;
+    localparam int B_PAYLOAD_WID = $bits(b_payload_t);
 
     typedef struct packed {
         logic [ID_WID-1:0]   id;
@@ -59,30 +65,34 @@ module axi3_pipe_auto (
         logic                last;
         logic [USER_WID-1:0] user;
     } r_payload_t;
+    localparam int R_PAYLOAD_WID = $bits(r_payload_t);
 
     // Parameter checking
     initial begin
-        std_pkg::param_check(to_peripheral.DATA_BYTE_WID,   DATA_BYTE_WID, "to_peripheral.DATA_BYTE_WID");
-        std_pkg::param_check(to_peripheral.ADDR_WID,        ADDR_WID,      "to_peripheral.ADDR_WID");
-        std_pkg::param_check($bits(to_peripheral.ID_T),     ID_WID,        "to_peripheral.ID_WID");
-        std_pkg::param_check($bits(to_peripheral.USER_T),   USER_WID,      "to_peripheral.USER_WID");
+        std_pkg::param_check(to_peripheral.DATA_BYTE_WID, DATA_BYTE_WID, "to_peripheral.DATA_BYTE_WID");
+        std_pkg::param_check(to_peripheral.ADDR_WID,      ADDR_WID,      "to_peripheral.ADDR_WID");
+        std_pkg::param_check(to_peripheral.ID_WID,        ID_WID,        "to_peripheral.ID_WID");
+        std_pkg::param_check(to_peripheral.USER_WID,      USER_WID,      "to_peripheral.USER_WID");
     end
 
     // Signals
     logic clk;
+    logic srst;
+
     assign clk = from_controller.aclk;
+    assign srst = !from_controller.aresetn;
 
     // Bus interfaces (one for each of the AXI3 channels)
-    bus_intf #(.DATA_T(ax_payload_t)) aw_bus_if__from_controller (.clk);
-    bus_intf #(.DATA_T(w_payload_t))  w_bus_if__from_controller  (.clk);
-    bus_intf #(.DATA_T(b_payload_t))  b_bus_if__from_controller  (.clk);
-    bus_intf #(.DATA_T(ax_payload_t)) ar_bus_if__from_controller (.clk);
-    bus_intf #(.DATA_T(r_payload_t))  r_bus_if__from_controller  (.clk);
-    bus_intf #(.DATA_T(ax_payload_t)) aw_bus_if__to_peripheral   (.clk);
-    bus_intf #(.DATA_T(w_payload_t))  w_bus_if__to_peripheral    (.clk);
-    bus_intf #(.DATA_T(b_payload_t))  b_bus_if__to_peripheral    (.clk);
-    bus_intf #(.DATA_T(ax_payload_t)) ar_bus_if__to_peripheral   (.clk);
-    bus_intf #(.DATA_T(r_payload_t))  r_bus_if__to_peripheral    (.clk);
+    bus_intf #(.DATA_WID(AX_PAYLOAD_WID)) aw_bus_if__from_controller (.clk, .srst);
+    bus_intf #(.DATA_WID(W_PAYLOAD_WID))  w_bus_if__from_controller  (.clk, .srst);
+    bus_intf #(.DATA_WID(B_PAYLOAD_WID))  b_bus_if__from_controller  (.clk, .srst);
+    bus_intf #(.DATA_WID(AX_PAYLOAD_WID)) ar_bus_if__from_controller (.clk, .srst);
+    bus_intf #(.DATA_WID(R_PAYLOAD_WID))  r_bus_if__from_controller  (.clk, .srst);
+    bus_intf #(.DATA_WID(AX_PAYLOAD_WID)) aw_bus_if__to_peripheral   (.clk, .srst);
+    bus_intf #(.DATA_WID(W_PAYLOAD_WID))  w_bus_if__to_peripheral    (.clk, .srst);
+    bus_intf #(.DATA_WID(B_PAYLOAD_WID))  b_bus_if__to_peripheral    (.clk, .srst);
+    bus_intf #(.DATA_WID(AX_PAYLOAD_WID)) ar_bus_if__to_peripheral   (.clk, .srst);
+    bus_intf #(.DATA_WID(R_PAYLOAD_WID))  r_bus_if__to_peripheral    (.clk, .srst);
 
     axi3_to_bus_adapter i_axi3_to_bus_adapter (
         .axi3_if   ( from_controller ),
@@ -95,13 +105,13 @@ module axi3_pipe_auto (
 
     generate
         begin : g__fwd
-            bus_pipe_auto #(.DATA_T(ax_payload_t)) i_bus_pipe_auto__aw ( .from_tx ( aw_bus_if__from_controller ), .to_rx ( aw_bus_if__to_peripheral ));
-            bus_pipe_auto #(.DATA_T(w_payload_t))  i_bus_pipe_auto__w  ( .from_tx ( w_bus_if__from_controller ),  .to_rx ( w_bus_if__to_peripheral ));
-            bus_pipe_auto #(.DATA_T(ax_payload_t)) i_bus_pipe_auto__ar ( .from_tx ( ar_bus_if__from_controller ), .to_rx ( ar_bus_if__to_peripheral ));
+            bus_pipe_auto i_bus_pipe_auto__aw ( .from_tx ( aw_bus_if__from_controller ), .to_rx ( aw_bus_if__to_peripheral ));
+            bus_pipe_auto i_bus_pipe_auto__w  ( .from_tx ( w_bus_if__from_controller ),  .to_rx ( w_bus_if__to_peripheral ));
+            bus_pipe_auto i_bus_pipe_auto__ar ( .from_tx ( ar_bus_if__from_controller ), .to_rx ( ar_bus_if__to_peripheral ));
         end : g__fwd
         begin : g__rev
-            bus_pipe_auto #(.DATA_T(b_payload_t))  i_bus_pipe_auto__b  ( .from_tx ( b_bus_if__to_peripheral ),  .to_rx ( b_bus_if__from_controller ));
-            bus_pipe_auto #(.DATA_T(r_payload_t))  i_bus_pipe_auto__r  ( .from_tx ( r_bus_if__to_peripheral ),  .to_rx ( r_bus_if__from_controller ));
+            bus_pipe_auto i_bus_pipe_auto__b  ( .from_tx ( b_bus_if__to_peripheral ),  .to_rx ( b_bus_if__from_controller ));
+            bus_pipe_auto i_bus_pipe_auto__r  ( .from_tx ( r_bus_if__to_peripheral ),  .to_rx ( r_bus_if__from_controller ));
         end : g__rev
     endgenerate
 

@@ -24,8 +24,8 @@ module axi3_from_bus_adapter (
     localparam int DATA_WID = DATA_BYTE_WID*8;
     localparam int STRB_WID = DATA_BYTE_WID;
     localparam int ADDR_WID = axi3_if.ADDR_WID;
-    localparam int ID_WID   = $bits(axi3_if.ID_T);
-    localparam int USER_WID = $bits(axi3_if.USER_T);
+    localparam int ID_WID   = axi3_if.ID_WID;
+    localparam int USER_WID = axi3_if.USER_WID;
 
     // Payload structs
     typedef struct packed {
@@ -66,16 +66,14 @@ module axi3_from_bus_adapter (
 
     // Parameter checking
     initial begin
-        std_pkg::param_check($bits(aw_bus_if.DATA_T), $bits(ax_payload_t), "aw_bus_if.DATA_T");
-        std_pkg::param_check($bits(w_bus_if.DATA_T),  $bits(w_payload_t),  "w_bus_if.DATA_T");
-        std_pkg::param_check($bits(ar_bus_if.DATA_T), $bits(ax_payload_t), "ar_bus_if.DATA_T");
-        std_pkg::param_check($bits(b_bus_if.DATA_T),  $bits(b_payload_t),  "b_bus_if.DATA_T");
-        std_pkg::param_check($bits(r_bus_if.DATA_T),  $bits(r_payload_t),  "r_bus_if.DATA_T");
+        std_pkg::param_check(aw_bus_if.DATA_WID, $bits(ax_payload_t), "aw_bus_if.DATA_WID");
+        std_pkg::param_check(w_bus_if.DATA_WID,  $bits(w_payload_t),  "w_bus_if.DATA_WID");
+        std_pkg::param_check(ar_bus_if.DATA_WID, $bits(ax_payload_t), "ar_bus_if.DATA_WID");
+        std_pkg::param_check(b_bus_if.DATA_WID,  $bits(b_payload_t),  "b_bus_if.DATA_WID");
+        std_pkg::param_check(r_bus_if.DATA_WID,  $bits(r_payload_t),  "r_bus_if.DATA_WID");
     end
 
     // Signals
-    logic srst;
-
     logic        aw_valid;
     ax_payload_t aw_payload;
     logic        aw_ready;
@@ -98,7 +96,6 @@ module axi3_from_bus_adapter (
 
     // Terminate write address bus interface
     // -- (arbitrarily) choose this interface as the reference for reset
-    assign srst = aw_bus_if.srst;
     assign aw_valid = aw_bus_if.valid;
     assign aw_payload = aw_bus_if.data;
     assign aw_bus_if.ready = aw_ready;
@@ -109,7 +106,6 @@ module axi3_from_bus_adapter (
     assign w_bus_if.ready = w_ready;
 
     // Terminate write response bus interface
-    assign b_bus_if.srst = srst;
     assign b_bus_if.valid = b_valid;
     assign b_bus_if.data = b_payload;
     assign b_ready = b_bus_if.ready;
@@ -120,14 +116,11 @@ module axi3_from_bus_adapter (
     assign ar_bus_if.ready = ar_ready;
 
     // Terminate read data bus interface
-    assign r_bus_if.srst = srst;
     assign r_bus_if.valid = r_valid;
     assign r_bus_if.data = r_payload;
     assign r_ready = r_bus_if.ready;
 
     // Drive AXI3 interface
-    assign axi3_if.aresetn = !srst;
-
     assign axi3_if.awvalid = aw_valid;
     assign axi3_if.awid     = aw_payload.id;
     assign axi3_if.awaddr   = aw_payload.addr;
