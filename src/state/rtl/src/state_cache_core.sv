@@ -280,7 +280,7 @@ module state_cache_core
     assign lookup_req_ctxt_in.back_to_back = last_lookup_key_valid && (lookup_if.key == last_lookup_key);
 
     fifo_sync    #(
-        .DATA_T   ( lookup_req_ctxt_t ),
+        .DATA_WID ( $bits(lookup_req_ctxt_t) ),
         .DEPTH    ( NUM_RD_TRANSACTIONS ),
         .FWFT     ( 1 )
     ) i_fifo_sync__lookup_req_ctxt (

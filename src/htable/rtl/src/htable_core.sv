@@ -183,7 +183,7 @@ module htable_core
 
             // Delay write request
             util_delay   #(
-                .DATA_T   ( logic ),
+                .DATA_WID ( 1 ),
                 .DELAY    ( HASH_LATENCY )
             ) i_util_delay__wr_req (
                 .clk      ( clk ),
@@ -197,7 +197,7 @@ module htable_core
             assign wr_ctxt_in.entry.key = update_if.key;
             assign wr_ctxt_in.entry.value = update_if.value;
             util_delay   #(
-                .DATA_T   ( wr_ctxt_t ),
+                .DATA_WID ( $bits(wr_ctxt_t) ),
                 .DELAY    ( HASH_LATENCY )
             ) i_util_delay__wr_ctxt (
                 .clk      ( clk ),
@@ -208,7 +208,7 @@ module htable_core
 
             // Delay read request
             util_delay   #(
-                .DATA_T   ( logic ),
+                .DATA_WID ( 1 ),
                 .DELAY    ( HASH_LATENCY )
             ) i_util_delay__rd_req (
                 .clk      ( clk ),
@@ -220,7 +220,7 @@ module htable_core
             // Delay read context
             assign rd_ctxt_hash.key = lookup_if.key;
             util_delay   #(
-                .DATA_T   ( rd_ctxt_t ),
+                .DATA_WID ( $bits(rd_ctxt_t) ),
                 .DELAY    ( HASH_LATENCY )
             ) i_util_delay__rd_ctxt (
                 .clk      ( clk ),
@@ -264,9 +264,9 @@ module htable_core
     // ----------------------------------
     // Store read context
     // ----------------------------------
-    fifo_small_ctxt   #(
-        .DATA_T  ( rd_ctxt_t ),
-        .DEPTH   ( NUM_RD_TRANSACTIONS )
+    fifo_small_ctxt #(
+        .DATA_WID ( $bits(rd_ctxt_t) ),
+        .DEPTH    ( NUM_RD_TRANSACTIONS )
     ) i_fifo_small__rd_ctxt (
         .clk     ( clk ),
         .srst    ( srst || tbl_init ),

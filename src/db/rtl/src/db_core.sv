@@ -188,8 +188,8 @@ module db_core #(
             assign cache_ctxt_in.value = cache_rd_if.value.value;
 
             fifo_small_ctxt #(
-                .DATA_T ( cache_ctxt_t ),
-                .DEPTH  ( NUM_RD_TRANSACTIONS )
+                .DATA_WID ( $bits(cache_ctxt_t) ),
+                .DEPTH    ( NUM_RD_TRANSACTIONS )
             ) i_fifo_small_ctxt__cache (
                 .clk     ( clk ),
                 .srst    ( __srst ),
@@ -210,8 +210,8 @@ module db_core #(
             assign rd_ctxt_in.value    = db_rd_if.value;
 
             fifo_small_ctxt  #(
-                .DATA_T  ( rd_ctxt_t ),
-                .DEPTH   ( 2 )
+                .DATA_WID ( $bits(rd_ctxt_t) ),
+                .DEPTH    ( 2 )
             ) i_fifo_small_ctxt__rd (
                 .clk     ( clk ),
                 .srst    ( __srst ),
@@ -316,8 +316,8 @@ module db_core #(
 
             // Read request context (wait for read to complete)
             fifo_small_ctxt #(
-                .DATA_T ( rd_req_ctxt_t ),
-                .DEPTH  ( NUM_RD_TRANSACTIONS )
+                .DATA_WID ( $bits(rd_req_ctxt_t) ),
+                .DEPTH    ( NUM_RD_TRANSACTIONS )
             ) i_fifo_small_ctxt__rd_req (
                 .clk     ( clk ),
                 .srst    ( __srst ),

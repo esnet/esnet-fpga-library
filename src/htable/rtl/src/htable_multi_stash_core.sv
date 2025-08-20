@@ -177,9 +177,9 @@ module htable_multi_stash_core
 
     // This assumes tbl lookup takes at least one cycle longer than stash lookup;
     // use fifo_small_* here for single-cycle write-to-read latency
-    fifo_small  #(
-        .DATA_T  ( stash_lookup_resp_t ),
-        .DEPTH   ( NUM_RD_TRANSACTIONS )
+    fifo_small    #(
+        .DATA_WID  ( $bits(stash_lookup_resp_t) ),
+        .DEPTH     ( NUM_RD_TRANSACTIONS )
     ) i_fifo_small__lookup_resp (
         .clk     ( clk ),
         .srst    ( srst ),

@@ -184,8 +184,8 @@ module state_vector_core
     assign rmw_ctxt_in.back_to_back = (__update_if.id == last_update_id);
 
     fifo_small_ctxt #(
-        .DATA_T  ( rmw_ctxt_t ),
-        .DEPTH   ( NUM_RD_TRANSACTIONS )
+        .DATA_WID ( $bits(rmw_ctxt_t) ),
+        .DEPTH    ( NUM_RD_TRANSACTIONS )
     ) i_fifo_small_ctxt__rmw (
         .clk     ( clk ),
         .srst    ( srst ),

@@ -190,10 +190,10 @@ module htable_fast_update_core #(
     // Store lookup request context
     assign tbl_req_ctxt_in.key = tbl_lookup_if.key;
 
-    fifo_sync   #(
-        .DATA_T  ( req_ctxt_t ),
-        .DEPTH   ( NUM_RD_TRANSACTIONS ),
-        .FWFT    ( 1 )
+    fifo_sync    #(
+        .DATA_WID ( $bits(req_ctxt_t) ),
+        .DEPTH    ( NUM_RD_TRANSACTIONS ),
+        .FWFT     ( 1 )
     ) i_fifo_sync__tbl_lookup_req_ctxt (
         .clk     ( clk ),
         .srst    ( __srst ),

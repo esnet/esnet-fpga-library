@@ -82,7 +82,7 @@ module fifo_ctrl_fsm
             logic [CNT_WID-1:0] _wr_ptr__rd_clk;
 
             // pointer synchronization
-            sync_ctr #( .DATA_T(logic [CNT_WID-1:0]), .RST_VALUE(0), .DECODE_OUT(1) ) sync_wr_ptr
+            sync_ctr #( .CNT_WID(CNT_WID), .RST_VALUE(0), .DECODE_OUT(1) ) sync_wr_ptr
             (
                .clk_in       ( wr_clk ),
                .rst_in       ( wr_srst ),
@@ -92,7 +92,7 @@ module fifo_ctrl_fsm
                .cnt_out      ( _wr_ptr__rd_clk )
             );
 
-            sync_ctr #( .DATA_T(logic [CNT_WID-1:0]), .RST_VALUE(0), .DECODE_OUT(1) ) sync_rd_ptr
+            sync_ctr #( .CNT_WID(CNT_WID), .RST_VALUE(0), .DECODE_OUT(1) ) sync_rd_ptr
             (
                .clk_in       ( rd_clk ),
                .rst_in       ( rd_srst ),

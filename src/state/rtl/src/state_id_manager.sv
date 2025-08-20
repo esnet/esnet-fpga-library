@@ -99,7 +99,7 @@ module state_id_manager
     // ID allocator
     // ----------------------------------
     alloc_axil_bv #(
-        .PTR_T          ( ID_T ),
+        .PTR_WID        ( ID_WID ),
         .ALLOC_FC       ( 0 ),
         .DEALLOC_FC     ( 1 ),
         .SIM__FAST_INIT ( SIM__FAST_INIT ),

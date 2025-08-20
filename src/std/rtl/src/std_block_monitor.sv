@@ -49,7 +49,7 @@ module std_block_monitor (
     );
 
     sync_bus_sampled #(
-        .DATA_T   ( logic[7:0] )
+        .DATA_WID ( 8 )
     ) i_sync_bus_sampled__state_mon (
         .clk_in   ( blk_clk ),
         .rst_in   ( 1'b0 ),

@@ -58,7 +58,8 @@ module sar_reassembly_cache
     // -------------------------------------------------
     localparam int NUM_RD_TRANSACTIONS = 16;
 
-    localparam int MAX_FRAGMENTS = 2**$bits(FRAGMENT_PTR_T);
+    localparam int FRAGMENT_PTR_WID = $bits(FRAGMENT_PTR_T);
+    localparam int MAX_FRAGMENTS = 2**FRAGMENT_PTR_WID;
 
     // -------------------------------------------------
     // Typedefs
@@ -242,8 +243,8 @@ module sar_reassembly_cache
     // ----------------------------------
     // Fragment pointer management
     // ----------------------------------
-    alloc_axil_bv #(
-        .PTR_T          ( FRAGMENT_PTR_T ),
+    alloc_axil_bv      #(
+        .PTR_WID        ( FRAGMENT_PTR_WID ),
         .ALLOC_FC       ( 0 ),
         .DEALLOC_FC     ( 1 ),
         .SIM__FAST_INIT ( SIM__FAST_INIT )
@@ -292,9 +293,9 @@ module sar_reassembly_cache
     // these tables are identical so this should never happen
     assign lookup_error = lookup_if__append.ack ^ lookup_if__prepend.ack;
 
-    fifo_small_ctxt  #(
-        .DATA_T  ( segment_ctxt_t ),
-        .DEPTH   ( NUM_RD_TRANSACTIONS )
+    fifo_small_ctxt #(
+        .DATA_WID ( $bits(segment_ctxt_t) ),
+        .DEPTH    ( NUM_RD_TRANSACTIONS )
     ) i_fifo_small_ctxt__lookup_req (
         .clk     ( clk ),
         .srst    ( __srst ),
@@ -481,9 +482,9 @@ module sar_reassembly_cache
     // -------------------------------------------------
     // Deletion queues
     // -------------------------------------------------
-    fifo_small  #(
-        .DATA_T  ( segment_table_key_t ),
-        .DEPTH   ( 16 )
+    fifo_small   #(
+        .DATA_WID ( $bits(segment_table_key_t) ),
+        .DEPTH    ( 16 )
     ) i_fifo_small__delete_q__append (
         .clk     ( clk ),
         .srst    ( __srst ),
@@ -501,9 +502,9 @@ module sar_reassembly_cache
     assign delete_q__append__wr_data.buf_id = lookup_ctxt_out.buf_id;
     assign delete_q__append__wr_data.offset = lookup_ctxt_out.offset_start;
 
-    fifo_small  #(
-        .DATA_T  ( segment_table_key_t ),
-        .DEPTH   ( 16 )
+    fifo_small   #(
+        .DATA_WID ( $bits(segment_table_key_t) ),
+        .DEPTH    ( 16 )
     ) i_fifo_small__delete_q__prepend (
         .clk     ( clk ),
         .srst    ( __srst ),

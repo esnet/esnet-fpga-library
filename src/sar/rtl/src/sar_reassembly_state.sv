@@ -257,9 +257,9 @@ module sar_reassembly_state
     // State vector deletion logic
     // -------------------------------------------------
     // Deletion queue (from completed fragments)
-    fifo_small  #(
-        .DATA_T  ( notify_q_data_t ),
-        .DEPTH   ( 8 )
+    fifo_small   #(
+        .DATA_WID ( $bits(notify_q_data_t) ),
+        .DEPTH    ( 8 )
     ) i_fifo_small__q_done (
         .clk     ( clk ),
         .srst    ( srst ),
@@ -280,7 +280,7 @@ module sar_reassembly_state
 
     // Deletion queue (from expired fragments)
     fifo_small  #(
-        .DATA_T  ( FRAGMENT_PTR_T ),
+        .DATA_WID  ( $bits(FRAGMENT_PTR_T) ),
         .DEPTH   ( 8 )
     ) i_fifo_small__q_expired (
         .clk     ( clk ),
@@ -300,9 +300,9 @@ module sar_reassembly_state
     assign q_expired__wr_data = notify_if.id;
 
     // Deletion queue (from merged fragments)
-    fifo_small  #(
-        .DATA_T  ( FRAGMENT_PTR_T ),
-        .DEPTH   ( 8 )
+    fifo_small   #(
+        .DATA_WID ( $bits(FRAGMENT_PTR_T) ),
+        .DEPTH    ( 8 )
     ) i_fifo_small__q_merged (
         .clk     ( clk ),
         .srst    ( srst ),

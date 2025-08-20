@@ -574,7 +574,7 @@ module htable_cuckoo_controller
                 assign req_ctxt_in.entry   = set_entry;
 
                 util_delay   #(
-                    .DATA_T   ( req_ctxt_t ),
+                    .DATA_WID ( $bits(req_ctxt_t) ),
                     .DELAY    ( HASH_LATENCY )
                 ) i_util_delay__req_ctxt (
                     .clk      ( clk ),

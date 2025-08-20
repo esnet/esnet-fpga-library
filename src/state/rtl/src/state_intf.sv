@@ -360,8 +360,8 @@ module state_intf_control_mux #(
 
     // Maintain context for open transactions
     fifo_small_ctxt #(
-        .DATA_T  ( logic ),
-        .DEPTH   ( NUM_TRANSACTIONS )
+        .DATA_WID ( 1 ),
+        .DEPTH    ( NUM_TRANSACTIONS )
     ) i_fifo_small_ctxt (
         .clk     ( clk ),
         .srst    ( srst ),

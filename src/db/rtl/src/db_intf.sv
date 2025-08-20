@@ -374,8 +374,8 @@ module db_intf_mux #(
 
             // Maintain context for open transactions
             fifo_small_ctxt #(
-                .DATA_T  ( mux_sel_t ),
-                .DEPTH   ( NUM_TRANSACTIONS )
+                .DATA_WID ( MUX_SEL_WID ),
+                .DEPTH    ( NUM_TRANSACTIONS )
             ) i_fifo_small_ctxt (
                 .clk     ( clk ),
                 .srst    ( srst ),
@@ -513,9 +513,9 @@ module db_intf_2to1_mux #(
     end
 
     // Maintain context for open transactions
-    fifo_small_ctxt   #(
-        .DATA_T  ( mux_sel_t ),
-        .DEPTH   ( NUM_TRANSACTIONS )
+    fifo_small_ctxt #(
+        .DATA_WID ( 1 ),
+        .DEPTH    ( NUM_TRANSACTIONS )
     ) i_fifo_small_ctxt (
         .clk     ( clk ),
         .srst    ( srst ),
@@ -736,9 +736,9 @@ module db_intf_demux #(
             end
 
             // Maintain context for open transactions
-            fifo_small_cxt  #(
-                .DATA_T  ( mux_sel_t ),
-                .DEPTH   ( NUM_TRANSACTIONS )
+            fifo_small_cxt #(
+                .DATA_WID ( MUX_SEL_WID ),
+                .DEPTH    ( NUM_TRANSACTIONS )
             ) i_fifo_small_ctxt (
                 .clk     ( clk ),
                 .srst    ( srst ),

@@ -167,8 +167,8 @@ module htable_multi_core
             assign lookup_resp_in.value = __lookup_if.value;
 
             fifo_small_ctxt #(
-                .DATA_T ( lookup_resp_t ),
-                .DEPTH  ( NUM_RD_TRANSACTIONS )
+                .DATA_WID ( $bits(lookup_resp_t) ),
+                .DEPTH    ( NUM_RD_TRANSACTIONS )
             ) i_fifo_small_ctxt__lookup_resp (
                 .clk     ( clk ),
                 .srst    ( srst || tbl_init [g_tbl] ),
