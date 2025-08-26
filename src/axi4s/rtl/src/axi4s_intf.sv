@@ -525,7 +525,7 @@ module axi4s_intf_mux #(
             assign   tuser[g_if] = from_tx[g_if].tuser;
 
             assign from_tx[g_if].tready = (sel == g_if) ? to_rx.tready : 1'b0;
-        end
+        end : g__if
     endgenerate
 
     always_comb begin
@@ -609,7 +609,7 @@ module axi4s_intf_demux #(
             assign to_rx_p[g_if].tuser   = from_tx_p.tuser;
 
             axi4s_intf_pipe out_pipe (.from_tx(to_rx_p[g_if]), .to_rx(to_rx[g_if]));
-        end
+        end : g__if
 
     endgenerate
 

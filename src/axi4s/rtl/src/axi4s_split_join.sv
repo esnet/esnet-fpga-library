@@ -102,26 +102,33 @@ module axi4s_split_join
                  .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_INT_WID) ) _axi4s_from_join_mux (.aclk(axi4s_in.aclk), .aresetn(axi4s_in.aresetn));
 
    generate
-      if (IN_PIPE)
+      if (IN_PIPE) begin : g__in_pipe
          axi4s_full_pipe in_pipe_0 (.from_tx(axi4s_in), .to_rx(axi4s_in_p));
-      else
+      end : g__in_pipe
+      else begin : g__no_in_pipe
          axi4s_intf_connector in_intf_connector_0  (.from_tx(axi4s_in), .to_rx(axi4s_in_p));
+      end : g__no_in_pipe
 
-      if (OUT_PIPE)
+      if (OUT_PIPE) begin : g__out_pipe
          axi4s_full_pipe out_pipe_0 (.from_tx(axi4s_out_p), .to_rx(axi4s_out));
-      else
+      end : g__out_pipe
+      else begin : g__no_out_pipe
          axi4s_intf_connector out_intf_connector_0 (.from_tx(axi4s_out_p), .to_rx(axi4s_out));
+      end : g__no_out_pipe
 
-      if (HDR_IN_PIPE)
+      if (HDR_IN_PIPE) begin : g__hdr_in_pipe
          axi4s_full_pipe hdr_in_pipe_0 (.from_tx(axi4s_hdr_in), .to_rx(axi4s_hdr_in_p));
-      else
+      end : g__hdr_in_pipe
+      else begin : g__no_hdr_in_pipe
          axi4s_intf_connector hdr_in_intf_connector_0  (.from_tx(axi4s_hdr_in), .to_rx(axi4s_hdr_in_p));
+      end : g__no_hdr_in_pipe
 
-      if (HDR_OUT_PIPE)
+      if (HDR_OUT_PIPE) begin : g__hdr_out_pipe
          axi4s_full_pipe hdr_out_pipe_0 (.from_tx(axi4s_hdr_out_p), .to_rx(axi4s_hdr_out));
-      else
+      end : g__hdr_out_pipe
+      else begin : g__no_hdr_out_pipe
          axi4s_intf_connector hdr_out_intf_connector_0 (.from_tx(axi4s_hdr_out_p), .to_rx(axi4s_hdr_out));
-
+      end : g__no_hdr_out_pipe
    endgenerate
 
 

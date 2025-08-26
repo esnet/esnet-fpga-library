@@ -188,10 +188,10 @@ module axi4s_pkt_fifo_sync #(
 
       end : g__str_fwd
 
-      else begin : g__
+      else begin : g__cut_through
          assign empty = __empty;
 
-      end : g__
+      end : g__cut_through
 
    endgenerate
 

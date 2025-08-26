@@ -61,14 +61,15 @@ module axi4s_trunc
 
 
    generate
-      if (IN_PIPE) begin
+      if (IN_PIPE) begin : g__in_pipe
          axi4s_intf_pipe in_pipe_0 (.from_tx(axi4s_in), .to_rx(axi4s_in_p));
          initial length_p = 0;
          always @(posedge clk) length_p <= (axi4s_in.tready && axi4s_in.tvalid && axi4s_in.sop) ? length : length_p;
-      end else begin
+      end : g__in_pipe
+      else begin : g__no_in_pipe
          axi4s_intf_connector out_intf_connector_0 (.from_tx(axi4s_in), .to_rx(axi4s_in_p));
          assign length_p = length;
-      end
+      end : g__no_in_pipe
    endgenerate
 
 
@@ -101,10 +102,12 @@ module axi4s_trunc
    always_comb for (int i=0; i<DATA_BYTE_WID; i++) axi4s_out_p.tdata[i] = axi4s_out_p.tkeep[i] ? axi4s_in_p.tdata[i] : '0;
 
    generate
-      if (OUT_PIPE)
+      if (OUT_PIPE) begin : g__out_pipe
          axi4s_intf_pipe out_intf_pipe_0 (.from_tx(axi4s_out_p), .to_rx(axi4s_out));
-      else
+      end : g__out_pipe
+      else begin : g__no_out_pipe
          axi4s_intf_connector out_intf_connector_0 (.from_tx(axi4s_out_p), .to_rx(axi4s_out));
+      end : g__no_out_pipe
    endgenerate
 
 endmodule // axi4s_trunc

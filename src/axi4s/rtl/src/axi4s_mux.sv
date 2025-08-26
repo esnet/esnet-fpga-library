@@ -70,7 +70,7 @@ module axi4s_mux #(
            assign   tuser[g_if] = axi4s_in_p[g_if].tuser;
 
            assign axi4s_in_p[g_if].tready = (sel == g_if) ? axi4s_out_p.tready : 1'b0;
-       end
+       end : g__if
    endgenerate
 
    always_comb begin
@@ -91,7 +91,7 @@ module axi4s_mux #(
        for (genvar g_req = 0; g_req < N; g_req++) begin : g__req
            assign axi4s_in_req[g_req] = axi4s_in_p[g_req].tvalid;
            assign axi4s_in_ack[g_req] = axi4s_in_p[g_req].tvalid && axi4s_in_p[g_req].tlast && axi4s_in_p[g_req].tready;
-       end
+       end : g__req
    endgenerate
 
    // arbitrate between axi4s ingress interfaces (work-conserving round-robin mode).
