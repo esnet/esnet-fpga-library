@@ -38,6 +38,10 @@ xsim.log
 ######################
 **/.svunit
 
+# Verilator          #
+######################
+**/obj_dir
+
 # Output products    #
 ######################
 **/.out
