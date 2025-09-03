@@ -96,12 +96,10 @@ module fifo_async_unit_test #(
     assign rd_if.valid = rd_ack;
 
     clocking cb_wr @(posedge wr_clk);
-        default input #1step output #1step;
         input wr_full, wr_oflow;
     endclocking
 
     clocking cb_rd @(posedge rd_clk);
-        default input #1step output #1step;
         input rd_empty, rd_uflow;
     endclocking
 

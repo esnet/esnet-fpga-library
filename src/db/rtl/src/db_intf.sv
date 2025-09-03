@@ -47,7 +47,6 @@ interface db_intf #(
     );
 
     clocking cb @(posedge clk);
-        default input #1step output #1step;
         output key, next;
         input rdy, ack, error, next_key;
         inout req, valid, value;

@@ -33,7 +33,6 @@ interface bus_intf #(
     );
 
     clocking cb @(posedge clk);
-        default input #1step output #1step;
         inout valid, ready, data;
     endclocking
 

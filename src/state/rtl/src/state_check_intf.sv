@@ -33,7 +33,6 @@ interface state_check_intf #(
     );
 
     clocking cb @(posedge clk);
-        default input #1step output #1step;
         output state;
         input ack, active, notify, msg;
         inout req;

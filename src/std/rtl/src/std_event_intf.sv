@@ -19,7 +19,6 @@ interface std_event_intf #(
     );
 
     clocking cb @(posedge clk);
-        default input #1step output #1step;
         output evt, msg;
     endclocking
 

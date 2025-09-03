@@ -82,7 +82,6 @@ module fifo_small_unit_test #(
     assign rd_if.valid = !empty;
 
     clocking cb @(posedge clk);
-        default input #1step output #1step;
         output wr, wr_data, rd;
         input rd_data, empty, full, count, uflow, oflow;
     endclocking

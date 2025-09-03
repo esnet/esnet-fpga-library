@@ -75,20 +75,17 @@ interface axi4s_intf #(
     );
 
     clocking cb_tx @(posedge aclk);
-        default input #1step output #1step;
         output tdata, tkeep, tlast, tid, tdest, tuser;
         input tready;
         inout tvalid;
     endclocking
 
     clocking cb_rx @(posedge aclk);
-        default input #1step output #1step;
         input tvalid, tdata, tkeep, tlast, tid, tdest, tuser;
         inout tready;
     endclocking
 
     clocking cb @(posedge aclk);
-        default input #1step output #1step;
         input tvalid, tready, tdata, tkeep, tlast, tid, tdest, tuser;
     endclocking
 

@@ -66,13 +66,11 @@ interface packet_intf #(
     end
 
     clocking cb_tx @(posedge clk);
-        default input #1step output #1step;
         output vld, data, eop, mty, err, meta;
         input rdy;
     endclocking
 
     clocking cb_rx @(posedge clk);
-        default input #1step output #1step;
         input vld, data, eop, mty, err, meta;
         output rdy;
     endclocking

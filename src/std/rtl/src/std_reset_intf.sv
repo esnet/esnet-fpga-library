@@ -26,7 +26,6 @@ interface std_reset_intf #(
     );
 
     clocking cb @(posedge clk);
-        default input #1step output #1step;
         input ready;
         output reset;
     endclocking

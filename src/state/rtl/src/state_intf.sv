@@ -41,7 +41,6 @@ interface state_intf #(
     );
 
     clocking cb @(posedge clk);
-        default input #1step output #1step;
         output id, init, update, ctxt;
         input  rdy, ack, state;
         inout  req;

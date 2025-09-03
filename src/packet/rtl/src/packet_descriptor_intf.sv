@@ -41,13 +41,11 @@ interface packet_descriptor_intf #(
     );
 
     clocking cb_tx @(posedge clk);
-        default input #1step output #1step;
         output vld, addr, size, err, meta;
         input rdy;
     endclocking
 
     clocking cb_rx @(posedge clk);
-        default input #1step output #1step;
         input vld, addr, size, err, meta;
         output rdy;
     endclocking

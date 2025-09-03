@@ -94,7 +94,6 @@ module fifo_sync_unit_test #(
     assign rd_if.valid = rd_ack;
 
     clocking cb @(posedge clk);
-        default input #1step output #1step;
         input empty, full, uflow, oflow;
     endclocking
 

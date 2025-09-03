@@ -90,7 +90,6 @@ interface axi4l_intf
     );
 
     clocking cb @(posedge aclk);
-        default input #1step output #1step;
         output awaddr, awprot, wdata, wstrb, araddr, arprot;
         input  awready, wready, bvalid, bresp, arready, rvalid, rdata, rresp;
         inout  awvalid, wvalid, bready, arvalid, rready;

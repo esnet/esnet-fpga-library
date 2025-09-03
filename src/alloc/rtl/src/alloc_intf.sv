@@ -98,13 +98,11 @@ interface alloc_intf #(
     end
 
     clocking cb_store @(posedge clk);
-        default input #1step output #1step;
         output req, vld, nxt_ptr, eof, size, meta, err;
         input  rdy, ptr, ack;
     endclocking
 
     clocking cb_load @(posedge clk);
-        default input #1step output #1step;
         output req, ptr, ack;
         input  rdy, nxt_ptr, vld, eof, size, meta, err;
     endclocking

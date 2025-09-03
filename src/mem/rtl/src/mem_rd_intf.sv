@@ -39,7 +39,6 @@ interface mem_rd_intf #(
     );
 
     clocking cb @(posedge clk);
-        default input #1step output #1step;
         output rst, addr;
         input rdy, data, ack;
         inout req;

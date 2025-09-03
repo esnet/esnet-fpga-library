@@ -99,7 +99,6 @@ module fifo_prefetch_unit_test #(
     assign empty = !rd_vld;
 
     clocking cb @(posedge clk);
-        default input #1step output #1step;
         input full, oflow, empty;
     endclocking
 

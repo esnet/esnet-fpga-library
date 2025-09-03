@@ -23,7 +23,6 @@ interface state_event_intf #(
     );
 
     clocking cb @(posedge clk);
-        default input #1step output #1step;
         output evt, id, msg;
     endclocking
 
