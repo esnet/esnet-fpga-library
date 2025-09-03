@@ -107,6 +107,7 @@ interface db_intf #(
             output bit _timeout,
             input int TIMEOUT=64
         );
+        automatic bit __timeout = 1'b0;
         fork
             begin
                 fork
@@ -114,16 +115,16 @@ interface db_intf #(
                         _query(_key, _valid, _value, _error);
                     end
                     begin
-                        _timeout = 1'b0;
                         if (TIMEOUT > 0) begin
                             _wait(TIMEOUT);
-                            _timeout = 1'b1;
+                            __timeout = 1'b1;
                         end else forever _wait(1);
                     end
                 join_any
                 disable fork;
             end
         join
+        _timeout = __timeout;
     endtask
 
     task _post_update(
@@ -144,6 +145,7 @@ interface db_intf #(
             output bit _timeout,
             input int TIMEOUT=64
         );
+        automatic bit __timeout = 1'b0;
         fork
             begin
                 fork
@@ -151,16 +153,16 @@ interface db_intf #(
                         _post_update(_key, _valid, _value);
                     end
                     begin
-                        _timeout = 1'b0;
                         if (TIMEOUT > 0) begin
                             _wait(TIMEOUT);
-                            _timeout = 1'b1;
+                            __timeout = 1'b1;
                         end else forever _wait(1);
                     end
                 join_any
                 disable fork;
             end
         join
+        _timeout = __timeout;
     endtask
 
     task _update(
@@ -181,6 +183,7 @@ interface db_intf #(
             output bit _timeout,
             input int TIMEOUT=64
         );
+        automatic bit __timeout = 1'b0;
         fork
             begin
                 fork
@@ -188,23 +191,23 @@ interface db_intf #(
                         _update(_key, _valid, _value, _error);
                     end
                     begin
-                        _timeout = 1'b0;
                         if (TIMEOUT > 0) begin
                             _wait(TIMEOUT);
-                            _timeout = 1'b1;
+                            __timeout = 1'b1;
                         end else forever _wait(1);
                     end
                 join_any
                 disable fork;
             end
         join
+        _timeout = __timeout;
     endtask
 
     task wait_ready(
             output bit timeout,
             input int TIMEOUT=32
         );
-        timeout = 1'b0;
+        automatic bit _timeout = 1'b0;
         fork
             begin
                 fork
@@ -214,13 +217,14 @@ interface db_intf #(
                     begin
                         if (TIMEOUT > 0) begin
                             _wait(TIMEOUT);
-                            timeout = 1'b1;
+                            _timeout = 1'b1;
                         end else forever _wait(1);
                     end
                 join_any
                 disable fork;
             end
         join
+        timeout = _timeout;
     endtask
 
 endinterface : db_intf

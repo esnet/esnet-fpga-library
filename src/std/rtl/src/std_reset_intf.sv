@@ -57,6 +57,7 @@ interface std_reset_intf #(
     endtask
 
     task wait_ready(output bit _timeout, input int TIMEOUT=0);
+        automatic bit __timeout = 1'b0;
         fork
             begin
                 fork
@@ -64,16 +65,16 @@ interface std_reset_intf #(
                         wait(cb.ready);
                     end
                     begin
-                        _timeout = 1'b0;
                         if (TIMEOUT > 0) begin
                             _wait(TIMEOUT);
-                            _timeout = 1'b1;
+                            __timeout = 1'b1;
                         end else forever _wait(1);
                     end
                 join_any
                 disable fork;
             end
         join
+        _timeout = __timeout;
     endtask
 
     task pulse(input int cycles=1);
