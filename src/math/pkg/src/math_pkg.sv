@@ -33,19 +33,18 @@ package math_pkg;
         return (a * b / GCD(a,b));
     endfunction
 
-
     // ----------------------------------------
     // Vector functions
     // - operations on bit vectors of width WID
     // - suitable for logic implementation
     // ----------------------------------------
-    class vec#(int WID=1);
+    class vec#(parameter int WID=1);
 
         // Count ones in bit vector
-        static function logic[$clog2(WID+1)-1:0] count_ones(input logic [WID-1:0] vec);
+        static function logic[$clog2(WID+1)-1:0] count_ones(input logic[WID-1:0] _vec);
             logic [$clog2(WID+1)-1:0] cnt = 0;
             for (int i = 0; i < WID; i++) begin
-                cnt += vec[i];
+                cnt += _vec[i];
             end
             return cnt;
         endfunction
