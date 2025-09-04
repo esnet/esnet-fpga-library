@@ -230,6 +230,10 @@ class packet_capture_monitor #(parameter type META_T=bit) extends packet_monitor
         transact(packet_capture_reg_pkg::COMMAND_CODE_CAPTURE, capture_error, capture_timeout, TIMEOUT, 100);
         // Get size of captured packets
         __get_captured_bytes(size);
+        if (size > this.get_max_pkt_size()) begin
+            error_msg($sformatf("Captured packet exceeded MAX_PKT_SIZE limit (%0d)", this.get_max_pkt_size()));
+            $fatal(2, "Captured packet exceeded MAX_PKT_SIZE limit.");
+        end
         // Get metadata
         __get_meta(meta);
         // Read packet data

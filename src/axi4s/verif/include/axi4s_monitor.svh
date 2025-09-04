@@ -15,6 +15,7 @@ class axi4s_monitor #(
     // Properties
     //===================================
     local int __tpause = 0;
+    local int __MAX_PKT_SIZE = 65536;
 
     //===================================
     // Interfaces
@@ -38,6 +39,7 @@ class axi4s_monitor #(
         //     where properties are not properly allocated when they are not assigned
         //     in the constructor.
         this.__tpause = 0;
+        this.__MAX_PKT_SIZE = 65536;
         this.axis_vif = null;
         // } WORKAROUND-INIT-PROPS
     endfunction
@@ -58,6 +60,19 @@ class axi4s_monitor #(
     // Set tpause value used by monitor (for stalling receive transactions)
     function automatic void set_tpause(input int tpause);
         this.__tpause = tpause;
+    endfunction
+
+    // Set/get receive packet size limit
+    // (Used as upper bound on number of bytes received in a given transaction
+    //  before the simulation is terminated (with $fatal).
+    //  Guards against unbounded memory allocation due to protocol errors
+    //  during simulation.)
+    function void set_max_pkt_size(input int MAX_PKT_SIZE);
+        this.__MAX_PKT_SIZE = MAX_PKT_SIZE;
+    endfunction
+
+    function int get_max_pkt_size();
+        return this.__MAX_PKT_SIZE;
     endfunction
 
     // Reset monitor
@@ -105,11 +120,16 @@ class axi4s_monitor #(
                 byte_idx++;
             end
             byte_cnt += byte_idx;
+            if (byte_cnt > this.get_max_pkt_size()) begin
+                error_msg($sformatf("Received packet exceeded MAX_PKT_SIZE limit (%0d)", this.get_max_pkt_size()));
+                $fatal(2, "Received packet exceeded MAX_PKT_SIZE limit.");
+            end
             byte_idx = 0;
             word_idx++;
         end
         debug_msg($sformatf("receive_raw: Done. Received %0d bytes.", byte_cnt));
         data = __data;
+        __data.delete();
         id = tid;
         dest = tdest;
         user = tuser;

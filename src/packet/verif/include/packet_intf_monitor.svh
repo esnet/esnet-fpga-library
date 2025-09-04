@@ -21,6 +21,13 @@ class packet_intf_monitor #(
     function new(input string name="packet_intf_monitor");
         super.new(name);
         _reset();
+        // WORKAROUND-INIT-PROPS {
+        //     Provide/repeat default assignments for all remaining instance properties here.
+        //     Works around an apparent object initialization bug (as of Vivado 2024.2)
+        //     where properties are not properly allocated when they are not assigned
+        //     in the constructor.
+        packet_vif = null;
+        // } WORKAROUND-INIT-PROPS
     endfunction
 
     // Destructor
@@ -93,6 +100,10 @@ class packet_intf_monitor #(
                 end else break;
             end
             byte_cnt += byte_idx;
+            if (byte_cnt > this.get_max_pkt_size()) begin
+                error_msg($sformatf("Received packet exceeded MAX_PKT_SIZE limit (%0d)", this.get_max_pkt_size()));
+                $fatal(2, "Received packet exceeded MAX_PKT_SIZE limit.");
+            end
             byte_idx = 0;
             word_idx++;
             while (stall()) packet_vif._wait(1);
