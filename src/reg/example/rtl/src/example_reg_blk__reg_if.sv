@@ -18,31 +18,35 @@ import example_reg_pkg::*;
 // Registers
 // -------------------------------------------------------------
 
-// RW_EXAMPLE (32-bit, rw)
-reg_rw #(reg_rw_example_t, INIT_RW_EXAMPLE) rw_example_reg (
+// RW_EXAMPLE (16-bit, rw)
+reg_rw #(16) rw_example_reg (
     .clk (reg_if.clk), .srst (reg_if.srst),
+    .INIT_VALUE (INIT_RW_EXAMPLE),
     .wr (reg_if.wr), .wr_en (reg_if.wr_addr == OFFSET_RW_EXAMPLE), .wr_data (reg_if.wr_data), .wr_byte_en (reg_if.wr_byte_en),
     .rd_data (reg_blk_if.rw_example)
 );
 
-// RO_EXAMPLE (32-bit, ro)
-reg_ro #(reg_ro_example_t, INIT_RO_EXAMPLE) ro_example_reg (
+// RO_EXAMPLE (16-bit, ro)
+reg_ro #(16) ro_example_reg (
     .clk (reg_if.clk), .srst (reg_if.srst),
+    .INIT_VALUE (INIT_RO_EXAMPLE),
     .upd_en (reg_blk_if.ro_example_nxt_v), .upd_data (reg_blk_if.ro_example_nxt),
     .rd_data (reg_blk_if.ro_example)
 );
 
 // WR_EVT_EXAMPLE (32-bit, wr_evt)
-reg_wr_evt #(reg_wr_evt_example_t, INIT_WR_EVT_EXAMPLE) wr_evt_example_reg (
+reg_wr_evt #(32) wr_evt_example_reg (
     .clk (reg_if.clk), .srst (reg_if.srst),
+    .INIT_VALUE (INIT_WR_EVT_EXAMPLE),
     .wr (reg_if.wr), .wr_en (reg_if.wr_addr == OFFSET_WR_EVT_EXAMPLE), .wr_data (reg_if.wr_data), .wr_byte_en (reg_if.wr_byte_en),
     .rd_data (reg_blk_if.wr_evt_example),
     .wr_evt (reg_blk_if.wr_evt_example_wr_evt)
 );
 
 // RD_EVT_EXAMPLE (32-bit, rd_evt)
-reg_rd_evt #(reg_rd_evt_example_t, INIT_RD_EVT_EXAMPLE) rd_evt_example_reg (
+reg_rd_evt #(32) rd_evt_example_reg (
     .clk (reg_if.clk), .srst (reg_if.srst),
+    .INIT_VALUE(INIT_RD_EVT_EXAMPLE),
     .rd (reg_if.rd), .rd_en (reg_if.rd_addr == OFFSET_RD_EVT_EXAMPLE),
     .upd_en (reg_blk_if.rd_evt_example_nxt_v), .upd_data (reg_blk_if.rd_evt_example_nxt),
     .rd_data (reg_blk_if.rd_evt_example),
@@ -50,15 +54,17 @@ reg_rd_evt #(reg_rd_evt_example_t, INIT_RD_EVT_EXAMPLE) rd_evt_example_reg (
 );
 
 // RW_MONOLITHIC_EXAMPLE (32-bit, rw)
-reg_rw #(reg_rw_monolithic_example_t, INIT_RW_MONOLITHIC_EXAMPLE) rw_monolithic_example_reg (
+reg_rw #(32) rw_monolithic_example_reg (
     .clk (reg_if.clk), .srst (reg_if.srst),
+    .INIT_VALUE (INIT_RW_MONOLITHIC_EXAMPLE),
     .wr (reg_if.wr), .wr_en (reg_if.wr_addr == OFFSET_RW_MONOLITHIC_EXAMPLE), .wr_data (reg_if.wr_data), .wr_byte_en (reg_if.wr_byte_en),
     .rd_data (reg_blk_if.rw_monolithic_example)
 );
 
 // RO_MONOLITHIC_EXAMPLE (32-bit, ro)
-reg_ro #(reg_ro_monolithic_example_t, INIT_RO_MONOLITHIC_EXAMPLE) ro_monolithic_example_reg (
+reg_ro #(32) ro_monolithic_example_reg (
     .clk (reg_if.clk), .srst (reg_if.srst),
+    .INIT_VALUE (INIT_RO_MONOLITHIC_EXAMPLE),
     .upd_en (reg_blk_if.ro_monolithic_example_nxt_v), .upd_data (reg_blk_if.ro_monolithic_example_nxt),
     .rd_data (reg_blk_if.ro_monolithic_example)
 );
@@ -66,8 +72,9 @@ reg_ro #(reg_ro_monolithic_example_t, INIT_RO_MONOLITHIC_EXAMPLE) ro_monolithic_
 // RW_ARRAY_EXAMPLE (32-bit, rw, x8)
 generate
     for (genvar i = 0; i < 8; i++) begin : g__rw_array_example
-        reg_rw #(reg_rw_array_example_t, INIT_RW_ARRAY_EXAMPLE) rw_array_example_reg (
+        reg_rw #(32) rw_array_example_reg (
             .clk (reg_if.clk), .srst (reg_if.srst),
+            .INIT_VALUE (INIT_RW_ARRAY_EXAMPLE),
             .wr (reg_if.wr), .wr_en (reg_if.wr_addr == OFFSET_RW_ARRAY_EXAMPLE[i]), .wr_data (reg_if.wr_data), .wr_byte_en (reg_if.wr_byte_en),
             .rd_data (reg_blk_if.rw_array_example[i])
         );
@@ -77,8 +84,9 @@ endgenerate
 // RO_ARRAY_EXAMPLE (32-bit, ro, x5)
 generate
     for (genvar i = 0; i < 5; i++) begin : g__ro_array_example
-        reg_ro #(reg_ro_array_example_t, INIT_RO_ARRAY_EXAMPLE) ro_array_example_reg (
+        reg_ro #(32) ro_array_example_reg (
             .clk (reg_if.clk), .srst (reg_if.srst),
+            .INIT_VALUE (INIT_RO_ARRAY_EXAMPLE),
             .upd_en (reg_blk_if.ro_array_example_nxt_v[i]), .upd_data (reg_blk_if.ro_array_example_nxt[i]),
             .rd_data (reg_blk_if.ro_array_example[i])
         );
@@ -88,8 +96,9 @@ endgenerate
 // WR_EVT_ARRAY_EXAMPLE (32-bit, wr_evt, x4)
 generate
     for (genvar i = 0; i < 4; i++) begin : g__wr_evt_array_example
-        reg_wr_evt #(reg_wr_evt_array_example_t, INIT_WR_EVT_ARRAY_EXAMPLE) wr_evt_array_example_reg (
+        reg_wr_evt #(32) wr_evt_array_example_reg (
             .clk (reg_if.clk), .srst (reg_if.srst),
+            .INIT_VALUE (INIT_WR_EVT_ARRAY_EXAMPLE),
             .wr (reg_if.wr), .wr_en (reg_if.wr_addr == OFFSET_WR_EVT_ARRAY_EXAMPLE[i]), .wr_data (reg_if.wr_data), .wr_byte_en (reg_if.wr_byte_en),
             .rd_data (reg_blk_if.wr_evt_array_example[i]),
             .wr_evt (reg_blk_if.wr_evt_array_example_wr_evt[i])
@@ -100,8 +109,9 @@ endgenerate
 // RD_EVT_ARRAY_EXAMPLE (32-bit, rd_evt, x2)
 generate
     for (genvar i = 0; i < 2; i++) begin : g__rd_evt_array_example
-        reg_rd_evt #(reg_rd_evt_array_example_t, INIT_RD_EVT_ARRAY_EXAMPLE) rd_evt_array_example_reg (
+        reg_rd_evt #(32) rd_evt_array_example_reg (
             .clk (reg_if.clk), .srst (reg_if.srst),
+            .INIT_VALUE(INIT_RD_EVT_ARRAY_EXAMPLE),
             .rd (reg_if.rd), .rd_en (reg_if.rd_addr == OFFSET_RD_EVT_ARRAY_EXAMPLE[i]),
             .upd_en (reg_blk_if.rd_evt_array_example_nxt_v[i]), .upd_data (reg_blk_if.rd_evt_array_example_nxt[i]),
             .rd_data (reg_blk_if.rd_evt_array_example[i]),
@@ -124,7 +134,6 @@ always @(posedge reg_if.clk) begin
     end else begin
         if (reg_if.wr) begin
             reg_if.wr_ack <= 1'b1;
-            reg_if.wr_error <= 1'b1;
             case (reg_if.wr_addr)
                 OFFSET_RW_EXAMPLE:                         reg_if.wr_error <= 1'b0;
                 OFFSET_RO_EXAMPLE:                         reg_if.wr_error <= 1'b0;
@@ -151,6 +160,7 @@ always @(posedge reg_if.clk) begin
                 OFFSET_WR_EVT_ARRAY_EXAMPLE[3]:            reg_if.wr_error <= 1'b0;
                 OFFSET_RD_EVT_ARRAY_EXAMPLE[0]:            reg_if.wr_error <= 1'b0;
                 OFFSET_RD_EVT_ARRAY_EXAMPLE[1]:            reg_if.wr_error <= 1'b0;
+                default:                                   reg_if.wr_error <= 1'b1;
             endcase
         end else begin
             reg_if.wr_ack <= 1'b0;
@@ -160,57 +170,86 @@ always @(posedge reg_if.clk) begin
 end
 
 // -------------------------------------------------------------
-// Read address decode and data mux
+// Read address decode
 // -------------------------------------------------------------
 initial begin
-    reg_if.rd_data = 0;
     reg_if.rd_ack = 1'b0;
     reg_if.rd_error = 1'b0;
 end
 always @(posedge reg_if.clk) begin
     if (reg_if.srst) begin
-        reg_if.rd_data <= 0;
         reg_if.rd_ack <= 1'b0;
         reg_if.rd_error <= 1'b0;
     end else begin
         if (reg_if.rd) begin
             reg_if.rd_ack <= 1'b1;
-            reg_if.rd_error <= 1'b0;
             case (reg_if.rd_addr)
-                OFFSET_RW_EXAMPLE:                         reg_if.rd_data <= reg_blk_if.rw_example;
-                OFFSET_RO_EXAMPLE:                         reg_if.rd_data <= reg_blk_if.ro_example;
-                OFFSET_WR_EVT_EXAMPLE:                     reg_if.rd_data <= reg_blk_if.wr_evt_example;
-                OFFSET_RD_EVT_EXAMPLE:                     reg_if.rd_data <= reg_blk_if.rd_evt_example;
-                OFFSET_RW_MONOLITHIC_EXAMPLE:              reg_if.rd_data <= reg_blk_if.rw_monolithic_example;
-                OFFSET_RO_MONOLITHIC_EXAMPLE:              reg_if.rd_data <= reg_blk_if.ro_monolithic_example;
-                OFFSET_RW_ARRAY_EXAMPLE[0]:                reg_if.rd_data <= reg_blk_if.rw_array_example[0];
-                OFFSET_RW_ARRAY_EXAMPLE[1]:                reg_if.rd_data <= reg_blk_if.rw_array_example[1];
-                OFFSET_RW_ARRAY_EXAMPLE[2]:                reg_if.rd_data <= reg_blk_if.rw_array_example[2];
-                OFFSET_RW_ARRAY_EXAMPLE[3]:                reg_if.rd_data <= reg_blk_if.rw_array_example[3];
-                OFFSET_RW_ARRAY_EXAMPLE[4]:                reg_if.rd_data <= reg_blk_if.rw_array_example[4];
-                OFFSET_RW_ARRAY_EXAMPLE[5]:                reg_if.rd_data <= reg_blk_if.rw_array_example[5];
-                OFFSET_RW_ARRAY_EXAMPLE[6]:                reg_if.rd_data <= reg_blk_if.rw_array_example[6];
-                OFFSET_RW_ARRAY_EXAMPLE[7]:                reg_if.rd_data <= reg_blk_if.rw_array_example[7];
-                OFFSET_RO_ARRAY_EXAMPLE[0]:                reg_if.rd_data <= reg_blk_if.ro_array_example[0];
-                OFFSET_RO_ARRAY_EXAMPLE[1]:                reg_if.rd_data <= reg_blk_if.ro_array_example[1];
-                OFFSET_RO_ARRAY_EXAMPLE[2]:                reg_if.rd_data <= reg_blk_if.ro_array_example[2];
-                OFFSET_RO_ARRAY_EXAMPLE[3]:                reg_if.rd_data <= reg_blk_if.ro_array_example[3];
-                OFFSET_RO_ARRAY_EXAMPLE[4]:                reg_if.rd_data <= reg_blk_if.ro_array_example[4];
-                OFFSET_WR_EVT_ARRAY_EXAMPLE[0]:            reg_if.rd_data <= reg_blk_if.wr_evt_array_example[0];
-                OFFSET_WR_EVT_ARRAY_EXAMPLE[1]:            reg_if.rd_data <= reg_blk_if.wr_evt_array_example[1];
-                OFFSET_WR_EVT_ARRAY_EXAMPLE[2]:            reg_if.rd_data <= reg_blk_if.wr_evt_array_example[2];
-                OFFSET_WR_EVT_ARRAY_EXAMPLE[3]:            reg_if.rd_data <= reg_blk_if.wr_evt_array_example[3];
-                OFFSET_RD_EVT_ARRAY_EXAMPLE[0]:            reg_if.rd_data <= reg_blk_if.rd_evt_array_example[0];
-                OFFSET_RD_EVT_ARRAY_EXAMPLE[1]:            reg_if.rd_data <= reg_blk_if.rd_evt_array_example[1];
-                default: begin
-                    reg_if.rd_error <= 1'b1;
-                end
+                OFFSET_RW_EXAMPLE:                         reg_if.rd_error <= 1'b0;
+                OFFSET_RO_EXAMPLE:                         reg_if.rd_error <= 1'b0;
+                OFFSET_WR_EVT_EXAMPLE:                     reg_if.rd_error <= 1'b0;
+                OFFSET_RD_EVT_EXAMPLE:                     reg_if.rd_error <= 1'b0;
+                OFFSET_RW_MONOLITHIC_EXAMPLE:              reg_if.rd_error <= 1'b0;
+                OFFSET_RO_MONOLITHIC_EXAMPLE:              reg_if.rd_error <= 1'b0;
+                OFFSET_RW_ARRAY_EXAMPLE[0]:                reg_if.rd_error <= 1'b0;
+                OFFSET_RW_ARRAY_EXAMPLE[1]:                reg_if.rd_error <= 1'b0;
+                OFFSET_RW_ARRAY_EXAMPLE[2]:                reg_if.rd_error <= 1'b0;
+                OFFSET_RW_ARRAY_EXAMPLE[3]:                reg_if.rd_error <= 1'b0;
+                OFFSET_RW_ARRAY_EXAMPLE[4]:                reg_if.rd_error <= 1'b0;
+                OFFSET_RW_ARRAY_EXAMPLE[5]:                reg_if.rd_error <= 1'b0;
+                OFFSET_RW_ARRAY_EXAMPLE[6]:                reg_if.rd_error <= 1'b0;
+                OFFSET_RW_ARRAY_EXAMPLE[7]:                reg_if.rd_error <= 1'b0;
+                OFFSET_RO_ARRAY_EXAMPLE[0]:                reg_if.rd_error <= 1'b0;
+                OFFSET_RO_ARRAY_EXAMPLE[1]:                reg_if.rd_error <= 1'b0;
+                OFFSET_RO_ARRAY_EXAMPLE[2]:                reg_if.rd_error <= 1'b0;
+                OFFSET_RO_ARRAY_EXAMPLE[3]:                reg_if.rd_error <= 1'b0;
+                OFFSET_RO_ARRAY_EXAMPLE[4]:                reg_if.rd_error <= 1'b0;
+                OFFSET_WR_EVT_ARRAY_EXAMPLE[0]:            reg_if.rd_error <= 1'b0;
+                OFFSET_WR_EVT_ARRAY_EXAMPLE[1]:            reg_if.rd_error <= 1'b0;
+                OFFSET_WR_EVT_ARRAY_EXAMPLE[2]:            reg_if.rd_error <= 1'b0;
+                OFFSET_WR_EVT_ARRAY_EXAMPLE[3]:            reg_if.rd_error <= 1'b0;
+                OFFSET_RD_EVT_ARRAY_EXAMPLE[0]:            reg_if.rd_error <= 1'b0;
+                OFFSET_RD_EVT_ARRAY_EXAMPLE[1]:            reg_if.rd_error <= 1'b0;
+                default:                                   reg_if.rd_error <= 1'b1;
             endcase
         end else begin
             reg_if.rd_ack <= 1'b0;
             reg_if.rd_error <= 1'b0;
         end
     end
+end
+
+// -------------------------------------------------------------
+// Read data mux
+// -------------------------------------------------------------
+always_ff @(posedge reg_if.clk) begin
+    case (reg_if.rd_addr)
+        OFFSET_RW_EXAMPLE:                         reg_if.rd_data <= reg_blk_if.rw_example;
+        OFFSET_RO_EXAMPLE:                         reg_if.rd_data <= reg_blk_if.ro_example;
+        OFFSET_WR_EVT_EXAMPLE:                     reg_if.rd_data <= reg_blk_if.wr_evt_example;
+        OFFSET_RD_EVT_EXAMPLE:                     reg_if.rd_data <= reg_blk_if.rd_evt_example;
+        OFFSET_RW_MONOLITHIC_EXAMPLE:              reg_if.rd_data <= reg_blk_if.rw_monolithic_example;
+        OFFSET_RO_MONOLITHIC_EXAMPLE:              reg_if.rd_data <= reg_blk_if.ro_monolithic_example;
+        OFFSET_RW_ARRAY_EXAMPLE[0]:                reg_if.rd_data <= reg_blk_if.rw_array_example[0];
+        OFFSET_RW_ARRAY_EXAMPLE[1]:                reg_if.rd_data <= reg_blk_if.rw_array_example[1];
+        OFFSET_RW_ARRAY_EXAMPLE[2]:                reg_if.rd_data <= reg_blk_if.rw_array_example[2];
+        OFFSET_RW_ARRAY_EXAMPLE[3]:                reg_if.rd_data <= reg_blk_if.rw_array_example[3];
+        OFFSET_RW_ARRAY_EXAMPLE[4]:                reg_if.rd_data <= reg_blk_if.rw_array_example[4];
+        OFFSET_RW_ARRAY_EXAMPLE[5]:                reg_if.rd_data <= reg_blk_if.rw_array_example[5];
+        OFFSET_RW_ARRAY_EXAMPLE[6]:                reg_if.rd_data <= reg_blk_if.rw_array_example[6];
+        OFFSET_RW_ARRAY_EXAMPLE[7]:                reg_if.rd_data <= reg_blk_if.rw_array_example[7];
+        OFFSET_RO_ARRAY_EXAMPLE[0]:                reg_if.rd_data <= reg_blk_if.ro_array_example[0];
+        OFFSET_RO_ARRAY_EXAMPLE[1]:                reg_if.rd_data <= reg_blk_if.ro_array_example[1];
+        OFFSET_RO_ARRAY_EXAMPLE[2]:                reg_if.rd_data <= reg_blk_if.ro_array_example[2];
+        OFFSET_RO_ARRAY_EXAMPLE[3]:                reg_if.rd_data <= reg_blk_if.ro_array_example[3];
+        OFFSET_RO_ARRAY_EXAMPLE[4]:                reg_if.rd_data <= reg_blk_if.ro_array_example[4];
+        OFFSET_WR_EVT_ARRAY_EXAMPLE[0]:            reg_if.rd_data <= reg_blk_if.wr_evt_array_example[0];
+        OFFSET_WR_EVT_ARRAY_EXAMPLE[1]:            reg_if.rd_data <= reg_blk_if.wr_evt_array_example[1];
+        OFFSET_WR_EVT_ARRAY_EXAMPLE[2]:            reg_if.rd_data <= reg_blk_if.wr_evt_array_example[2];
+        OFFSET_WR_EVT_ARRAY_EXAMPLE[3]:            reg_if.rd_data <= reg_blk_if.wr_evt_array_example[3];
+        OFFSET_RD_EVT_ARRAY_EXAMPLE[0]:            reg_if.rd_data <= reg_blk_if.rd_evt_array_example[0];
+        OFFSET_RD_EVT_ARRAY_EXAMPLE[1]:            reg_if.rd_data <= reg_blk_if.rd_evt_array_example[1];
+        default:                                   reg_if.rd_data <= reg_pkg::BAD_ACCESS_DATA;
+    endcase
 end
 
 endmodule : example_reg_blk__reg_if

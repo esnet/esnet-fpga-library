@@ -1,20 +1,20 @@
 module reg_wr_evt #(
-    parameter type T = bit[31:0],
-    parameter T INIT_VALUE = 0,
+    parameter int WID = 32,
     parameter int WR_DATA_BYTES = 4
 )(
     input  logic                          clk,
     input  logic                          srst,
+    input  logic [WID-1:0]                INIT_VALUE = '0,
     input  logic                          wr,
     input  logic                          wr_en,
     input  logic [WR_DATA_BYTES-1:0][7:0] wr_data,
     input  logic [WR_DATA_BYTES-1:0]      wr_byte_en,
-    output T                              rd_data,
+    output logic [WID-1:0]                rd_data,
     output logic                          wr_evt
 );
 
     // Implement underlying register as read/write
-    reg_rw #(.T(T), .INIT_VALUE(INIT_VALUE), .WR_DATA_BYTES(WR_DATA_BYTES)) _reg_rw (.*);
+    reg_rw #(.WID(WID), .WR_DATA_BYTES(WR_DATA_BYTES)) _reg_rw (.*);
 
     // Synthesize write event strobe
     logic _evt = 1'b0;
