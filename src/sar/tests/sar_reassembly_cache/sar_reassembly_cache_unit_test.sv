@@ -16,16 +16,24 @@ module sar_reassembly_cache_unit_test;
     //===================================
     // Parameters
     //===================================
-    localparam type BUF_ID_T       = logic;       // (Type) Reassembly buffer (context) pointer
-    localparam type OFFSET_T       = logic[31:0]; // (Type) Offset in bytes describing location of segment within frame
-    localparam type SEGMENT_LEN_T  = logic[13:0]; // (Type) Length in bytes of current segment 
-    localparam type FRAGMENT_PTR_T = logic[9:0];  // (Type) Coalesced fragment record pointer
-    localparam int  BURST_SIZE = 8;
+    localparam int  BUF_ID_WID      = 1;
+    localparam int  OFFSET_WID      = 32;
+    localparam int  SEGMENT_LEN_WID = 14;
+    localparam int  MAX_FRAGMENTS   = 1024;
 
-    localparam int  MAX_FRAGMENTS = 2**$bits(FRAGMENT_PTR_T);
+    localparam int  FRAGMENT_PTR_WID = $clog2(MAX_FRAGMENTS);
+
+    localparam type BUF_ID_T       = logic[BUF_ID_WID-1:0];       // (Type) Reassembly buffer (context) pointer
+    localparam type OFFSET_T       = logic[OFFSET_WID-1:0];       // (Type) Offset in bytes describing location of segment within frame
+    localparam type SEGMENT_LEN_T  = logic[SEGMENT_LEN_WID-1:0];  // (Type) Length in bytes of current segment 
+    localparam type FRAGMENT_PTR_T = logic[FRAGMENT_PTR_WID-1:0]; // (Type) Coalesced fragment record pointer
+    localparam int  BURST_SIZE     = 8;
 
     localparam type KEY_T = struct packed {BUF_ID_T buf_id; OFFSET_T offset;};
     localparam type VALUE_T = struct packed {FRAGMENT_PTR_T ptr; OFFSET_T offset;};
+
+    localparam int KEY_WID  = $bits(KEY_T);
+    localparam int VALUE_WID = $bits(VALUE_T);
 
     //===================================
     // DUT
@@ -63,16 +71,16 @@ module sar_reassembly_cache_unit_test;
 
     axi4l_intf axil_if ();
 
-    db_ctrl_intf #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) ctrl_if__append  (.clk(clk));
-    db_ctrl_intf #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) ctrl_if__prepend (.clk(clk));
+    db_ctrl_intf #(.KEY_WID(KEY_WID), .VALUE_WID(VALUE_WID)) ctrl_if__append  (.clk(clk));
+    db_ctrl_intf #(.KEY_WID(KEY_WID), .VALUE_WID(VALUE_WID)) ctrl_if__prepend (.clk(clk));
     
     // Instantiation
-    sar_reassembly_cache  #(
-        .BUF_ID_T       ( BUF_ID_T ),
-        .OFFSET_T       ( OFFSET_T ),
-        .SEGMENT_LEN_T  ( SEGMENT_LEN_T ),
-        .FRAGMENT_PTR_T ( FRAGMENT_PTR_T ),
-        .BURST_SIZE     ( BURST_SIZE ),
+    sar_reassembly_cache #(
+        .BUF_ID_WID       ( BUF_ID_WID ),
+        .OFFSET_WID       ( OFFSET_WID ),
+        .SEGMENT_LEN_WID  ( SEGMENT_LEN_WID ),
+        .FRAGMENT_PTR_WID ( FRAGMENT_PTR_WID ),
+        .BURST_SIZE       ( BURST_SIZE ),
         .SIM__FAST_INIT ( 1 )
     ) DUT (.*);
 
@@ -85,7 +93,7 @@ module sar_reassembly_cache_unit_test;
     axi4l_verif_pkg::axi4l_reg_agent #() reg_agent;
     sar_reassembly_cache_reg_agent #(BUF_ID_T, OFFSET_T, FRAGMENT_PTR_T) agent;
 
-    std_reset_intf reset_if (.clk(clk));
+    std_reset_intf reset_if (.clk);
 
     // Assign clock (200MHz)
     `SVUNIT_CLK_GEN(clk, 2.5ns);

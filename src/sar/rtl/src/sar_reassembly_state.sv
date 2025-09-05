@@ -1,56 +1,55 @@
-module sar_reassembly_state
-    import sar_pkg::*;
-#(
-    parameter type BUF_ID_T       = logic, // (Type) Reassembly buffer (context) pointer
-    parameter type OFFSET_T       = logic, // (Type) Offset in bytes describing location of segment within frame
-    parameter type SEGMENT_LEN_T  = logic, // (Type) Length in bytes of current segment 
-    parameter type FRAGMENT_PTR_T = logic, // (Type) Coalesce record pointer
-    parameter type TIMER_T        = logic  // (Type) Idle timer
+module sar_reassembly_state #(
+    parameter int BUF_ID_WID       = 1, // Width (in bits) of reassembly buffer (context) pointer
+    parameter int OFFSET_WID       = 1, // Width (in bits) of byte offset describing location of segment within frame
+    parameter int SEGMENT_LEN_WID  = 1, // Width (in bits) of byte length of current segment 
+    parameter int FRAGMENT_PTR_WID = 1, // Width (in bits) of coalesce record pointer
+    parameter int TIMER_WID        = 1  // Width (in bits) of frame expiry timer
 )(
     // Clock/reset
-    input  logic             clk,
-    input  logic             srst,
+    input  logic                        clk,
+    input  logic                        srst,
 
-    input  logic             en,
+    input  logic                        en,
 
-    output logic             init_done,
+    output logic                        init_done,
 
     // Segment input
-    input  logic             frag_valid,
-    input  logic             frag_init,
-    input  BUF_ID_T          frag_buf_id,
-    input  logic             frag_last,
-    input  FRAGMENT_PTR_T    frag_ptr,
-    input  OFFSET_T          frag_offset_start,
-    input  OFFSET_T          frag_offset_end,
+    input  logic                        frag_valid,
+    input  logic                        frag_init,
+    input  logic [BUF_ID_WID-1:0]       frag_buf_id,
+    input  logic                        frag_last,
+    input  logic [FRAGMENT_PTR_WID-1:0] frag_ptr,
+    input  logic [OFFSET_WID-1:0]       frag_offset_start,
+    input  logic [OFFSET_WID-1:0]       frag_offset_end,
 
-    input  logic             frag_merged,
-    input  FRAGMENT_PTR_T    frag_merged_ptr,
+    input  logic                        frag_merged,
+    input  logic [FRAGMENT_PTR_WID-1:0] frag_merged_ptr,
 
     // Timer interface
-    input  logic             ms_tick,
+    input  logic                        ms_tick,
 
     // Buffer completion interface
-    input  logic             frame_ready,
-    output logic             frame_valid,
-    output BUF_ID_T          frame_buf_id,
-    output OFFSET_T          frame_len,
+    input  logic                        frame_ready,
+    output logic                        frame_valid,
+    output logic [BUF_ID_WID-1:0]       frame_buf_id,
+    output logic [OFFSET_WID-1:0]       frame_len,
 
     // Fragment pointer deallocation interface
-    input  logic             frag_ptr_dealloc_rdy,
-    output logic             frag_ptr_dealloc_req,
-    output FRAGMENT_PTR_T    frag_ptr_dealloc_value,
+    input  logic                        frag_ptr_dealloc_rdy,
+    output logic                        frag_ptr_dealloc_req,
+    output logic [FRAGMENT_PTR_WID-1:0] frag_ptr_dealloc_value,
 
     // Cache control interfaces
-    db_ctrl_intf.controller  ctrl_if__append,
-    db_ctrl_intf.controller  ctrl_if__prepend,
+    db_ctrl_intf.controller             ctrl_if__append,
+    db_ctrl_intf.controller             ctrl_if__prepend,
 
     // AXI-L control
-    axi4l_intf.peripheral    axil_if
+    axi4l_intf.peripheral               axil_if
 );
     // -------------------------------------------------
     // Imports
     // -------------------------------------------------
+    import sar_pkg::*;
     import state_pkg::*;
 
     // -------------------------------------------------
@@ -60,12 +59,12 @@ module sar_reassembly_state
     localparam state_pkg::vector_t FRAGMENT_STATE_VECTOR = '{
         NUM_ELEMENTS : 6,
         ELEMENTS : '{
-            0: '{TYPE: ELEMENT_TYPE_WRITE,   STATE_WID: 1,                    UPDATE_WID: 1,               RETURN_MODE: RETURN_MODE_PREV_STATE, REAP_MODE: REAP_MODE_CLEAR}, // Valid
-            1: '{TYPE: ELEMENT_TYPE_WRITE,   STATE_WID: $bits(BUF_ID_T),      UPDATE_WID: $bits(BUF_ID_T), RETURN_MODE: RETURN_MODE_PREV_STATE, REAP_MODE: REAP_MODE_CLEAR}, // Buffer ID
-            2: '{TYPE: ELEMENT_TYPE_WRITE,   STATE_WID: $bits(OFFSET_T),      UPDATE_WID: $bits(OFFSET_T), RETURN_MODE: RETURN_MODE_PREV_STATE, REAP_MODE: REAP_MODE_CLEAR}, // Offset (start)
-            3: '{TYPE: ELEMENT_TYPE_WRITE,   STATE_WID: $bits(OFFSET_T),      UPDATE_WID: $bits(OFFSET_T), RETURN_MODE: RETURN_MODE_PREV_STATE, REAP_MODE: REAP_MODE_CLEAR}, // Offset (end)
-            4: '{TYPE: ELEMENT_TYPE_WRITE,   STATE_WID: $bits(TIMER_T),       UPDATE_WID: $bits(TIMER_T),  RETURN_MODE: RETURN_MODE_PREV_STATE, REAP_MODE: REAP_MODE_CLEAR}, // Timer
-            5: '{TYPE: ELEMENT_TYPE_FLAGS,   STATE_WID: 1,                    UPDATE_WID: 1,               RETURN_MODE: RETURN_MODE_PREV_STATE, REAP_MODE: REAP_MODE_CLEAR}, // Last
+            0: '{TYPE: ELEMENT_TYPE_WRITE,   STATE_WID: 1,          UPDATE_WID: 1,          RETURN_MODE: RETURN_MODE_PREV_STATE, REAP_MODE: REAP_MODE_CLEAR}, // Valid
+            1: '{TYPE: ELEMENT_TYPE_WRITE,   STATE_WID: BUF_ID_WID, UPDATE_WID: BUF_ID_WID, RETURN_MODE: RETURN_MODE_PREV_STATE, REAP_MODE: REAP_MODE_CLEAR}, // Buffer ID
+            2: '{TYPE: ELEMENT_TYPE_WRITE,   STATE_WID: OFFSET_WID, UPDATE_WID: OFFSET_WID, RETURN_MODE: RETURN_MODE_PREV_STATE, REAP_MODE: REAP_MODE_CLEAR}, // Offset (start)
+            3: '{TYPE: ELEMENT_TYPE_WRITE,   STATE_WID: OFFSET_WID, UPDATE_WID: OFFSET_WID, RETURN_MODE: RETURN_MODE_PREV_STATE, REAP_MODE: REAP_MODE_CLEAR}, // Offset (end)
+            4: '{TYPE: ELEMENT_TYPE_WRITE,   STATE_WID: TIMER_WID,  UPDATE_WID: TIMER_WID,  RETURN_MODE: RETURN_MODE_PREV_STATE, REAP_MODE: REAP_MODE_CLEAR}, // Timer
+            5: '{TYPE: ELEMENT_TYPE_FLAGS,   STATE_WID: 1,          UPDATE_WID: 1,          RETURN_MODE: RETURN_MODE_PREV_STATE, REAP_MODE: REAP_MODE_CLEAR}, // Last
             default: DEFAULT_STATE_ELEMENT
         }
     };
@@ -74,38 +73,41 @@ module sar_reassembly_state
     // Typedefs
     // -------------------------------------------------
     typedef struct packed {
-        BUF_ID_T buf_id;
-        OFFSET_T offset_start;
-        OFFSET_T offset_end;
+        logic [BUF_ID_WID-1:0] buf_id;
+        logic [OFFSET_WID-1:0] offset_start;
+        logic [OFFSET_WID-1:0] offset_end;
     } notify_ctxt_t;
 
     typedef struct packed {
         reassembly_notify_type_t _type;
         notify_ctxt_t            ctxt;
     } notify_msg_t;
+    localparam NOTIFY_MSG_WID = $bits(notify_msg_t);
 
     typedef struct packed {
-        FRAGMENT_PTR_T id;
-        notify_ctxt_t  ctxt;
+        logic [FRAGMENT_PTR_WID-1:0] id;
+        notify_ctxt_t                ctxt;
     } notify_q_data_t;
 
     typedef struct packed {
-        logic         valid;
-        BUF_ID_T      buf_id;
-        OFFSET_T      offset_start;
-        OFFSET_T      offset_end;
-        TIMER_T       timer;
-        logic         last;
+        logic                  valid;
+        logic [BUF_ID_WID-1:0] buf_id;
+        logic [OFFSET_WID-1:0] offset_start;
+        logic [OFFSET_WID-1:0] offset_end;
+        logic [TIMER_WID-1:0]  timer;
+        logic                  last;
     } state_t;
+    localparam int STATE_WID = $bits(state_t);
 
     typedef struct packed {
-        logic         valid;
-        BUF_ID_T      buf_id;
-        OFFSET_T      offset_start;
-        OFFSET_T      offset_end;
-        TIMER_T       timer;
-        logic         last;
+        logic                  valid;
+        logic [BUF_ID_WID-1:0] buf_id;
+        logic [OFFSET_WID-1:0] offset_start;
+        logic [OFFSET_WID-1:0] offset_end;
+        logic [TIMER_WID-1:0]  timer;
+        logic                  last;
     } update_t;
+    localparam int UPDATE_WID = $bits(update_t);
  
     typedef enum logic [3:0] {
         RESET,
@@ -126,17 +128,17 @@ module sar_reassembly_state
     // -------------------------------------------------
     // Interfaces
     // -------------------------------------------------
-    state_intf #(.ID_T(FRAGMENT_PTR_T), .STATE_T(state_t), .UPDATE_T(update_t)) update_if (.clk(clk));
-    state_intf #(.ID_T(FRAGMENT_PTR_T), .STATE_T(state_t), .UPDATE_T(update_t)) ctrl_if (.clk(clk));
-    state_event_intf #(.ID_T(FRAGMENT_PTR_T), .MSG_T(notify_msg_t)) notify_if (.clk(clk));
+    state_intf #(.ID_WID(FRAGMENT_PTR_WID), .STATE_WID(STATE_WID), .UPDATE_WID(UPDATE_WID)) update_if (.clk);
+    state_intf #(.ID_WID(FRAGMENT_PTR_WID), .STATE_WID(STATE_WID), .UPDATE_WID(UPDATE_WID)) ctrl_if (.clk);
+    state_event_intf #(.ID_WID(FRAGMENT_PTR_WID), .MSG_WID(NOTIFY_MSG_WID)) notify_if (.clk);
 
-    db_intf #(.KEY_T(FRAGMENT_PTR_T), .VALUE_T(state_t)) db_wr_if (.clk(clk));
-    db_intf #(.KEY_T(FRAGMENT_PTR_T), .VALUE_T(state_t)) db_rd_if (.clk(clk));
+    db_intf #(.KEY_WID(FRAGMENT_PTR_WID), .VALUE_WID(STATE_WID)) db_wr_if (.clk);
+    db_intf #(.KEY_WID(FRAGMENT_PTR_WID), .VALUE_WID(STATE_WID)) db_rd_if (.clk);
 
     axi4l_intf axil_if__state_core ();
     axi4l_intf axil_if__state_check ();
 
-    state_check_intf #(.STATE_T(state_t), .MSG_T(notify_msg_t)) state_check_if (.clk(clk));
+    state_check_intf #(.STATE_WID(STATE_WID), .MSG_WID(NOTIFY_MSG_WID)) state_check_if (.clk);
 
     // -------------------------------------------------
     // Signals
@@ -144,7 +146,10 @@ module sar_reassembly_state
     logic          db_init;
     logic          db_init_done;
 
-    TIMER_T        timer;
+    logic [TIMER_WID-1:0] timer;
+
+    update_t        update_if_update;
+    notify_msg_t    notify_if_msg;
 
     logic           q_done__wr;
     notify_q_data_t q_done__wr_data;
@@ -152,17 +157,17 @@ module sar_reassembly_state
     notify_q_data_t q_done__rd_data;
     logic           q_done__empty;
 
-    logic           q_merged__wr;
-    FRAGMENT_PTR_T  q_merged__wr_data;
-    logic           q_merged__rd;
-    FRAGMENT_PTR_T  q_merged__rd_data;
-    logic           q_merged__empty;
+    logic                        q_merged__wr;
+    logic [FRAGMENT_PTR_WID-1:0] q_merged__wr_data;
+    logic                        q_merged__rd;
+    logic [FRAGMENT_PTR_WID-1:0] q_merged__rd_data;
+    logic                        q_merged__empty;
 
-    logic          q_expired__wr;
-    FRAGMENT_PTR_T q_expired__wr_data;
-    logic          q_expired__rd;
-    FRAGMENT_PTR_T q_expired__rd_data;
-    logic          q_expired__empty;
+    logic                        q_expired__wr;
+    logic [FRAGMENT_PTR_WID-1:0] q_expired__wr_data;
+    logic                        q_expired__rd;
+    logic [FRAGMENT_PTR_WID-1:0] q_expired__rd_data;
+    logic                        q_expired__empty;
 
     fsm_state_t fsm_state;
     fsm_state_t nxt_fsm_state;
@@ -181,9 +186,9 @@ module sar_reassembly_state
     // State database implementation
     // -------------------------------------------------
     state_core #(
-        .ID_T   ( FRAGMENT_PTR_T ),
+        .ID_WID ( FRAGMENT_PTR_WID ),
         .SPEC   ( FRAGMENT_STATE_VECTOR ),
-        .NOTIFY_MSG_T ( notify_msg_t )
+        .NOTIFY_MSG_WID ( NOTIFY_MSG_WID )
     ) i_state_core (
         .clk          ( clk ),
         .srst         ( srst ),
@@ -204,8 +209,8 @@ module sar_reassembly_state
     // State vector storage array
     // -----------------------------
     db_store_array  #(
-        .KEY_T       ( FRAGMENT_PTR_T ),
-        .VALUE_T     ( state_t ),
+        .KEY_WID     ( FRAGMENT_PTR_WID ),
+        .VALUE_WID   ( STATE_WID ),
         .TRACK_VALID ( 0 )
     ) i_db_store_array (
         .clk         ( clk ),
@@ -229,8 +234,9 @@ module sar_reassembly_state
     // State polling FSM
     // -------------------------------------------------
     sar_reassembly_state_check #(
-        .TIMER_T    ( TIMER_T ),
-        .STATE_T    ( state_t )
+        .BUF_ID_WID ( BUF_ID_WID ),
+        .OFFSET_WID ( OFFSET_WID ),
+        .TIMER_WID  ( TIMER_WID )
     ) i_sar_reassembly_state_check (
         .clk        ( clk ),
         .srst       ( srst ),
@@ -245,12 +251,13 @@ module sar_reassembly_state
     assign update_if.req = frag_valid;
     assign update_if.init = frag_init;
     assign update_if.id = frag_ptr;
-    assign update_if.update.valid = 1'b1;
-    assign update_if.update.buf_id = frag_buf_id;
-    assign update_if.update.offset_start = frag_offset_start;
-    assign update_if.update.offset_end = frag_offset_end;
-    assign update_if.update.timer = timer;
-    assign update_if.update.last = frag_last;
+    assign update_if_update.valid = 1'b1;
+    assign update_if_update.buf_id = frag_buf_id;
+    assign update_if_update.offset_start = frag_offset_start;
+    assign update_if_update.offset_end = frag_offset_end;
+    assign update_if_update.timer = timer;
+    assign update_if_update.last = frag_last;
+    assign update_if.update = update_if_update;
     assign update_if.ctxt = UPDATE_CTXT_DATAPATH;
   
     // -------------------------------------------------
@@ -274,13 +281,14 @@ module sar_reassembly_state
         .count   ( )
     );
 
-    assign q_done__wr = notify_if.evt && (notify_if.msg._type == REASSEMBLY_NOTIFY_DONE);
+    assign notify_if_msg = notify_if.msg;
+    assign q_done__wr = notify_if.evt && (notify_if_msg._type == REASSEMBLY_NOTIFY_DONE);
     assign q_done__wr_data.id = notify_if.id;
-    assign q_done__wr_data.ctxt = notify_if.msg.ctxt;
+    assign q_done__wr_data.ctxt = notify_if_msg.ctxt;
 
     // Deletion queue (from expired fragments)
     fifo_small  #(
-        .DATA_WID  ( $bits(FRAGMENT_PTR_T) ),
+        .DATA_WID  ( FRAGMENT_PTR_WID ),
         .DEPTH   ( 8 )
     ) i_fifo_small__q_expired (
         .clk     ( clk ),
@@ -296,12 +304,12 @@ module sar_reassembly_state
         .count   ( )
     );
 
-    assign q_expired__wr = notify_if.evt && (notify_if.msg._type == REASSEMBLY_NOTIFY_EXPIRED);
+    assign q_expired__wr = notify_if.evt && (notify_if_msg._type == REASSEMBLY_NOTIFY_EXPIRED);
     assign q_expired__wr_data = notify_if.id;
 
     // Deletion queue (from merged fragments)
     fifo_small   #(
-        .DATA_WID ( $bits(FRAGMENT_PTR_T) ),
+        .DATA_WID ( FRAGMENT_PTR_WID ),
         .DEPTH    ( 8 )
     ) i_fifo_small__q_merged (
         .clk     ( clk ),
