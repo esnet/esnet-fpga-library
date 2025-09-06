@@ -5,18 +5,14 @@ interface mem_wr_intf #(
     input logic clk
 );
 
-    // Typedefs
-    typedef logic [ADDR_WID-1:0] addr_t;
-    typedef logic [DATA_WID-1:0] data_t;
-
     // Signals
-    logic  rst;
-    logic  rdy;
-    logic  en;
-    logic  req;
-    addr_t addr;
-    data_t data;
-    logic  ack;
+    logic                rst;
+    logic                rdy;
+    logic                en;
+    logic                req;
+    logic [ADDR_WID-1:0] addr;
+    logic [DATA_WID-1:0] data;
+    logic                ack;
 
     // Modports
     modport controller(
@@ -60,8 +56,8 @@ interface mem_wr_intf #(
     endtask
 
     task send_req(
-            input addr_t _addr,
-            input data_t _data
+            input bit [ADDR_WID-1:0] _addr,
+            input bit [DATA_WID-1:0] _data
         );
         cb.en <= 1'b1;
         wait(rdy);
@@ -81,8 +77,8 @@ interface mem_wr_intf #(
     endtask
 
     task write(
-            input addr_t _addr,
-            input data_t _data
+            input bit [ADDR_WID-1:0] _addr,
+            input bit [DATA_WID-1:0] _data
         );
         send_req(_addr, _data);
         wait_resp();
@@ -92,19 +88,19 @@ endinterface : mem_wr_intf
 
 // Memory write interface (back-to-back) connector helper module
 module mem_wr_intf_connector (
-    mem_wr_intf.peripheral mem_wr_if_from_controller,
-    mem_wr_intf.controller mem_wr_if_to_peripheral
+    mem_wr_intf.peripheral from_controller,
+    mem_wr_intf.controller to_peripheral
 );
     // Connect signals (controller -> peripheral)
-    assign mem_wr_if_to_peripheral.rst  = mem_wr_if_from_controller.rst;
-    assign mem_wr_if_to_peripheral.en   = mem_wr_if_from_controller.en;
-    assign mem_wr_if_to_peripheral.req  = mem_wr_if_from_controller.req;
-    assign mem_wr_if_to_peripheral.addr = mem_wr_if_from_controller.addr;
-    assign mem_wr_if_to_peripheral.data = mem_wr_if_from_controller.data;
+    assign to_peripheral.rst  = from_controller.rst;
+    assign to_peripheral.en   = from_controller.en;
+    assign to_peripheral.req  = from_controller.req;
+    assign to_peripheral.addr = from_controller.addr;
+    assign to_peripheral.data = from_controller.data;
 
     // Connect signals (peripheral -> controller)
-    assign mem_wr_if_from_controller.rdy = mem_wr_if_to_peripheral.rdy;
-    assign mem_wr_if_from_controller.ack = mem_wr_if_to_peripheral.ack;
+    assign from_controller.rdy = to_peripheral.rdy;
+    assign from_controller.ack = to_peripheral.ack;
 endmodule : mem_wr_intf_connector
 
 // Memory write interface controller termination

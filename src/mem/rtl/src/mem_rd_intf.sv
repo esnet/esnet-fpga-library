@@ -5,17 +5,13 @@ interface mem_rd_intf #(
     input logic clk
 );
 
-    // Typedefs
-    typedef logic [ADDR_WID-1:0] addr_t;
-    typedef logic [DATA_WID-1:0] data_t;
-
     // Signals
-    logic  rst;
-    logic  rdy;
-    logic  req;
-    addr_t addr;
-    data_t data;
-    logic  ack;
+    logic                rst;
+    logic                rdy;
+    logic                req;
+    logic [ADDR_WID-1:0] addr;
+    logic [DATA_WID-1:0] data;
+    logic                ack;
 
     // Modports
     modport controller(
@@ -55,7 +51,7 @@ interface mem_rd_intf #(
     endtask
 
     task send_req(
-            input addr_t _addr
+            input bit [ADDR_WID-1:0] _addr
         );
         wait(rdy);
         cb.req <= 1'b1;
@@ -67,15 +63,15 @@ interface mem_rd_intf #(
     endtask
 
     task wait_resp(
-            output data_t _data
+            output bit [DATA_WID-1:0] _data
         );
         wait(cb.ack);
         _data = cb.data;
     endtask
 
     task read(
-            input addr_t _addr,
-            output data_t _data
+            input  bit [ADDR_WID-1:0] _addr,
+            output bit [DATA_WID-1:0] _data
         );
         send_req(_addr);
         wait_resp(_data);
@@ -85,18 +81,18 @@ endinterface : mem_rd_intf
 
 // Memory read interface (back-to-back) connector helper module
 module mem_rd_intf_connector (
-    mem_rd_intf.peripheral mem_rd_if_from_controller,
-    mem_rd_intf.controller mem_rd_if_to_peripheral
+    mem_rd_intf.peripheral from_controller,
+    mem_rd_intf.controller to_peripheral
 );
     // Connect signals (controller -> peripheral)
-    assign mem_rd_if_to_peripheral.rst  = mem_rd_if_from_controller.rst;
-    assign mem_rd_if_to_peripheral.req  = mem_rd_if_from_controller.req;
-    assign mem_rd_if_to_peripheral.addr = mem_rd_if_from_controller.addr;
+    assign to_peripheral.rst  = from_controller.rst;
+    assign to_peripheral.req  = from_controller.req;
+    assign to_peripheral.addr = from_controller.addr;
 
     // Connect signals (peripheral -> controller)
-    assign mem_rd_if_from_controller.rdy  = mem_rd_if_to_peripheral.rdy;
-    assign mem_rd_if_from_controller.data = mem_rd_if_to_peripheral.data;
-    assign mem_rd_if_from_controller.ack  = mem_rd_if_to_peripheral.ack;
+    assign from_controller.rdy  = to_peripheral.rdy;
+    assign from_controller.data = to_peripheral.data;
+    assign from_controller.ack  = to_peripheral.ack;
 endmodule : mem_rd_intf_connector
 
 // Memory read interface controller termination
