@@ -263,7 +263,7 @@ class packet_playback_driver #(parameter type META_T=bit) extends packet_driver#
 
     // Send packet as raw byte array
     // [[ implements packet_verif_pkg::packet_driver._send_raw ]]
-    task _send_raw(input byte data[], input META_T meta='0, input bit err=1'b0);
+    task _send_raw(const ref byte data[], input META_T meta='0, input bit err=1'b0);
         automatic bit error, timeout;
         trace_msg("_send_raw()");
         __setup_transfer(data, meta, err, 1);

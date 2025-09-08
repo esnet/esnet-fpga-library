@@ -85,7 +85,7 @@ class axi4s_transaction #(
     // Construct raw packet from array of bytes
     static function axi4s_transaction#(TID_T, TDEST_T, TUSER_T) create_from_bytes(
             input string name = "axi4s_transaction",
-            input byte data[],
+            input byte data [],
             input TID_T tid = '0,
             input TDEST_T tdest = '0,
             input TUSER_T tuser = '0,

@@ -75,20 +75,20 @@ class packet_intf_driver #(
     // Send packet (represented as raw byte array with associated metadata)
     // [[ implements packet_verif_pkg::packet_driver._send_raw() ]]
     protected task _send_raw(
-            input byte   data[],
+            const ref byte data [],
             input META_T meta = '0,
             input bit    err = 1'b0
         );
         // Parameters
         localparam int MTY_WID = $clog2(DATA_BYTE_WID);
         // Signals
-        automatic byte __data[$] = data;
-        automatic bit [0:DATA_BYTE_WID-1][7:0] _data = '0;
-        automatic bit [MTY_WID-1:0] mty;
-        automatic bit __err = err;
-        automatic bit eop;
-        automatic int byte_idx = 0;
-        automatic int word_idx = 0;
+        byte __data[$] = data;
+        bit [0:DATA_BYTE_WID-1][7:0] _data = '0;
+        bit [MTY_WID-1:0] mty;
+        bit __err = err;
+        bit eop;
+        int byte_idx = 0;
+        int word_idx = 0;
 
         debug_msg($sformatf("send_raw: Sending %0d bytes...", data.size()));
         // Send

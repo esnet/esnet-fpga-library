@@ -76,7 +76,7 @@ class packet_raw#(parameter type META_T = bit) extends packet#(META_T);
 
     // Set from byte array
     // [[ implements packet_verif_pkg::packet.from_bytes ]]
-    virtual function automatic void from_bytes(input byte_array_t data);
+    virtual function automatic void from_bytes(input byte data []);
         this.__data = data;
     endfunction
 

@@ -23,7 +23,7 @@ virtual class packet#(parameter type META_T = bit) extends std_verif_pkg::transa
     // (must be implemented by derived class)
     //===================================
     pure virtual function automatic byte_array_t to_bytes();
-    pure virtual function automatic void         from_bytes(input byte_array_t data);
+    pure virtual function automatic void         from_bytes(input byte data[]);
     pure virtual function automatic byte_array_t header();
     pure virtual function automatic byte_array_t payload();
     pure virtual function automatic protocol_t   payload_protocol();

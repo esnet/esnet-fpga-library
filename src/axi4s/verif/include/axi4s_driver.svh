@@ -39,6 +39,8 @@ class axi4s_driver #(
         //     where properties are not properly allocated when they are not assigned
         //     in the constructor.
         this.axis_vif = null;
+        this.__min_pkt_gap = 0;
+        this.__twait = 0;
         // } WORKAROUND-INIT-PROPS
     endfunction
 
@@ -82,7 +84,7 @@ class axi4s_driver #(
 
     // Send transaction (represented as raw byte array with associated metadata)
     protected task _send_raw(
-            input byte    data[],
+            const ref byte data [],
             input TID_T   id = '0,
             input TDEST_T dest = '0,
             input TUSER_T user = '0
@@ -143,7 +145,6 @@ class axi4s_driver #(
         );
         // Signals
         pcap_pkg::pcap_t pcap;
-        byte pkt_data[$][$];
         int num_pcap_pkts;
         int pkt_idx;
 
