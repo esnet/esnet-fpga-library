@@ -110,7 +110,7 @@ module axi4s_split_join
 
    // mux instantation used to bypass axi4s_split if not enabled.
    axi4s_intf_bypass_mux #(
-      .PIPE_STAGES(1), .DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)
+      .RESET_BLK_IF(1), .PIPE_STAGES(1), .DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)
     ) bypass_split_mux (
       .axi4s_in         (axi4s_in_p),
       .axi4s_to_block   (__axi4s_in_p),
@@ -217,7 +217,7 @@ module axi4s_split_join
 
    // mux instantation used to bypass axi4s_join if not enabled.
    axi4s_intf_bypass_mux #(
-      .PIPE_STAGES(1), .DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)
+      .RESET_BLK_IF(1), .PIPE_STAGES(1), .DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)
     ) bypass_join_mux (
       .axi4s_in         (axi4s_hdr_in_p),
       .axi4s_to_block   (__axi4s_hdr_in_p),
