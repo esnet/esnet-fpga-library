@@ -29,6 +29,14 @@ module db_peripheral #(
     // -----------------------------
     localparam int INIT_DONE_DEBOUNCE_CNT = 8;
 
+    // Check
+    initial begin
+        std_pkg::param_check(wr_if.KEY_WID,    ctrl_if.KEY_WID,   "wr_if.KEY_WID");
+        std_pkg::param_check(wr_if.VALUE_WID,  ctrl_if.VALUE_WID, "wr_if.VALUE_WID");
+        std_pkg::param_check(rd_if.KEY_WID,    ctrl_if.KEY_WID,   "rd_if.KEY_WID");
+        std_pkg::param_check(rd_if.VALUE_WID,  ctrl_if.VALUE_WID, "rd_if.VALUE_WID");
+    end
+
     // -----------------------------
     // Typedefs
     // -----------------------------

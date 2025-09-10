@@ -1,6 +1,4 @@
 module db_store_lru #(
-    parameter type KEY_T = logic[7:0],
-    parameter type VALUE_T = logic[7:0],
     parameter int  SIZE = 8,
     parameter bit  WRITE_FLOW_THROUGH = 0 // When set, enable write-through mode
                    // In write-through mode, writes are immediately reflected
@@ -30,14 +28,22 @@ module db_store_lru #(
     // ----------------------------------
     // Parameters
     // ----------------------------------
-    localparam int  IDX_WID = SIZE > 1 ? $clog2(SIZE) : 1;
-    localparam int  FILL_WID = $clog2(SIZE+1);
-    localparam type ENTRY_T = struct packed {KEY_T key; logic valid; VALUE_T value;};
+    localparam int KEY_WID = db_wr_if.KEY_WID;
+    localparam int VALUE_WID = db_wr_if.VALUE_WID;
+
+    localparam int IDX_WID = SIZE > 1 ? $clog2(SIZE) : 1;
+    localparam int FILL_WID = $clog2(SIZE+1);
+
+    // Check
+    initial begin
+        std_pkg::param_check(db_rd_if.KEY_WID,   KEY_WID,   "db_rd_if.KEY_WID");
+        std_pkg::param_check(db_rd_if.VALUE_WID, VALUE_WID, "db_rd_if.VALUE_WID");
+    end
 
     // ----------------------------------
     // Typedefs
     // ----------------------------------
-    typedef logic [IDX_WID-1:0] idx_t;
+    typedef struct packed {logic [KEY_WID-1:0] key; logic valid; logic [VALUE_WID-1:0] value;} entry_t;
 
     // ----------------------------------
     // Signals
@@ -45,15 +51,15 @@ module db_store_lru #(
     logic __srst;
 
     logic stash_wr;
-    ENTRY_T stash [SIZE];
+    entry_t stash [SIZE];
     logic [SIZE-1:0] stash_vld;
 
-    logic stash_rd;
-    logic rd_match;
-    idx_t rd_idx;
+    logic               stash_rd;
+    logic               rd_match;
+    logic [IDX_WID-1:0] rd_idx;
 
-    logic   db_rd_if__valid;
-    VALUE_T db_rd_if__value;
+    logic                 db_rd_if__valid;
+    logic [VALUE_WID-1:0] db_rd_if__value;
 
     // ----------------------------------
     // Local reset

@@ -1,6 +1,4 @@
 module db_stash #(
-    parameter type KEY_T = logic[7:0],
-    parameter type VALUE_T = logic[7:0],
     parameter int  SIZE = 8,
     parameter bit  REG_REQ = 1'b0 // When enabled, register both write and read requests to stash memory
                                   // Using a common parameter for both write and read sides maintains
@@ -31,49 +29,59 @@ module db_stash #(
     // ----------------------------------
     // Parameters
     // ----------------------------------
+    localparam int  KEY_WID = ctrl_if.KEY_WID;
+    localparam int  VALUE_WID = ctrl_if.VALUE_WID;
+
     localparam int  IDX_WID = SIZE > 1 ? $clog2(SIZE) : 1;
     localparam int  FILL_WID = $clog2(SIZE+1);
-    localparam type ENTRY_T = struct packed {KEY_T key; VALUE_T value;};
+
+    // Check
+    initial begin
+        std_pkg::param_check(app_wr_if.KEY_WID,   KEY_WID,   "app_wr_if.KEY_WID");
+        std_pkg::param_check(app_wr_if.VALUE_WID, VALUE_WID, "app_wr_if.VALUE_WID");
+        std_pkg::param_check(app_rd_if.KEY_WID,   KEY_WID,   "app_rd_if.KEY_WID");
+        std_pkg::param_check(app_rd_if.VALUE_WID, VALUE_WID, "app_rd_if.VALUE_WID");
+    end
 
     // ----------------------------------
     // Typedefs
     // ----------------------------------
-    typedef logic [IDX_WID-1:0] idx_t;
+    typedef struct packed {logic [KEY_WID-1:0] key; logic [VALUE_WID-1:0] value;} entry_t;
 
     // ----------------------------------
     // Signals
     // ----------------------------------
-    ENTRY_T stash [SIZE];
+    entry_t stash [SIZE];
     logic [SIZE-1:0] stash_vld;
 
-    logic [FILL_WID-1:0] fill;
+    logic [FILL_WID-1:0]  fill;
 
-    logic   db_init;
-    logic   db_init_done;
+    logic                 db_init;
+    logic                 db_init_done;
 
-    logic   wr_req;
-    KEY_T   wr_key;
-    logic   wr_valid;
-    VALUE_T wr_value;
-    logic   wr;
-    logic   wr_match;
-    idx_t   wr_match_idx;
-    idx_t   insert_idx;
-    idx_t   wr_idx;
+    logic                 wr_req;
+    logic [KEY_WID-1:0]   wr_key;
+    logic                 wr_valid;
+    logic [VALUE_WID-1:0] wr_value;
+    logic                 wr;
+    logic                 wr_match;
+    logic [IDX_WID-1:0]   wr_match_idx;
+    logic [IDX_WID-1:0]   insert_idx;
+    logic [IDX_WID-1:0]   wr_idx;
 
-    logic   rd_req;
-    KEY_T   rd_key;
-    logic   rd_next;
-    logic   rd_match;
-    idx_t   rd_idx;
+    logic                 rd_req;
+    logic [KEY_WID-1:0]   rd_key;
+    logic                 rd_next;
+    logic                 rd_match;
+    logic [IDX_WID-1:0]   rd_idx;
 
-    idx_t next_rd_idx;
+    logic [IDX_WID-1:0]   next_rd_idx;
 
     // ----------------------------------
     // Interfaces
     // ----------------------------------
-    db_intf #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) db_wr_if (.clk(clk));
-    db_intf #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) db_rd_if (.clk(clk));
+    db_intf #(.KEY_WID(KEY_WID), .VALUE_WID(VALUE_WID)) db_wr_if (.clk);
+    db_intf #(.KEY_WID(KEY_WID), .VALUE_WID(VALUE_WID)) db_rd_if (.clk);
 
     // ----------------------------------
     // Export info
@@ -95,8 +103,6 @@ module db_stash #(
     // 'Standard' database core
     // ----------------------------------
     db_core #(
-        .KEY_T ( KEY_T ),
-        .VALUE_T ( VALUE_T ),
         .NUM_WR_TRANSACTIONS ( 2 ),
         .NUM_RD_TRANSACTIONS ( 2 ),
         .DB_CACHE_EN ( 0 ),

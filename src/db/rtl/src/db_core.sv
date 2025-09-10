@@ -1,6 +1,4 @@
 module db_core #(
-    parameter type KEY_T = logic[7:0],
-    parameter type VALUE_T = logic[7:0],
     parameter int  NUM_WR_TRANSACTIONS = 4, // Maximum number of database write transactions that can
                                             // be in flight (from the perspective of this module)
                                             // at any given time.
@@ -36,6 +34,24 @@ module db_core #(
     db_intf.requester        db_rd_if
 );
     // ----------------------------------
+    // Parameters
+    // ----------------------------------
+    localparam int KEY_WID = ctrl_if.KEY_WID;
+    localparam int VALUE_WID = ctrl_if.VALUE_WID;
+
+    // Check
+    initial begin
+        std_pkg::param_check(app_wr_if.KEY_WID,   KEY_WID,   "app_wr_if.KEY_WID");
+        std_pkg::param_check(app_wr_if.VALUE_WID, VALUE_WID, "app_wr_if.VALUE_WID");
+        std_pkg::param_check(app_rd_if.KEY_WID,   KEY_WID,   "app_rd_if.KEY_WID");
+        std_pkg::param_check(app_rd_if.VALUE_WID, VALUE_WID, "app_rd_if.VALUE_WID");
+        std_pkg::param_check(db_wr_if.KEY_WID,    KEY_WID,   "db_wr_if.KEY_WID");
+        std_pkg::param_check(db_wr_if.VALUE_WID,  VALUE_WID, "db_wr_if.VALUE_WID");
+        std_pkg::param_check(db_rd_if.KEY_WID,    KEY_WID,   "db_rd_if.KEY_WID");
+        std_pkg::param_check(db_rd_if.VALUE_WID,  VALUE_WID, "db_rd_if.VALUE_WID");
+    end
+
+    // ----------------------------------
     // Signals
     // ----------------------------------
     logic ctrl_init;
@@ -44,11 +60,11 @@ module db_core #(
     // ----------------------------------
     // Interfaces
     // ----------------------------------
-    db_intf #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) ctrl_wr_if (.clk(clk));
-    db_intf #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) ctrl_rd_if (.clk(clk));
+    db_intf #(.KEY_WID(KEY_WID), .VALUE_WID(VALUE_WID)) ctrl_wr_if (.clk);
+    db_intf #(.KEY_WID(KEY_WID), .VALUE_WID(VALUE_WID)) ctrl_rd_if (.clk);
 
-    db_intf #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) __app_rd_if (.clk(clk));
-    db_intf #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) __db_rd_if (.clk(clk));
+    db_intf #(.KEY_WID(KEY_WID), .VALUE_WID(VALUE_WID)) __app_rd_if (.clk);
+    db_intf #(.KEY_WID(KEY_WID), .VALUE_WID(VALUE_WID)) __db_rd_if (.clk);
 
     // -----------------------------
     // Control transaction handling
@@ -81,27 +97,23 @@ module db_core #(
     // (strict priority to data plane)
     // -----------------------------
     db_intf_prio_wr_mux  #(
-        .KEY_T            ( KEY_T ),
-        .VALUE_T          ( VALUE_T ),
         .NUM_TRANSACTIONS ( NUM_WR_TRANSACTIONS )
     ) i_db_intf_prio_wr_mux (
         .clk  ( clk ),
         .srst ( __srst ),
-        .db_if_from_requester_hi_prio ( app_wr_if ),
-        .db_if_from_requester_lo_prio ( ctrl_wr_if ),
-        .db_if_to_responder           ( db_wr_if )
+        .from_requester_hi_prio ( app_wr_if ),
+        .from_requester_lo_prio ( ctrl_wr_if ),
+        .to_responder           ( db_wr_if )
     );
 
     db_intf_prio_rd_mux  #(
-        .KEY_T            ( KEY_T ),
-        .VALUE_T          ( VALUE_T ),
         .NUM_TRANSACTIONS ( NUM_RD_TRANSACTIONS )
     ) i_db_intf_prio_rd_mux (
         .clk  ( clk ),
         .srst ( __srst ),
-        .db_if_from_requester_hi_prio ( __app_rd_if ),
-        .db_if_from_requester_lo_prio ( ctrl_rd_if ),
-        .db_if_to_responder           ( __db_rd_if )
+        .from_requester_hi_prio ( __app_rd_if ),
+        .from_requester_lo_prio ( ctrl_rd_if ),
+        .to_responder           ( __db_rd_if )
     );
 
     // ------------------------------------------------
@@ -115,24 +127,27 @@ module db_core #(
         if (DB_CACHE_EN) begin : g__db_cache
             // (Local) typedefs
             typedef struct packed {
-                logic   ins_del_n;
-                VALUE_T value;
+                logic                 ins_del_n;
+                logic [VALUE_WID-1:0] value;
             } cache_entry_t;
 
             typedef struct packed {
-                logic   hit;
-                logic   valid;
-                VALUE_T value;
+                logic                 hit;
+                logic                 valid;
+                logic [VALUE_WID-1:0] value;
             } cache_ctxt_t;
 
             typedef struct packed {
-                logic   error;
-                KEY_T   next_key;
-                logic   valid;
-                VALUE_T value;
+                logic                 error;
+                logic [KEY_WID-1:0]   next_key;
+                logic                 valid;
+                logic [VALUE_WID-1:0] value;
             } rd_ctxt_t;
 
             // (Local) signals
+            cache_entry_t cache_wr_if_value;
+            cache_entry_t cache_rd_if_value;
+
             cache_ctxt_t  cache_ctxt_in;
             cache_ctxt_t  cache_ctxt_out;
             logic         cache_ctxt_out_vld;
@@ -148,8 +163,8 @@ module db_core #(
             logic         ctxt_fifo_rd;
 
             // (Local) interfaces
-            db_intf #(.KEY_T(KEY_T), .VALUE_T(cache_entry_t)) cache_wr_if (.clk(clk));
-            db_intf #(.KEY_T(KEY_T), .VALUE_T(cache_entry_t)) cache_rd_if (.clk(clk));
+            db_intf #(.KEY_WID(KEY_WID), .VALUE_WID($bits(cache_entry_t))) cache_wr_if (.clk);
+            db_intf #(.KEY_WID(KEY_WID), .VALUE_WID($bits(cache_entry_t))) cache_rd_if (.clk);
 
             // Drive read request
             assign __db_rd_if.rdy = db_rd_if.rdy;
@@ -159,8 +174,6 @@ module db_core #(
 
             // Least-recently-used cache
             db_store_lru #(
-                .KEY_T    ( KEY_T ),
-                .VALUE_T  ( cache_entry_t ),
                 .SIZE     ( NUM_WR_TRANSACTIONS )
             ) i_db_store_lru  (
                 .clk          ( clk ),
@@ -174,8 +187,9 @@ module db_core #(
             assign cache_wr_if.req = db_wr_if.req && db_wr_if.rdy;
             assign cache_wr_if.key = db_wr_if.key;
             assign cache_wr_if.valid = 1'b1;
-            assign cache_wr_if.value.ins_del_n = db_wr_if.valid;
-            assign cache_wr_if.value.value = db_wr_if.value;
+            assign cache_wr_if_value.ins_del_n = db_wr_if.valid;
+            assign cache_wr_if_value.value = db_wr_if.value;
+            assign cache_wr_if.value = cache_wr_if_value;
             assign cache_wr_if.next = 1'b0; // Unused
 
             assign cache_rd_if.req = db_rd_if.req && db_rd_if.rdy;
@@ -184,8 +198,9 @@ module db_core #(
 
             // Cache result context (wait for read to complete)
             assign cache_ctxt_in.hit   = cache_rd_if.ack && cache_rd_if.valid;
-            assign cache_ctxt_in.valid = cache_rd_if.value.ins_del_n;
-            assign cache_ctxt_in.value = cache_rd_if.value.value;
+            assign cache_rd_if_value   = cache_rd_if.value;
+            assign cache_ctxt_in.valid = cache_rd_if_value.ins_del_n;
+            assign cache_ctxt_in.value = cache_rd_if_value.value;
 
             fifo_small_ctxt #(
                 .DATA_WID ( $bits(cache_ctxt_t) ),
@@ -252,8 +267,8 @@ module db_core #(
         else begin : g__no_db_cache
             // No cache; pass read interface through directly
             db_intf_rd_connector i_db_intf_rd_connector (
-                .db_if_from_requester ( __db_rd_if ),
-                .db_if_to_responder   ( db_rd_if )
+                .from_requester ( __db_rd_if ),
+                .to_responder   ( db_rd_if )
             );
 
         end : g__no_db_cache
@@ -271,31 +286,32 @@ module db_core #(
         if (APP_CACHE_EN) begin : g__app_cache
             // (Local) typedefs
             typedef struct packed {
-                logic   ins_del_n;
-                VALUE_T value;
+                logic                 ins_del_n;
+                logic [VALUE_WID-1:0] value;
             } cache_entry_t;
 
             typedef struct packed {
-                KEY_T key;
-                logic next;
+                logic [KEY_WID-1:0] key;
+                logic               next;
             } rd_req_ctxt_t;
 
             // (Local) signals
+            cache_entry_t cache_wr_if_value;
+            cache_entry_t cache_rd_if_value;
+
             rd_req_ctxt_t  rd_req_ctxt_in;
             rd_req_ctxt_t  rd_req_ctxt_out;
             logic          rd_req_ctxt_out_vld;
 
-            logic   app_rd_if__valid;
-            VALUE_T app_rd_if__value;
+            logic                 app_rd_if__valid;
+            logic [VALUE_WID-1:0] app_rd_if__value;
 
             // (Local) interfaces
-            db_intf #(.KEY_T(KEY_T), .VALUE_T(cache_entry_t)) cache_wr_if (.clk(clk));
-            db_intf #(.KEY_T(KEY_T), .VALUE_T(cache_entry_t)) cache_rd_if (.clk(clk));
+            db_intf #(.KEY_WID(KEY_WID), .VALUE_WID($bits(cache_entry_t))) cache_wr_if (.clk);
+            db_intf #(.KEY_WID(KEY_WID), .VALUE_WID($bits(cache_entry_t))) cache_rd_if (.clk);
 
             // Least-recently-used cache
             db_store_lru #(
-                .KEY_T    ( KEY_T ),
-                .VALUE_T  ( cache_entry_t ),
                 .SIZE     ( NUM_RD_TRANSACTIONS ),
                 .WRITE_FLOW_THROUGH ( 1 )
             ) i_db_store_lru  (
@@ -310,8 +326,9 @@ module db_core #(
             assign cache_wr_if.req = app_wr_if.req && app_wr_if.rdy;
             assign cache_wr_if.key = app_wr_if.key;
             assign cache_wr_if.valid = 1'b1;
-            assign cache_wr_if.value.ins_del_n = app_wr_if.valid;
-            assign cache_wr_if.value.value = app_wr_if.value;
+            assign cache_wr_if_value.ins_del_n = app_wr_if.valid;
+            assign cache_wr_if_value.value = app_wr_if.value;
+            assign cache_wr_if.value = cache_wr_if_value;
             assign cache_wr_if.next = 1'b0; // Unused
 
             // Read request context (wait for read to complete)
@@ -337,6 +354,7 @@ module db_core #(
             assign cache_rd_if.req = __app_rd_if.ack;
             assign cache_rd_if.key = rd_req_ctxt_out.key;
             assign cache_rd_if.next = rd_req_ctxt_out.next;
+            assign cache_rd_if_value = cache_rd_if.value;
 
             // Assign read interface
             assign __app_rd_if.req = app_rd_if.req;
@@ -367,16 +385,16 @@ module db_core #(
                 app_rd_if.valid = app_rd_if__valid;
                 app_rd_if.value = app_rd_if__value;
                 if (cache_rd_if.ack && cache_rd_if.valid) begin
-                    app_rd_if.valid = cache_rd_if.value.ins_del_n;
-                    app_rd_if.value = cache_rd_if.value.value;
+                    app_rd_if.valid = cache_rd_if_value.ins_del_n;
+                    app_rd_if.value = cache_rd_if_value.value;
                 end
             end
         end : g__app_cache
         else begin : g__no_app_cache
             // No cache; pass read interface through directly
             db_intf_rd_connector i_db_intf_rd_connector (
-                .db_if_from_requester ( app_rd_if ),
-                .db_if_to_responder   ( __app_rd_if )
+                .from_requester ( app_rd_if ),
+                .to_responder   ( __app_rd_if )
             );
         end : g__no_app_cache
     endgenerate

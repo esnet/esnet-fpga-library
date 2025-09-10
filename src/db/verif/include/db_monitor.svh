@@ -5,10 +5,13 @@ class db_monitor #(
 
     local static const string __CLASS_NAME = "db_verif_pkg::db_monitor";
 
+    localparam int KEY_WID  = $bits(KEY_T);
+    localparam int VALUE_WID = $bits(VALUE_T);
+
     //===================================
     // Properties
     //===================================
-    virtual db_intf #(KEY_T, VALUE_T) db_vif;
+    virtual db_intf #(KEY_WID, VALUE_WID) db_vif;
 
     //===================================
     // Methods

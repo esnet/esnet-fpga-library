@@ -33,23 +33,21 @@ module db_stash_fifo_unit_test;
     logic init_done;
 
     db_info_intf #() info_if ();
-    db_ctrl_intf #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) ctrl_if (.clk(clk));
-    db_status_intf #() status_if (.clk(clk), .srst(srst));
+    db_ctrl_intf #(.KEY_WID(KEY_WID), .VALUE_WID(VALUE_WID)) ctrl_if (.clk);
+    db_status_intf #() status_if (.clk, .srst);
 
-    db_intf #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) app_wr_if (.clk(clk));
-    db_intf #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) app_rd_if (.clk(clk));
+    db_intf #(.KEY_WID(KEY_WID), .VALUE_WID(VALUE_WID)) app_wr_if (.clk);
+    db_intf #(.KEY_WID(KEY_WID), .VALUE_WID(VALUE_WID)) app_rd_if (.clk);
     
     db_stash_fifo #(
-        .KEY_T (KEY_T),
-        .VALUE_T (VALUE_T),
         .SIZE (SIZE)
     ) DUT (.*);
 
     //===================================
     // Testbench
     //===================================
-    db_ctrl_agent #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) agent;
-    std_reset_intf reset_if (.clk(clk));
+    db_ctrl_agent #(KEY_T, VALUE_T) agent;
+    std_reset_intf reset_if (.clk);
 
     // Assign clock (250MHz)
     `SVUNIT_CLK_GEN(clk, 2ns);

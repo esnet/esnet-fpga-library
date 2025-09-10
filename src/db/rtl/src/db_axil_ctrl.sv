@@ -1,7 +1,4 @@
-module db_axil_ctrl #(
-    parameter type KEY_T   = logic [7:0],
-    parameter type VALUE_T = logic [31:0]
-)(
+module db_axil_ctrl (
     // Clock/reset
     input  logic               clk,
     input  logic               srst,
@@ -36,6 +33,12 @@ module db_axil_ctrl #(
     import db_reg_pkg::*;
 
     // -----------------------------
+    // Parameters
+    // -----------------------------
+    localparam int KEY_WID   = ctrl_if.KEY_WID;
+    localparam int VALUE_WID = ctrl_if.VALUE_WID;
+
+    // -----------------------------
     // Functions
     // -----------------------------
     // -- RTL to regmap translation (database type)
@@ -63,8 +66,8 @@ module db_axil_ctrl #(
     // -----------------------------
     // Parameters
     // -----------------------------
-    localparam int KEY_BITS = $bits(KEY_T);
-    localparam int VALUE_BITS = $bits(VALUE_T);
+    localparam int KEY_BITS = KEY_WID;
+    localparam int VALUE_BITS = VALUE_WID;
 
     localparam int KEY_BYTES = KEY_BITS % 8 == 0 ? KEY_BITS / 8 : KEY_BITS / 8 + 1;
     localparam int VALUE_BYTES = VALUE_BITS % 8 == 0 ? VALUE_BITS / 8 : VALUE_BITS / 8 + 1;

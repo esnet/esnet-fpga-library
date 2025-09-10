@@ -1,6 +1,4 @@
 module db_stash_fifo #(
-    parameter type KEY_T = logic[7:0],
-    parameter type VALUE_T = logic[7:0],
     parameter int  SIZE = 8
 )(
     // Clock/reset
@@ -31,43 +29,53 @@ module db_stash_fifo #(
     // ----------------------------------
     // Parameters
     // ----------------------------------
+    localparam int  KEY_WID = ctrl_if.KEY_WID;
+    localparam int  VALUE_WID = ctrl_if.VALUE_WID;
+
     localparam int  IDX_WID = SIZE > 1 ? $clog2(SIZE) : 1;
     localparam int  CNT_WID = $clog2(SIZE+1);
     localparam int  FILL_WID = $clog2(SIZE+1);
-    localparam type ENTRY_T = struct packed {KEY_T key; logic valid; VALUE_T value;};
+
+    // Check
+    initial begin
+        std_pkg::param_check(app_wr_if.KEY_WID,   KEY_WID,   "app_wr_if.KEY_WID");
+        std_pkg::param_check(app_wr_if.VALUE_WID, VALUE_WID, "app_wr_if.VALUE_WID");
+        std_pkg::param_check(app_rd_if.KEY_WID,   KEY_WID,   "app_rd_if.KEY_WID");
+        std_pkg::param_check(app_rd_if.VALUE_WID, VALUE_WID, "app_rd_if.VALUE_WID");
+    end
 
     // ----------------------------------
     // Typedefs
     // ----------------------------------
-    typedef logic [IDX_WID-1:0] idx_t;
+    typedef struct packed {logic [KEY_WID-1:0] key; logic valid; logic [VALUE_WID-1:0] value;} entry_t;
 
     // ----------------------------------
     // Signals
     // ----------------------------------
     logic __srst;
 
-    ENTRY_T stash [SIZE];
+    entry_t stash [SIZE];
     logic [SIZE-1:0] stash_vld;
 
-    logic db_init;
-    logic db_init_done;
+    logic               db_init;
+    logic               db_init_done;
 
-    logic rd_match;
-    idx_t rd_idx;
+    logic               rd_match;
+    logic [IDX_WID-1:0] rd_idx;
 
-    logic wr_safe;
-    logic full;
+    logic               wr_safe;
+    logic               full;
     logic [CNT_WID-1:0] count; 
 
-    logic rd_safe;
-    idx_t rd_ptr;
-    logic empty;
+    logic               rd_safe;
+    logic [IDX_WID-1:0] rd_ptr;
+    logic               empty;
 
     // ----------------------------------
     // Interfaces
     // ----------------------------------
-    db_intf #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) db_wr_if (.clk(clk));
-    db_intf #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) db_rd_if (.clk(clk));
+    db_intf #(.KEY_WID(KEY_WID), .VALUE_WID(VALUE_WID)) db_wr_if (.clk);
+    db_intf #(.KEY_WID(KEY_WID), .VALUE_WID(VALUE_WID)) db_rd_if (.clk);
 
     // ----------------------------------
     // Export info
@@ -89,8 +97,6 @@ module db_stash_fifo #(
     // 'Standard' database core
     // ----------------------------------
     db_core #(
-        .KEY_T ( KEY_T ),
-        .VALUE_T ( VALUE_T ),
         .NUM_WR_TRANSACTIONS ( 2 ),
         .NUM_RD_TRANSACTIONS ( 2 ),
         .DB_CACHE_EN ( 0 ),

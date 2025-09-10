@@ -33,20 +33,18 @@ module db_core_unit_test;
 
     logic init_done;
 
-    db_ctrl_intf #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) ctrl_if (.clk(clk));
+    db_ctrl_intf #(.KEY_WID(KEY_WID), .VALUE_WID(VALUE_WID)) ctrl_if (.clk);
 
-    db_intf #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) app_wr_if (.clk(clk));
-    db_intf #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) app_rd_if (.clk(clk));
+    db_intf #(.KEY_WID(KEY_WID), .VALUE_WID(VALUE_WID)) app_wr_if (.clk);
+    db_intf #(.KEY_WID(KEY_WID), .VALUE_WID(VALUE_WID)) app_rd_if (.clk);
     
     logic db_init;
     logic db_init_done;
 
-    db_intf #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) db_wr_if (.clk(clk));
-    db_intf #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) db_rd_if (.clk(clk));
+    db_intf #(.KEY_WID(KEY_WID), .VALUE_WID(VALUE_WID)) db_wr_if (.clk);
+    db_intf #(.KEY_WID(KEY_WID), .VALUE_WID(VALUE_WID)) db_rd_if (.clk);
     
     db_core #(
-        .KEY_T (KEY_T),
-        .VALUE_T (VALUE_T)
     ) DUT (.*);
 
     //===================================
@@ -54,16 +52,16 @@ module db_core_unit_test;
     //===================================
     // Database store
     db_store_array #(
-        .KEY_T ( KEY_T ),
-        .VALUE_T ( VALUE_T )
+        .KEY_WID ( KEY_WID ),
+        .VALUE_WID ( VALUE_WID )
     ) i_db_store_array (
         .init ( db_init ),
         .init_done ( db_init_done ),
         .*
     );
     
-    db_ctrl_agent #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) agent;
-    std_reset_intf reset_if (.clk(clk));
+    db_ctrl_agent #(KEY_T, VALUE_T) agent;
+    std_reset_intf reset_if (.clk);
 
     db_info_intf #() info_if ();
     assign info_if._type = DB_TYPE;

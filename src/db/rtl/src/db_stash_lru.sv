@@ -1,6 +1,4 @@
 module db_stash_lru #(
-    parameter type KEY_T = logic[7:0],
-    parameter type VALUE_T = logic[7:0],
     parameter int  SIZE = 8
 )(
     // Clock/reset
@@ -31,7 +29,18 @@ module db_stash_lru #(
     // ----------------------------------
     // Parameters
     // ----------------------------------
+    localparam int  KEY_WID = ctrl_if.KEY_WID;
+    localparam int  VALUE_WID = ctrl_if.VALUE_WID;
+
     localparam int  CNT_WID = $clog2(SIZE+1);
+
+    // Check
+    initial begin
+        std_pkg::param_check(app_wr_if.KEY_WID,   KEY_WID,   "app_wr_if.KEY_WID");
+        std_pkg::param_check(app_wr_if.VALUE_WID, VALUE_WID, "app_wr_if.VALUE_WID");
+        std_pkg::param_check(app_rd_if.KEY_WID,   KEY_WID,   "app_rd_if.KEY_WID");
+        std_pkg::param_check(app_rd_if.VALUE_WID, VALUE_WID, "app_rd_if.VALUE_WID");
+    end
 
     // ----------------------------------
     // Signals
@@ -46,8 +55,8 @@ module db_stash_lru #(
     // ----------------------------------
     // Interfaces
     // ----------------------------------
-    db_intf #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) db_wr_if (.clk(clk));
-    db_intf #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) db_rd_if (.clk(clk));
+    db_intf #(.KEY_WID(KEY_WID), .VALUE_WID(VALUE_WID)) db_wr_if (.clk);
+    db_intf #(.KEY_WID(KEY_WID), .VALUE_WID(VALUE_WID)) db_rd_if (.clk);
 
     // ----------------------------------
     // Export status
@@ -69,8 +78,6 @@ module db_stash_lru #(
     // 'Standard' database core
     // ----------------------------------
     db_core #(
-        .KEY_T ( KEY_T ),
-        .VALUE_T ( VALUE_T ),
         .NUM_WR_TRANSACTIONS ( 2 ),
         .NUM_RD_TRANSACTIONS ( 2 ),
         .DB_CACHE_EN ( 0 ),
@@ -83,8 +90,6 @@ module db_stash_lru #(
     // LRU cache implementation
     // ----------------------------------
     db_store_lru #(
-        .KEY_T   ( KEY_T ),
-        .VALUE_T ( VALUE_T ),
         .SIZE    ( SIZE )
     ) i_db_cache_lru (
         .srst ( __srst ),
