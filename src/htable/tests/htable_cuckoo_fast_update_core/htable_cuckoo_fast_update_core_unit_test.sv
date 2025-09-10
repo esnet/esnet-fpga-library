@@ -34,6 +34,7 @@ module htable_cuckoo_fast_update_core_unit_test;
     parameter type VALUE_T = logic [VALUE_WID-1:0];
     parameter type HASH_T = logic [HASH_WID-1:0];
     parameter type ENTRY_T = struct packed {KEY_T key; VALUE_T value;};
+    parameter int  ENTRY_WID = $bits(ENTRY_T);
 
     typedef struct {
         int update;
@@ -54,10 +55,10 @@ module htable_cuckoo_fast_update_core_unit_test;
 
     db_info_intf info_if ();
     db_status_intf status_if (.clk(clk), .srst(srst));
-    db_ctrl_intf #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) ctrl_if (.clk(clk));
+    db_ctrl_intf #(.KEY_WID(KEY_WID), .VALUE_WID(VALUE_WID)) ctrl_if (.clk);
 
-    db_intf #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) lookup_if (.clk(clk));
-    db_intf #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) update_if (.clk(clk));
+    db_intf #(.KEY_WID(KEY_WID), .VALUE_WID(VALUE_WID)) lookup_if (.clk);
+    db_intf #(.KEY_WID(KEY_WID), .VALUE_WID(VALUE_WID)) update_if (.clk);
 
     KEY_T   lookup_key;
     hash_t  lookup_hash [NUM_TABLES];
@@ -68,12 +69,12 @@ module htable_cuckoo_fast_update_core_unit_test;
     logic tbl_init [NUM_TABLES];
     logic tbl_init_done [NUM_TABLES];
 
-    db_intf #(.KEY_T(hash_t), .VALUE_T(ENTRY_T)) tbl_wr_if [NUM_TABLES] (.clk(clk));
-    db_intf #(.KEY_T(hash_t), .VALUE_T(ENTRY_T)) tbl_rd_if [NUM_TABLES] (.clk(clk));
+    db_intf #(.KEY_WID($bits(hash_t)), .VALUE_WID(ENTRY_WID)) tbl_wr_if [NUM_TABLES] (.clk);
+    db_intf #(.KEY_WID($bits(hash_t)), .VALUE_WID(ENTRY_WID)) tbl_rd_if [NUM_TABLES] (.clk);
     
     htable_cuckoo_fast_update_core #(
-        .KEY_T (KEY_T),
-        .VALUE_T (VALUE_T),
+        .KEY_WID (KEY_WID),
+        .VALUE_WID (VALUE_WID),
         .NUM_TABLES (NUM_TABLES),
         .TABLE_SIZE (TABLE_SIZE),
         .HASH_LATENCY (HASH_LATENCY),
@@ -95,8 +96,8 @@ module htable_cuckoo_fast_update_core_unit_test;
     generate
         for (genvar i = 0; i < NUM_TABLES; i++) begin
             db_store_array #(
-                .KEY_T (HASH_T),
-                .VALUE_T (ENTRY_T)
+                .KEY_WID (HASH_WID),
+                .VALUE_WID (ENTRY_WID)
             ) i_db_store_array (
                 .clk ( clk ),
                 .srst ( srst ),
@@ -111,8 +112,8 @@ module htable_cuckoo_fast_update_core_unit_test;
     axi4l_reg_agent axil_reg_agent;
     htable_cuckoo_reg_agent cuckoo_reg_agent;
     htable_fast_update_reg_agent fast_update_reg_agent;
-    db_ctrl_agent #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) agent;
-    std_reset_intf reset_if (.clk(clk));
+    db_ctrl_agent #(KEY_T, VALUE_T) agent;
+    std_reset_intf reset_if (.clk);
 
     // Assign clock (250MHz)
     `SVUNIT_CLK_GEN(clk, 2ns);

@@ -1,42 +1,42 @@
 module htable_cuckoo_controller
     import htable_pkg::*;
 #(
-    parameter type KEY_T = logic[15:0],
-    parameter type VALUE_T = logic[15:0],
+    parameter int  KEY_WID = 1,
+    parameter int  VALUE_WID = 1,
     parameter int  NUM_TABLES = 3,
     parameter int  TABLE_SIZE [NUM_TABLES] = '{default: 4096},
     parameter int  HASH_LATENCY = 0
 )(
     // Clock/reset
-    input  logic              clk,
-    input  logic              srst,
+    input  logic               clk,
+    input  logic               srst,
 
-    input  logic              en,
+    input  logic               en,
 
-    input  logic              init_done,
+    input  logic               init_done,
 
     // AXI-L control/monitoring
-    axi4l_intf.peripheral     axil_if,
+    axi4l_intf.peripheral      axil_if,
 
     // Hashing interface
-    output KEY_T              key  [NUM_TABLES],
-    input  hash_t             hash [NUM_TABLES],
+    output logic [KEY_WID-1:0] key  [NUM_TABLES],
+    input  hash_t              hash [NUM_TABLES],
 
     // Table control
-    db_ctrl_intf.peripheral   ctrl_if,                 // KEY_T/VALUE_T configuration
+    db_ctrl_intf.peripheral    ctrl_if,
 
     // Status reporting
-    db_status_intf.peripheral status_if,
+    db_status_intf.peripheral  status_if,
 
     // Bubble stash interface (size 1)
-    db_ctrl_intf.controller   stash_ctrl_if,           // KEY_T/VALUE_T configuration
+    db_ctrl_intf.controller    stash_ctrl_if,
 
     // (Sub)table control
-    db_ctrl_intf.controller   tbl_ctrl_if [NUM_TABLES] // This control interface provides direct access
-                                                       // to the underlying hash table for table management
-                                                       // (e.g. insertion/deletion/optimization)
-                                                       // and therefore the interface configuration is:
-                                                       // KEY_T' := hash_t, VALUE_T' := {KEY_T, VALUE_T}
+    db_ctrl_intf.controller    tbl_ctrl_if [NUM_TABLES] // This control interface provides direct access
+                                                        // to the underlying hash table for table management
+                                                        // (e.g. insertion/deletion/optimization)
+                                                        // and therefore the interface configuration is:
+                                                        // KEY_T' := hash_t, VALUE_T' := {KEY_T, VALUE_T}
 );
 
     // ----------------------------------
@@ -45,11 +45,25 @@ module htable_cuckoo_controller
     import db_pkg::*;
 
     // ----------------------------------
+    // Typedefs
+    // ----------------------------------
+    typedef struct packed {logic [KEY_WID-1:0] key; logic [VALUE_WID-1:0] value;} entry_t;
+    localparam int ENTRY_WID = $bits(entry_t);
+
+    // ----------------------------------
     // Parameters
     // ----------------------------------
-    localparam type TBL_ENTRY_T = struct packed {KEY_T key; VALUE_T value;};
-
     localparam int TBL_IDX_WID = $clog2(NUM_TABLES);
+
+    // Check
+    initial begin
+        std_pkg::param_check(ctrl_if.KEY_WID,           KEY_WID,   "ctrl_if.KEY_WID");
+        std_pkg::param_check(ctrl_if.VALUE_WID,         VALUE_WID, "ctrl_if.VALUE_WID");
+        std_pkg::param_check(stash_ctrl_if.KEY_WID,     KEY_WID,   "stash_ctrl_if.KEY_WID");
+        std_pkg::param_check(stash_ctrl_if.VALUE_WID,   VALUE_WID, "stash_ctrl_if.VALUE_WID");
+        std_pkg::param_check_gt(tbl_ctrl_if[0].KEY_WID, $bits(hash_t), "tbl_ctrl_if.KEY_WID");
+        std_pkg::param_check(tbl_ctrl_if[0].VALUE_WID,  ENTRY_WID,     "tbl_ctrl_if.VALUE_WID");
+    end
 
     // ----------------------------------
     // Typedefs
@@ -89,8 +103,6 @@ module htable_cuckoo_controller
         ERROR                    = 31
     } state_t;
 
-    typedef logic [TBL_IDX_WID-1:0] tbl_idx_t;
-
     // ----------------------------------
     // Signals
     // ----------------------------------
@@ -102,26 +114,26 @@ module htable_cuckoo_controller
     state_t state;
     state_t nxt_state;
 
-    TBL_ENTRY_T __ctrl_if_set_entry;
-    TBL_ENTRY_T __ctrl_if_get_entry;
+    entry_t __ctrl_if_set_entry;
+    entry_t __ctrl_if_get_entry;
 
-    command_t __command;
-    KEY_T     __key;
-    VALUE_T   __value;
+    command_t             __command;
+    logic [KEY_WID-1:0]   __key;
+    logic [VALUE_WID-1:0] __value;
 
-    KEY_T       insert_key;
+    logic [KEY_WID-1:0]   insert_key;
 
-    logic       prev_valid;
-    TBL_ENTRY_T prev_entry;
-    KEY_T       prev_key;
-    VALUE_T     prev_value;
+    logic                 prev_valid;
+    entry_t               prev_entry;
+    logic [KEY_WID-1:0]   prev_key;
+    logic [VALUE_WID-1:0] prev_value;
 
     logic     stash_active;
     logic     insert_loop_detected;
 
-    tbl_idx_t tbl_idx;
-    logic     tbl_idx_reset;
-    logic     tbl_idx_inc;
+    logic [TBL_IDX_WID-1:0] tbl_idx;
+    logic                   tbl_idx_reset;
+    logic                   tbl_idx_inc;
 
     // Control (upstream)
     logic     ctrl_rdy;
@@ -152,8 +164,8 @@ module htable_cuckoo_controller
     // ----------------------------------
     // Interfaces
     // ----------------------------------
-    db_ctrl_intf #(.KEY_T(KEY_T), .VALUE_T(TBL_ENTRY_T)) __ctrl_if (.clk(clk));
-    db_ctrl_intf #(.KEY_T(KEY_T), .VALUE_T(TBL_ENTRY_T)) __tbl_ctrl_if [NUM_TABLES] (.clk(clk));
+    db_ctrl_intf #(.KEY_WID(KEY_WID), .VALUE_WID(ENTRY_WID)) __ctrl_if (.clk);
+    db_ctrl_intf #(.KEY_WID(KEY_WID), .VALUE_WID(ENTRY_WID)) __tbl_ctrl_if [NUM_TABLES] (.clk);
 
     axi4l_intf #() axil_if__clk ();
     htable_cuckoo_reg_intf reg_if ();
@@ -174,8 +186,8 @@ module htable_cuckoo_controller
     );
 
     assign reg_if.info_nxt.num_tables = NUM_TABLES[7:0];
-    assign reg_if.info_nxt.key_width = $bits(KEY_T);
-    assign reg_if.info_nxt.value_width = $bits(VALUE_T);
+    assign reg_if.info_nxt.key_width = KEY_WID;
+    assign reg_if.info_nxt.value_width = VALUE_WID;
     assign reg_if.info_nxt_v = 1'b1;
 
     assign reg_if.status_nxt_v = 1'b1;
@@ -530,15 +542,13 @@ module htable_cuckoo_controller
     // Table control demux
     // ----------------------------------
     db_ctrl_intf_demux #(
-        .NUM_IFS ( NUM_TABLES ),
-        .KEY_T   ( KEY_T ),
-        .VALUE_T ( TBL_ENTRY_T )
-    ) i_db_ctrl_intf_demux       (
-        .clk                     ( clk ),
-        .srst                    ( __srst ),
-        .demux_sel               ( {{32-TBL_IDX_WID{1'b0}}, tbl_idx} ),
-        .ctrl_if_from_controller ( __ctrl_if ),
-        .ctrl_if_to_peripheral   ( __tbl_ctrl_if )
+        .NUM_IFS ( NUM_TABLES )
+    ) i_db_ctrl_intf_demux (
+        .clk               ( clk ),
+        .srst              ( __srst ),
+        .demux_sel         ( tbl_idx ),
+        .from_controller   ( __ctrl_if ),
+        .to_peripheral     ( __tbl_ctrl_if )
     );
 
     // ----------------------------------
@@ -547,7 +557,7 @@ module htable_cuckoo_controller
     generate
         for (genvar g_tbl = 0; g_tbl < NUM_TABLES; g_tbl++) begin : g__tbl
             // (Local) signals
-            TBL_ENTRY_T set_entry;
+            entry_t set_entry;
 
             // Map to/from htable entry format
             assign set_entry.key = __tbl_ctrl_if[g_tbl].key;
@@ -561,9 +571,9 @@ module htable_cuckoo_controller
             if (HASH_LATENCY > 0) begin : g__hash_latency
                 // (Local) typedefs
                 typedef struct packed {
-                    logic       req;
-                    command_t   command;
-                    TBL_ENTRY_T entry;
+                    logic      req;
+                    command_t  command;
+                    entry_t    entry;
                 } req_ctxt_t;
 
                 req_ctxt_t req_ctxt_in;

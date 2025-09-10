@@ -1,8 +1,8 @@
 module htable_core
     import htable_pkg::*;
 #(
-    parameter type KEY_T = logic[15:0],
-    parameter type VALUE_T = logic[15:0],
+    parameter int  KEY_WID = 1,
+    parameter int  VALUE_WID = 1,
     parameter int  SIZE = 4096,          // Sets table depth/hash width (expect power of 2)
     parameter int  HASH_LATENCY = 0,
     parameter int  NUM_WR_TRANSACTIONS = 4,
@@ -15,37 +15,37 @@ module htable_core
 
 )(
     // Clock/reset
-    input  logic             clk,
-    input  logic             srst,
+    input  logic               clk,
+    input  logic               srst,
 
-    output logic             init_done,
+    output logic               init_done,
 
     // Info interface
-    db_info_intf.peripheral  info_if,
+    db_info_intf.peripheral    info_if,
 
     // Lookup/insertion interfaces (from application)
-    db_intf.responder        lookup_if,
-    db_intf.responder        update_if,
+    db_intf.responder          lookup_if,
+    db_intf.responder          update_if,
 
     // Hashing interface
-    output KEY_T             update_key,
-    input  hash_t            update_hash,
+    output logic [KEY_WID-1:0] update_key,
+    input  hash_t              update_hash,
 
-    output KEY_T             lookup_key,
-    input  hash_t            lookup_hash,
+    output logic [KEY_WID-1:0] lookup_key,
+    input  hash_t              lookup_hash,
 
     // Control interface (from table controller)
-    db_ctrl_intf.peripheral  tbl_ctrl_if, // This control interface provides direct access
-                                          // to the underlying hash table for table management
-                                          // (e.g. insertion/deletion/optimization)
-                                          // and therefore the interface configuration is:
-                                          // KEY_T' := hash_t, VALUE_T' := {KEY_T, VALUE_T}
+    db_ctrl_intf.peripheral    tbl_ctrl_if, // This control interface provides direct access
+                                            // to the underlying hash table for table management
+                                            // (e.g. insertion/deletion/optimization)
+                                            // and therefore the interface configuration is:
+                                            // KEY_T' := hash_t, VALUE_T' := {KEY_T, VALUE_T}
 
     // Read/write interfaces (to tables)
-    output logic             tbl_init,
-    input  logic             tbl_init_done,
-    db_intf.requester        tbl_wr_if,
-    db_intf.requester        tbl_rd_if
+    output logic               tbl_init,
+    input  logic               tbl_init_done,
+    db_intf.requester          tbl_wr_if,
+    db_intf.requester          tbl_rd_if
 
 );
     // ----------------------------------
@@ -57,9 +57,10 @@ module htable_core
     // Typedefs
     // ----------------------------------
     typedef struct packed {
-        KEY_T   key;
-        VALUE_T value;
+        logic [KEY_WID-1:0]   key;
+        logic [VALUE_WID-1:0] value;
     } entry_t;
+    localparam int ENTRY_WID = $bits(entry_t);
 
     typedef struct packed {
         logic   valid;
@@ -67,7 +68,7 @@ module htable_core
     } wr_ctxt_t;
 
     typedef struct packed {
-        KEY_T   key;
+        logic [KEY_WID-1:0] key;
     } rd_ctxt_t;
 
     // ----------------------------------
@@ -75,13 +76,26 @@ module htable_core
     // ----------------------------------
     localparam int HASH_WID = $clog2(SIZE);
     localparam int SIZE_POW2 = 2**HASH_WID;
-    localparam type __HASH_T = logic[HASH_WID-1:0];
+
+    // Check
+    initial begin
+        std_pkg::param_check(lookup_if.KEY_WID,      KEY_WID,   "lookup_if.KEY_WID");
+        std_pkg::param_check(lookup_if.VALUE_WID,    VALUE_WID, "lookup_if.VALUE_WID");
+        std_pkg::param_check(update_if.KEY_WID,      KEY_WID,   "update_if.KEY_WID");
+        std_pkg::param_check(update_if.VALUE_WID,    VALUE_WID, "update_if.VALUE_WID");
+        std_pkg::param_check_gt(tbl_ctrl_if.KEY_WID, HASH_WID,  "tbl_ctrl_if.KEY_WID");
+        std_pkg::param_check(tbl_ctrl_if.VALUE_WID,  ENTRY_WID, "tbl_ctrl_if.VALUE_WID");
+        std_pkg::param_check_gt(tbl_wr_if.KEY_WID,   HASH_WID,  "tbl_wr_if.KEY_WID");
+        std_pkg::param_check(tbl_wr_if.VALUE_WID,    ENTRY_WID, "tbl_wr_if.VALUE_WID");
+        std_pkg::param_check_gt(tbl_rd_if.KEY_WID,   HASH_WID,  "tbl_rd_if.KEY_WID");
+        std_pkg::param_check(tbl_rd_if.VALUE_WID,    ENTRY_WID, "tbl_rd_if.VALUE_WID");
+    end
 
     // ----------------------------------
     // Signals
     // ----------------------------------
-    __HASH_T  __update_hash;
-    __HASH_T  __lookup_hash;
+    logic [HASH_WID-1:0]  __update_hash;
+    logic [HASH_WID-1:0]  __lookup_hash;
 
     logic     wr_req;
     wr_ctxt_t wr_ctxt;
@@ -95,10 +109,11 @@ module htable_core
     // ----------------------------------
     // Interfaces
     // ----------------------------------
-    db_intf #(.KEY_T(__HASH_T), .VALUE_T(entry_t)) __update_if (.clk(clk));
-    db_intf #(.KEY_T(__HASH_T), .VALUE_T(entry_t)) __lookup_if (.clk(clk));
-    db_intf #(.KEY_T(__HASH_T), .VALUE_T(entry_t)) __tbl_wr_if (.clk(clk));
-    db_intf #(.KEY_T(__HASH_T), .VALUE_T(entry_t)) __tbl_rd_if (.clk(clk));
+    db_ctrl_intf #(.KEY_WID(HASH_WID), .VALUE_WID(ENTRY_WID)) __tbl_ctrl_if (.clk);
+    db_intf #(.KEY_WID(HASH_WID), .VALUE_WID(ENTRY_WID)) __update_if (.clk);
+    db_intf #(.KEY_WID(HASH_WID), .VALUE_WID(ENTRY_WID)) __lookup_if (.clk);
+    db_intf #(.KEY_WID(HASH_WID), .VALUE_WID(ENTRY_WID)) __tbl_wr_if (.clk);
+    db_intf #(.KEY_WID(HASH_WID), .VALUE_WID(ENTRY_WID)) __tbl_rd_if (.clk);
 
     // ----------------------------------
     // Export info
@@ -114,9 +129,18 @@ module htable_core
     //   hash table, i.e.:
     //   KEY_T' := hash_t, VALUE_T' := {KEY_T, VALUE_T}
     // ----------------------------------
+    assign __tbl_ctrl_if.req = tbl_ctrl_if.req;
+    assign __tbl_ctrl_if.command = tbl_ctrl_if.command;
+    assign __tbl_ctrl_if.key = tbl_ctrl_if.key[HASH_WID-1:0];
+    assign __tbl_ctrl_if.set_value = tbl_ctrl_if.set_value;
+
+    assign tbl_ctrl_if.rdy = __tbl_ctrl_if.rdy;
+    assign tbl_ctrl_if.ack = __tbl_ctrl_if.ack;
+    assign tbl_ctrl_if.status = __tbl_ctrl_if.status;
+    assign tbl_ctrl_if.get_valid = __tbl_ctrl_if.get_valid;
+    assign tbl_ctrl_if.get_value = __tbl_ctrl_if.get_value;
+
     db_core                 #(
-        .KEY_T               ( __HASH_T ),
-        .VALUE_T             ( entry_t ),
         .NUM_WR_TRANSACTIONS ( NUM_WR_TRANSACTIONS ),
         .NUM_RD_TRANSACTIONS ( NUM_RD_TRANSACTIONS ),
         .DB_CACHE_EN         ( 1'b0 ),
@@ -125,7 +149,7 @@ module htable_core
         .clk          ( clk ),
         .srst         ( srst ),
         .init_done    ( init_done ),
-        .ctrl_if      ( tbl_ctrl_if ),
+        .ctrl_if      ( __tbl_ctrl_if ),
         .app_wr_if    ( __update_if ),
         .app_rd_if    ( __lookup_if ),
         .db_init      ( tbl_init ),

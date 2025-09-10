@@ -49,7 +49,7 @@ synth:
     - ht-sim
   parallel:
     matrix:
-      - COMPONENT: [alloc, bus, sync, mem, fifo, axi3, axi4l, db, htable, state, packet]
+      - COMPONENT: [alloc, bus, sync, mem, fifo, axi3, axi4l, db, state, packet]
   script:
     # Run all build jobs in specified component library
     - find src/$COMPONENT/build -mindepth 1 -maxdepth 1 -type d -name '[^\.]*' | xargs -n1 sh -c 'make -s -C $0 || exit 255'

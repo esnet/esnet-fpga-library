@@ -1,8 +1,8 @@
 module htable_multi_stash_core 
     import htable_pkg::*;
 #(
-    parameter type KEY_T = logic[15:0],
-    parameter type VALUE_T = logic[15:0],
+    parameter int  KEY_WID = 1,
+    parameter int  VALUE_WID = 1,
     parameter int  NUM_TABLES = 3,
     parameter int  TABLE_SIZE [NUM_TABLES] = '{default: 4096},
     parameter int  HASH_LATENCY = 0,
@@ -30,50 +30,50 @@ module htable_multi_stash_core
                                             //     supported; insertions are distributed to ALL hash tables. 
 )(
     // Clock/reset
-    input  logic              clk,
-    input  logic              srst,
+    input  logic               clk,
+    input  logic               srst,
 
-    output logic              init_done,
+    output logic               init_done,
 
     // Info interface
-    db_info_intf.peripheral   info_if,
+    db_info_intf.peripheral    info_if,
 
     // Hashing interface
-    output KEY_T              lookup_key,
-    input  hash_t             lookup_hash [NUM_TABLES],
+    output logic [KEY_WID-1:0] lookup_key,
+    input  hash_t              lookup_hash [NUM_TABLES],
 
-    output KEY_T              update_key,
-    input  hash_t             update_hash [NUM_TABLES],
+    output logic [KEY_WID-1:0] update_key,
+    input  hash_t              update_hash [NUM_TABLES],
 
     // Lookup/update interfaces (from application)
-    db_intf.responder         lookup_if,
-    db_intf.responder         update_if,
+    db_intf.responder          lookup_if,
+    db_intf.responder          update_if,
 
     // Stash control/status
-    db_ctrl_intf.peripheral   stash_ctrl_if,
-    db_status_intf.peripheral stash_status_if,
+    db_ctrl_intf.peripheral    stash_ctrl_if,
+    db_status_intf.peripheral  stash_status_if,
 
     // Control interface (from table controller)
-    db_ctrl_intf.peripheral   tbl_ctrl_if [NUM_TABLES], // This control interface provides direct access
+    db_ctrl_intf.peripheral    tbl_ctrl_if [NUM_TABLES], // This control interface provides direct access
                                                        // to the underlying hash table for table management
                                                        // (e.g. insertion/deletion/optimization)
                                                        // and therefore the interface configuration is:
                                                        // KEY_T' := HASH_T, VALUE_T' := {KEY_T, VALUE_T}
 
     // Read/write interfaces (to tables)
-    output logic              tbl_init      [NUM_TABLES],
-    input  logic              tbl_init_done [NUM_TABLES],
-    db_intf.requester         tbl_wr_if     [NUM_TABLES],
-    db_intf.requester         tbl_rd_if     [NUM_TABLES]
+    output logic               tbl_init      [NUM_TABLES],
+    input  logic               tbl_init_done [NUM_TABLES],
+    db_intf.requester          tbl_wr_if     [NUM_TABLES],
+    db_intf.requester          tbl_rd_if     [NUM_TABLES]
 
 );
     // ----------------------------------
     // Typedefs
     // ----------------------------------
     typedef struct packed {
-        logic error;
-        logic valid;
-        VALUE_T value;
+        logic                 error;
+        logic                 valid;
+        logic [VALUE_WID-1:0] value;
     } stash_lookup_resp_t;
 
     // ----------------------------------
@@ -94,10 +94,10 @@ module htable_multi_stash_core
     // Interfaces
     // ----------------------------------
     db_info_intf tbl_info_if ();
-    db_intf #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) tbl_lookup_if (.clk(clk));
+    db_intf #(.KEY_WID(KEY_WID), .VALUE_WID(VALUE_WID)) tbl_lookup_if (.clk);
 
-    db_intf #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) stash_update_if (.clk(clk));
-    db_intf #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) stash_lookup_if (.clk(clk));
+    db_intf #(.KEY_WID(KEY_WID), .VALUE_WID(VALUE_WID)) stash_update_if (.clk);
+    db_intf #(.KEY_WID(KEY_WID), .VALUE_WID(VALUE_WID)) stash_lookup_if (.clk);
     db_info_intf stash_info_if ();
 
     // ----------------------------------
@@ -116,8 +116,8 @@ module htable_multi_stash_core
     // Multi-hash hashtable core
     // ----------------------------------
     htable_multi_core       #(
-        .KEY_T               ( KEY_T ),
-        .VALUE_T             ( VALUE_T ),
+        .KEY_WID             ( KEY_WID ),
+        .VALUE_WID           ( VALUE_WID ),
         .NUM_TABLES          ( NUM_TABLES ),
         .TABLE_SIZE          ( TABLE_SIZE ),
         .HASH_LATENCY        ( HASH_LATENCY ),
@@ -147,8 +147,6 @@ module htable_multi_stash_core
     // Stash
     // ----------------------------------
     db_stash    #(
-        .KEY_T   ( KEY_T ),
-        .VALUE_T ( VALUE_T ),
         .SIZE    ( STASH_SIZE ),
         .REG_REQ ( 1 )
     ) i_db_stash (

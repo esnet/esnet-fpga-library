@@ -1,6 +1,6 @@
 module htable_fast_update_core #(
-    parameter type KEY_T = logic[15:0],
-    parameter type VALUE_T = logic[15:0],
+    parameter int  KEY_WID = 1,
+    parameter int  VALUE_WID = 1,
     parameter int  NUM_RD_TRANSACTIONS = 8,
     parameter int  UPDATE_BURST_SIZE = 8
 
@@ -38,9 +38,20 @@ module htable_fast_update_core #(
     // ----------------------------------
     // Parameters
     // ----------------------------------
-    localparam type UPDATE_ENTRY_T = struct packed {logic ins_del_n; VALUE_T value;};
+    typedef struct packed {logic ins_del_n; logic [VALUE_WID-1:0] value;} update_entry_t;
+    localparam int UPDATE_ENTRY_WID = $bits(update_entry_t);
 
     localparam int TIMER_WID = $clog2(NUM_RD_TRANSACTIONS + 1);
+
+    // Check
+    initial begin
+        std_pkg::param_check(lookup_if.KEY_WID,     KEY_WID,   "lookup_if.KEY_WID");
+        std_pkg::param_check(lookup_if.VALUE_WID,   VALUE_WID, "lookup_if.VALUE_WID");
+        std_pkg::param_check(update_if.KEY_WID,     KEY_WID,   "update_if.KEY_WID");
+        std_pkg::param_check(update_if.VALUE_WID,   VALUE_WID, "update_if.VALUE_WID");
+        std_pkg::param_check(tbl_ctrl_if.KEY_WID,   KEY_WID,   "tbl_ctrl_if.KEY_WID");
+        std_pkg::param_check(tbl_ctrl_if.VALUE_WID, VALUE_WID, "tbl_ctrl_if.VALUE_WID");
+    end
 
     // ----------------------------------
     // Typedefs
@@ -63,13 +74,13 @@ module htable_fast_update_core #(
     } state_t;
 
     typedef struct packed {
-        KEY_T key;
+        logic [KEY_WID-1:0] key;
     } req_ctxt_t;
 
     typedef struct packed {
-        logic   valid;
-        logic   error;
-        VALUE_T value;
+        logic                 valid;
+        logic                 error;
+        logic [VALUE_WID-1:0] value;
     } resp_ctxt_t;
 
     typedef enum logic {
@@ -89,17 +100,17 @@ module htable_fast_update_core #(
     state_t nxt_state;
 
     logic          stash_init_done;
-    UPDATE_ENTRY_T update_entry;
+    update_entry_t update_entry;
 
     req_ctxt_t  tbl_req_ctxt_in;
     req_ctxt_t  tbl_req_ctxt_out;
     resp_ctxt_t tbl_resp_ctxt_in;
     resp_ctxt_t tbl_resp_ctxt_out;
 
-    UPDATE_ENTRY_T stash_lookup_resp;
+    update_entry_t stash_lookup_resp;
 
-    KEY_T   ctrl_key;
-    VALUE_T ctrl_value;
+    logic [KEY_WID-1:0]   ctrl_key;
+    logic [VALUE_WID-1:0] ctrl_value;
 
     logic                 timer_reset;
     logic                 timer_inc;
@@ -109,7 +120,7 @@ module htable_fast_update_core #(
     logic     stash_req;
     command_t stash_command;
 
-    UPDATE_ENTRY_T stash_ctrl_if_get_entry;
+    update_entry_t stash_ctrl_if_get_entry;
 
     // Table control
     logic     tbl_req;
@@ -122,10 +133,10 @@ module htable_fast_update_core #(
     // Interfaces
     // ----------------------------------
     db_info_intf stash_info_if__unused ();
-    db_status_intf stash_status_if (.clk(clk), .srst(srst));
-    db_ctrl_intf #(.KEY_T(KEY_T), .VALUE_T(UPDATE_ENTRY_T)) stash_ctrl_if (.clk(clk));
-    db_intf #(.KEY_T(KEY_T), .VALUE_T(UPDATE_ENTRY_T)) stash_lookup_if (.clk(clk));
-    db_intf #(.KEY_T(KEY_T), .VALUE_T(UPDATE_ENTRY_T)) stash_update_if (.clk(clk));
+    db_status_intf stash_status_if (.clk, .srst);
+    db_ctrl_intf #(.KEY_WID(KEY_WID), .VALUE_WID(UPDATE_ENTRY_WID)) stash_ctrl_if (.clk);
+    db_intf #(.KEY_WID(KEY_WID), .VALUE_WID(UPDATE_ENTRY_WID)) stash_lookup_if (.clk);
+    db_intf #(.KEY_WID(KEY_WID), .VALUE_WID(UPDATE_ENTRY_WID)) stash_update_if (.clk);
 
     axi4l_intf #() axil_if__clk ();
     htable_fast_update_reg_intf reg_if ();
@@ -146,8 +157,8 @@ module htable_fast_update_core #(
     );
 
     assign reg_if.info_nxt.burst_size = UPDATE_BURST_SIZE[7:0];
-    assign reg_if.info_nxt.key_width = $bits(KEY_T);
-    assign reg_if.info_nxt.value_width = $bits(VALUE_T);
+    assign reg_if.info_nxt.key_width = KEY_WID;
+    assign reg_if.info_nxt.value_width = VALUE_WID;
     assign reg_if.info_nxt_v = 1'b1;
 
     assign reg_if.status_nxt_v = 1'b1;
@@ -222,8 +233,6 @@ module htable_fast_update_core #(
     // Update stash
     // ----------------------------------
     db_stash_fifo #(
-        .KEY_T     ( KEY_T ),
-        .VALUE_T   ( UPDATE_ENTRY_T ),
         .SIZE      ( UPDATE_BURST_SIZE )
     ) i_db_stash_fifo (
         .clk       ( clk ),

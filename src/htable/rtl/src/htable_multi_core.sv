@@ -1,8 +1,8 @@
 module htable_multi_core
     import htable_pkg::*;
 #(
-    parameter type KEY_T = logic[15:0],
-    parameter type VALUE_T = logic[15:0],
+    parameter int  KEY_WID = 1,
+    parameter int  VALUE_WID = 1,
     parameter int  NUM_TABLES = 3,
     parameter int  TABLE_SIZE [NUM_TABLES] = '{default: 4096},
     parameter int  HASH_LATENCY = 0,
@@ -29,37 +29,37 @@ module htable_multi_core
                                             //     supported; insertions are distributed to ALL hash tables.
 )(
     // Clock/reset
-    input  logic             clk,
-    input  logic             srst,
+    input  logic               clk,
+    input  logic               srst,
 
-    output logic             init_done,
+    output logic               init_done,
 
     // Info interface
-    db_info_intf.peripheral  info_if,
+    db_info_intf.peripheral    info_if,
 
     // Lookup/insertion interfaces (from application)
-    db_intf.responder        lookup_if,
-    db_intf.responder        update_if,
+    db_intf.responder          lookup_if,
+    db_intf.responder          update_if,
 
     // Hashing interface
-    output KEY_T             lookup_key,
-    input  hash_t            lookup_hash [NUM_TABLES],
+    output logic [KEY_WID-1:0] lookup_key,
+    input  hash_t              lookup_hash [NUM_TABLES],
 
-    output KEY_T             update_key,
-    input  hash_t            update_hash [NUM_TABLES],
+    output logic [KEY_WID-1:0] update_key,
+    input  hash_t              update_hash [NUM_TABLES],
 
     // Control interface (from table controller)
-    db_ctrl_intf.peripheral  tbl_ctrl_if [NUM_TABLES], // This control interface provides direct access
-                                                       // to the underlying hash table for table management
-                                                       // (e.g. insertion/deletion/optimization)
-                                                       // and therefore the interface configuration is:
-                                                       // KEY_T' := HASH_T, VALUE_T' := {KEY_T, VALUE_T}
+    db_ctrl_intf.peripheral    tbl_ctrl_if [NUM_TABLES], // This control interface provides direct access
+                                                         // to the underlying hash table for table management
+                                                         // (e.g. insertion/deletion/optimization)
+                                                         // and therefore the interface configuration is:
+                                                         // KEY_T' := HASH_T, VALUE_T' := {KEY_T, VALUE_T}
 
     // Read/write interfaces (to tables)
-    output logic             tbl_init      [NUM_TABLES],
-    input  logic             tbl_init_done [NUM_TABLES],
-    db_intf.requester        tbl_wr_if     [NUM_TABLES],
-    db_intf.requester        tbl_rd_if     [NUM_TABLES]
+    output logic               tbl_init      [NUM_TABLES],
+    input  logic               tbl_init_done [NUM_TABLES],
+    db_intf.requester          tbl_wr_if     [NUM_TABLES],
+    db_intf.requester          tbl_rd_if     [NUM_TABLES]
 
 );
 
@@ -67,9 +67,9 @@ module htable_multi_core
     // Typedefs
     // ----------------------------------
     typedef struct packed {
-        logic   error;
-        logic   valid;
-        VALUE_T value;
+        logic                 error;
+        logic                 valid;
+        logic [VALUE_WID-1:0] value;
     } lookup_resp_t;
 
     // ----------------------------------
@@ -79,22 +79,22 @@ module htable_multi_core
 
     int                    info_if_size__tbl [NUM_TABLES];
 
-    KEY_T                  __lookup_key [NUM_TABLES];
-    KEY_T                  __update_key [NUM_TABLES];
+    logic [KEY_WID-1:0]    __lookup_key [NUM_TABLES];
+    logic [KEY_WID-1:0]    __update_key [NUM_TABLES];
 
     logic                  lookup_done;
 
     logic [NUM_TABLES-1:0] lookup_done__tbl;
     logic [NUM_TABLES-1:0] lookup_error__tbl;
     logic [NUM_TABLES-1:0] lookup_valid__tbl;
-    VALUE_T                lookup_value__tbl[NUM_TABLES];
+    logic [VALUE_WID-1:0]  lookup_value__tbl[NUM_TABLES];
     logic [NUM_TABLES-1:0] lookup_if_rdy__tbl;
 
     // ----------------------------------
     // Interfaces
     // ----------------------------------
     db_info_intf info_if__tbl ();
-    db_intf #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) update_if__tbl [NUM_TABLES] (.clk(clk));
+    db_intf #(.KEY_WID(KEY_WID), .VALUE_WID(VALUE_WID)) update_if__tbl [NUM_TABLES] (.clk);
 
     // ----------------------------------
     // Export info
@@ -122,12 +122,12 @@ module htable_multi_core
 
             // (Local) interfaces
             db_info_intf __info_if ();
-            db_intf #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) __lookup_if (.clk(clk));
+            db_intf #(.KEY_WID(KEY_WID), .VALUE_WID(VALUE_WID)) __lookup_if (.clk);
 
             // Single-table hashtable instance
             htable_core #(
-                .KEY_T               ( KEY_T ),
-                .VALUE_T             ( VALUE_T ),
+                .KEY_WID             ( KEY_WID ),
+                .VALUE_WID           ( VALUE_WID ),
                 .SIZE                ( TABLE_SIZE[g_tbl] ),
                 .HASH_LATENCY        ( HASH_LATENCY ),
                 .NUM_WR_TRANSACTIONS ( NUM_WR_TRANSACTIONS ),
@@ -239,8 +239,6 @@ module htable_multi_core
             //       interface, with read-only access from the application
             db_intf_rr_wr_demux #(
                 .NUM_IFS ( NUM_TABLES ),
-                .KEY_T   ( KEY_T ),
-                .VALUE_T ( VALUE_T ),
                 .NUM_TRANSACTIONS ( NUM_WR_TRANSACTIONS )
             ) i_db_intf_rr_wr_demux (
                 .clk ( clk ),
