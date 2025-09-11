@@ -689,7 +689,6 @@ endmodule
 
 // AXI-Stream interface bypass mux
 module axi4s_intf_bypass_mux #(
-    parameter logic RESET_BLK_IF = 0,
     parameter int   PIPE_STAGES = 1,
     parameter int   DATA_BYTE_WID = 8,
     parameter type  TID_T = bit,
@@ -723,7 +722,7 @@ module axi4s_intf_bypass_mux #(
 
     // axi4s_to_block assignments
     assign axi4s_to_block.aclk    = axi4s_in.aclk;
-    assign axi4s_to_block.aresetn = (bypass && RESET_BLK_IF) ? 1'b0 : axi4s_in.aresetn;
+    assign axi4s_to_block.aresetn = axi4s_in.aresetn;
     assign axi4s_to_block.tvalid  = bypass ? 1'b0 : axi4s_in.tvalid;
     assign axi4s_to_block.tlast   = axi4s_in.tlast;
     assign axi4s_to_block.tkeep   = axi4s_in.tkeep;

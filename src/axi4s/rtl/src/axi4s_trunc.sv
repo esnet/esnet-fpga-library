@@ -11,6 +11,8 @@ module axi4s_trunc
    parameter logic IN_PIPE  = 0,
    parameter logic OUT_PIPE = 1
 ) (
+   input logic clk,
+   input logic srst,
    axi4s_intf.rx axi4s_in,
    axi4s_intf.tx axi4s_out,
 
@@ -65,7 +67,7 @@ module axi4s_trunc
    generate
       if (IN_PIPE) begin
          axi4s_intf_pipe in_pipe_0 (.axi4s_if_from_tx(axi4s_in), .axi4s_if_to_rx(axi4s_in_p));
-         always @(posedge axi4s_in.aclk) length_p <= (axi4s_in.tready && axi4s_in.tvalid && axi4s_in.sop) ? length : length_p;
+         always @(posedge clk) length_p <= (axi4s_in.tready && axi4s_in.tvalid && axi4s_in.sop) ? length : length_p;
       end else begin
          axi4s_intf_connector out_intf_connector_0 (.axi4s_from_tx(axi4s_in), .axi4s_to_rx(axi4s_in_p));
          assign length_p = length;
@@ -74,8 +76,8 @@ module axi4s_trunc
 
 
    // byte counter logic
-   always @(posedge axi4s_in_p.aclk)
-      if (!axi4s_in_p.aresetn)    byte_count <= '0;
+   always @(posedge clk)
+      if (srst)                   byte_count <= '0;
       else if (axi4s_in_p.tvalid && axi4s_in_p.tready) begin
          if (axi4s_in_p.tlast)    byte_count <= '0;
          else if (trunc_select)   byte_count <= byte_count + count_ones(axi4s_in_p.tkeep);

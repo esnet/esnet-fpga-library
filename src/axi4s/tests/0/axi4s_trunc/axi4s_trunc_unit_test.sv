@@ -17,10 +17,11 @@ module axi4s_trunc_unit_test;
     // DUT and testbench logic 
     //===================================
     logic clk;
+    logic srst;
+
     logic rstn;
 
-    initial clk = 1'b0;
-    always #10ns clk <= ~clk;    
+    `SVUNIT_CLK_GEN(clk, 10ns);
 
     localparam DATA_BYTE_WID = 64;
 
@@ -37,11 +38,9 @@ module axi4s_trunc_unit_test;
 
     // axi4s_split_join instantiation
     int length;
-    axi4s_trunc #(.BIGENDIAN(0)) DUT (  
-      .axi4s_in  (axi4s_in),
-      .axi4s_out (axi4s_out),
-      .length    (length)
-    );
+    axi4s_trunc #(.BIGENDIAN(0)) DUT (.*);
+
+    assign srst = !rstn;
 
     // monitor for tdata==0 when tkeep==0
     always @(negedge axi4s_out.aclk)  if (axi4s_out.tvalid && axi4s_out.tready)

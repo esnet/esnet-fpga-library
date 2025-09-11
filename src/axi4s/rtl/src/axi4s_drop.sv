@@ -9,6 +9,9 @@ module axi4s_drop
 #(
    parameter axi4s_pipe_mode_t OUT_PIPE_MODE = PULL
  ) (
+   input logic      clk,
+   input logic      srst,
+
    axi4s_intf.rx    axi4s_in,
    axi4s_intf.tx    axi4s_out,
 
@@ -27,8 +30,8 @@ module axi4s_drop
 
    logic drop_pkt_latch, drop;
 
-   always @(posedge axi4s_in.aclk)
-      if (!axi4s_in.aresetn)                                         drop_pkt_latch <= '0;
+   always @(posedge clk)
+      if (srst)                                                      drop_pkt_latch <= '0;
       else if (axi4s_in.tvalid && axi4s_in.tready && axi4s_in.tlast) drop_pkt_latch <= '0;
       else if (drop_pkt)                                             drop_pkt_latch <= '1;
 

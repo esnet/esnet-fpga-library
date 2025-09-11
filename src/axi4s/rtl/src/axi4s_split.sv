@@ -14,6 +14,8 @@ module axi4s_split
    parameter logic BIGENDIAN = 0,  // Little endian by default.
    parameter int   PTR_LEN = 16    // wordlength of wr_ptr (for buffer context, or pkt_id).
 )  (
+   input logic       clk,
+   input logic       srst,
    axi4s_intf.rx     axi4s_in,
    axi4s_intf.tx     axi4s_out,
    axi4s_intf.tx     axi4s_hdr_out,
@@ -31,6 +33,8 @@ module axi4s_split
    logic [PTR_LEN-1:0] wr_ptr; // wr pointer for pkt buffer addressing, or pkt_id.   
    logic [PTR_LEN-1:0] pid;    // wr_ptr of hdr_out sop.
 
+   logic reset;
+
    // internal axi4s interfaces.
    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T),
                 .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) axi4s_to_copy ();
@@ -47,10 +51,11 @@ module axi4s_split
    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T),
                 .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) axi4s_out_p ();
 
+   assign reset = srst || !enable;
 
    // wr_ptr logic
-   always @(posedge axi4s_in.aclk)
-      if (!axi4s_in.aresetn || !enable)            wr_ptr <= '0;
+   always @(posedge clk)
+      if (reset)                                   wr_ptr <= '0;
       else if (axi4s_in.tvalid && axi4s_in.tready) wr_ptr <= wr_ptr + 1;
 
 
@@ -85,12 +90,14 @@ module axi4s_split
       .BIGENDIAN (BIGENDIAN),
       .OUT_PIPE  (0)
    ) axi4s_trunc_0 (
+      .clk,
+      .srst       (reset),
       .axi4s_in   (axi4s_to_trunc),
       .axi4s_out  (_axi4s_hdr_out_p),
       .length     (hdr_length)
    );
 
-   always @(posedge axi4s_in.aclk) pid <= (_axi4s_hdr_out_p.tvalid && _axi4s_hdr_out_p.sop) ? _axi4s_hdr_out_p.tuser.pid : pid;
+   always @(posedge clk) pid <= (_axi4s_hdr_out_p.tvalid && _axi4s_hdr_out_p.sop) ? _axi4s_hdr_out_p.tuser.pid : pid;
 
    // axi4s_hdr_out_p interface signalling. assigns pid (sop wr_ptr) to hdr pkt.
    assign axi4s_hdr_out_p.aclk             = _axi4s_hdr_out_p.aclk;

@@ -15,6 +15,9 @@ module axi4s_split_join
    parameter logic HDR_IN_PIPE  = 1,
    parameter logic HDR_OUT_PIPE = 1
  ) (
+   input logic       clk,
+   input logic       srst,
+
    axi4s_intf.rx     axi4s_in,
    axi4s_intf.tx     axi4s_out,
    axi4s_intf.tx     axi4s_hdr_out,
@@ -110,7 +113,7 @@ module axi4s_split_join
 
    // mux instantation used to bypass axi4s_split if not enabled.
    axi4s_intf_bypass_mux #(
-      .RESET_BLK_IF(1), .PIPE_STAGES(1), .DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)
+      .PIPE_STAGES(1), .DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)
     ) bypass_split_mux (
       .axi4s_in         (axi4s_in_p),
       .axi4s_to_block   (__axi4s_in_p),
@@ -119,7 +122,7 @@ module axi4s_split_join
       .bypass           (!enable)
     );
 
-   always @(posedge axi4s_in.aclk) begin
+   always @(posedge clk) begin
       enable       <= hdr_length != 0;  // disable and bypass if hdr_length is zero.
       hdr_length_p <= hdr_length;
    end
@@ -129,6 +132,8 @@ module axi4s_split_join
       .BIGENDIAN (BIGENDIAN),
       .PTR_LEN   (PTR_LEN)
    ) axi4s_split_0 (
+      .clk,
+      .srst,
       .axi4s_in      (__axi4s_in_p),
       .axi4s_out     (axi4s_to_pyld_fifo_p),
       .axi4s_hdr_out (axi4s_to_split_mux),
@@ -159,7 +164,7 @@ module axi4s_split_join
 
    axi4l_intf_cdc axi4l_intf_cdc_0 (
        .axi4l_if_from_controller   ( axil_to_reg_blk ),
-       .clk_to_peripheral          ( axi4s_in.aclk ),
+       .clk_to_peripheral          ( clk ),
        .axi4l_if_to_peripheral     ( axil_to_reg_blk__clk )
    );
 
@@ -173,8 +178,8 @@ module axi4s_split_join
    // sop_mismatch tracking logic.
    logic sop_mismatch, sop_mismatch_latch;
 
-   always @(posedge axi4s_in.aclk) begin
-      if (!axi4s_in.aresetn)                               sop_mismatch_latch <= 0;
+   always @(posedge clk) begin
+      if (srst)                                            sop_mismatch_latch <= 0;
       else if (axi4s_split_join_regs.sop_mismatch_rd_evt)  sop_mismatch_latch <= 0;
       else if (sop_mismatch)                               sop_mismatch_latch <= 1;
    end
@@ -208,6 +213,8 @@ module axi4s_split_join
    axi4s_join #(
       .BIGENDIAN (BIGENDIAN)
    ) axi4s_join_0 (
+      .clk,
+      .srst,
       .axi4s_hdr_in  (__axi4s_hdr_in_p),
       .axi4s_in      (axi4s_from_pyld_fifo_p),
       .axi4s_out     (axi4s_to_join_mux),
@@ -217,7 +224,7 @@ module axi4s_split_join
 
    // mux instantation used to bypass axi4s_join if not enabled.
    axi4s_intf_bypass_mux #(
-      .RESET_BLK_IF(1), .PIPE_STAGES(1), .DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)
+      .PIPE_STAGES(1), .DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)
     ) bypass_join_mux (
       .axi4s_in         (axi4s_hdr_in_p),
       .axi4s_to_block   (__axi4s_hdr_in_p),

@@ -10,6 +10,9 @@ module axi4s_join
 #(
    parameter logic BIGENDIAN = 0  // Little endian by default.
 )  (
+   input logic     clk,
+   input logic     srst,
+
    axi4s_intf.rx   axi4s_hdr_in,
    axi4s_intf.rx   axi4s_in,
    axi4s_intf.tx   axi4s_out,
@@ -86,10 +89,8 @@ module axi4s_join
                 .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) axi4s_to_fifo ();
 
 
-   logic clk, resetn;
-
-   assign clk    = axi4s_in.aclk;
-   assign resetn = axi4s_in.aresetn && enable;
+   logic resetn;
+   assign resetn = !srst && enable;
 
    // axi4s SOP synchronizer instantiation.
    axi4s_sync #(.MODE(SOP)) axi4s_sync_0 (
@@ -109,6 +110,8 @@ module axi4s_join
    axi4l_intf axil_to_drop_hdr ();
 
    axi4s_drop #(.OUT_PIPE_MODE(PUSH)) axi4s_drop_hdr (
+      .clk,
+      .srst        (!resetn),
       .axi4s_in    (drop_hdr[0]),
       .axi4s_out   (drop_hdr[1]),
       .axil_if     (axil_to_drop_hdr),
@@ -121,6 +124,8 @@ module axi4s_join
    axi4l_intf axil_to_drop_pyld ();
 
    axi4s_drop #(.OUT_PIPE_MODE(PUSH)) axi4s_drop_pyld (
+      .clk,
+      .srst        (!resetn),
       .axi4s_in    (drop_pyld[0]),
       .axi4s_out   (drop_pyld[1]),
       .axil_if     (axil_to_drop_pyld),

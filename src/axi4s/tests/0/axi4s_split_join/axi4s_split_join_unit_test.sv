@@ -41,6 +41,9 @@ module axi4s_split_join_unit_test
     //===================================
     // DUT and header processor
     //===================================
+    logic clk;
+    logic srst;
+
     axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID)) axi4s_in  ();
     axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID)) axi4s_out ();
 
@@ -78,6 +81,8 @@ module axi4s_split_join_unit_test
       .BIGENDIAN  (BIGENDIAN),
       .FIFO_DEPTH (512)
     ) DUT (
+      .clk,
+      .srst,
       .axi4s_in      (__axi4s_in),
       .axi4s_out     (__axi4s_out),
       .axi4s_hdr_in  (axi4s_hdr_in),
@@ -91,6 +96,8 @@ module axi4s_split_join_unit_test
       .BIGENDIAN (BIGENDIAN),
       .DATA_BYTE_WID(DATA_BYTE_WID)
    ) axi4s_hdr_proc_0 ( 
+      .clk,
+      .srst,
       .axi4s_in          (axi4s_hdr_out),
       .axi4s_out         (axi4s_hdr_in),
       .drop_hdr_mode     (drop_hdr_mode),
@@ -127,14 +134,16 @@ module axi4s_split_join_unit_test
     axi4s_split_join_reg_blk_agent #() split_join_reg_blk_agent;
 
     // Reset
-    std_reset_intf reset_if (.clk(axi4s_in.aclk));
+    std_reset_intf reset_if (.clk);
 
-    assign axi4s_in.aresetn = !reset_if.reset;
+    assign srst = reset_if.reset;
+    assign axi4s_in.aresetn = !srst;
     assign axil_if.aresetn  = !reset_if.reset;
     assign reset_if.ready   = !reset_if.reset;
 
     // Assign axi4s clock (100MHz)
-    `SVUNIT_CLK_GEN(axi4s_in.aclk, 5ns);
+    `SVUNIT_CLK_GEN(clk, 5ns);
+    assign axi4s_in.aclk = clk;
 
     // Assign axi4l clock (50MHz)
     `SVUNIT_CLK_GEN(axil_if.aclk, 10ns);
@@ -443,7 +452,9 @@ module axi4s_hdr_proc
 #(
    parameter int BIGENDIAN = 0,
    parameter int DATA_BYTE_WID = 16
-) ( 
+) (
+   input logic clk,
+   input logic srst,
    axi4s_intf.rx       axi4s_in,
    axi4s_intf.tx       axi4s_out,
 
@@ -469,8 +480,8 @@ module axi4s_hdr_proc
    end
 
    logic drop_pkt_latch;
-   always @(posedge axi4s_in.aclk)
-      if (!axi4s_in.aresetn)                                         drop_pkt_latch <= '0;
+   always @(posedge clk)
+      if (srst)                                                      drop_pkt_latch <= '0;
       else if (axi4s_in.tvalid && axi4s_in.tready && axi4s_in.tlast) drop_pkt_latch <= '0;
       else if (drop_pkt)                                             drop_pkt_latch <= '1;
 
@@ -502,6 +513,8 @@ module axi4s_hdr_proc
    axi4s_trunc #(
       .BIGENDIAN (BIGENDIAN)
    ) axi4s_trunc_0 (
+      .clk,
+      .srst,
       .axi4s_in   (axi4s_to_trunc),
       .axi4s_out  (axi4s_to_fifo),
       .length     (hdr_trunc_length)
