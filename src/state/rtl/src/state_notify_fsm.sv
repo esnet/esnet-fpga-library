@@ -1,7 +1,7 @@
 module state_notify_fsm #(
-    parameter type ID_T = logic[15:0],
-    parameter type STATE_T = logic,
-    parameter type MSG_T = logic
+    parameter int ID_WID = 1,
+    parameter int STATE_WID = 1,
+    parameter int MSG_WID = 1
 )(
     // Clock/reset
     input  logic               clk,
@@ -30,7 +30,7 @@ module state_notify_fsm #(
     // -----------------------------
     // Parameters
     // -----------------------------
-    localparam int NUM_IDS = State#(ID_T)::numIDs();
+    localparam int NUM_IDS = 2**ID_WID;
 
     // -----------------------------
     // Typedefs
@@ -52,12 +52,12 @@ module state_notify_fsm #(
     // Parameter checking
     // -----------------------------
     initial begin
-        std_pkg::param_check($bits(check_if.STATE_T)  , $bits(STATE_T), "check_if.STATE_T");
-        std_pkg::param_check($bits(check_if.MSG_T)    , $bits(MSG_T)  , "check_if.MSG_T");
-        std_pkg::param_check($bits(notify_if.ID_T)    , $bits(ID_T)   , "notify_if.ID_T");
-        std_pkg::param_check($bits(notify_if.MSG_T)   , $bits(MSG_T)  , "notify_if.MSG_T");
-        std_pkg::param_check($bits(db_ctrl_if.KEY_T)  , $bits(ID_T)   , "db_ctrl_if.KEY_T");
-        std_pkg::param_check($bits(db_ctrl_if.VALUE_T), $bits(STATE_T), "db_ctrl_if.STATE_T");
+        std_pkg::param_check(check_if.STATE_WID  , STATE_WID, "check_if.STATE_WID");
+        std_pkg::param_check(check_if.MSG_WID    , MSG_WID  , "check_if.MSG_WID");
+        std_pkg::param_check(notify_if.ID_WID    , ID_WID   , "notify_if.ID_WID");
+        std_pkg::param_check(notify_if.MSG_WID   , MSG_WID  , "notify_if.MSG_WID");
+        std_pkg::param_check(db_ctrl_if.KEY_WID  , ID_WID   , "db_ctrl_if.KEY_WID");
+        std_pkg::param_check(db_ctrl_if.VALUE_WID, STATE_WID, "db_ctrl_if.STATE_WID");
     end
 
     // -----------------------------
@@ -74,9 +74,9 @@ module state_notify_fsm #(
     logic error;
     logic notify_evt;
 
-    ID_T  id;
-    logic reset_id;
-    logic inc_id;
+    logic [ID_WID-1:0]  id;
+    logic               reset_id;
+    logic               inc_id;
 
     logic scan_reset;
     logic scan_start;
@@ -249,7 +249,7 @@ module state_notify_fsm #(
     // Debug logic
     // ----------------------------------
     // Signals
-    logic [$bits(ID_T):0] dbg_cnt_active_last_scan;
+    logic [ID_WID-1:0] dbg_cnt_active_last_scan;
 
     // State
     assign fsm_state_mon_in = {'0, fsm_state};

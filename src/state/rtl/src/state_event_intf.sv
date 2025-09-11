@@ -1,13 +1,13 @@
 interface state_event_intf #(
-    parameter type ID_T = logic,
-    parameter type MSG_T = logic
+    parameter int ID_WID = 1,
+    parameter int MSG_WID = 1
 ) (
     input logic clk
 );
     // Signals
-    logic  evt;
-    ID_T   id;
-    MSG_T  msg;
+    logic               evt;
+    logic [ID_WID-1:0]  id;
+    logic [MSG_WID-1:0] msg;
 
     // Modports
     modport publisher (
@@ -36,7 +36,7 @@ interface state_event_intf #(
         repeat (cycles) @(cb);
     endtask
 
-    task notify(input ID_T _id, input MSG_T _msg);
+    task notify(input bit [ID_WID-1:0] _id, input bit [MSG_WID-1:0] _msg);
         cb.evt <= 1'b1;
         cb.id  <= _id;
         cb.msg <= _msg;

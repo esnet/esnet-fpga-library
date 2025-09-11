@@ -6,10 +6,14 @@ class state_driver #(
 
     local static const string __CLASS_NAME = "state_verif_pkg::state_driver";
 
+    localparam int ID_WID = $bits(ID_T);
+    localparam int STATE_WID = $bits(STATE_T);
+    localparam int UPDATE_WID = $bits(UPDATE_T);
+
     //===================================
     // Properties
     //===================================
-    virtual state_intf #(ID_T, STATE_T, UPDATE_T) update_vif;
+    virtual state_intf #(ID_WID, STATE_WID, UPDATE_WID) update_vif;
 
     //===================================
     // Methods

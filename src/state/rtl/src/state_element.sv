@@ -8,23 +8,22 @@ module state_element
                                          // read latency.
     // Derived parameters (don't override)
     parameter int UPDATE_WID = SPEC.UPDATE_WID > 0 ? SPEC.UPDATE_WID : 1,
-    parameter type STATE_T = logic[SPEC.STATE_WID-1:0],
-    parameter type UPDATE_T = logic[UPDATE_WID-1:0]
+    parameter int STATE_WID  = SPEC.STATE_WID
 )(
     // Clock/reset
-    input  logic         clk,
-    input  logic         srst,
+    input  logic                 clk,
+    input  logic                 srst,
 
     // Control
-    input  logic         en,
+    input  logic                 en,
 
     // Update interface
-    input  update_ctxt_t ctxt,
-    input  STATE_T       prev_state,
-    input  UPDATE_T      update,
-    input  logic         init,
-    output STATE_T       next_state,
-    output STATE_T       return_state
+    input  update_ctxt_t          ctxt,
+    input  logic [STATE_WID-1:0]  prev_state,
+    input  logic [UPDATE_WID-1:0] update,
+    input  logic                  init,
+    output logic [STATE_WID-1:0]  next_state,
+    output logic [STATE_WID-1:0]  return_state
 );
     // -----------------------------
     // Parameter checking
@@ -51,9 +50,9 @@ module state_element
     // ----------------------------------
     // Signals 
     // ----------------------------------
-    STATE_T next_state__datapath;
-    STATE_T next_state__control;
-    STATE_T next_state__reap;
+    logic [STATE_WID-1:0] next_state__datapath;
+    logic [STATE_WID-1:0] next_state__control;
+    logic [STATE_WID-1:0] next_state__reap;
     
     // -----------------------------
     // Datapath state update
@@ -65,7 +64,7 @@ module state_element
             end
             ELEMENT_TYPE_WRITE : begin
                 always_comb begin
-                    next_state__datapath = STATE_T'(update);
+                    next_state__datapath = update;
                 end
             end
             ELEMENT_TYPE_WRITE_COND : begin
@@ -78,8 +77,8 @@ module state_element
             ELEMENT_TYPE_WRITE_IF_ZERO: begin
                 always_comb begin
                     next_state__datapath = prev_state;
-                    if (init)                  next_state__datapath = STATE_T'(update);
-                    else if (prev_state == '0) next_state__datapath = STATE_T'(update);
+                    if (init)                  next_state__datapath = update;
+                    else if (prev_state == '0) next_state__datapath = update;
                 end
             end
             ELEMENT_TYPE_WRITE_N_TIMES: begin
@@ -112,8 +111,8 @@ module state_element
             end
             ELEMENT_TYPE_FLAGS : begin
                 always_comb begin
-                    if (init) next_state__datapath = STATE_T'(update);
-                    else      next_state__datapath = prev_state | STATE_T'(update);
+                    if (init) next_state__datapath = update;
+                    else      next_state__datapath = prev_state | update;
                 end
             end
             ELEMENT_TYPE_COUNTER : begin
@@ -169,7 +168,7 @@ module state_element
     always_comb begin
         next_state__control = prev_state;
         case (SPEC.TYPE)
-            ELEMENT_TYPE_READ : next_state__control = STATE_T'(update);
+            ELEMENT_TYPE_READ : next_state__control = update;
             default           : next_state__control = prev_state;
         endcase
     end

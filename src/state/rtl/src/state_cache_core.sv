@@ -1,8 +1,8 @@
 module state_cache_core
     import htable_pkg::*;
 #(
-    parameter type KEY_T = logic,
-    parameter type ID_T = logic,
+    parameter int  KEY_WID = 1,
+    parameter int  ID_WID = 1,
     parameter int  NUM_TABLES = 3,
     parameter int  TABLE_SIZE [NUM_TABLES] = '{default: 512},
     parameter int  HASH_LATENCY = 0,
@@ -31,10 +31,10 @@ module state_cache_core
     db_intf.responder            delete_if,
 
     // Hashing interface
-    output KEY_T                 lookup_key,
+    output logic [KEY_WID-1:0]   lookup_key,
     input  hash_t                lookup_hash [NUM_TABLES],
 
-    output KEY_T                 ctrl_key    [NUM_TABLES],
+    output logic [KEY_WID-1:0]   ctrl_key    [NUM_TABLES],
     input  hash_t                ctrl_hash   [NUM_TABLES],
 
     // Read/write interfaces (to database)
@@ -44,7 +44,7 @@ module state_cache_core
     db_intf.requester            tbl_rd_if     [NUM_TABLES],
 
     // Status
-    output integer               status_fill
+    output int                   status_fill
 
 );
 
@@ -57,13 +57,13 @@ module state_cache_core
     // Typedefs
     // ----------------------------------
     typedef struct packed {
-        logic _new;
-        ID_T  id;
+        logic               _new;
+        logic [ID_WID-1:0]  id;
     } lookup_result_t;
 
     typedef struct packed {
-        KEY_T key;
-        logic back_to_back;
+        logic [KEY_WID-1:0] key;
+        logic               back_to_back;
     } lookup_req_ctxt_t;
 
     // ----------------------------------
@@ -82,10 +82,10 @@ module state_cache_core
     logic htable_srst;
     logic htable_en;
 
-    logic            last_lookup_key_valid;
-    KEY_T            last_lookup_key;
-    logic            last_lookup_valid;
-    lookup_result_t  last_lookup_result;
+    logic               last_lookup_key_valid;
+    logic [KEY_WID-1:0] last_lookup_key;
+    logic               last_lookup_valid;
+    lookup_result_t     last_lookup_result;
 
     logic back_to_back_lookup_valid;
 
@@ -94,14 +94,14 @@ module state_cache_core
 
     logic init_done__id_manager;
 
-    logic insert_req;
-    logic __insert_req;
-    KEY_T insert_key;
-    logic insert_rdy;
-    logic __insert_rdy;
-    logic insert_done;
-    logic insert_error;
-    ID_T  insert_id;
+    logic               insert_req;
+    logic               __insert_req;
+    logic [KEY_WID-1:0] insert_key;
+    logic               insert_rdy;
+    logic               __insert_rdy;
+    logic               insert_done;
+    logic               insert_error;
+    logic [ID_WID-1:0]  insert_id;
 
     lookup_result_t lookup_result;
 
@@ -112,13 +112,13 @@ module state_cache_core
     // Interfaces
     // ----------------------------------
     db_info_intf htable_info_if ();
-    db_status_intf htable_status_if (.clk(clk), .srst(htable_srst));
-    db_ctrl_intf  #(.KEY_T(KEY_T), .VALUE_T(ID_T)) htable_ctrl_if (.clk(clk));
-    db_intf #(.KEY_T(KEY_T), .VALUE_T(ID_T)) htable_lookup_if (.clk(clk));
-    db_intf #(.KEY_T(KEY_T), .VALUE_T(ID_T)) htable_update_if (.clk(clk));
+    db_status_intf htable_status_if (.clk, .srst(htable_srst));
+    db_ctrl_intf  #(.KEY_WID(KEY_WID), .VALUE_WID(ID_WID)) htable_ctrl_if (.clk);
+    db_intf #(.KEY_WID(KEY_WID), .VALUE_WID(ID_WID)) htable_lookup_if (.clk);
+    db_intf #(.KEY_WID(KEY_WID), .VALUE_WID(ID_WID)) htable_update_if (.clk);
 
-    db_intf #(.KEY_T(KEY_T), .VALUE_T(ID_T)) __delete_if (.clk(clk));
-    db_intf #(.KEY_T(KEY_T), .VALUE_T(ID_T)) insert_if (.clk(clk));
+    db_intf #(.KEY_WID(KEY_WID), .VALUE_WID(ID_WID)) __delete_if (.clk);
+    db_intf #(.KEY_WID(KEY_WID), .VALUE_WID(ID_WID)) insert_if (.clk);
 
     axi4l_intf #() cache_axil_if ();
     axi4l_intf #() cache_axil_if__clk ();
@@ -161,7 +161,7 @@ module state_cache_core
         .reg_blk_if ( reg_if )
     );
 
-    assign reg_if.info_size_nxt = 2**$bits(ID_T);
+    assign reg_if.info_size_nxt = 2**ID_WID;
     assign reg_if.info_size_nxt_v = 1'b1;
 
     // Block control
@@ -210,10 +210,7 @@ module state_cache_core
     // Hash table core
     // ----------------------------------
     // AXI-L control
-    db_axil_ctrl    #(
-        .KEY_T       ( KEY_T ),
-        .VALUE_T     ( ID_T )
-    ) i_db_axil_ctrl__htable (
+    db_axil_ctrl  i_db_axil_ctrl__htable (
         .clk         ( clk ),
         .srst        ( __srst ),
         .init_done   ( htable_init_done ),
@@ -244,8 +241,8 @@ module state_cache_core
 
     // Cuckoo hash
     htable_cuckoo_fast_update_core #(
-        .KEY_T               ( KEY_T ),
-        .VALUE_T             ( ID_T ),
+        .KEY_WID             ( KEY_WID ),
+        .VALUE_WID           ( ID_WID ),
         .NUM_TABLES          ( NUM_TABLES ),
         .TABLE_SIZE          ( TABLE_SIZE ),
         .HASH_LATENCY        ( HASH_LATENCY ),
@@ -359,8 +356,8 @@ module state_cache_core
     // State ID manager
     // ----------------------------------
     state_id_manager     #(
-        .KEY_T            ( KEY_T ),
-        .ID_T             ( ID_T ),
+        .KEY_WID          ( KEY_WID ),
+        .ID_WID           ( ID_WID ),
         .SIM__FAST_INIT   ( SIM__FAST_INIT ),
         .SIM__RAM_MODEL   ( SIM__RAM_MODEL )
     ) i_state_id_manager  (
@@ -387,16 +384,14 @@ module state_cache_core
     // (assumption here is that deletions can be backpressured and therefore less
     //  time-sensitive, whereas insertion operations need to be executed promptly)
     db_intf_prio_mux     #(
-        .KEY_T            ( KEY_T ),
-        .VALUE_T          ( ID_T ),
         .NUM_TRANSACTIONS ( NUM_WR_TRANSACTIONS ),
         .WR_RD_N          ( 1 )
     ) i_db_intf_prio_mux (
-        .clk                          ( clk ),
-        .srst                         ( __srst ),
-        .db_if_from_requester_hi_prio ( insert_if ),
-        .db_if_from_requester_lo_prio ( __delete_if ),
-        .db_if_to_responder           ( htable_update_if )
+        .clk                    ( clk ),
+        .srst                   ( __srst ),
+        .from_requester_hi_prio ( insert_if ),
+        .from_requester_lo_prio ( __delete_if ),
+        .to_responder           ( htable_update_if )
     );
 
     // ----------------------------------
@@ -420,7 +415,7 @@ module state_cache_core
     // -----------------------------
     // Export status
     // -----------------------------
-    assign status_fill = htable_status_if.fill[$bits(ID_T):0];
+    assign status_fill = htable_status_if.fill[ID_WID:0];
 
     // -----------------------------
     // Counters

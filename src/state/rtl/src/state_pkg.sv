@@ -80,6 +80,7 @@ package state_pkg;
         EXPIRY_ACTIVE,
         EXPIRY_DONE
     } expiry_msg_t;
+    localparam int EXPIRY_MSG_WID = $bits(expiry_msg_t);
 
     // -----------------------------
     // Functions
@@ -137,15 +138,6 @@ package state_pkg;
         end
         return offset;
     endfunction
-
-    // -------------------------------------
-    // Parameterized classes (functions)
-    // -------------------------------------
-    virtual class State#(type ID_T=bit[7:0]);
-        static function int numIDs();
-            return 2**$bits(ID_T);
-        endfunction
-    endclass
 
     // -------------------------------------
     // Standard state element definitions

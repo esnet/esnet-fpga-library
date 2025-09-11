@@ -9,7 +9,7 @@ module state_vector_core_unit_test
     import state_pkg::*;
 #(
     parameter string NAME = "unspecified",
-    parameter type ID_T = logic,
+    parameter int ID_WID = 1,
     parameter vector_t SPEC = DEFAULT_STATE_VECTOR
 );
     import svunit_pkg::svunit_testcase;
@@ -22,8 +22,11 @@ module state_vector_core_unit_test
 
     localparam block_type_t BLOCK_TYPE = BLOCK_TYPE_VECTOR;
 
-    localparam type STATE_T = logic[getStateVectorSize(SPEC)-1:0];
-    localparam type UPDATE_T = logic[getUpdateVectorSize(SPEC)-1:0];
+    localparam type ID_T = bit[ID_WID-1:0];
+    localparam int STATE_WID = getStateVectorSize(SPEC);
+    localparam type STATE_T = logic[STATE_WID-1:0];
+    localparam int UPDATE_WID = getUpdateVectorSize(SPEC);
+    localparam type UPDATE_T = logic[UPDATE_WID-1:0];
 
     //===================================
     // DUT
@@ -40,15 +43,15 @@ module state_vector_core_unit_test
 
     // Interfaces
     db_info_intf info_if ();
-    state_intf   #(.ID_T(ID_T),  .STATE_T(STATE_T), .UPDATE_T(UPDATE_T)) update_if (.clk(clk));
-    state_intf   #(.ID_T(ID_T),  .STATE_T(STATE_T), .UPDATE_T(UPDATE_T)) ctrl_if (.clk(clk));
-    db_ctrl_intf #(.KEY_T(ID_T), .VALUE_T(STATE_T)) db_ctrl_if (.clk(clk));
-    db_intf      #(.KEY_T(ID_T), .VALUE_T(STATE_T)) db_wr_if (.clk(clk));
-    db_intf      #(.KEY_T(ID_T), .VALUE_T(STATE_T)) db_rd_if (.clk(clk));
+    state_intf   #(.ID_WID(ID_WID),  .STATE_WID(STATE_WID), .UPDATE_WID(UPDATE_WID)) update_if (.clk);
+    state_intf   #(.ID_WID(ID_WID),  .STATE_WID(STATE_WID), .UPDATE_WID(UPDATE_WID)) ctrl_if (.clk);
+    db_ctrl_intf #(.KEY_WID(ID_WID), .VALUE_WID(STATE_WID)) db_ctrl_if (.clk);
+    db_intf      #(.KEY_WID(ID_WID), .VALUE_WID(STATE_WID)) db_wr_if (.clk);
+    db_intf      #(.KEY_WID(ID_WID), .VALUE_WID(STATE_WID)) db_rd_if (.clk);
 
     // Instantiation
     state_vector_core #(
-        .ID_T ( ID_T ),
+        .ID_WID ( ID_WID ),
         .SPEC ( SPEC ),
         .NUM_WR_TRANSACTIONS ( 4 ),
         .NUM_RD_TRANSACTIONS ( 8 )
@@ -59,8 +62,8 @@ module state_vector_core_unit_test
     //===================================
     // Database store
     db_store_array #(
-        .KEY_T   ( ID_T ),
-        .VALUE_T ( STATE_T ),
+        .KEY_WID   ( ID_WID ),
+        .VALUE_WID ( STATE_WID ),
         .TRACK_VALID ( 0 ),
         .SIM__FAST_INIT ( 0 )
     ) i_db_store_array (
@@ -80,7 +83,7 @@ module state_vector_core_unit_test
     `SVUNIT_CLK_GEN(clk, 2.5ns);
 
     // Interfaces
-    std_reset_intf reset_if (.clk(clk));
+    std_reset_intf reset_if (.clk);
 
     // Drive srst from reset interface
     assign srst = reset_if.reset;
@@ -96,7 +99,7 @@ module state_vector_core_unit_test
         model = new($sformatf("state_vector_model[%s]", NAME), SPEC);
 
         // Database agent
-        db_agent = new("db_ctrl_agent", State#(ID_T)::numIDs());
+        db_agent = new("db_ctrl_agent", 2**ID_WID);
         db_agent.ctrl_vif = db_ctrl_if;
         db_agent.info_vif = info_if;
 
@@ -169,10 +172,10 @@ endmodule
 // 'Boilerplate' unit test wrapper code
 //  Builds unit test for a specific state vector configuration in a way
 //  that maintains SVUnit compatibility
-`define STATE_VECTOR_UNIT_TEST(_NAME,_ID_T,_SPEC)\
+`define STATE_VECTOR_UNIT_TEST(_NAME,_ID_WID,_SPEC)\
   import svunit_pkg::svunit_testcase;\
   svunit_testcase svunit_ut;\
-  state_vector_core_unit_test #(.NAME(_NAME), .ID_T(_ID_T), .SPEC(``_SPEC)) test();\
+  state_vector_core_unit_test #(.NAME(_NAME), .ID_WID(_ID_WID), .SPEC(``_SPEC)) test();\
   function void build();\
     test.build();\
     svunit_ut = test.svunit_ut;\
@@ -197,6 +200,6 @@ module state_vector_core_histogram_unit_test;
             default: STATE_ELEMENT_HIST_BIN_64B
         }
     };
-`STATE_VECTOR_UNIT_TEST("histogram",logic[11:0],SPEC);
+`STATE_VECTOR_UNIT_TEST("histogram",12,SPEC);
 endmodule
 

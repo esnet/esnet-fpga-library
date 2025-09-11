@@ -1,7 +1,7 @@
 module state_element_core
     import state_pkg::*;
 #(
-    parameter type ID_T = logic[7:0],
+    parameter int ID_WID = 1,
     parameter element_t SPEC = DEFAULT_STATE_ELEMENT,
     parameter int  NUM_WR_TRANSACTIONS = 4, // Maximum number of database write transactions that can
                                             // be in flight (from the perspective of this module)
@@ -58,7 +58,7 @@ module state_element_core
     };
 
     state_vector_core #(
-        .ID_T                ( ID_T ),
+        .ID_WID              ( ID_WID ),
         .SPEC                ( VECTOR_SPEC ),
         .NUM_WR_TRANSACTIONS ( NUM_WR_TRANSACTIONS ),
         .NUM_RD_TRANSACTIONS ( NUM_RD_TRANSACTIONS ),
