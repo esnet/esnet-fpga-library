@@ -192,7 +192,7 @@ class packet_capture_monitor #(parameter type META_T=bit) extends packet_monitor
             begin
                 fork
                     begin
-                        _transact(_command, __error);
+                        _transact(_command, __error, _poll_delay);
                     end
                     begin
                         if (TIMEOUT > 0) begin
