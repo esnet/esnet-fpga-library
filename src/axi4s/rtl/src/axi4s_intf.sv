@@ -704,9 +704,10 @@ module axi4s_intf_bypass_mux #(
           axi4s_intf_pipe axi4s_intf_pipe_0
                 (.from_tx(__from_tx), .to_rx(axi4s_bypass_pipe[0]));
 
-          for (genvar i = 1; i < PIPE_STAGES; i++)
+          for (genvar i = 1; i < PIPE_STAGES; i++) begin: g__stage
              axi4s_intf_pipe axi4s_intf_pipe
                 (.from_tx(axi4s_bypass_pipe[i-1]), .to_rx(axi4s_bypass_pipe[i]));
+          end : g__stage
 
           axi4s_intf_connector axi4s_intf_connector_out
                 (.from_tx(axi4s_bypass_pipe[PIPE_STAGES-1]), .to_rx(from_pipe));
