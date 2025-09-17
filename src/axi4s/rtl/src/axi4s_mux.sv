@@ -15,6 +15,9 @@ module axi4s_mux #(
    localparam int TDEST_WID     = axi4s_out.TDEST_WID;
    localparam int TUSER_WID     = axi4s_out.TUSER_WID;
 
+   localparam int SEL_WID = N > 1 ? $clog2(N) : 1;
+   localparam int N_POW2 = 2**SEL_WID;
+
    logic aclk;
    logic aresetn;
 
@@ -28,7 +31,7 @@ module axi4s_mux #(
    logic [N-1:0] axi4s_in_grant;
    logic [N-1:0] axi4s_in_ack;
 
-   logic [$clog2(N)-1:0] sel;
+   logic [SEL_WID-1:0] sel;
 
 /*
    // axi4s interface mux instance.
@@ -46,15 +49,13 @@ module axi4s_mux #(
 */
 
    // --- flatten axi4s_intf_mux instance to work around a Vivado elaboration failure (missing port?).
-   logic                          tvalid[N];
-   logic [DATA_BYTE_WID-1:0][7:0] tdata[N];
-   logic [DATA_BYTE_WID-1:0]      tkeep[N];
-   logic                          tlast[N];
-   logic [TID_WID-1:0]            tid[N];
-   logic [TDEST_WID-1:0]          tdest[N];
-   logic [TUSER_WID-1:0]          tuser[N];
-
-   logic                          tready[N];
+   logic                          tvalid[N_POW2];
+   logic [DATA_BYTE_WID-1:0][7:0] tdata [N_POW2];
+   logic [DATA_BYTE_WID-1:0]      tkeep [N_POW2];
+   logic                          tlast [N_POW2];
+   logic [TID_WID-1:0]            tid   [N_POW2];
+   logic [TDEST_WID-1:0]          tdest [N_POW2];
+   logic [TUSER_WID-1:0]          tuser [N_POW2];
 
    // Convert between array of signals and array of interfaces
    generate
@@ -71,6 +72,15 @@ module axi4s_mux #(
 
            assign axi4s_in_p[g_if].tready = (sel == g_if) ? axi4s_out_p.tready : 1'b0;
        end : g__if
+       for (genvar g_if = N; g_if < N_POW2; g_if++) begin : g__if_out_of_range
+           assign  tvalid[g_if] = 1'b0;
+           assign   tdata[g_if] = '0;
+           assign   tkeep[g_if] = '0;
+           assign   tlast[g_if] = 1'b0;
+           assign     tid[g_if] = '0;
+           assign   tdest[g_if] = '0;
+           assign   tuser[g_if] = '0;
+       end : g__if_out_of_range
    endgenerate
 
    always_comb begin

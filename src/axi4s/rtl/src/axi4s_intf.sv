@@ -487,11 +487,13 @@ endmodule : axi4s_full_pipe
 
 // AXI-Stream interface N:1 mux
 module axi4s_intf_mux #(
-    parameter int N = 2  // number of ingress axi4s interfaces.
+    parameter int N = 2,  // number of ingress axi4s interfaces.
+    // Derived parameters (don't override)
+    parameter int SEL_WID = N > 1 ? $clog2(N) : 1
 ) (
-    axi4s_intf.rx                from_tx[N],
-    axi4s_intf.tx                to_rx,
-    input logic [$clog2(N)-1:0]  sel
+    axi4s_intf.rx             from_tx [N],
+    axi4s_intf.tx             to_rx,
+    input logic [SEL_WID-1:0] sel
 );
 
     localparam int DATA_BYTE_WID = to_rx.DATA_BYTE_WID;
@@ -499,15 +501,17 @@ module axi4s_intf_mux #(
     localparam int TDEST_WID     = to_rx.TDEST_WID;
     localparam int TUSER_WID     = to_rx.TUSER_WID;
 
+    localparam int N_POW2 = 2**SEL_WID;
+
     axi4s_intf_parameter_check param_check (.from_tx(from_tx[0]), .to_rx);
 
-    logic                          tvalid[N];
-    logic [DATA_BYTE_WID-1:0][7:0] tdata[N];
-    logic [DATA_BYTE_WID-1:0]      tkeep[N];
-    logic                          tlast[N];
-    logic [TID_WID-1:0]            tid[N];
-    logic [TDEST_WID-1:0]          tdest[N];
-    logic [TUSER_WID-1:0]          tuser[N];
+    logic                          tvalid[N_POW2];
+    logic [DATA_BYTE_WID-1:0][7:0] tdata [N_POW2];
+    logic [DATA_BYTE_WID-1:0]      tkeep [N_POW2];
+    logic                          tlast [N_POW2];
+    logic [TID_WID-1:0]            tid   [N_POW2];
+    logic [TDEST_WID-1:0]          tdest [N_POW2];
+    logic [TUSER_WID-1:0]          tuser [N_POW2];
 
     logic                          tready[N];
 
@@ -524,6 +528,16 @@ module axi4s_intf_mux #(
 
             assign from_tx[g_if].tready = (sel == g_if) ? to_rx.tready : 1'b0;
         end : g__if
+        // Specify 'out-of-range' values
+        for (genvar g_if = N; g_if < N_POW2; g_if++) begin : g__if_out_of_range
+            assign  tvalid[g_if] = 1'b0;
+            assign   tdata[g_if] = '0;
+            assign   tkeep[g_if] = '0;
+            assign   tlast[g_if] = 1'b0;
+            assign     tid[g_if] = '0;
+            assign   tdest[g_if] = '0;
+            assign   tuser[g_if] = '0;
+        end : g__if_out_of_range
     endgenerate
 
     always_comb begin
@@ -568,12 +582,13 @@ endmodule
 
 // AXI-Stream interface 1:N demux
 module axi4s_intf_demux #(
-    parameter int N = 2  // number of egress axi4s interfaces.
+    parameter int N = 2,  // number of egress axi4s interfaces.
+    // Derived parameters (don't override)
+    parameter int SEL_WID = N > 1 ? $clog2(N) : 1
 ) (
-    axi4s_intf.rx  from_tx,
-    axi4s_intf.tx  to_rx[N],
-
-    input logic [$clog2(N)-1:0]  sel
+    axi4s_intf.rx              from_tx,
+    axi4s_intf.tx              to_rx [N],
+    input logic [SEL_WID-1:0]  sel
 );
 
     localparam int DATA_BYTE_WID = from_tx.DATA_BYTE_WID;
@@ -581,12 +596,14 @@ module axi4s_intf_demux #(
     localparam int TDEST_WID     = from_tx.TDEST_WID;
     localparam int TUSER_WID     = from_tx.TUSER_WID;
 
+    localparam int N_POW2 = 2**SEL_WID;
+
     axi4s_intf_parameter_check param_check (.from_tx, .to_rx(to_rx[0]));
 
     axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID)) from_tx_p (.aclk(from_tx.aclk), .aresetn(from_tx.aresetn));
     axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID)) to_rx_p[N] (.aclk(from_tx.aclk), .aresetn(from_tx.aresetn));
 
-    logic tready[N];
+    logic tready[N_POW2];
 
     axi4s_intf_connector axi4s_intf_connector_in (.from_tx, .to_rx(from_tx_p));
 
@@ -608,6 +625,10 @@ module axi4s_intf_demux #(
 
             axi4s_intf_pipe out_pipe (.from_tx(to_rx_p[g_if]), .to_rx(to_rx[g_if]));
         end : g__if
+        // Specify 'out-of-range' values
+        for (genvar g_if = N; g_if < N_POW2; g_if++) begin : g__if_out_of_range
+            assign tready[g_if] = 1'b1;
+        end : g__if_out_of_range
 
     endgenerate
 
