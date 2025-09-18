@@ -268,6 +268,8 @@ module db_ctrl_intf_mux #(
     localparam int KEY_WID   = to_peripheral.KEY_WID;
     localparam int VALUE_WID = to_peripheral.VALUE_WID;
 
+    localparam int NUM_IFS__POW2 = 2**SEL_WID;
+
     db_ctrl_intf_parameter_check param_check_0 (.from_controller(from_controller[0]), .to_peripheral);
 
     generate
@@ -282,10 +284,10 @@ module db_ctrl_intf_mux #(
             logic [SEL_WID-1:0]     __mux_sel;
             logic                   from_controller_rdy       [NUM_IFS];
             logic                   from_controller_ack       [NUM_IFS];
-            logic                   from_controller_req       [NUM_IFS];
-            command_t               from_controller_command   [NUM_IFS];
-            logic [KEY_WID-1:0]     from_controller_key       [NUM_IFS];
-            logic [VALUE_WID-1:0]   from_controller_set_value [NUM_IFS];
+            logic                   from_controller_req       [NUM_IFS__POW2];
+            command_t               from_controller_command   [NUM_IFS__POW2];
+            logic [KEY_WID-1:0]     from_controller_key       [NUM_IFS__POW2];
+            logic [VALUE_WID-1:0]   from_controller_set_value [NUM_IFS__POW2];
             status_t                from_controller_status    [NUM_IFS];
             logic                   from_controller_get_valid [NUM_IFS];
             logic [VALUE_WID-1:0]   from_controller_get_value [NUM_IFS];
@@ -304,6 +306,13 @@ module db_ctrl_intf_mux #(
                 assign from_controller[g_if].get_value = from_controller_get_value[g_if];
                 assign from_controller[g_if].get_key   = from_controller_get_key[g_if];
             end : g__if
+            // Assign 'out-of-range' values
+            for (genvar g_if = NUM_IFS; g_if < NUM_IFS__POW2; g_if++) begin : g__if_out_of_range
+                assign from_controller_req      [g_if] = 1'b0;
+                assign from_controller_command  [g_if] = COMMAND_NOP;
+                assign from_controller_key      [g_if] = '0;
+                assign from_controller_set_value[g_if] = '0;
+            end : g__if_out_of_range
 
             initial __mux_sel = '0;
             always @(posedge clk) if (__to_peripheral.req && __to_peripheral.rdy) __mux_sel <= mux_sel;

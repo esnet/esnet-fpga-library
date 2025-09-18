@@ -347,6 +347,8 @@ module db_intf_mux #(
     localparam int KEY_WID = to_responder.KEY_WID;
     localparam int VALUE_WID = to_responder.VALUE_WID;
 
+    localparam int NUM_IFS__POW2 = 2**SEL_WID;
+
     db_intf_parameter_check param_check_0 (.from_requester(from_requester[0]), .to_responder);
 
     generate
@@ -355,9 +357,9 @@ module db_intf_mux #(
             logic [SEL_WID-1:0] demux_sel;
 
             logic               from_requester_rdy   [NUM_IFS];
-            logic               from_requester_req   [NUM_IFS];
-            logic [KEY_WID-1:0] from_requester_key   [NUM_IFS];
-            logic               from_requester_next  [NUM_IFS];
+            logic               from_requester_req   [NUM_IFS__POW2];
+            logic [KEY_WID-1:0] from_requester_key   [NUM_IFS__POW2];
+            logic               from_requester_next  [NUM_IFS__POW2];
             logic               from_requester_ack   [NUM_IFS];
             logic               from_requester_error [NUM_IFS];
 
@@ -371,6 +373,12 @@ module db_intf_mux #(
                 assign from_requester_next[g_if]  = from_requester[g_if].next;
                 assign from_requester[g_if].next_key = to_responder.next_key;
             end : g__if
+            // Assign 'out-of-range' values
+            for (genvar g_if = NUM_IFS; g_if < NUM_IFS__POW2; g_if++) begin : g__if_out_of_range
+                assign from_requester_req[g_if] = 1'b0;
+                assign from_requester_key[g_if] = '0;
+                assign from_requester_next[g_if] = 1'b0;
+            end : g__if_out_of_range
 
             always_comb begin
                 to_responder.req  = from_requester_req [mux_sel];
@@ -415,13 +423,18 @@ module db_intf_mux #(
             // Connect valid/value inout ports according to specified direction
             if (WR_RD_N) begin : g__wr
                 // (Local) signals
-                logic                 from_requester_valid   [NUM_IFS];
-                logic [VALUE_WID-1:0] from_requester_value [NUM_IFS];
+                logic                 from_requester_valid [NUM_IFS__POW2];
+                logic [VALUE_WID-1:0] from_requester_value [NUM_IFS__POW2];
                 // Convert between array of signals and array of interfaces
                 for (genvar g_if = 0; g_if < NUM_IFS; g_if++) begin : g__if
                     assign from_requester_valid[g_if] = from_requester[g_if].valid;
                     assign from_requester_value[g_if] = from_requester[g_if].value;
                 end : g__if
+                // Assign 'out-of-range' values
+                for (genvar g_if = NUM_IFS; g_if < NUM_IFS__POW2; g_if++) begin : g__if_out_of_range
+                    assign from_requester_valid[g_if] = 1'b0;
+                    assign from_requester_value[g_if] = '0;
+                end : g__if_out_of_range
                 always_comb begin
                     to_responder.valid = from_requester_valid[mux_sel];
                     to_responder.value = from_requester_value[mux_sel];
@@ -485,7 +498,7 @@ module db_intf_2to1_mux #(
     );
 
     // WORKAROUND-ELAB-HIER-DEPTH {
-    //     Flatten hierarchy here to work around elaboration issues (as of Vivado 2024.2)a.
+    //     Flatten hierarchy here to work around elaboration issues (as of Vivado 2024.2).
     //
     localparam int NUM_IFS = 2;
     localparam int SEL_WID = 1;
