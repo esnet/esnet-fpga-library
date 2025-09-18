@@ -25,7 +25,6 @@ module axi4s_mux #(
    assign aresetn = axi4s_out.aresetn;
 
    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID)) axi4s_in_p[N] (.*);
-   axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID)) axi4s_out_p (.*);
 
    logic [N-1:0] axi4s_in_req;
    logic [N-1:0] axi4s_in_grant;
@@ -43,7 +42,7 @@ module axi4s_mux #(
       .TUSER_T       (TUSER_T)
    ) axi4s_intf_mux_0 (
       .axi4s_in_if   (axi4s_in_p),
-      .axi4s_out_if  (axi4s_out_p),
+      .axi4s_out_if  (axi4s_out),
       .sel           (sel)
    );
 */
@@ -60,7 +59,7 @@ module axi4s_mux #(
    // Convert between array of signals and array of interfaces
    generate
        for (genvar g_if = 0; g_if < N; g_if++) begin : g__if
-           axi4s_tready_pipe in_pipe (.from_tx(axi4s_in[g_if]), .to_rx(axi4s_in_p[g_if]));
+           axi4s_pipe #(.STAGES(1)) in_pipe (.from_tx(axi4s_in[g_if]), .to_rx(axi4s_in_p[g_if]));
 
            assign  tvalid[g_if] = axi4s_in_p[g_if].tvalid;
            assign   tdata[g_if] = axi4s_in_p[g_if].tdata;
@@ -70,7 +69,7 @@ module axi4s_mux #(
            assign   tdest[g_if] = axi4s_in_p[g_if].tdest;
            assign   tuser[g_if] = axi4s_in_p[g_if].tuser;
 
-           assign axi4s_in_p[g_if].tready = (sel == g_if) ? axi4s_out_p.tready : 1'b0;
+           assign axi4s_in_p[g_if].tready = (sel == g_if) ? axi4s_out.tready : 1'b0;
        end : g__if
        for (genvar g_if = N; g_if < N_POW2; g_if++) begin : g__if_out_of_range
            assign  tvalid[g_if] = 1'b0;
@@ -85,13 +84,13 @@ module axi4s_mux #(
 
    always_comb begin
        // mux logic
-       axi4s_out_p.tvalid  = tvalid  [sel];
-       axi4s_out_p.tlast   = tlast   [sel];
-       axi4s_out_p.tkeep   = tkeep   [sel];
-       axi4s_out_p.tdata   = tdata   [sel];
-       axi4s_out_p.tid     = tid     [sel];
-       axi4s_out_p.tdest   = tdest   [sel];
-       axi4s_out_p.tuser   = tuser   [sel];
+       axi4s_out.tvalid  = tvalid  [sel];
+       axi4s_out.tlast   = tlast   [sel];
+       axi4s_out.tkeep   = tkeep   [sel];
+       axi4s_out.tdata   = tdata   [sel];
+       axi4s_out.tid     = tid     [sel];
+       axi4s_out.tdest   = tdest   [sel];
+       axi4s_out.tuser   = tuser   [sel];
    end
    // --- end flatten.
 
@@ -114,7 +113,5 @@ module axi4s_mux #(
     .ack   (  axi4s_in_ack ),
     .sel   (  sel )
    );
-
-   axi4s_full_pipe out_pipe (.from_tx(axi4s_out_p), .to_rx(axi4s_out));
 
 endmodule // axi4s_mux

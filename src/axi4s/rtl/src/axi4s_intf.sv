@@ -600,30 +600,27 @@ module axi4s_intf_demux #(
 
     axi4s_intf_parameter_check param_check (.from_tx, .to_rx(to_rx[0]));
 
-    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID)) from_tx_p (.aclk(from_tx.aclk), .aresetn(from_tx.aresetn));
     axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID)) to_rx_p[N] (.aclk(from_tx.aclk), .aresetn(from_tx.aresetn));
 
     logic tready[N_POW2];
 
-    axi4s_intf_connector axi4s_intf_connector_in (.from_tx, .to_rx(from_tx_p));
-
     // axis4s input interface signalling.
-    assign from_tx_p.tready = tready[sel];
+    assign from_tx.tready = tready[sel];
 
     generate
         for (genvar g_if = 0; g_if < N; g_if++) begin : g__if
             assign tready[g_if] = to_rx_p[g_if].tready;
 
             // axis4s output interface signalling.
-            assign to_rx_p[g_if].tvalid  = (sel == g_if) ? from_tx_p.tvalid : 1'b0;
-            assign to_rx_p[g_if].tdata   = from_tx_p.tdata;
-            assign to_rx_p[g_if].tkeep   = from_tx_p.tkeep;
-            assign to_rx_p[g_if].tlast   = from_tx_p.tlast;
-            assign to_rx_p[g_if].tid     = from_tx_p.tid;
-            assign to_rx_p[g_if].tdest   = from_tx_p.tdest;
-            assign to_rx_p[g_if].tuser   = from_tx_p.tuser;
+            assign to_rx_p[g_if].tvalid  = (sel == g_if) ? from_tx.tvalid : 1'b0;
+            assign to_rx_p[g_if].tdata   = from_tx.tdata;
+            assign to_rx_p[g_if].tkeep   = from_tx.tkeep;
+            assign to_rx_p[g_if].tlast   = from_tx.tlast;
+            assign to_rx_p[g_if].tid     = from_tx.tid;
+            assign to_rx_p[g_if].tdest   = from_tx.tdest;
+            assign to_rx_p[g_if].tuser   = from_tx.tuser;
 
-            axi4s_intf_pipe out_pipe (.from_tx(to_rx_p[g_if]), .to_rx(to_rx[g_if]));
+            axi4s_pipe #(.STAGES(1)) out_pipe (.from_tx(to_rx_p[g_if]), .to_rx(to_rx[g_if]));
         end : g__if
         // Specify 'out-of-range' values
         for (genvar g_if = N; g_if < N_POW2; g_if++) begin : g__if_out_of_range
