@@ -17,6 +17,7 @@ virtual class component extends base;
     local semaphore __LOCK;
     local bit __FINALIZE = 1'b0;
     local bit __AUTOSTART = 1'b1;
+    local bit __BUILD_DONE = 1'b0;
 
     local enum {STOPPED, RUNNING, DEFUNCT} __state;
 
@@ -49,6 +50,7 @@ virtual class component extends base;
         //     where properties are not properly allocated when they are not assigned
         //     in the constructor.
         __SUBCOMPONENTS = {};
+        __BUILD_DONE = 1'b0;
         __FINALIZE = 1'b0;
         __AUTOSTART = 1'b1;
         // } WORKAROUND-INIT-PROPS
@@ -87,6 +89,10 @@ virtual class component extends base;
         __AUTOSTART = 1'b0;
     endfunction
 
+    function automatic bit is_built();
+        return __BUILD_DONE;
+    endfunction
+
     // Initialize lock
     local function automatic void __init_lock();
         __LOCK = new(1);
@@ -113,6 +119,7 @@ virtual class component extends base;
         trace_msg("build()");
         _build();
         foreach (__SUBCOMPONENTS[i]) __SUBCOMPONENTS[i].build();
+        __BUILD_DONE = 1'b1;
         trace_msg("build() Done.");
     endfunction
 
