@@ -8,11 +8,15 @@ class tb_env #(
     localparam int NUM_IDS = 2**$bits(ID_T);
     localparam int RESET_TIMEOUT = NUM_IDS*4; // In clk cycles
 
+    localparam int ID_WID = $bits(ID_T);
+    localparam int STATE_WID = $bits(STATE_T);
+    localparam int UPDATE_WID = $bits(UPDATE_T);
+
     //===================================
     // Properties
     //===================================
-    virtual state_intf #(ID_T, STATE_T, UPDATE_T) ctrl_vif;
-    virtual state_intf #(ID_T, STATE_T, UPDATE_T) update_vif;
+    virtual state_intf #(ID_WID, STATE_WID, UPDATE_WID) ctrl_vif;
+    virtual state_intf #(ID_WID, STATE_WID, UPDATE_WID) update_vif;
 
     state_model#(ID_T, STATE_T, UPDATE_T) model;
 

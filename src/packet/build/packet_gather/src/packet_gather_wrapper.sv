@@ -14,7 +14,7 @@ module packet_gather_wrapper #(
     input  logic                 clk,
     input  logic                 srst,
 
-    output logic                 packet_valid,
+    output logic                 packet_vld,
     input  logic                 packet_rdy,
     output logic                 packet_eop,
     output logic [DATA_WID-1:0]  packet_data,
@@ -26,7 +26,7 @@ module packet_gather_wrapper #(
     input  logic                 gather_rdy,
     output logic [PTR_WID-1:0]   gather_ptr,
     input  logic [PTR_WID-1:0]   gather_nxt_ptr,
-    input  logic                 gather_valid,
+    input  logic                 gather_vld,
     output logic                 gather_ack,
     input  logic                 gather_eof,
     input  logic [SIZE_WID-1:0]  gather_size,
@@ -34,7 +34,7 @@ module packet_gather_wrapper #(
     input  logic                 gather_err,
     input  logic                 gather_sof,
 
-    input  logic                 descriptor_valid,
+    input  logic                 descriptor_vld,
     output logic                 descriptor_rdy,
     input  logic [PTR_WID-1:0]   descriptor_addr,
     input  logic [PKT_SIZE_WID-1:0] descriptor_size,
@@ -56,18 +56,15 @@ module packet_gather_wrapper #(
 
 );
 
-    localparam type META_T = logic[META_WID-1:0];
-    localparam type PTR_T = logic[PTR_WID-1:0];
-    localparam type SIZE_T = logic[SIZE_WID-1:0];
-    localparam type PKT_SIZE_T = logic[PKT_SIZE_WID-1:0];
+    localparam int NUM_BUFFERS = 2**PTR_WID;
 
-    packet_intf #(DATA_BYTE_WID, META_T) packet_if  (.clk, .srst);
-    alloc_intf #(BUFFER_SIZE, PTR_T, META_T) gather_if (.clk, .srst);
-    packet_descriptor_intf #(PTR_T, META_T, PKT_SIZE_T) descriptor_if (.clk, .srst);
+    packet_intf #(DATA_BYTE_WID, META_WID) packet_if  (.clk, .srst);
+    alloc_intf #(BUFFER_SIZE, PTR_WID, META_WID) gather_if (.clk, .srst);
+    packet_descriptor_intf #(PTR_WID, META_WID, MAX_PKT_SIZE) descriptor_if (.clk, .srst);
     packet_event_intf event_if (.clk);
     mem_rd_intf #(ADDR_WID, DATA_WID) mem_rd_if (.clk);
 
-    assign packet_valid = packet_if.valid;
+    assign packet_vld = packet_if.vld;
     assign packet_eop = packet_if.eop;
     assign packet_data = packet_if.data;
     assign packet_mty = packet_if.mty;
@@ -77,7 +74,7 @@ module packet_gather_wrapper #(
 
     assign gather_if.rdy = gather_rdy;
     assign gather_if.nxt_ptr = gather_nxt_ptr;
-    assign gather_if.valid = gather_valid;
+    assign gather_if.vld = gather_vld;
     assign gather_if.eof = gather_eof;
     assign gather_if.size = gather_size;
     assign gather_if.meta = gather_meta;
@@ -87,7 +84,7 @@ module packet_gather_wrapper #(
     assign gather_ptr = gather_if.ptr;
     assign gather_ack = gather_if.ack;
 
-    assign descriptor_if.valid = descriptor_valid;
+    assign descriptor_if.vld = descriptor_vld;
     assign descriptor_if.addr = descriptor_addr;
     assign descriptor_if.size = descriptor_size;
     assign descriptor_if.err = descriptor_err;
@@ -105,12 +102,11 @@ module packet_gather_wrapper #(
     assign mem_rd_req = mem_rd_if.req;
     assign mem_rd_addr = mem_rd_if.addr;
 
-    packet_gather #(
-        .IGNORE_RDY ( 0 ),
+    packet_gather    #(
+        .IGNORE_RDY   ( 0 ),
         .MAX_PKT_SIZE ( MAX_PKT_SIZE ),
         .BUFFER_SIZE  ( BUFFER_SIZE ),
-        .PTR_T        ( PTR_T ),
-        .META_T       ( META_T ),
+        .NUM_BUFFERS  ( NUM_BUFFERS ),
         .MAX_RD_LATENCY ( 64 )
     ) i_packet_gather (
         .*

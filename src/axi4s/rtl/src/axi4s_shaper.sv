@@ -12,8 +12,6 @@ module axi4s_shaper
 
    logic 	      bus_ready;
    
-   assign tx_axis.aclk   =  rx_axis.aclk;
-   assign tx_axis.aresetn=  rx_axis.aresetn;
    assign tx_axis.tvalid =  rx_axis.tvalid & bus_ready;
    assign tx_axis.tdata  =  rx_axis.tdata;
    assign tx_axis.tkeep  =  rx_axis.tkeep;

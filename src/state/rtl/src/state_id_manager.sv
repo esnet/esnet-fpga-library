@@ -1,52 +1,46 @@
 module state_id_manager
 #(
-    parameter type KEY_T = logic,
-    parameter type ID_T = logic,
+    parameter int KEY_WID = 1,
+    parameter int ID_WID = 1,
     // Simulation-only
     parameter bit  SIM__FAST_INIT = 1, // Optimize sim time by performing fast memory init
     parameter bit  SIM__RAM_MODEL = 0
 )(
     // Clock/reset
-    input  logic           clk,
-    input  logic           srst,
+    input  logic               clk,
+    input  logic               srst,
 
-    input  logic           en,
+    input  logic               en,
 
-    output logic           init_done,
+    output logic               init_done,
 
     // Insert interface (from application) : Store entry associating ID with KEY
-    output logic           insert_rdy,
-    input  logic           insert_req,
-    input  KEY_T           insert_key,
-    output ID_T            insert_id,
+    output logic               insert_rdy,
+    input  logic               insert_req,
+    input  logic [KEY_WID-1:0] insert_key,
+    output logic [ID_WID-1:0]  insert_id,
 
     // Delete interface (from application) : Delete entry corresponding to ID
-    db_intf.responder      delete_by_id_if,
+    db_intf.responder          delete_by_id_if,
 
     // Delete interface (to application): Delete entry corresponding to KEY
-    db_intf.requester      delete_by_key_if,
+    db_intf.requester          delete_by_key_if,
 
     // AXI-L control interface
-    axi4l_intf.peripheral  axil_if,
+    axi4l_intf.peripheral      axil_if,
 
     // Status
-    output logic [7:0]     delete_state_mon
+    output logic [7:0]         delete_state_mon
 );
-
-    // ----------------------------------
-    // Parameters
-    // ----------------------------------
-    localparam int ID_WID = $bits(ID_T);
-    localparam int KEY_WID = $bits(KEY_T);
 
     // -----------------------------
     // Parameter checks
     // -----------------------------
     initial begin
-        std_pkg::param_check($bits(delete_by_id_if.KEY_T), ID_WID, "delete_by_id_if.KEY_T");
-        std_pkg::param_check($bits(delete_by_id_if.VALUE_T), KEY_WID, "delete_by_id_if.VALUE_T");
-        std_pkg::param_check($bits(delete_by_key_if.KEY_T), KEY_WID, "delete_by_id_if.KEY_T");
-        std_pkg::param_check($bits(delete_by_key_if.VALUE_T), ID_WID, "delete_by_id_if.VALUE_T");
+        std_pkg::param_check(delete_by_id_if.KEY_WID, ID_WID, "delete_by_id_if.KEY_WID");
+        std_pkg::param_check(delete_by_id_if.VALUE_WID, KEY_WID, "delete_by_id_if.VALUE_WID");
+        std_pkg::param_check(delete_by_key_if.KEY_WID, KEY_WID, "delete_by_id_if.KEY_WID");
+        std_pkg::param_check(delete_by_key_if.VALUE_WID, ID_WID, "delete_by_id_if.VALUE_WID");
     end
 
     // ----------------------------------
@@ -70,16 +64,16 @@ module state_id_manager
     logic init_done__allocator;
     logic init_done__revmap;
 
-    logic alloc_req;
-    logic alloc_rdy;
-    ID_T  alloc_id;
+    logic               alloc_req;
+    logic               alloc_rdy;
+    logic [ID_WID-1:0]  alloc_id;
 
-    logic dealloc_req;
-    logic dealloc_rdy;
-    ID_T  dealloc_id;
+    logic               dealloc_req;
+    logic               dealloc_rdy;
+    logic [ID_WID-1:0]  dealloc_id;
 
-    ID_T  delete_id;
-    KEY_T delete_key;
+    logic [ID_WID-1:0]  delete_id;
+    logic [KEY_WID-1:0] delete_key;
 
     delete_state_t delete_state;
     delete_state_t nxt_delete_state;
@@ -87,8 +81,8 @@ module state_id_manager
     // ----------------------------------
     // Interfaces
     // ----------------------------------
-    mem_wr_intf #(.ADDR_WID(ID_WID), .DATA_WID(KEY_WID)) revmap_wr_if (.clk(clk));
-    mem_rd_intf #(.ADDR_WID(ID_WID), .DATA_WID(KEY_WID)) revmap_rd_if (.clk(clk));
+    mem_wr_intf #(.ADDR_WID(ID_WID), .DATA_WID(KEY_WID)) revmap_wr_if (.clk);
+    mem_rd_intf #(.ADDR_WID(ID_WID), .DATA_WID(KEY_WID)) revmap_rd_if (.clk);
 
     // ----------------------------------
     // Status
@@ -99,7 +93,7 @@ module state_id_manager
     // ID allocator
     // ----------------------------------
     alloc_axil_bv #(
-        .PTR_T          ( ID_T ),
+        .PTR_WID        ( ID_WID ),
         .ALLOC_FC       ( 0 ),
         .DEALLOC_FC     ( 1 ),
         .SIM__FAST_INIT ( SIM__FAST_INIT ),

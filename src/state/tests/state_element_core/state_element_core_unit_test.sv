@@ -8,7 +8,7 @@
 module state_element_core_unit_test
     import state_pkg::*;
 #(
-    parameter type ID_T = logic,
+    parameter int ID_WID = 1,
     parameter element_t SPEC = DEFAULT_STATE_ELEMENT
 );
     //===================================
@@ -22,12 +22,11 @@ module state_element_core_unit_test
     //===================================
     // Parameters
     //===================================
-    // NOTE: define ID_T/STATE_T here as 'logic' vectors and not 'bit' vectors
-    //       - works around apparent simulation bug where some direct
-    //         assignments fail (i.e. assign a = b results in a != b)
-    localparam type STATE_T = logic[SPEC.STATE_WID-1:0];
+    localparam type ID_T = bit[ID_WID-1:0];
+    localparam type STATE_T = bit[SPEC.STATE_WID-1:0];
+    localparam int STATE_WID = $bits(STATE_T);
     localparam int UPDATE_WID = SPEC.UPDATE_WID > 0 ? SPEC.UPDATE_WID : 1;
-    localparam type UPDATE_T = logic[UPDATE_WID-1:0];
+    localparam type UPDATE_T = bit[UPDATE_WID-1:0];
 
     localparam block_type_t BLOCK_TYPE = BLOCK_TYPE_ELEMENT;
 
@@ -52,15 +51,15 @@ module state_element_core_unit_test
 
     // Interfaces
     db_info_intf  info_if ();
-    state_intf    #(.ID_T(ID_T),  .STATE_T(STATE_T), .UPDATE_T(UPDATE_T)) update_if (.clk(clk));
-    state_intf    #(.ID_T(ID_T),  .STATE_T(STATE_T), .UPDATE_T(UPDATE_T)) ctrl_if   (.clk(clk));
-    db_ctrl_intf  #(.KEY_T(ID_T), .VALUE_T(STATE_T)) db_ctrl_if (.clk(clk));
-    db_intf       #(.KEY_T(ID_T), .VALUE_T(STATE_T)) db_wr_if (.clk(clk));
-    db_intf       #(.KEY_T(ID_T), .VALUE_T(STATE_T)) db_rd_if (.clk(clk));
+    state_intf    #(.ID_WID(ID_WID),  .STATE_WID(STATE_WID), .UPDATE_WID(UPDATE_WID)) update_if (.clk);
+    state_intf    #(.ID_WID(ID_WID),  .STATE_WID(STATE_WID), .UPDATE_WID(UPDATE_WID)) ctrl_if   (.clk);
+    db_ctrl_intf  #(.KEY_WID(ID_WID), .VALUE_WID(STATE_WID)) db_ctrl_if (.clk);
+    db_intf       #(.KEY_WID(ID_WID), .VALUE_WID(STATE_WID)) db_wr_if (.clk);
+    db_intf       #(.KEY_WID(ID_WID), .VALUE_WID(STATE_WID)) db_rd_if (.clk);
 
     // Instantiation
     state_element_core #(
-        .ID_T ( ID_T ),
+        .ID_WID ( ID_WID ),
         .SPEC ( SPEC ),
         .NUM_WR_TRANSACTIONS ( 4 ),
         .NUM_RD_TRANSACTIONS ( 8 )
@@ -71,8 +70,8 @@ module state_element_core_unit_test
     //===================================
     // Database store
     db_store_array #(
-        .KEY_T   ( ID_T ),
-        .VALUE_T ( STATE_T ),
+        .KEY_WID   ( ID_WID ),
+        .VALUE_WID ( STATE_WID ),
         .TRACK_VALID ( 0 ),
         .SIM__FAST_INIT ( 0 )
     ) i_db_store_array (
@@ -108,7 +107,7 @@ module state_element_core_unit_test
         model = new($sformatf("state_element_model[%s]", getElementTypeString(SPEC.TYPE)), SPEC);
 
         // Database agent
-        db_agent = new("db_ctrl_agent", State#(ID_T)::numIDs());
+        db_agent = new("db_ctrl_agent", 2**ID_WID);
         db_agent.ctrl_vif = db_ctrl_if;
         db_agent.info_vif = info_if;
 
@@ -183,10 +182,10 @@ endmodule
 // 'Boilerplate' unit test wrapper code
 //  Builds unit test for a specific state element configuration in a way
 //  that maintains SVUnit compatibility
-`define STATE_ELEMENT_UNIT_TEST(_ID_T,_SPEC)\
+`define STATE_ELEMENT_UNIT_TEST(_ID_WID,_SPEC)\
   import svunit_pkg::svunit_testcase;\
   svunit_testcase svunit_ut;\
-  state_element_core_unit_test #(.ID_T(_ID_T), .SPEC(_SPEC)) test();\
+  state_element_core_unit_test #(.ID_WID(_ID_WID), .SPEC(_SPEC)) test();\
   function void build();\
     test.build();\
     svunit_ut = test.svunit_ut;\
@@ -200,56 +199,56 @@ endmodule
 
 // READ
 module state_element_core_read_unit_test;
-    localparam type ID_T = logic[11:0];
+    localparam int ID_WID = 12;
     localparam state_pkg::element_t SPEC = '{state_pkg::ELEMENT_TYPE_READ,24,24,state_pkg::RETURN_MODE_PREV_STATE,state_pkg::REAP_MODE_PERSIST};
-    `STATE_ELEMENT_UNIT_TEST(ID_T,SPEC);
+    `STATE_ELEMENT_UNIT_TEST(ID_WID,SPEC);
 endmodule
 
 // WRITE
 module state_element_core_write_unit_test;
-    localparam type ID_T = logic[11:0];
+    localparam int ID_WID = 12;
     localparam state_pkg::element_t SPEC = '{state_pkg::ELEMENT_TYPE_WRITE,32,32,state_pkg::RETURN_MODE_PREV_STATE,state_pkg::REAP_MODE_PERSIST};
-    `STATE_ELEMENT_UNIT_TEST(ID_T,SPEC);
+    `STATE_ELEMENT_UNIT_TEST(ID_WID,SPEC);
 endmodule
 
 // WRITE_COND
 module state_element_core_write_cond_unit_test;
-    localparam type ID_T = logic[11:0];
+    localparam int ID_WID = 12;
     localparam state_pkg::element_t SPEC = '{state_pkg::ELEMENT_TYPE_WRITE_COND,32,33,state_pkg::RETURN_MODE_PREV_STATE,state_pkg::REAP_MODE_PERSIST};
-    `STATE_ELEMENT_UNIT_TEST(ID_T,SPEC);
+    `STATE_ELEMENT_UNIT_TEST(ID_WID,SPEC);
 endmodule
 
 // WRITE_IF_ZERO
 module state_element_core_write_if_zero_unit_test;
-    localparam type ID_T = logic[11:0];
+    localparam int ID_WID = 12;
     localparam state_pkg::element_t SPEC = '{state_pkg::ELEMENT_TYPE_WRITE_IF_ZERO,20,20,state_pkg::RETURN_MODE_PREV_STATE,state_pkg::REAP_MODE_CLEAR};
-    `STATE_ELEMENT_UNIT_TEST(ID_T,SPEC);
+    `STATE_ELEMENT_UNIT_TEST(ID_WID,SPEC);
 endmodule
 
 // FLAGS
 module state_element_core_flags_unit_test;
-    localparam type ID_T = logic[11:0];
+    localparam int ID_WID = 12;
     localparam state_pkg::element_t SPEC = '{state_pkg::ELEMENT_TYPE_FLAGS,10,10,state_pkg::RETURN_MODE_PREV_STATE,state_pkg::REAP_MODE_CLEAR};
-    `STATE_ELEMENT_UNIT_TEST(ID_T,SPEC);
+    `STATE_ELEMENT_UNIT_TEST(ID_WID,SPEC);
 endmodule
 
 // COUNTER
 module state_element_core_counter_unit_test;
-    localparam type ID_T = logic[11:0];
+    localparam int ID_WID = 12;
     localparam state_pkg::element_t SPEC = '{state_pkg::ELEMENT_TYPE_COUNTER,32,0,state_pkg::RETURN_MODE_PREV_STATE,state_pkg::REAP_MODE_CLEAR};
-    `STATE_ELEMENT_UNIT_TEST(ID_T,SPEC);
+    `STATE_ELEMENT_UNIT_TEST(ID_WID,SPEC);
 endmodule
 
 // COUNTER_COND
 module state_element_core_counter_cond_unit_test;
-    localparam type ID_T = logic[11:0];
+    localparam int ID_WID = 12;
     localparam state_pkg::element_t SPEC = '{state_pkg::ELEMENT_TYPE_COUNTER_COND,32,1,state_pkg::RETURN_MODE_PREV_STATE,state_pkg::REAP_MODE_CLEAR};
-    `STATE_ELEMENT_UNIT_TEST(ID_T,SPEC);
+    `STATE_ELEMENT_UNIT_TEST(ID_WID,SPEC);
 endmodule
 
 // COUNT
 module state_element_core_count_unit_test;
-    localparam type ID_T = logic[11:0];
+    localparam int ID_WID = 12;
     localparam state_pkg::element_t SPEC = '{state_pkg::ELEMENT_TYPE_COUNT,64,16,state_pkg::RETURN_MODE_PREV_STATE,state_pkg::REAP_MODE_CLEAR};
-    `STATE_ELEMENT_UNIT_TEST(ID_T,SPEC);
+    `STATE_ELEMENT_UNIT_TEST(ID_WID,SPEC);
 endmodule

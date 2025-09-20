@@ -11,26 +11,26 @@ module htable_multi_stash_core_unit_test;
     //===================================
     // Parameters
     //===================================
-    parameter int KEY_WID = 96;
-    parameter int VALUE_WID = 32;
-    parameter int HASH_WID = 8;
-    parameter int TIMEOUT_CYCLES = 0;
+    localparam int KEY_WID = 90;
+    localparam int VALUE_WID = 48;
+    localparam int HASH_WID = 9;
+    localparam int TIMEOUT_CYCLES = 0;
 
-    parameter htable_multi_insert_mode_t INSERT_MODE = HTABLE_MULTI_INSERT_MODE_BROADCAST;
+    localparam htable_multi_insert_mode_t INSERT_MODE = HTABLE_MULTI_INSERT_MODE_BROADCAST;
 
-    parameter int NUM_TABLES = 3;
-    parameter int TABLE_SIZE[NUM_TABLES] = '{default: 256};
-    parameter int STASH_SIZE = 8;
-    parameter int SIZE = NUM_TABLES * 2**HASH_WID + STASH_SIZE;
+    localparam int NUM_TABLES = 3;
+    localparam int TABLE_SIZE[NUM_TABLES] = '{default: 2**HASH_WID};
+    localparam int STASH_SIZE = 9;
+    localparam int SIZE = NUM_TABLES * 2**HASH_WID + STASH_SIZE;
     
     //===================================
     // Typedefs
     //===================================
-    parameter type KEY_T = logic [KEY_WID-1:0];
-    parameter type VALUE_T = logic [VALUE_WID-1:0];
-    parameter type HASH_T = logic [HASH_WID-1:0];
-    parameter type __ENTRY_T = struct packed {KEY_T key; VALUE_T value;};
-    parameter type ENTRY_T = logic[$bits(__ENTRY_T)-1:0];
+    localparam type KEY_T = bit [KEY_WID-1:0];
+    localparam type VALUE_T = bit [VALUE_WID-1:0];
+    localparam type HASH_T = bit [HASH_WID-1:0];
+    localparam type ENTRY_T = struct packed {KEY_T key; VALUE_T value;};
+    localparam int  ENTRY_WID = $bits(ENTRY_T);
 
     //===================================
     // DUT
@@ -46,27 +46,27 @@ module htable_multi_stash_core_unit_test;
     KEY_T   update_key;
     hash_t  update_hash [NUM_TABLES];
 
-    db_intf #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) lookup_if (.clk(clk));
-    db_intf #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) update_if (.clk(clk));
+    db_intf #(.KEY_WID(KEY_WID), .VALUE_WID(VALUE_WID)) lookup_if (.clk);
+    db_intf #(.KEY_WID(KEY_WID), .VALUE_WID(VALUE_WID)) update_if (.clk);
 
     db_info_intf info_if ();
     
-    db_ctrl_intf #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) ctrl_if (.clk(clk));
+    db_ctrl_intf #(.KEY_WID(KEY_WID), .VALUE_WID(VALUE_WID)) ctrl_if (.clk);
     
-    db_ctrl_intf #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) stash_ctrl_if (.clk(clk));
-    db_status_intf stash_status_if (.clk(clk), .srst(srst));
+    db_ctrl_intf #(.KEY_WID(KEY_WID), .VALUE_WID(VALUE_WID)) stash_ctrl_if (.clk);
+    db_status_intf stash_status_if (.clk, .srst);
 
-    db_ctrl_intf #(.KEY_T(hash_t), .VALUE_T(ENTRY_T)) tbl_ctrl_if [NUM_TABLES] (.clk(clk));
+    db_ctrl_intf #(.KEY_WID($bits(hash_t)), .VALUE_WID(ENTRY_WID)) tbl_ctrl_if [NUM_TABLES] (.clk);
 
     logic tbl_init [NUM_TABLES];
     logic tbl_init_done [NUM_TABLES];
 
-    db_intf #(.KEY_T(hash_t), .VALUE_T(ENTRY_T)) tbl_wr_if [NUM_TABLES] (.clk(clk));
-    db_intf #(.KEY_T(hash_t), .VALUE_T(ENTRY_T)) tbl_rd_if [NUM_TABLES] (.clk(clk));
+    db_intf #(.KEY_WID($bits(hash_t)), .VALUE_WID(ENTRY_WID)) tbl_wr_if [NUM_TABLES] (.clk);
+    db_intf #(.KEY_WID($bits(hash_t)), .VALUE_WID(ENTRY_WID)) tbl_rd_if [NUM_TABLES] (.clk);
     
     htable_multi_stash_core #(
-        .KEY_T (KEY_T),
-        .VALUE_T (VALUE_T),
+        .KEY_WID (KEY_WID),
+        .VALUE_WID (VALUE_WID),
         .NUM_TABLES (NUM_TABLES),
         .TABLE_SIZE (TABLE_SIZE),
         .STASH_SIZE (STASH_SIZE),
@@ -88,8 +88,8 @@ module htable_multi_stash_core_unit_test;
     generate
         for (genvar i = 0; i < NUM_TABLES; i++) begin
             db_store_array #(
-                .KEY_T (HASH_T),
-                .VALUE_T (ENTRY_T)
+                .KEY_WID (HASH_WID),
+                .VALUE_WID (ENTRY_WID)
             ) i_db_store_array (
                 .clk ( clk ),
                 .srst ( srst ),
@@ -101,9 +101,9 @@ module htable_multi_stash_core_unit_test;
         end
     endgenerate
     
-    db_ctrl_agent #(.KEY_T(hash_t), .VALUE_T(ENTRY_T)) tbl_agent [NUM_TABLES];
-    db_ctrl_agent #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) stash_agent;
-    std_reset_intf reset_if (.clk(clk));
+    db_ctrl_agent #(hash_t, ENTRY_T) tbl_agent [NUM_TABLES];
+    db_ctrl_agent #(KEY_T, VALUE_T) stash_agent;
+    std_reset_intf reset_if (.clk);
 
     // Assign clock (250MHz)
     `SVUNIT_CLK_GEN(clk, 2ns);
@@ -112,7 +112,7 @@ module htable_multi_stash_core_unit_test;
     assign srst = reset_if.reset;
     assign reset_if.ready = init_done;
 
-    function automatic connect_ctrl_ifs(virtual db_ctrl_intf#(hash_t, ENTRY_T) tbl_ctrl_if [NUM_TABLES]);
+    function automatic connect_ctrl_ifs(virtual db_ctrl_intf#($bits(hash_t), ENTRY_WID) tbl_ctrl_if [NUM_TABLES]);
         for (int i = 0; i < NUM_TABLES; i++) begin
             tbl_agent[i].attach_ctrl_if(tbl_ctrl_if[i]);
         end

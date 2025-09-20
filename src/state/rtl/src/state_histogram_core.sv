@@ -1,21 +1,21 @@
 module state_histogram_core #(
-    parameter type DATA_T = logic,
+    parameter int  DATA_WID = 1,
     parameter int  BINS = 8,
     parameter int  COUNT_WID [BINS] = '{default: 32}
 )(
     // Clock/reset
-    input  logic   clk,
-    input  logic   srst,
+    input  logic                clk,
+    input  logic                srst,
 
     // Data
-    input  logic   data_valid,
-    input  DATA_T  data,
-    output logic   bin_update [BINS],
+    input  logic                data_valid,
+    input  logic [DATA_WID-1:0] data,
+    output logic                bin_update [BINS],
 
     // -- Low/High bin thresholds; updates will be made to all bins where
     //    bin_thresh_low <= data <= bin_thresh_high
-    input  DATA_T  bin_thresh_low  [BINS],
-    input  DATA_T  bin_thresh_high [BINS]
+    input  logic [DATA_WID-1:0] bin_thresh_low  [BINS],
+    input  logic [DATA_WID-1:0] bin_thresh_high [BINS]
 );
     // ----------------------------------
     // Histogram update logic

@@ -13,7 +13,9 @@ module packet_intf_unit_test #(
     // Parameters
     //===================================
     localparam int DATA_BYTE_WID = 8;
-    localparam type META_T = logic[31:0];
+    localparam type META_T = bit[31:0];
+
+    localparam int META_WID = $bits(META_T);
 
     typedef packet#(META_T) PACKET_T;
 
@@ -23,8 +25,8 @@ module packet_intf_unit_test #(
     logic clk;
     logic srst;
 
-    packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_T(META_T)) from_tx (.clk, .srst);
-    packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_T(META_T)) to_rx (.clk, .srst);
+    packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_WID(META_WID)) from_tx (.clk, .srst);
+    packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_WID(META_WID)) to_rx   (.clk, .srst);
 
 
     generate
@@ -36,11 +38,11 @@ module packet_intf_unit_test #(
             "packet_pipe_auto": packet_pipe_auto DUT (.*);
             "packet_pipe_slr": packet_pipe_slr DUT (.*);
             "packet_pipe_slr_p1_p1": packet_pipe_slr #(.PRE_PIPE_STAGES(1), .POST_PIPE_STAGES(1)) DUT (.*);
-            "packet_intf_width_converter": begin : g__packet_intf_width_converter
-                packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID*8), .META_T(META_T)) __packet_if (.clk, .srst);
-                packet_intf_width_converter DUT1 (.from_tx, .to_rx(__packet_if));
-                packet_intf_width_converter DUT2 (.from_tx(__packet_if), .to_rx);
-            end : g__packet_intf_width_converter
+            "packet_width_converter": begin : g__packet_width_converter
+                packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID*8), .META_WID(META_WID)) __packet_if (.clk, .srst);
+                packet_width_converter DUT1 (.from_tx, .to_rx(__packet_if));
+                packet_width_converter DUT2 (.from_tx(__packet_if), .to_rx);
+            end : g__packet_width_converter
         endcase
     endgenerate
 
@@ -73,11 +75,11 @@ module packet_intf_unit_test #(
         svunit_ut = new(name);
 
         // Driver
-        driver = new(.BIGENDIAN(1));
+        driver = new();
         driver.packet_vif = from_tx;
 
         // Monitor
-        monitor = new(.BIGENDIAN(1));
+        monitor = new();
         monitor.packet_vif = to_rx;
 
         model = new();
@@ -297,6 +299,6 @@ module packet_pipe_slr_p1_p1_unit_test;
 `PACKET_UNIT_TEST("packet_pipe_slr_p1_p1")
 endmodule
 
-module packet_intf_width_converter_unit_test;
-`PACKET_UNIT_TEST("packet_intf_width_converter")
+module packet_width_converter_unit_test;
+`PACKET_UNIT_TEST("packet_width_converter")
 endmodule

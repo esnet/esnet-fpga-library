@@ -23,7 +23,11 @@ module db_ctrl_mux_unit_test
     // Parameters
     //===================================
     localparam int TIMEOUT_CYCLES = 0;
-    localparam int SIZE = 2**$bits(KEY_T);
+
+    localparam int KEY_WID   = $bits(KEY_T);
+    localparam int VALUE_WID = $bits(VALUE_T);
+
+    localparam int SIZE = 2**KEY_WID;
 
     //===================================
     // Testbench
@@ -34,7 +38,7 @@ module db_ctrl_mux_unit_test
     db_ctrl_agent #(KEY_T, VALUE_T) agent [NUM_IFS];
 
     // Reset
-    std_reset_intf reset_if (.clk(clk));
+    std_reset_intf reset_if (.clk);
 
     // DB peripheral (peripheral + storage)
     // (in absence of verification model just implement
@@ -45,10 +49,10 @@ module db_ctrl_mux_unit_test
     logic init;
     logic init_done;
 
-    db_intf #(KEY_T, VALUE_T) db_wr_if (.clk(clk));
-    db_intf #(KEY_T, VALUE_T) db_rd_if (.clk(clk));
-    db_intf #(KEY_T, VALUE_T) __db_wr_if (.clk(clk));
-    db_intf #(KEY_T, VALUE_T) __db_rd_if (.clk(clk));
+    db_intf #(.KEY_WID(KEY_WID), .VALUE_WID(VALUE_WID)) db_wr_if (.clk);
+    db_intf #(.KEY_WID(KEY_WID), .VALUE_WID(VALUE_WID)) db_rd_if (.clk);
+    db_intf #(.KEY_WID(KEY_WID), .VALUE_WID(VALUE_WID)) __db_wr_if (.clk);
+    db_intf #(.KEY_WID(KEY_WID), .VALUE_WID(VALUE_WID)) __db_rd_if (.clk);
 
     // Peripheral
     db_peripheral #(
@@ -90,8 +94,8 @@ module db_ctrl_mux_unit_test
 
     // Database store
     db_store_array #(
-        .KEY_T     ( KEY_T ),
-        .VALUE_T   ( VALUE_T )
+        .KEY_WID   ( KEY_WID ),
+        .VALUE_WID ( VALUE_WID )
     ) i_db_store_array (
         .clk       ( clk ),
         .srst      ( srst ),
@@ -115,8 +119,8 @@ module db_ctrl_mux_unit_test
         svunit_ut = new(name);
 
         for (int i = 0; i < NUM_IFS; i++) begin
-            agent[i] = new($sformatf("db_agent[%e]", i), SIZE);
-            agent[i].set_op_timeout(64);
+            agent[i] = new($sformatf("db_agent[%0d]", i), SIZE);
+            agent[i].set_op_timeout(0);
         end
         agent[0].ctrl_vif = db_ctrl_if_to_DUT[0];
         agent[1].ctrl_vif = db_ctrl_if_to_DUT[1];
@@ -187,8 +191,8 @@ module db_ctrl_intf_2to1_mux_unit_test;
 
     localparam int  NUM_IFS = 2;
 
-    localparam int  KEY_WID = 12;
-    localparam int  VALUE_WID = 32;
+    localparam int  KEY_WID = 8;
+    localparam int  VALUE_WID = 48;
 
     // NOTE: define KEY_T/VALUE_T here as 'logic' vectors and not 'bit' vectors
     //       - works around apparent simulation bug where some direct
@@ -205,8 +209,8 @@ module db_ctrl_intf_2to1_mux_unit_test;
 
     logic clk;
     logic srst;
-    db_ctrl_intf #(KEY_T, VALUE_T) db_ctrl_if_to_DUT [NUM_IFS] (.clk(clk));
-    db_ctrl_intf #(KEY_T, VALUE_T) db_ctrl_if_from_DUT (.clk(clk));
+    db_ctrl_intf #(.KEY_WID(KEY_WID), .VALUE_WID(VALUE_WID)) db_ctrl_if_to_DUT [NUM_IFS] (.clk);
+    db_ctrl_intf #(.KEY_WID(KEY_WID), .VALUE_WID(VALUE_WID)) db_ctrl_if_from_DUT (.clk);
 
     db_ctrl_mux_unit_test #(
         .NUM_IFS  ( NUM_IFS ),
@@ -215,16 +219,13 @@ module db_ctrl_intf_2to1_mux_unit_test;
         .DUT_NAME ( "db_ctrl_intf_2to1_mux" )
     ) test (.*);
 
-    db_ctrl_intf_2to1_mux #(
-        .KEY_T   ( logic[KEY_WID-1:0] ),
-        .VALUE_T ( logic[VALUE_WID-1:0] )
-    ) DUT (
-        .clk  ( clk ),
-        .srst ( srst ),
-        .mux_sel ( mux_sel ),
-        .ctrl_if_from_controller_0 ( db_ctrl_if_to_DUT[0] ),
-        .ctrl_if_from_controller_1 ( db_ctrl_if_to_DUT[1] ),
-        .ctrl_if_to_peripheral     ( db_ctrl_if_from_DUT )
+    db_ctrl_intf_2to1_mux DUT (
+        .clk,
+        .srst,
+        .mux_sel,
+        .from_controller_0 ( db_ctrl_if_to_DUT[0] ),
+        .from_controller_1 ( db_ctrl_if_to_DUT[1] ),
+        .to_peripheral     ( db_ctrl_if_from_DUT )
     );
 
     always @(posedge clk) begin
@@ -266,8 +267,8 @@ module db_ctrl_intf_prio_mux_unit_test;
 
     logic clk;
     logic srst;
-    db_ctrl_intf #(KEY_T, VALUE_T) db_ctrl_if_to_DUT [NUM_IFS] (.clk(clk));
-    db_ctrl_intf #(KEY_T, VALUE_T) db_ctrl_if_from_DUT (.clk(clk));
+    db_ctrl_intf #(.KEY_WID(KEY_WID), .VALUE_WID(VALUE_WID)) db_ctrl_if_to_DUT [NUM_IFS] (.clk);
+    db_ctrl_intf #(.KEY_WID(KEY_WID), .VALUE_WID(VALUE_WID)) db_ctrl_if_from_DUT (.clk);
 
     db_ctrl_mux_unit_test #(
         .NUM_IFS  ( NUM_IFS ),
@@ -276,15 +277,12 @@ module db_ctrl_intf_prio_mux_unit_test;
         .DUT_NAME ( "db_ctrl_intf_prio_mux" )
     ) test (.*);
 
-    db_ctrl_intf_prio_mux #(
-        .KEY_T   ( KEY_T ),
-        .VALUE_T ( VALUE_T )
-    ) DUT (
-        .clk  ( clk ),
-        .srst ( srst ),
-        .ctrl_if_from_controller_hi_prio ( db_ctrl_if_to_DUT[0] ),
-        .ctrl_if_from_controller_lo_prio ( db_ctrl_if_to_DUT[1] ),
-        .ctrl_if_to_peripheral           ( db_ctrl_if_from_DUT )
+    db_ctrl_intf_prio_mux DUT (
+        .clk,
+        .srst,
+        .from_controller_hi_prio ( db_ctrl_if_to_DUT[0] ),
+        .from_controller_lo_prio ( db_ctrl_if_to_DUT[1] ),
+        .to_peripheral           ( db_ctrl_if_from_DUT )
     );
 
     function void build();
@@ -322,10 +320,10 @@ module db_ctrl_intf_prio_mux_hier_unit_test;
 
     logic clk;
     logic srst;
-    db_ctrl_intf #(KEY_T, VALUE_T) db_ctrl_if_to_DUT [NUM_IFS] (.clk(clk));
-    db_ctrl_intf #(KEY_T, VALUE_T) db_ctrl_if_to_DUMMY (.clk(clk));
-    db_ctrl_intf #(KEY_T, VALUE_T) db_ctrl_if_from_DUT_0 (.clk(clk));
-    db_ctrl_intf #(KEY_T, VALUE_T) db_ctrl_if_from_DUT (.clk(clk));
+    db_ctrl_intf #(.KEY_WID(KEY_WID), .VALUE_WID(VALUE_WID)) db_ctrl_if_to_DUT [NUM_IFS] (.clk);
+    db_ctrl_intf #(.KEY_WID(KEY_WID), .VALUE_WID(VALUE_WID)) db_ctrl_if_to_DUMMY (.clk);
+    db_ctrl_intf #(.KEY_WID(KEY_WID), .VALUE_WID(VALUE_WID)) db_ctrl_if_from_DUT_0 (.clk);
+    db_ctrl_intf #(.KEY_WID(KEY_WID), .VALUE_WID(VALUE_WID)) db_ctrl_if_from_DUT (.clk);
 
     db_ctrl_mux_unit_test #(
         .NUM_IFS  ( NUM_IFS ),
@@ -334,29 +332,23 @@ module db_ctrl_intf_prio_mux_hier_unit_test;
         .DUT_NAME ( "db_ctrl_intf_prio_hier_mux" )
     ) test (.*);
 
-    db_ctrl_intf_prio_mux #(
-        .KEY_T   ( KEY_T ),
-        .VALUE_T ( VALUE_T )
-    ) DUT_0 (
-        .clk  ( clk ),
-        .srst ( srst ),
-        .ctrl_if_from_controller_hi_prio ( db_ctrl_if_to_DUT[0] ),
-        .ctrl_if_from_controller_lo_prio ( db_ctrl_if_to_DUMMY ),
-        .ctrl_if_to_peripheral           ( db_ctrl_if_from_DUT_0 )
+    db_ctrl_intf_prio_mux  DUT_0 (
+        .clk,
+        .srst,
+        .from_controller_hi_prio ( db_ctrl_if_to_DUT[0] ),
+        .from_controller_lo_prio ( db_ctrl_if_to_DUMMY ),
+        .to_peripheral           ( db_ctrl_if_from_DUT_0 )
     );
 
-    db_ctrl_intf_prio_mux #(
-        .KEY_T   ( KEY_T ),
-        .VALUE_T ( VALUE_T )
-    ) DUT_1 (
-        .clk  ( clk ),
-        .srst ( srst ),
-        .ctrl_if_from_controller_hi_prio ( db_ctrl_if_to_DUT[1] ),
-        .ctrl_if_from_controller_lo_prio ( db_ctrl_if_from_DUT_0 ),
-        .ctrl_if_to_peripheral           ( db_ctrl_if_from_DUT )
+    db_ctrl_intf_prio_mux  DUT_1 (
+        .clk,
+        .srst,
+        .from_controller_hi_prio ( db_ctrl_if_to_DUT[1] ),
+        .from_controller_lo_prio ( db_ctrl_if_from_DUT_0 ),
+        .to_peripheral           ( db_ctrl_if_from_DUT )
     );
 
-    db_ctrl_intf_controller_term i_db_ctrl_intf_controller_term (.ctrl_if (db_ctrl_if_to_DUMMY));
+    db_ctrl_intf_controller_term i_db_ctrl_intf_controller_term (.to_peripheral (db_ctrl_if_to_DUMMY));
 
     function void build();
         test.build();

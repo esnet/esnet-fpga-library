@@ -1,5 +1,5 @@
 interface packet_event_intf (
-    input wire logic clk
+    input logic clk
 );
     import packet_pkg::*;
 
@@ -24,12 +24,10 @@ interface packet_event_intf (
     );
 
     clocking cb_tx @(posedge clk);
-        default input #1step output #1step;
         output evt, size, status;
     endclocking
 
     clocking cb_rx @(posedge clk);
-        default input #1step output #1step;
         input evt, size, status;
     endclocking
 

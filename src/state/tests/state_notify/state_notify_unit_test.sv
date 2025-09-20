@@ -47,18 +47,19 @@ module state_notify_unit_test;
     //===================================
     // Parameters
     //===================================
-    // NOTE: define ID_T/STATE_T here as 'logic' vectors and not 'bit' vectors
-    //       - works around apparent simulation bug where some direct
-    //         assignments fail (i.e. assign a = b results in a != b)
-    localparam type ID_T = logic[9:0];
-    localparam type STATE_T = logic[$bits(__STATE_T)-1:0];
-    localparam type UPDATE_T = logic[$bits(__UPDATE_T)-1:0];
+    localparam int ID_WID = 10;
+    localparam type ID_T = logic[ID_WID-1:0];
+    localparam int STATE_WID = $bits(__STATE_T);
+    localparam type STATE_T = logic[STATE_WID-1:0];
+    localparam int UPDATE_WID = $bits(__UPDATE_T);
+    localparam type UPDATE_T = logic[UPDATE_WID-1:0];
 
     localparam type NOTIFY_MSG_T = expiry_msg_t;
+    localparam int  NOTIFY_MSG_WID = $bits(NOTIFY_MSG_T);
 
     localparam block_type_t BLOCK_TYPE = BLOCK_TYPE_VECTOR;
 
-    localparam int NUM_IDS = State#(ID_T)::numIDs();
+    localparam int NUM_IDS = 2**ID_WID;
 
     //===================================
     // DUT
@@ -73,16 +74,22 @@ module state_notify_unit_test;
 
     // Interfaces
     axi4l_intf #() axil_if ();
-    db_ctrl_intf #(.KEY_T (ID_T), .VALUE_T(STATE_T)) db_ctrl_if (.clk(clk));
-    state_check_intf #(.STATE_T(__STATE_T), .MSG_T(NOTIFY_MSG_T)) check_if (.clk(clk));
-    state_event_intf #(.ID_T(ID_T), .MSG_T(NOTIFY_MSG_T)) notify_if (.clk(clk));
+    db_ctrl_intf #(.KEY_WID (ID_WID), .VALUE_WID(STATE_WID)) db_ctrl_if (.clk);
+    state_check_intf #(.STATE_WID(STATE_WID), .MSG_WID(NOTIFY_MSG_WID)) check_if (.clk);
+    state_event_intf #(.ID_WID(ID_WID), .MSG_WID(NOTIFY_MSG_WID)) notify_if (.clk);
 
     // Instantiation
     state_notify_fsm #(
-        .ID_T    ( ID_T ),
-        .STATE_T ( STATE_T ),
-        .MSG_T   ( NOTIFY_MSG_T )
+        .ID_WID    ( ID_WID ),
+        .STATE_WID ( STATE_WID ),
+        .MSG_WID   ( NOTIFY_MSG_WID )
     ) DUT (.*);
+
+    __STATE_T check_if_state;
+    NOTIFY_MSG_T check_if_msg;
+
+    assign check_if.msg = check_if_msg;
+    assign check_if_state = check_if.state;
 
     // Implement active/notify
     always_ff @(posedge clk) begin
@@ -90,14 +97,14 @@ module state_notify_unit_test;
             check_if.ack <= 1'b1;
             check_if.active <= 1'b0;
             check_if.notify <= 1'b0;
-            check_if.msg <= EXPIRY_NONE;
-            if (check_if.state.en) begin
+            check_if_msg <= EXPIRY_NONE;
+            if (check_if_state.en) begin
                 check_if.active <= 1'b1;
-                if (check_if.state.count < 128) begin
+                if (check_if_state.count < 128) begin
                     check_if.notify <= 1'b1;
-                    if (check_if.state.count > 64)     check_if.msg <= EXPIRY_DONE;
-                    else if (check_if.state.count > 0) check_if.msg <= EXPIRY_ACTIVE;
-                    else                               check_if.msg <= EXPIRY_IDLE;
+                    if (check_if_state.count > 64)     check_if_msg <= EXPIRY_DONE;
+                    else if (check_if_state.count > 0) check_if_msg <= EXPIRY_ACTIVE;
+                    else                               check_if_msg <= EXPIRY_IDLE;
                 end
             end
         end else check_if.ack <= 1'b0;
@@ -110,26 +117,23 @@ module state_notify_unit_test;
     logic db_init;
     logic db_init_done;
     db_info_intf #() sv_info_if ();
-    state_intf #(.ID_T(ID_T), .STATE_T(STATE_T), .UPDATE_T(UPDATE_T)) sv_update_if (.clk(clk));
-    state_intf #(.ID_T(ID_T), .STATE_T(STATE_T), .UPDATE_T(UPDATE_T)) sv_ctrl_if (.clk(clk));
-    db_ctrl_intf #(.KEY_T (ID_T), .VALUE_T(STATE_T)) __db_ctrl_if (.clk(clk));
-    db_ctrl_intf #(.KEY_T (ID_T), .VALUE_T(STATE_T)) sv_db_ctrl_if (.clk(clk));
-    db_intf #(.KEY_T(ID_T), .VALUE_T(STATE_T)) db_wr_if (.clk(clk));
-    db_intf #(.KEY_T(ID_T), .VALUE_T(STATE_T)) db_rd_if (.clk(clk));
+    state_intf #(.ID_WID(ID_WID), .STATE_WID(STATE_WID), .UPDATE_WID(UPDATE_WID)) sv_update_if (.clk);
+    state_intf #(.ID_WID(ID_WID), .STATE_WID(STATE_WID), .UPDATE_WID(UPDATE_WID)) sv_ctrl_if (.clk);
+    db_ctrl_intf #(.KEY_WID (ID_WID), .VALUE_WID(STATE_WID)) __db_ctrl_if (.clk);
+    db_ctrl_intf #(.KEY_WID (ID_WID), .VALUE_WID(STATE_WID)) sv_db_ctrl_if (.clk);
+    db_intf #(.KEY_WID(ID_WID), .VALUE_WID(STATE_WID)) db_wr_if (.clk);
+    db_intf #(.KEY_WID(ID_WID), .VALUE_WID(STATE_WID)) db_rd_if (.clk);
     
-    db_ctrl_intf_prio_mux #(
-        .KEY_T ( ID_T ),
-        .VALUE_T ( STATE_T )
-    ) i_db_ctrl_mux (
-        .clk ( clk ),
-        .srst ( srst ),
-        .ctrl_if_from_controller_hi_prio ( __db_ctrl_if ),
-        .ctrl_if_from_controller_lo_prio ( db_ctrl_if ),
-        .ctrl_if_to_peripheral           ( sv_db_ctrl_if )
+    db_ctrl_intf_prio_mux i_db_ctrl_mux (
+        .clk,
+        .srst,
+        .from_controller_hi_prio ( __db_ctrl_if ),
+        .from_controller_lo_prio ( db_ctrl_if ),
+        .to_peripheral           ( sv_db_ctrl_if )
     );
 
     state_vector_core #(
-        .ID_T ( ID_T ),
+        .ID_WID ( ID_WID ),
         .SPEC ( SPEC )
     ) i_state_vector_core (
         .clk          ( clk ),
@@ -148,8 +152,8 @@ module state_notify_unit_test;
 
     // Database store
     db_store_array #(
-        .KEY_T   ( ID_T ),
-        .VALUE_T ( STATE_T ),
+        .KEY_WID   ( ID_WID ),
+        .VALUE_WID ( STATE_WID ),
         .TRACK_VALID ( 0 ),
         .SIM__FAST_INIT ( 0 )
     ) i_db_store_array (
@@ -175,7 +179,7 @@ module state_notify_unit_test;
     `SVUNIT_CLK_GEN(axil_if.aclk, 5ns);
 
     // Interfaces
-    std_reset_intf reset_if (.clk(clk));
+    std_reset_intf reset_if (.clk);
 
     // Drive srst from reset interface
     assign srst = reset_if.reset;
@@ -194,7 +198,7 @@ module state_notify_unit_test;
         model = new("state_vector_model", SPEC);
 
         // Database agent
-        db_agent = new("db_agent", State#(ID_T)::numIDs());
+        db_agent = new("db_agent", 2**ID_WID);
         db_agent.ctrl_vif = __db_ctrl_if;
         db_agent.info_vif = sv_info_if;
 

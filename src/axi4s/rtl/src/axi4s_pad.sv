@@ -5,9 +5,7 @@
 
 module axi4s_pad
    import axi4s_pkg::*;
-#(
-   parameter logic BIGENDIAN = 0  // Little endian by default.
-) (
+(
    axi4s_intf.rx axi4s_in,
    axi4s_intf.tx axi4s_out
 );
@@ -21,13 +19,9 @@ module axi4s_pad
 
    // pad_tkeep function 
    function automatic logic[DATA_BYTE_WID-1:0] pad_tkeep (input [DATA_BYTE_WID-1:0] tkeep_in);
-      automatic logic [DATA_BYTE_WID-1:0] __tkeep_in, __tkeep_out, tkeep_out;
+      automatic logic [DATA_BYTE_WID-1:0] tkeep_out;
 
-      __tkeep_in = BIGENDIAN ? {<<{tkeep_in}} : tkeep_in;  // convert to little endian prior to for loop.
-
-      __tkeep_out = { __tkeep_in[DATA_BYTE_WID-1:60], 60'hfff_ffff_ffff_ffff };
-
-      tkeep_out = BIGENDIAN ? {<<{__tkeep_out}} : __tkeep_out;  // convert back to big endian if required.
+      tkeep_out = { tkeep_in[DATA_BYTE_WID-1:60], 60'hfff_ffff_ffff_ffff };
 
       return tkeep_out;
    endfunction
@@ -41,8 +35,6 @@ module axi4s_pad
    assign axi4s_in.tready = axi4s_out.tready;
    
    // axis4s output signalling.
-   assign axi4s_out.aclk    = axi4s_in.aclk;
-   assign axi4s_out.aresetn = axi4s_in.aresetn;
    assign axi4s_out.tvalid  = axi4s_in.tvalid;
    assign axi4s_out.tdata   = pad_tdata;
    assign axi4s_out.tkeep   = short_pkt ? pad_tkeep(axi4s_in.tkeep) : axi4s_in.tkeep;

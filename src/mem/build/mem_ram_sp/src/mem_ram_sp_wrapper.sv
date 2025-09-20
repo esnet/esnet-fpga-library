@@ -23,18 +23,15 @@ module mem_ram_sp_wrapper #(
         OPT_MODE: mem_pkg::OPT_MODE_TIMING
     };
 
-    localparam type ADDR_T = logic[ADDR_WID-1:0];
-    localparam type DATA_T = logic[DATA_WID-1:0];
-
     // Interfaces
-    mem_intf #(.ADDR_T(ADDR_T), .DATA_T(DATA_T)) mem_if (.clk(clk));
+    mem_intf #(.ADDR_WID(ADDR_WID), .DATA_WID(DATA_WID)) mem_if (.clk(clk));
 
     // Signals
-    logic  mem_if__rst;
-    logic  mem_if__req;
-    logic  mem_if__wr;
-    ADDR_T mem_if__addr;
-    DATA_T mem_if__wr_data;
+    logic                mem_if__rst;
+    logic                mem_if__req;
+    logic                mem_if__wr;
+    logic [ADDR_WID-1:0] mem_if__addr;
+    logic [DATA_WID-1:0] mem_if__wr_data;
 
     always_ff @(posedge clk) begin
         mem_if__rst <= srst;

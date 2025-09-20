@@ -6,10 +6,10 @@ module sync_bus_sampled_unit_test;
     string name = "sync_bus_sampled_ut";
     svunit_testcase svunit_ut;
 
-    localparam RST_VALUE = 'x;
     localparam DATA_WID = 16;
+    localparam RST_VALUE = 16'habcd;
 
-    localparam type DATA_T = logic[DATA_WID-1:0];
+    localparam type DATA_T = bit[DATA_WID-1:0];
 
     //===================================
     // DUT
@@ -22,7 +22,7 @@ module sync_bus_sampled_unit_test;
     DATA_T data_out;
 
     sync_bus_sampled #(
-        .DATA_T    ( DATA_T ),
+        .DATA_WID  ( DATA_WID ),
         .RST_VALUE ( RST_VALUE )
     ) DUT (.*);
 

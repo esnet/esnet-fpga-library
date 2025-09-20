@@ -4,28 +4,33 @@
 // mode) to arbitrate between the ingress axi4s interfaces.
 // -----------------------------------------------------------------------------
 
-module axi4s_mux
-   import axi4s_pkg::*;
-   import arb_pkg::*;
-#(
+module axi4s_mux #(
    parameter int   N = 2    // number of ingress axi4s interfaces.
  ) (
    axi4s_intf.rx    axi4s_in[N],
    axi4s_intf.tx    axi4s_out
 );
-   localparam int  DATA_BYTE_WID = axi4s_out.DATA_BYTE_WID;
-   localparam type TID_T         = axi4s_out.TID_T;
-   localparam type TDEST_T       = axi4s_out.TDEST_T;
-   localparam type TUSER_T       = axi4s_out.TUSER_T;
+   localparam int DATA_BYTE_WID = axi4s_out.DATA_BYTE_WID;
+   localparam int TID_WID       = axi4s_out.TID_WID;
+   localparam int TDEST_WID     = axi4s_out.TDEST_WID;
+   localparam int TUSER_WID     = axi4s_out.TUSER_WID;
 
-   axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) axi4s_in_p[N] ();
-   axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) axi4s_out_p ();
+   localparam int SEL_WID = N > 1 ? $clog2(N) : 1;
+   localparam int N_POW2 = 2**SEL_WID;
+
+   logic aclk;
+   logic aresetn;
+
+   assign aclk = axi4s_out.aclk;
+   assign aresetn = axi4s_out.aresetn;
+
+   axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID)) axi4s_in_p[N] (.*);
 
    logic [N-1:0] axi4s_in_req;
    logic [N-1:0] axi4s_in_grant;
    logic [N-1:0] axi4s_in_ack;
 
-   logic [$clog2(N)-1:0] sel;
+   logic [SEL_WID-1:0] sel;
 
 /*
    // axi4s interface mux instance.
@@ -37,29 +42,25 @@ module axi4s_mux
       .TUSER_T       (TUSER_T)
    ) axi4s_intf_mux_0 (
       .axi4s_in_if   (axi4s_in_p),
-      .axi4s_out_if  (axi4s_out_p),
+      .axi4s_out_if  (axi4s_out),
       .sel           (sel)
    );
 */
 
    // --- flatten axi4s_intf_mux instance to work around a Vivado elaboration failure (missing port?).
-   logic                          aresetn[N];
-   logic                          tvalid[N];
-   logic [DATA_BYTE_WID-1:0][7:0] tdata[N];
-   logic [DATA_BYTE_WID-1:0]      tkeep[N];
-   logic                          tlast[N];
-   TID_T                          tid[N];
-   TDEST_T                        tdest[N];
-   TUSER_T                        tuser[N];
-
-   logic                          tready[N];
+   logic                          tvalid[N_POW2];
+   logic [DATA_BYTE_WID-1:0][7:0] tdata [N_POW2];
+   logic [DATA_BYTE_WID-1:0]      tkeep [N_POW2];
+   logic                          tlast [N_POW2];
+   logic [TID_WID-1:0]            tid   [N_POW2];
+   logic [TDEST_WID-1:0]          tdest [N_POW2];
+   logic [TUSER_WID-1:0]          tuser [N_POW2];
 
    // Convert between array of signals and array of interfaces
    generate
        for (genvar g_if = 0; g_if < N; g_if++) begin : g__if
-           axi4s_tready_pipe in_pipe (.axi4s_if_from_tx(axi4s_in[g_if]), .axi4s_if_to_rx(axi4s_in_p[g_if]));
+           axi4s_pipe #(.STAGES(1)) in_pipe (.from_tx(axi4s_in[g_if]), .to_rx(axi4s_in_p[g_if]));
 
-           assign aresetn[g_if] = axi4s_in_p[g_if].aresetn;
            assign  tvalid[g_if] = axi4s_in_p[g_if].tvalid;
            assign   tdata[g_if] = axi4s_in_p[g_if].tdata;
            assign   tkeep[g_if] = axi4s_in_p[g_if].tkeep;
@@ -68,23 +69,28 @@ module axi4s_mux
            assign   tdest[g_if] = axi4s_in_p[g_if].tdest;
            assign   tuser[g_if] = axi4s_in_p[g_if].tuser;
 
-           assign axi4s_in_p[g_if].tready = (sel == g_if) ? axi4s_out_p.tready : 1'b0;
-       end
+           assign axi4s_in_p[g_if].tready = (sel == g_if) ? axi4s_out.tready : 1'b0;
+       end : g__if
+       for (genvar g_if = N; g_if < N_POW2; g_if++) begin : g__if_out_of_range
+           assign  tvalid[g_if] = 1'b0;
+           assign   tdata[g_if] = '0;
+           assign   tkeep[g_if] = '0;
+           assign   tlast[g_if] = 1'b0;
+           assign     tid[g_if] = '0;
+           assign   tdest[g_if] = '0;
+           assign   tuser[g_if] = '0;
+       end : g__if_out_of_range
    endgenerate
 
    always_comb begin
-       // all interfaces must be synchronous to axi4s_in_p[0].
-       axi4s_out_p.aclk    = axi4s_in_p[0].aclk;
-
        // mux logic
-       axi4s_out_p.aresetn = aresetn [sel];
-       axi4s_out_p.tvalid  = tvalid  [sel];
-       axi4s_out_p.tlast   = tlast   [sel];
-       axi4s_out_p.tkeep   = tkeep   [sel];
-       axi4s_out_p.tdata   = tdata   [sel];
-       axi4s_out_p.tid     = tid     [sel];
-       axi4s_out_p.tdest   = tdest   [sel];
-       axi4s_out_p.tuser   = tuser   [sel];
+       axi4s_out.tvalid  = tvalid  [sel];
+       axi4s_out.tlast   = tlast   [sel];
+       axi4s_out.tkeep   = tkeep   [sel];
+       axi4s_out.tdata   = tdata   [sel];
+       axi4s_out.tid     = tid     [sel];
+       axi4s_out.tdest   = tdest   [sel];
+       axi4s_out.tuser   = tuser   [sel];
    end
    // --- end flatten.
 
@@ -94,11 +100,11 @@ module axi4s_mux
        for (genvar g_req = 0; g_req < N; g_req++) begin : g__req
            assign axi4s_in_req[g_req] = axi4s_in_p[g_req].tvalid;
            assign axi4s_in_ack[g_req] = axi4s_in_p[g_req].tvalid && axi4s_in_p[g_req].tlast && axi4s_in_p[g_req].tready;
-       end
+       end : g__req
    endgenerate
 
    // arbitrate between axi4s ingress interfaces (work-conserving round-robin mode).
-   arb_rr #(.MODE(WCRR), .N(N)) arb_rr_0 (
+   arb_rr #(.MODE(arb_pkg::WCRR), .N(N)) arb_rr_0 (
     .clk   (  axi4s_out.aclk ),
     .srst  ( ~axi4s_out.aresetn ),
     .en    (  1'b1 ),
@@ -107,7 +113,5 @@ module axi4s_mux
     .ack   (  axi4s_in_ack ),
     .sel   (  sel )
    );
-
-   axi4s_full_pipe out_pipe (.axi4s_if_from_tx(axi4s_out_p), .axi4s_if_to_rx(axi4s_out));
 
 endmodule // axi4s_mux

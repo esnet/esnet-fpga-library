@@ -4,10 +4,16 @@ class state_monitor #(
     parameter type UPDATE_T = bit
 ) extends std_verif_pkg::monitor#(state_resp#(ID_T,STATE_T));
 
+    local static const string __CLASS_NAME = "state_verif_pkg::state_monitor";
+
+    localparam int ID_WID = $bits(ID_T);
+    localparam int STATE_WID = $bits(STATE_T);
+    localparam int UPDATE_WID = $bits(UPDATE_T);
+
     //===================================
     // Properties
     //===================================
-    virtual state_intf #(ID_T, STATE_T, UPDATE_T) update_vif;
+    virtual state_intf #(ID_WID, STATE_WID, UPDATE_WID) update_vif;
 
     //===================================
     // Methods
@@ -31,6 +37,11 @@ class state_monitor #(
         super.destroy();
     endfunction
 
+    // Configure trace output
+    // [[ overrides std_verif_pkg::base.trace_msg() ]]
+    function automatic void trace_msg(input string msg);
+        _trace_msg(msg, __CLASS_NAME);
+    endfunction
 
     // Put (driven) state update interface in idle state
     // [[ implements std_verif_pkg::.component._idle() ]]

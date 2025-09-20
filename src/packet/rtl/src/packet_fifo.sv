@@ -36,9 +36,10 @@ module packet_fifo
     // -----------------------------
     // Parameter checking
     // -----------------------------
-    initial begin
-        std_pkg::param_check(packet_out_if.DATA_BYTE_WID, DATA_BYTE_WID, "packet_out_if.DATA_BYTE_WID");
-    end
+    packet_intf_parameter_check param_check (
+        .from_tx ( packet_in_if ),
+        .to_rx   ( packet_out_if )
+    );
 
     // -----------------------------
     // Interfaces

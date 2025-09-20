@@ -1,26 +1,29 @@
 `include "svunit_defines.svh"
 
-module axi4s_packet_playback_unit_test #(
-    parameter int NETWORK_BYTE_ORDER = 1
-);
+module axi4s_packet_playback_unit_test;
+
     import svunit_pkg::svunit_testcase;
     import axi4l_verif_pkg::*;
     import axi4s_verif_pkg::*;
     import packet_verif_pkg::*;
 
-    string name = $sformatf("axi4s_packet_playback_byte_order_%0d_ut", NETWORK_BYTE_ORDER);
+    string name = "axi4s_packet_playback_ut";
     svunit_testcase svunit_ut;
 
     //===================================
     // Parameters
     //===================================
-    localparam int  DATA_BYTE_WID = 64;
-    localparam int  DATA_WID = DATA_BYTE_WID*8;
-    localparam type TID_T = bit[7:0];
-    localparam type TDEST_T = bit[11:0];
-    localparam type TUSER_T = bit[31:0];
+    localparam int DATA_BYTE_WID = 64;
+    localparam int DATA_WID = DATA_BYTE_WID * 8;
+    localparam int TID_WID = 8;
+    localparam int TDEST_WID = 12;
+    localparam int TUSER_WID = 32;
+
+    localparam type TID_T   = bit[TID_WID-1:0];
+    localparam type TDEST_T = bit[TDEST_WID-1:0];
+    localparam type TUSER_T = bit[TUSER_WID-1:0];
     localparam type META_T = struct packed {TID_T tid; TDEST_T tdest; TUSER_T tuser;};
-    localparam int  PACKET_MEM_SIZE = 16384;
+    localparam int PACKET_MEM_SIZE = 16384;
 
     localparam type PACKET_T = packet#(META_T);
     localparam type AXI4S_TRANSACTION_T = axi4s_transaction#(TID_T,TDEST_T,TUSER_T);
@@ -34,9 +37,9 @@ module axi4s_packet_playback_unit_test #(
     logic en;
 
     axi4l_intf axil_if ();
-    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) axis_if ();
+    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID)) axis_if (.aclk(clk), .aresetn(!srst));
 
-    axi4s_packet_playback #(.NETWORK_BYTE_ORDER(NETWORK_BYTE_ORDER), .PACKET_MEM_SIZE(PACKET_MEM_SIZE)) DUT (.*);
+    axi4s_packet_playback #(.PACKET_MEM_SIZE(PACKET_MEM_SIZE)) DUT (.*);
 
     //===================================
     // Testbench
@@ -88,8 +91,6 @@ module axi4s_packet_playback_unit_test #(
     // Assign AXI-L clock (125MHz)
     `SVUNIT_CLK_GEN(axil_if.aclk, 4ns);
 
-    assign axil_if.aresetn = !srst;
-
     //===================================
     // Build
     //===================================
@@ -105,7 +106,7 @@ module axi4s_packet_playback_unit_test #(
         driver = new("packet_playback_driver", PACKET_MEM_SIZE, DATA_WID, reg_agent);
 
         // Monitor
-        monitor = new(.BIGENDIAN(NETWORK_BYTE_ORDER));
+        monitor = new();
         monitor.axis_vif = axis_if;
 
         // Model
@@ -261,31 +262,4 @@ module axi4s_packet_playback_unit_test #(
 
     `SVUNIT_TESTS_END
 
-endmodule
-
-
-// 'Boilerplate' unit test wrapper code
-//  Builds unit test for a specific axi4s_packet_playback
-//  DUT in a way that maintains SVUnit compatibility
-`define AXI4S_PACKET_PLAYBACK_UNIT_TEST(NETWORK_BYTE_ORDER)\
-  import svunit_pkg::svunit_testcase;\
-  svunit_testcase svunit_ut;\
-  axi4s_packet_playback_unit_test #(NETWORK_BYTE_ORDER) test();\
-  function void build();\
-    test.build();\
-    svunit_ut = test.svunit_ut;\
-  endfunction\
-  function void __register_tests();\
-    test.__register_tests();\
-  endfunction\
-  task run();\
-    test.run();\
-  endtask
-
-module axi4s_packet_playback_byte_order_0_unit_test;
-`AXI4S_PACKET_PLAYBACK_UNIT_TEST(0)
-endmodule
-
-module axi4s_packet_playback_byte_order_1_unit_test;
-`AXI4S_PACKET_PLAYBACK_UNIT_TEST(1)
 endmodule

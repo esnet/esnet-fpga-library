@@ -22,7 +22,7 @@ module state_cache_core_unit_test;
     localparam int HASH_WID = 12;
     localparam int NUM_IDS = 8192;
     localparam int NUM_TABLES = 3;
-    localparam int TABLE_SIZE [NUM_TABLES] = '{default: 4096};
+    localparam int TABLE_SIZE [NUM_TABLES] = '{default: 2**HASH_WID};
     localparam int BURST_SIZE = 8;
 
 
@@ -34,8 +34,10 @@ module state_cache_core_unit_test;
     localparam type KEY_T = bit[KEY_WID-1:0];
     localparam type ID_T = bit[ID_WID-1:0];
     localparam type ENTRY_T = struct packed {KEY_T key; ID_T id;};
+    localparam int  ENTRY_WID = $bits(ENTRY_T);
 
     localparam type RESULT_T = struct packed {logic _new; ID_T id;};
+    localparam int RESULT_WID = $bits(RESULT_T);
 
     //===================================
     // DUT
@@ -60,18 +62,18 @@ module state_cache_core_unit_test;
     // Interfaces
     axi4l_intf  #() axil_if ();
 
-    db_intf  #(.KEY_T(KEY_T), .VALUE_T(RESULT_T)) lookup_if (.clk(clk));
-    db_intf  #(.KEY_T(ID_T),  .VALUE_T(KEY_T))    delete_if (.clk(clk));
+    db_intf  #(.KEY_WID(KEY_WID), .VALUE_WID(RESULT_WID)) lookup_if (.clk);
+    db_intf  #(.KEY_WID(ID_WID),  .VALUE_WID(KEY_WID))    delete_if (.clk);
 
-    db_intf  #(.KEY_T(hash_t), .VALUE_T(ENTRY_T)) tbl_wr_if [NUM_TABLES] (.clk(clk));
-    db_intf  #(.KEY_T(hash_t), .VALUE_T(ENTRY_T)) tbl_rd_if [NUM_TABLES] (.clk(clk));
+    db_intf  #(.KEY_WID($bits(hash_t)), .VALUE_WID(ENTRY_WID)) tbl_wr_if [NUM_TABLES] (.clk);
+    db_intf  #(.KEY_WID($bits(hash_t)), .VALUE_WID(ENTRY_WID)) tbl_rd_if [NUM_TABLES] (.clk);
 
     integer status_fill;
 
     // Instantiation
     state_cache_core #(
-        .KEY_T ( KEY_T ),
-        .ID_T ( ID_T ),
+        .KEY_WID ( KEY_WID ),
+        .ID_WID ( ID_WID ),
         .NUM_TABLES ( NUM_TABLES ),
         .TABLE_SIZE ( TABLE_SIZE ),
         .HASH_LATENCY ( 0 ),
@@ -94,11 +96,9 @@ module state_cache_core_unit_test;
     // Database store
     generate
         for (genvar i = 0; i < NUM_TABLES; i++) begin
-            localparam int SIZE = TABLE_SIZE[i];
-            localparam type HASH_T = logic[$clog2(SIZE)-1:0];
             db_store_array #(
-                .KEY_T (HASH_T),
-                .VALUE_T (ENTRY_T)
+                .KEY_WID (HASH_WID),
+                .VALUE_WID (ENTRY_WID)
             ) i_db_store_array (
                 .clk ( clk ),
                 .srst ( srst ),
@@ -114,7 +114,7 @@ module state_cache_core_unit_test;
 
     axi4l_verif_pkg::axi4l_reg_agent #() reg_agent;
     state_cache_reg_agent#(KEY_T, ID_T) agent;
-    std_reset_intf reset_if (.clk(clk));
+    std_reset_intf reset_if (.clk);
 
     // Assign clock (250MHz)
     `SVUNIT_CLK_GEN(clk, 2ns);

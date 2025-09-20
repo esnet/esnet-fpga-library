@@ -15,21 +15,25 @@ class axi4s_component_env #(
 
     local static const string __CLASS_NAME = "axi4s_verif_pkg::axi4s_component_env";
 
+    localparam int TID_WID = $bits(TID_T);
+    localparam int TDEST_WID = $bits(TDEST_T);
+    localparam int TUSER_WID = $bits(TUSER_T);
+
     //===================================
-    // Properties
+    // Interfaces
     //===================================
     virtual axi4s_intf #(
         .DATA_BYTE_WID(DATA_BYTE_WID),
-        .TID_T(TID_T),
-        .TDEST_T(TDEST_T),
-        .TUSER_T(TUSER_T)
+        .TID_WID  (TID_WID),
+        .TDEST_WID(TDEST_WID),
+        .TUSER_WID(TUSER_WID)
     ) axis_in_vif;
 
     virtual axi4s_intf #(
         .DATA_BYTE_WID(DATA_BYTE_WID),
-        .TID_T(TID_T),
-        .TDEST_T(TDEST_T),
-        .TUSER_T(TUSER_T)
+        .TID_WID  (TID_WID),
+        .TDEST_WID(TDEST_WID),
+        .TUSER_WID(TUSER_WID)
     ) axis_out_vif;
 
     //===================================
@@ -39,12 +43,11 @@ class axi4s_component_env #(
     function new(
             input string name="axi4s_component_env",
             std_verif_pkg::model#(axi4s_transaction#(TID_T, TDEST_T, TUSER_T)) model,
-            std_verif_pkg::scoreboard#(axi4s_transaction#(TID_T, TDEST_T, TUSER_T)) scoreboard,
-            input bit BIGENDIAN=1
+            std_verif_pkg::scoreboard#(axi4s_transaction#(TID_T, TDEST_T, TUSER_T)) scoreboard
         );
         super.new(name);
-        this.driver = new(.BIGENDIAN(BIGENDIAN));
-        this.monitor = new(.BIGENDIAN(BIGENDIAN));
+        this.driver = new();
+        this.monitor = new();
         this.model = model;
         this.scoreboard = scoreboard;
         // WORKAROUND-INIT-PROPS {
@@ -71,18 +74,6 @@ class axi4s_component_env #(
         this.driver.axis_vif = axis_in_vif;
         this.monitor.axis_vif = axis_out_vif;
         trace_msg("_build() Done.");
-    endfunction
-
-    // Configure for little-endianness
-    function automatic void set_little_endian();
-        this.driver.set_little_endian();
-        this.monitor.set_little_endian();
-    endfunction
-
-    // Configure for big-endianness
-    function automatic void set_big_endian();
-        this.driver.set_big_endian();
-        this.monitor.set_big_endian();
     endfunction
 
 endclass : axi4s_component_env

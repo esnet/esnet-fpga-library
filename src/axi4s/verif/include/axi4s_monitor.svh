@@ -7,38 +7,39 @@ class axi4s_monitor #(
 
     local static const string __CLASS_NAME = "axi4s_verif_pkg::axi4s_monitor";
 
+    localparam int TID_WID = $bits(TID_T);
+    localparam int TDEST_WID = $bits(TDEST_T);
+    localparam int TUSER_WID = $bits(TUSER_T);
+
     //===================================
     // Properties
     //===================================
-    local bit __BIGENDIAN;
     local int __tpause = 0;
+    local int __MAX_PKT_SIZE = 65536;
 
     //===================================
     // Interfaces
     //===================================
     virtual axi4s_intf #(
         .DATA_BYTE_WID(DATA_BYTE_WID),
-        .TID_T(TID_T),
-        .TDEST_T(TDEST_T),
-        .TUSER_T(TUSER_T)
+        .TID_WID  (TID_WID),
+        .TDEST_WID(TDEST_WID),
+        .TUSER_WID(TUSER_WID)
     ) axis_vif;
 
     //===================================
-    // Typedefs
+    // Methods
     //===================================
-    typedef bit [DATA_BYTE_WID-1:0][7:0] tdata_t;
-    typedef bit [DATA_BYTE_WID-1:0]      tkeep_t;
-
     // Constructor
-    function new(input string name="axi4s_monitor", input bit BIGENDIAN=1);
+    function new(input string name="axi4s_monitor");
         super.new(name);
-        this.__BIGENDIAN = BIGENDIAN;
         // WORKAROUND-INIT-PROPS {
         //     Provide/repeat default assignments for all remaining instance properties here.
         //     Works around an apparent object initialization bug (as of Vivado 2024.2)
         //     where properties are not properly allocated when they are not assigned
         //     in the constructor.
         this.__tpause = 0;
+        this.__MAX_PKT_SIZE = 65536;
         this.axis_vif = null;
         // } WORKAROUND-INIT-PROPS
     endfunction
@@ -56,19 +57,22 @@ class axi4s_monitor #(
         _trace_msg(msg, __CLASS_NAME);
     endfunction
 
-    // Configure for little-endianness
-    function automatic void set_little_endian();
-        this.__BIGENDIAN = 0;
-    endfunction
-
-    // Configure for big-endianness
-    function automatic void set_big_endian();
-        this.__BIGENDIAN = 1;
-    endfunction
-
     // Set tpause value used by monitor (for stalling receive transactions)
     function automatic void set_tpause(input int tpause);
         this.__tpause = tpause;
+    endfunction
+
+    // Set/get receive packet size limit
+    // (Used as upper bound on number of bytes received in a given transaction
+    //  before the simulation is terminated (with $fatal).
+    //  Guards against unbounded memory allocation due to protocol errors
+    //  during simulation.)
+    function void set_max_pkt_size(input int MAX_PKT_SIZE);
+        this.__MAX_PKT_SIZE = MAX_PKT_SIZE;
+    endfunction
+
+    function int get_max_pkt_size();
+        return this.__MAX_PKT_SIZE;
     endfunction
 
     // Reset monitor
@@ -87,42 +91,45 @@ class axi4s_monitor #(
 
     // Receive transaction (represented as raw byte array with associated metadata)
     task receive_raw(
-            output byte    data[$],
+            output byte    data[],
             output TID_T   id,
             output TDEST_T dest,
             output TUSER_T user,
             input  int     tpause = 0
         );
+        byte __data[$];
         // Signals
         bit [DATA_BYTE_WID-1:0][7:0] tdata;
         bit [DATA_BYTE_WID-1:0] tkeep;
-        bit tlast = 0;
+        bit tlast = 1'b0;
+        bit [TID_WID-1:0] tid;
+        bit [TDEST_WID-1:0] tdest;
+        bit [TUSER_WID-1:0] tuser;
         int byte_idx = 0;
         int word_idx = 0;
         int byte_cnt = 0;
-        TID_T tid;
-        TDEST_T tdest;
-        TUSER_T tuser;
 
         debug_msg("receive_raw: Waiting for data...");
 
         while (!tlast) begin
             axis_vif.receive(tdata, tkeep, tlast, tid, tdest, tuser, tpause);
             trace_msg($sformatf("receive_raw: Received word %0d.", word_idx));
-            if (this.__BIGENDIAN) begin
-                tdata = {<<byte{tdata}};
-                tkeep = {<<{tkeep}};
-            end
 
             while (byte_idx < DATA_BYTE_WID) begin
-                if (tkeep[byte_idx]) data.push_back(tdata[byte_idx]);
+                if (tkeep[byte_idx]) __data.push_back(tdata[byte_idx]);
                 byte_idx++;
             end
             byte_cnt += byte_idx;
+            if (byte_cnt > this.get_max_pkt_size()) begin
+                error_msg($sformatf("Received packet exceeded MAX_PKT_SIZE limit (%0d)", this.get_max_pkt_size()));
+                $fatal(2, "Received packet exceeded MAX_PKT_SIZE limit.");
+            end
             byte_idx = 0;
             word_idx++;
         end
         debug_msg($sformatf("receive_raw: Done. Received %0d bytes.", byte_cnt));
+        data = __data;
+        __data.delete();
         id = tid;
         dest = tdest;
         user = tuser;

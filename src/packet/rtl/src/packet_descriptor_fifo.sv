@@ -1,6 +1,4 @@
-module packet_descriptor_fifo
-    import packet_pkg::*;
-#(
+module packet_descriptor_fifo #(
     parameter int DEPTH = 32,
     parameter bit ASYNC = 0
 ) (
@@ -10,27 +8,24 @@ module packet_descriptor_fifo
     // -----------------------------
     // Parameters
     // -----------------------------
-    localparam type ADDR_T = from_tx.ADDR_T;
-    localparam type SIZE_T = from_tx.SIZE_T;
-    localparam type META_T = from_tx.META_T;
+    localparam int ADDR_WID     = from_tx.ADDR_WID;
+    localparam int META_WID     = from_tx.META_WID;
+    localparam int MAX_PKT_SIZE = from_tx.MAX_PKT_SIZE;
+    localparam int SIZE_WID     = $clog2(MAX_PKT_SIZE+1);
 
     // -----------------------------
     // Parameter checking
     // -----------------------------
-    initial begin
-        std_pkg::param_check($bits(from_tx.ADDR_T), $bits(to_rx.ADDR_T), "ADDR_T");
-        std_pkg::param_check($bits(from_tx.SIZE_T), $bits(to_rx.SIZE_T), "SIZE_T");
-        std_pkg::param_check($bits(from_tx.META_T), $bits(to_rx.META_T), "META_T");
-    end
+    packet_descriptor_intf_parameter_check param_check (.*);
 
     // -----------------------------
     // Typedefs
     // -----------------------------
     typedef struct packed {
-        ADDR_T addr;
-        SIZE_T size;
-        META_T meta;
-        logic  err;
+        logic[ADDR_WID-1:0] addr;
+        logic[SIZE_WID-1:0] size;
+        logic[META_WID-1:0] meta;
+        logic               err;
     } desc_t;
 
     // -----------------------------
@@ -53,16 +48,16 @@ module packet_descriptor_fifo
     assign desc_in.meta = from_tx.meta;
     assign desc_in.err  = from_tx.err;
 
-    fifo_core #(
-        .DATA_T ( desc_t ),
-        .DEPTH  ( DEPTH ),
-        .ASYNC  ( ASYNC ),
-        .FWFT   ( 1 )
+    fifo_core    #(
+        .DATA_WID ( $bits(desc_t) ),
+        .DEPTH    ( DEPTH ),
+        .ASYNC    ( ASYNC ),
+        .FWFT     ( 1 )
     ) i_fifo_core  (
         .wr_clk    ( from_tx.clk ),
         .wr_srst   ( from_tx.srst ),
         .wr_rdy    ( from_tx.rdy ),
-        .wr        ( from_tx.valid ),
+        .wr        ( from_tx.vld ),
         .wr_data   ( desc_in ),
         .wr_count  ( ),
         .wr_full   ( ),
@@ -70,7 +65,7 @@ module packet_descriptor_fifo
         .rd_clk    ( to_rx.clk ),
         .rd_srst   ( to_rx.srst ),
         .rd        ( to_rx.rdy ),
-        .rd_ack    ( to_rx.valid ),
+        .rd_ack    ( to_rx.vld ),
         .rd_data   ( desc_out ),
         .rd_count  ( ),
         .rd_empty  ( ),

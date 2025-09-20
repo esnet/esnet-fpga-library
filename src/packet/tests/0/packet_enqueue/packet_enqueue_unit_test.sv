@@ -16,16 +16,17 @@ module packet_enqueue_unit_test #(
     //===================================
     localparam int  DATA_BYTE_WID = 64;
     localparam int  DATA_WID = DATA_BYTE_WID*8;
-    localparam type META_T = logic[31:0];
+    localparam type META_T = bit[31:0];
+    localparam int  META_WID = $bits(META_T);
     localparam int  BUFFER_WORDS = 16384;
     localparam int  ADDR_WID = $clog2(BUFFER_WORDS);
     localparam int  MIN_PKT_SIZE = 40;
     localparam int  MAX_PKT_SIZE = 1500;
     localparam int  SIZE_WID = $clog2(MAX_PKT_SIZE+1);
-    localparam type SIZE_T = logic[SIZE_WID-1:0];
+    localparam type SIZE_T = bit[SIZE_WID-1:0];
 
-    localparam type ADDR_T = logic[ADDR_WID-1:0];
-    localparam type PTR_T  = logic[ADDR_WID  :0];
+    localparam type ADDR_T = bit[ADDR_WID-1:0];
+    localparam type PTR_T  = bit[ADDR_WID  :0];
 
     localparam int  NUM_CONTEXTS = 1;
     localparam int  CTXT_WID = $clog2(NUM_CONTEXTS);
@@ -40,13 +41,13 @@ module packet_enqueue_unit_test #(
     logic clk;
     logic srst;
 
-    packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_T(META_T)) packet_if (.clk(clk));
+    packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_WID(META_WID)) packet_if (.clk, .srst);
 
     PTR_T head_ptr;
     PTR_T tail_ptr;
 
-    packet_descriptor_intf #(.ADDR_T(ADDR_T), .META_T(META_T)) wr_descriptor_if [NUM_CONTEXTS] (.clk(clk));
-    packet_descriptor_intf #(.ADDR_T(ADDR_T), .META_T(META_T)) rd_descriptor_if [NUM_CONTEXTS] (.clk(clk));
+    packet_descriptor_intf #(.ADDR_WID(ADDR_WID), .META_WID(META_WID)) wr_descriptor_if [NUM_CONTEXTS] (.clk, .srst);
+    packet_descriptor_intf #(.ADDR_WID(ADDR_WID), .META_WID(META_WID)) rd_descriptor_if [NUM_CONTEXTS] (.clk, .srst);
 
     packet_event_intf event_if (.clk(clk));
 
@@ -109,7 +110,7 @@ module packet_enqueue_unit_test #(
     SIZE_T ack_bytes [NUM_CONTEXTS];
     generate
         for (genvar g_ctxt = 0; g_ctxt < NUM_CONTEXTS; g_ctxt++) begin
-            assign rd_descriptor_if[g_ctxt].valid = ack[g_ctxt];
+            assign rd_descriptor_if[g_ctxt].vld = ack[g_ctxt];
             assign rd_descriptor_if[g_ctxt].size  = ack_bytes[g_ctxt];
         end
     endgenerate

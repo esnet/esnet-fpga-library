@@ -103,7 +103,7 @@ module axi4l_intf_cdc
     assign wr_req_ctxt__from_controller.strb = wr_strb__from_controller;
 
     sync_bus #(
-        .DATA_T ( wr_req_ctxt_t ),
+        .DATA_WID ( $bits(wr_req_ctxt_t) ),
         .HANDSHAKE_MODE ( sync_pkg::HANDSHAKE_MODE_2PHASE )
     ) i_sync_bus__wr_req (
         .clk_in ( clk__from_controller ),
@@ -122,7 +122,7 @@ module axi4l_intf_cdc
 
     // - Write response
     sync_bus #(
-        .DATA_T ( resp_t ),
+        .DATA_WID ( $bits(resp_t) ),
         .HANDSHAKE_MODE ( sync_pkg::HANDSHAKE_MODE_2PHASE )
     ) i_sync_bus__wr_resp (
         .clk_in ( clk__to_peripheral ),
@@ -138,7 +138,7 @@ module axi4l_intf_cdc
 
     // - Read request
     sync_bus #(
-        .DATA_T ( addr_t ),
+        .DATA_WID ( $bits(addr_t) ),
         .HANDSHAKE_MODE ( sync_pkg::HANDSHAKE_MODE_2PHASE )
     ) i_sync_bus__rd_req (
         .clk_in ( clk__from_controller ),
@@ -160,7 +160,7 @@ module axi4l_intf_cdc
     assign rd_resp_ctxt__from_peripheral.resp = rd_resp__from_peripheral;
 
     sync_bus #(
-        .DATA_T ( rd_resp_ctxt_t ),
+        .DATA_WID ( $bits(rd_resp_ctxt_t) ),
         .HANDSHAKE_MODE ( sync_pkg::HANDSHAKE_MODE_2PHASE )
     ) i_sync_bus__rd_resp (
         .clk_in ( clk__to_peripheral ),

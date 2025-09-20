@@ -25,7 +25,9 @@ module alloc_sg_core_unit_test #(
     localparam type META_T = logic;
     localparam int  CONTEXTS = 1;
 
-    localparam type DESC_T = alloc_pkg::alloc#(BUFFER_SIZE, PTR_T, META_T)::desc_t;
+    localparam int  META_WID = $bits(META_T);
+
+    localparam type DESC_T = alloc_pkg::alloc#(BUFFER_SIZE, PTR_WID, META_WID)::desc_t;
     localparam int  DESC_WID = $bits(DESC_T);
 
     //===================================
@@ -44,8 +46,8 @@ module alloc_sg_core_unit_test #(
     PTR_T        frame_ptr;
     FRAME_SIZE_T frame_size;
 
-    alloc_intf #(.BUFFER_SIZE(BUFFER_SIZE), .PTR_T(PTR_T), .META_T(META_T)) scatter_if [CONTEXTS] (.clk, .srst);
-    alloc_intf #(.BUFFER_SIZE(BUFFER_SIZE), .PTR_T(PTR_T), .META_T(META_T)) gather_if  [CONTEXTS] (.clk, .srst);
+    alloc_intf #(.BUFFER_SIZE(BUFFER_SIZE), .PTR_WID(PTR_WID), .META_WID(META_WID)) scatter_if [CONTEXTS] (.clk, .srst);
+    alloc_intf #(.BUFFER_SIZE(BUFFER_SIZE), .PTR_WID(PTR_WID), .META_WID(META_WID)) gather_if  [CONTEXTS] (.clk, .srst);
 
     logic   recycle_req;
     logic   recycle_rdy;
@@ -58,7 +60,7 @@ module alloc_sg_core_unit_test #(
     alloc_sg_core        #(
         .SCATTER_CONTEXTS ( CONTEXTS ),
         .GATHER_CONTEXTS  ( CONTEXTS ),
-        .PTR_T            ( PTR_T ),
+        .PTR_WID          ( PTR_WID ),
         .BUFFER_SIZE      ( BUFFER_SIZE ),
         .MAX_FRAME_SIZE   ( MAX_FRAME_SIZE )
     ) DUT (.*);

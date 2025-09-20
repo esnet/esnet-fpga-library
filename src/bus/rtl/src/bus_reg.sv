@@ -4,38 +4,34 @@
 // NOTE: This will violate the valid/ready contract on
 //       both Tx and Rx sides, and must be accommodated
 //       by e.g. a pipelining FIFO stage
-module bus_reg #(
-    parameter type DATA_T = logic
-) (
+module bus_reg (
     bus_intf.rx   from_tx,
     bus_intf.tx   to_rx
 );
+    // Parameters
+    localparam int DATA_WID = from_tx.DATA_WID;
+
     // Parameter checking
-    initial begin
-        std_pkg::param_check($bits(from_tx.DATA_T), $bits(DATA_T), "from_tx.DATA_T");
-        std_pkg::param_check($bits(to_rx.DATA_T),   $bits(DATA_T), "to_rx.DATA_T");
-    end
+    bus_intf_parameter_check param_check (.*);
 
     // Signals
     logic clk;
-    (* shreg_extract = "no" *) logic  srst;
-    (* shreg_extract = "no" *) logic  valid;
-    (* shreg_extract = "no" *) DATA_T data;
-    (* shreg_extract = "no" *) logic  ready;
+    (* shreg_extract = "no" *) logic                valid;
+    (* shreg_extract = "no" *) logic [DATA_WID-1:0] data;
+    (* shreg_extract = "no" *) logic                ready;
 
     assign clk = from_tx.clk;
 
-    initial begin
-        srst = 1'b1;
-        valid = 1'b0;
-    end
+    initial valid = 1'b0;
     always @(posedge clk) begin
-        srst  <= from_tx.srst;
-        valid <= from_tx.valid;
+        if (from_tx.srst) valid <= 1'b0;
+        else              valid <= from_tx.valid;
+    end
+
+    always_ff @(posedge clk) begin
         data  <= from_tx.data;
     end
 
-    assign to_rx.srst = srst;
     assign to_rx.valid = valid;
     assign to_rx.data = data;
 

@@ -14,7 +14,8 @@
 module axi4s_sync
    import axi4s_pkg::*;
 #(
-   parameter axi4s_sync_mode_t MODE = SOP
+   parameter axi4s_sync_mode_t MODE = SOP,
+   parameter int PTR_LEN = 16 // wordlength of wr_ptr (for buffer context, or pkt_id).
 ) ( 
    axi4s_intf.rx    axi4s_in0,  axi4s_in1,
    axi4s_intf.tx    axi4s_out0, axi4s_out1,
@@ -22,18 +23,31 @@ module axi4s_sync
    output logic     sop_mismatch
 );
 
-   localparam type TUSER_T = axi4s_in0.TUSER_T;
+   axi4s_intf_parameter_check param_check_0 (.from_tx(axi4s_in0), .to_rx(axi4s_out0));
+   axi4s_intf_parameter_check param_check_1 (.from_tx(axi4s_in1), .to_rx(axi4s_out1));
+   axi4s_intf_parameter_check param_check_0_1 (.from_tx(axi4s_in0), .to_rx(axi4s_in1));
 
-   TUSER_T tuser_in0, tuser_in1;
+   localparam int TUSER_WID = axi4s_in0.TUSER_WID;
+   typedef struct packed {
+       logic [PTR_LEN-1:0] pid;
+       logic               hdr_tlast;
+   } sync_meta_t;
+   localparam int SYNC_META_WID = $bits(sync_meta_t);
+
+   initial begin
+       std_pkg::param_check_gt(TUSER_WID, SYNC_META_WID, "axi4s_in0.TUSER_WID");
+   end
+
+   sync_meta_t sync_meta_in0, sync_meta_in1;
 
    logic  sync_sop, match, mismatch;
    logic  sync, sync0, sync1;
 
-   assign tuser_in0 = axi4s_in0.tuser;
-   assign tuser_in1 = axi4s_in1.tuser;
+   assign sync_meta_in0 = axi4s_in0.tuser[SYNC_META_WID-1:0];
+   assign sync_meta_in1 = axi4s_in1.tuser[SYNC_META_WID-1:0];
 
    assign sync_sop = axi4s_in0.sop && axi4s_in0.tvalid && axi4s_in1.sop && axi4s_in1.tvalid;
-   assign match = (tuser_in0.pid == tuser_in1.pid);
+   assign match = (sync_meta_in0.pid == sync_meta_in1.pid);
    assign mismatch = !match;
 
    assign sop_mismatch = sync_sop && mismatch;
@@ -49,9 +63,9 @@ module axi4s_sync
 
         HDR_TLAST : begin
           // synchronize hdr tlast words (using payload buffer context).
-          sync  = axi4s_in0.tvalid && axi4s_in0.tlast && axi4s_in1.tvalid && tuser_in1.hdr_tlast;
+          sync  = axi4s_in0.tvalid && axi4s_in0.tlast && axi4s_in1.tvalid && sync_meta_in1.hdr_tlast;
           sync0 = (sync && axi4s_out1.tready) || !(axi4s_in0.tvalid && axi4s_in0.tlast);
-          sync1 = (sync && axi4s_out0.tready) || !(axi4s_in1.tvalid && tuser_in1.hdr_tlast);
+          sync1 = (sync && axi4s_out0.tready) || !(axi4s_in1.tvalid && sync_meta_in1.hdr_tlast);
         end
 
         default : begin
@@ -67,8 +81,6 @@ module axi4s_sync
    assign axi4s_in0.tready = axi4s_out0.tready && sync0;
 
    // axis4s out0 interface signalling.
-   assign axi4s_out0.aclk    = axi4s_in0.aclk;
-   assign axi4s_out0.aresetn = axi4s_in0.aresetn;
    assign axi4s_out0.tvalid  = axi4s_in0.tvalid && sync0;
    assign axi4s_out0.tdata   = axi4s_in0.tdata;
    assign axi4s_out0.tkeep   = axi4s_in0.tkeep;
@@ -81,8 +93,6 @@ module axi4s_sync
    assign axi4s_in1.tready = axi4s_out1.tready && sync1;
 
    // axis4s out1 interface signalling.
-   assign axi4s_out1.aclk    = axi4s_in1.aclk;
-   assign axi4s_out1.aresetn = axi4s_in1.aresetn;
    assign axi4s_out1.tvalid  = axi4s_in1.tvalid && sync1;
    assign axi4s_out1.tdata   = axi4s_in1.tdata;
    assign axi4s_out1.tkeep   = axi4s_in1.tkeep;

@@ -1,6 +1,6 @@
 // Allocator monitor interface
 interface alloc_mon_intf (
-    input wire logic clk
+    input logic clk
 );
 
     // Signals

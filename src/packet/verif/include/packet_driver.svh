@@ -8,7 +8,7 @@ virtual class packet_driver#(
     // Pure Virtual Methods
     // (must be implemented by derived class)
     //===================================
-    pure protected virtual task _send_raw(input byte data[], input META_T meta = '0, input bit err = 1'b0);
+    pure protected virtual task _send_raw(const ref byte data[], input META_T meta = '0, input bit err = 1'b0);
 
     //===================================
     // Methods
@@ -51,7 +51,6 @@ virtual class packet_driver#(
         );
         // Signals
         pcap_pkg::pcap_t pcap;
-        byte pkt_data[$][$];
         int num_pcap_pkts;
         int pkt_idx;
 

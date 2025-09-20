@@ -12,9 +12,9 @@ module htable_core_unit_test;
     //===================================
     // Parameters
     //===================================
-    parameter int KEY_WID = 96;
-    parameter int VALUE_WID = 32;
-    parameter int HASH_WID = 8;
+    parameter int KEY_WID = 87;
+    parameter int VALUE_WID = 24;
+    parameter int HASH_WID = 12;
     parameter int SIZE = 2**HASH_WID;
     parameter int TIMEOUT_CYCLES = 0;
     
@@ -25,6 +25,7 @@ module htable_core_unit_test;
     parameter type VALUE_T = logic [VALUE_WID-1:0];
     parameter type HASH_T = logic [HASH_WID-1:0];
     parameter type ENTRY_T = struct packed {KEY_T key; VALUE_T value;};
+    parameter int  ENTRY_WID = $bits(ENTRY_T);
 
     //===================================
     // DUT
@@ -34,8 +35,8 @@ module htable_core_unit_test;
 
     logic init_done;
 
-    db_intf #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) update_if (.clk(clk));
-    db_intf #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) lookup_if (.clk(clk));
+    db_intf #(.KEY_WID(KEY_WID), .VALUE_WID(VALUE_WID)) update_if (.clk);
+    db_intf #(.KEY_WID(KEY_WID), .VALUE_WID(VALUE_WID)) lookup_if (.clk);
 
     KEY_T   lookup_key;
     hash_t  lookup_hash;
@@ -45,17 +46,17 @@ module htable_core_unit_test;
 
     db_info_intf info_if ();
 
-    db_ctrl_intf #(.KEY_T(hash_t), .VALUE_T(ENTRY_T)) tbl_ctrl_if (.clk(clk));
+    db_ctrl_intf #(.KEY_WID($bits(hash_t)), .VALUE_WID(ENTRY_WID)) tbl_ctrl_if (.clk);
 
     logic tbl_init;
     logic tbl_init_done;
 
-    db_intf #(.KEY_T(hash_t), .VALUE_T(ENTRY_T)) tbl_wr_if (.clk(clk));
-    db_intf #(.KEY_T(hash_t), .VALUE_T(ENTRY_T)) tbl_rd_if (.clk(clk));
+    db_intf #(.KEY_WID($bits(hash_t)), .VALUE_WID(ENTRY_WID)) tbl_wr_if (.clk);
+    db_intf #(.KEY_WID($bits(hash_t)), .VALUE_WID(ENTRY_WID)) tbl_rd_if (.clk);
     
     htable_core #(
-        .KEY_T (KEY_T),
-        .VALUE_T (VALUE_T),
+        .KEY_WID (KEY_WID),
+        .VALUE_WID (VALUE_WID),
         .SIZE (SIZE)
     ) DUT (.*);
 
@@ -70,9 +71,9 @@ module htable_core_unit_test;
 
     // Database store
     db_store_array #(
-        .KEY_T (HASH_T),
-        .VALUE_T (ENTRY_T)
-    ) i_db_store_array (
+        .KEY_WID ( HASH_WID ),
+        .VALUE_WID ( ENTRY_WID )
+    )i_db_store_array (
         .clk ( clk ),
         .srst ( srst ),
         .init ( tbl_init ),
@@ -81,8 +82,8 @@ module htable_core_unit_test;
         .db_rd_if ( tbl_rd_if )
     );
     
-    db_ctrl_agent #(.KEY_T(hash_t), .VALUE_T(ENTRY_T)) agent;
-    std_reset_intf reset_if (.clk(clk));
+    db_ctrl_agent #(hash_t, ENTRY_T) agent;
+    std_reset_intf reset_if (.clk);
 
     // Assign clock (250MHz)
     `SVUNIT_CLK_GEN(clk, 2ns);

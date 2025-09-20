@@ -19,7 +19,8 @@ module fifo_prefetch_unit_test #(
     //===================================
     // Parameters
     //===================================
-    localparam type DATA_T = bit[31:0];
+    localparam int DATA_WID = 32;
+    localparam type DATA_T = bit[DATA_WID-1:0];
     localparam int DEPTH = DUT.DEPTH;
 
     localparam fifo_pkg::opt_mode_t WR_OPT_MODE = WR_OPT_TIMING ? fifo_pkg::OPT_MODE_TIMING : fifo_pkg::OPT_MODE_LATENCY;
@@ -49,11 +50,11 @@ module fifo_prefetch_unit_test #(
     logic   rd_vld;
     DATA_T  rd_data;
 
-    fifo_prefetch  #(
-        .DATA_T           ( DATA_T ),
-        .PIPELINE_DEPTH   ( PIPELINE_DEPTH ),
-        .WR_OPT_MODE      ( WR_OPT_MODE ),
-        .RD_OPT_MODE      ( RD_OPT_MODE )
+    fifo_prefetch      #(
+        .DATA_WID       ( DATA_WID ),
+        .PIPELINE_DEPTH ( PIPELINE_DEPTH ),
+        .WR_OPT_MODE    ( WR_OPT_MODE ),
+        .RD_OPT_MODE    ( RD_OPT_MODE )
     ) DUT (.*);
 
     //===================================
@@ -67,17 +68,14 @@ module fifo_prefetch_unit_test #(
 
     std_reset_intf reset_if (.clk);
 
-    bus_intf #(DATA_T) wr_if (.clk);
-    bus_intf #(DATA_T) rd_if (.clk);
+    bus_intf #(DATA_WID) wr_if (.clk, .srst);
+    bus_intf #(DATA_WID) rd_if (.clk, .srst);
 
     // Assign reset interface
     assign srst = reset_if.reset;
 
     initial reset_if.ready = 1'b0;
     always @(posedge clk) reset_if.ready <= ~srst;
-
-    assign wr_if.srst = srst;
-    assign rd_if.srst = srst;
 
     // Assign data interfaces
     initial __wr_rdy = '{default: 1'b0};
@@ -101,7 +99,6 @@ module fifo_prefetch_unit_test #(
     assign empty = !rd_vld;
 
     clocking cb @(posedge clk);
-        default input #1step output #1step;
         input full, oflow, empty;
     endclocking
 

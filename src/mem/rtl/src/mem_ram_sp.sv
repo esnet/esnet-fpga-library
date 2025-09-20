@@ -23,13 +23,13 @@ module mem_ram_sp
     localparam int WR_LATENCY = get_wr_latency(SPEC);
     localparam int RD_LATENCY = get_rd_latency(SPEC);
 
-    localparam type ADDR_T = logic[SPEC.ADDR_WID-1:0];
-    localparam type DATA_T = logic[SPEC.DATA_WID-1:0];
+    localparam int ADDR_WID = SPEC.ADDR_WID;
+    localparam int DATA_WID = SPEC.DATA_WID;
 
     // -----------------------------
     // Interfaces
     // -----------------------------
-    mem_intf #(.ADDR_T(ADDR_T), .DATA_T(DATA_T)) __mem_if (.clk(mem_if.clk));
+    mem_intf #(.ADDR_WID(ADDR_WID), .DATA_WID(DATA_WID)) __mem_if (.clk(mem_if.clk));
 
     // -----------------------------
     // Reset FSM (optional)

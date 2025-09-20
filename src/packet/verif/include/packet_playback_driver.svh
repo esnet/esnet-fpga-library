@@ -187,27 +187,29 @@ class packet_playback_driver #(parameter type META_T=bit) extends packet_driver#
             output bit                                        _timeout,
             input  int                                        TIMEOUT=0
         );
+        automatic bit __error = 1'b0;
+        automatic bit __timeout = 1'b0;
         trace_msg($sformatf("transact(command=%s)", _command.name()));
         fork
             begin
                 fork
                     begin
-                        _error = 1'b0;
-                        _transact(_command, _error);
+                        _transact(_command, __error);
                     end
                     begin
-                        _timeout = 1'b0;
                         if (TIMEOUT > 0) begin
                             wait_n(TIMEOUT);
-                            _timeout = 1'b1;
+                            __timeout = 1'b1;
                         end else wait(0);
                     end
                 join_any
                 disable fork;
             end
         join
-        assert (_error == 0)   else info_msg($sformatf("Error detected during '%s' transaction.", _command.name));
-        assert (_timeout == 0) else error_msg($sformatf("'%s' transaction timed out.", _command.name));
+        assert (__error == 0)   else info_msg($sformatf("Error detected during '%s' transaction.", _command.name));
+        assert (__timeout == 0) else error_msg($sformatf("'%s' transaction timed out.", _command.name));
+        _error = __error;
+        _timeout = __timeout;
         trace_msg("transact() Done.");
     endtask
 
@@ -261,7 +263,7 @@ class packet_playback_driver #(parameter type META_T=bit) extends packet_driver#
 
     // Send packet as raw byte array
     // [[ implements packet_verif_pkg::packet_driver._send_raw ]]
-    task _send_raw(input byte data[], input META_T meta='0, input bit err=1'b0);
+    task _send_raw(const ref byte data[], input META_T meta='0, input bit err=1'b0);
         automatic bit error, timeout;
         trace_msg("_send_raw()");
         __setup_transfer(data, meta, err, 1);

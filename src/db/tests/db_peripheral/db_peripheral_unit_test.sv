@@ -31,10 +31,10 @@ module db_peripheral_unit_test;
     logic clk;
     logic srst;
 
-    db_ctrl_intf #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) ctrl_if (.clk(clk));
+    db_ctrl_intf #(.KEY_WID(KEY_WID), .VALUE_WID(VALUE_WID)) ctrl_if (.clk);
 
-    db_intf #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) wr_if (.clk(clk));
-    db_intf #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) rd_if (.clk(clk));
+    db_intf #(.KEY_WID(KEY_WID), .VALUE_WID(VALUE_WID)) wr_if (.clk);
+    db_intf #(.KEY_WID(KEY_WID), .VALUE_WID(VALUE_WID)) rd_if (.clk);
     
     logic init;
     logic init_done;
@@ -46,8 +46,8 @@ module db_peripheral_unit_test;
     //===================================
     // Testbench
     //===================================
-    db_ctrl_agent #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) agent;
-    std_reset_intf reset_if (.clk(clk));
+    db_ctrl_agent #(KEY_T, VALUE_T) agent;
+    std_reset_intf reset_if (.clk);
 
     db_info_intf #() info_if ();
     assign info_if._type = DB_TYPE;
@@ -56,8 +56,8 @@ module db_peripheral_unit_test;
 
     // Database store
     db_store_array #(
-        .KEY_T ( KEY_T ),
-        .VALUE_T ( VALUE_T ),
+        .KEY_WID ( KEY_WID ),
+        .VALUE_WID ( VALUE_WID ),
         .SIM__RAM_MODEL ( 1 )
     ) i_db_store_array (
         .db_wr_if ( wr_if ),

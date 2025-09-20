@@ -1,5 +1,5 @@
 module timer #(
-    parameter type TIMER_T = logic
+    parameter int TIMER_WID = 1
 )(
     // Clock/reset
     input  logic   clk,
@@ -13,7 +13,7 @@ module timer #(
     input  logic   tick,
 
     // Timer output
-    output TIMER_T timer
+    output logic [TIMER_WID-1:0] timer
 );
 
     initial timer = '0;

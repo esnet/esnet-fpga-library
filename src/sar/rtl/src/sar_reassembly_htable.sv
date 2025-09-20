@@ -1,8 +1,8 @@
 module sar_reassembly_htable
     import sar_pkg::*;
 #(
-    parameter type KEY_T = logic,
-    parameter type VALUE_T = logic,
+    parameter int  KEY_WID = 1,
+    parameter int  VALUE_WID = 1,
     parameter int  NUM_ITEMS = 1024,
     parameter int  BURST_SIZE = 8,
     // Simulation-only
@@ -31,7 +31,7 @@ module sar_reassembly_htable
     // -------------------------------------------------
     // Parameters
     // -------------------------------------------------
-    localparam int KEY_BITS = $bits(KEY_T);
+    localparam int KEY_BITS = KEY_WID;
     localparam int KEY_BYTES = KEY_BITS % 8 == 0 ? KEY_BITS / 8 : KEY_BITS / 8 + 1;
 
     localparam crc_pkg::crc_config_t CRC_CONFIG[4] = '{
@@ -57,20 +57,21 @@ module sar_reassembly_htable
     typedef logic [0:KEY_BYTES-1][7:0] __key_t;
    
     typedef struct packed {
-        KEY_T key;
-        VALUE_T value;
+        logic [KEY_WID-1:0]   key;
+        logic [VALUE_WID-1:0] value;
     } segment_table_entry_t;
+    localparam int SEGMENT_TABLE_ENTRY_WID = $bits(segment_table_entry_t);
 
     // -------------------------------------------------
     // Interfaces
     // -------------------------------------------------
     db_info_intf info_if ();
-    db_status_intf status_if (.clk(clk), .srst(srst));
-    db_ctrl_intf #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) ctrl_if__axil (.clk(clk));
-    db_ctrl_intf #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) __ctrl_if (.clk(clk));
+    db_status_intf status_if (.clk, .srst);
+    db_ctrl_intf #(.KEY_WID(KEY_WID), .VALUE_WID(VALUE_WID)) ctrl_if__axil (.clk);
+    db_ctrl_intf #(.KEY_WID(KEY_WID), .VALUE_WID(VALUE_WID)) __ctrl_if (.clk);
 
-    db_intf #(.KEY_T(HASH_T), .VALUE_T(segment_table_entry_t)) tbl_wr_if [NUM_TABLES] (.clk(clk));
-    db_intf #(.KEY_T(HASH_T), .VALUE_T(segment_table_entry_t)) tbl_rd_if [NUM_TABLES] (.clk(clk));
+    db_intf #(.KEY_WID($bits(htable_pkg::hash_t)), .VALUE_WID(SEGMENT_TABLE_ENTRY_WID)) tbl_wr_if [NUM_TABLES] (.clk);
+    db_intf #(.KEY_WID($bits(htable_pkg::hash_t)), .VALUE_WID(SEGMENT_TABLE_ENTRY_WID)) tbl_rd_if [NUM_TABLES] (.clk);
 
     axi4l_intf #() axil_if__db ();
     axi4l_intf #() axil_if__htable ();
@@ -88,9 +89,9 @@ module sar_reassembly_htable
     logic tbl_init      [NUM_TABLES];
 
     // Hashing interface
-    KEY_T               lookup_key;
+    logic [KEY_WID-1:0] lookup_key;
     htable_pkg::hash_t  lookup_hash [NUM_TABLES];
-    KEY_T               ctrl_key    [NUM_TABLES];
+    logic [KEY_WID-1:0] ctrl_key    [NUM_TABLES];
     htable_pkg::hash_t  ctrl_hash   [NUM_TABLES];
 
     __key_t __lookup_key;
@@ -106,10 +107,7 @@ module sar_reassembly_htable
     );
 
     // AXI-L control (for debug control/monitoring)
-    db_axil_ctrl    #(
-        .KEY_T       ( KEY_T ),
-        .VALUE_T     ( VALUE_T )
-    ) i_db_axil_ctrl__htable (
+    db_axil_ctrl i_db_axil_ctrl__htable (
         .clk         ( clk ),
         .srst        ( srst ),
         .init_done   ( init_done ),
@@ -141,23 +139,20 @@ module sar_reassembly_htable
     // -------------------------------------------------
     // Mutliplex control access
     // -------------------------------------------------
-    db_ctrl_intf_prio_mux               #(
-        .KEY_T                           ( KEY_T ),
-        .VALUE_T                         ( VALUE_T )
-    ) i_db_ctrl_intf_prio_mux            (
-        .clk                             ( clk ),
-        .srst                            ( __srst ),
-        .ctrl_if_from_controller_hi_prio ( ctrl_if ),
-        .ctrl_if_from_controller_lo_prio ( ctrl_if__axil ),
-        .ctrl_if_to_peripheral           ( __ctrl_if )
+    db_ctrl_intf_prio_mux  i_db_ctrl_intf_prio_mux (
+        .clk                     ( clk ),
+        .srst                    ( __srst ),
+        .from_controller_hi_prio ( ctrl_if ),
+        .from_controller_lo_prio ( ctrl_if__axil ),
+        .to_peripheral           ( __ctrl_if )
     );
 
     // -------------------------------------------------
     // Fragment database
     // -------------------------------------------------
     htable_cuckoo_fast_update_core #(
-        .KEY_T               ( KEY_T ),
-        .VALUE_T             ( VALUE_T ),
+        .KEY_WID             ( KEY_WID ),
+        .VALUE_WID           ( VALUE_WID ),
         .NUM_TABLES          ( NUM_TABLES ),
         .TABLE_SIZE          ( '{default: TABLE_SIZE} ),
         .HASH_LATENCY        ( 1 ),
@@ -192,8 +187,8 @@ module sar_reassembly_htable
         for (genvar g_tbl = 0; g_tbl < NUM_TABLES; g_tbl++) begin : g__tbl
             // Hash table memory instance
             db_store_array     #(
-                .KEY_T          ( HASH_T ),
-                .VALUE_T        ( segment_table_entry_t ),
+                .KEY_WID        ( HASH_WID ),
+                .VALUE_WID      ( SEGMENT_TABLE_ENTRY_WID ),
                 .SIM__FAST_INIT ( SIM__FAST_INIT )
             ) i_db_store_array  (
                 .clk            ( clk ),

@@ -1,22 +1,18 @@
 module alloc_scatter_core #(
     parameter int  CONTEXTS = 1,
-    parameter type PTR_T = logic,
+    parameter int  PTR_WID = 1,
     parameter int  BUFFER_SIZE = 1,
     parameter int  MAX_FRAME_SIZE = 16384,
-    parameter type META_T = logic,
+    parameter int  META_WID = 1,
     parameter int  Q_DEPTH = 32,
     // Derived parameters (don't override)
-    parameter int  PTR_WID = $bits(PTR_T),
-    parameter int  SIZE_WID = $clog2(BUFFER_SIZE),
-    parameter type SIZE_T = logic [SIZE_WID-1:0],
     parameter int  FRAME_SIZE_WID = $clog2(MAX_FRAME_SIZE+1),
-    parameter type FRAME_SIZE_T = logic [FRAME_SIZE_WID-1:0],
     // Simulation-only
     parameter bit  SIM__FAST_INIT = 1 // Optimize sim time by performing fast memory init
 ) (
     // Clock/reset
     input logic            clk,
-    input logic            srst,
+    input logic            srst = 1'b0,
 
     // Control
     input  logic           en,
@@ -25,15 +21,15 @@ module alloc_scatter_core #(
     alloc_intf.store_rx    scatter_if [CONTEXTS],
 
     // Completion interface
-    output logic           frame_valid [CONTEXTS],
-    output logic           frame_error,
-    output PTR_T           frame_ptr,
-    output FRAME_SIZE_T    frame_size,
+    output logic                      frame_valid [CONTEXTS],
+    output logic                      frame_error,
+    output logic [PTR_WID-1:0]        frame_ptr,
+    output logic [FRAME_SIZE_WID-1:0] frame_size,
 
     // Pointer allocation interface
-    output logic           alloc_req,
-    input  logic           alloc_rdy,
-    input  PTR_T           alloc_ptr,
+    output logic                alloc_req,
+    input  logic                alloc_rdy,
+    input  logic [PTR_WID-1:0]  alloc_ptr,
 
     // Descriptor write interface
     mem_wr_intf.controller desc_mem_wr_if,
@@ -43,10 +39,12 @@ module alloc_scatter_core #(
     // -----------------------------
     // Parameters
     // -----------------------------
+    localparam int  SIZE_WID = $clog2(BUFFER_SIZE);
+
     localparam int  CTXT_SEL_WID = $clog2(CONTEXTS);
     localparam type CTXT_SEL_T = logic [CTXT_SEL_WID-1:0];
 
-    localparam type DESC_T = alloc_pkg::alloc#(BUFFER_SIZE, PTR_T, META_T)::desc_t;
+    localparam type DESC_T = alloc_pkg::alloc#(BUFFER_SIZE, PTR_WID, META_WID)::desc_t;
 
     // -----------------------------
     // Typedefs
@@ -61,12 +59,12 @@ module alloc_scatter_core #(
     } state_t;
 
     typedef struct packed {
-        logic  eof;
-        logic  sof;
-        SIZE_T size;
-        PTR_T  ptr;
-        META_T meta;
-        logic  err;
+        logic                eof;
+        logic                sof;
+        logic [SIZE_WID-1:0] size;
+        logic [PTR_WID-1:0]  ptr;
+        logic [META_WID-1:0] meta;
+        logic                err;
     } req_ctxt_t;
 
     // -----------------------------
@@ -88,14 +86,14 @@ module alloc_scatter_core #(
     logic   mem_wr_req;
     logic   mem_wr_rdy;
 
-    PTR_T         _frame_ptr  [CONTEXTS];
-    FRAME_SIZE_T  _frame_size [CONTEXTS];
-    logic         _frame_error[CONTEXTS];
+    logic [PTR_WID-1:0]         _frame_ptr  [CONTEXTS];
+    logic [FRAME_SIZE_WID-1:0]  _frame_size [CONTEXTS];
+    logic                       _frame_error[CONTEXTS];
 
-    logic  [CONTEXTS-1:0] desc_valid;
-    PTR_T                 desc_ptr [CONTEXTS];
+    logic [CONTEXTS-1:0]  desc_valid;
+    logic [PTR_WID-1:0]   desc_ptr [CONTEXTS];
     DESC_T                desc     [CONTEXTS];
-    PTR_T                 _desc_ptr;
+    logic [PTR_WID-1:0]   _desc_ptr;
     DESC_T                _desc;
 
     // Simple round-robin distribution function for pointer allocation prefetch
@@ -110,20 +108,20 @@ module alloc_scatter_core #(
     generate
         for (genvar g_ctxt = 0; g_ctxt < CONTEXTS; g_ctxt++) begin : g__ctxt
             // (Local) signals
-            logic      __alloc_q_wr;
-            logic      __alloc_ptr_valid;
-            PTR_T      __alloc_ptr;
-            logic      __req_q_rd;
-            req_ctxt_t __req_ctxt_in;
-            req_ctxt_t __req_ctxt_nxt;
-            logic      __req_ctxt_nxt_valid;
-            logic      __req_ctxt_valid;
-            req_ctxt_t __req_ctxt;
+            logic               __alloc_q_wr;
+            logic               __alloc_ptr_valid;
+            logic [PTR_WID-1:0] __alloc_ptr;
+            logic               __req_q_rd;
+            req_ctxt_t          __req_ctxt_in;
+            req_ctxt_t          __req_ctxt_nxt;
+            logic               __req_ctxt_nxt_valid;
+            logic               __req_ctxt_valid;
+            req_ctxt_t          __req_ctxt;
 
             // Pre-fetch pointers to available buffers into per-context queues
-            fifo_ctxt #(
-                .DATA_T ( PTR_T ),
-                .DEPTH  ( Q_DEPTH )
+            fifo_ctxt    #(
+                .DATA_WID ( PTR_WID ),
+                .DEPTH    ( Q_DEPTH )
             ) i_fifo_ctxt__alloc_q (
                 .clk,
                 .srst,
@@ -152,14 +150,14 @@ module alloc_scatter_core #(
             assign __req_ctxt_in.meta = scatter_if[g_ctxt].meta;
             assign __req_ctxt_in.err  = scatter_if[g_ctxt].err;
   
-            fifo_ctxt #(
-                .DATA_T ( req_ctxt_t ),
-                .DEPTH  ( Q_DEPTH )
+            fifo_ctxt    #(
+                .DATA_WID ( $bits(req_ctxt_t) ),
+                .DEPTH    ( Q_DEPTH )
             ) i_fifo_ctxt__req_q (
                 .clk,
                 .srst,
                 .wr_rdy   ( scatter_if[g_ctxt].ack ),
-                .wr       ( scatter_if[g_ctxt].valid ),
+                .wr       ( scatter_if[g_ctxt].vld ),
                 .wr_data  ( __req_ctxt_in ),
                 .rd       ( __req_q_rd ),
                 .rd_vld   ( __req_ctxt_nxt_valid ),

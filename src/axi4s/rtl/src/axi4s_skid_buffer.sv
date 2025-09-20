@@ -1,7 +1,7 @@
 // AXI-S pipelining skid buffer
 //
 // NOTE: uses relaxed TREADY signaling, where SKID cycles of data
-//       can be received *after* deassertion of axi4s_in.tready.
+//       can be received *after* deassertion of from_tx.tready.
 //       
 //       Standard TVALID/TREADY handshake therefore does not apply;
 //       assertion of TREADY means that up to SKID valid cycles can
@@ -15,43 +15,33 @@
 //
 module axi4s_skid_buffer #(
     parameter int SKID = 1  // Number of cycles that can be received on
-                            // axi4s_in *after* deassertion of tready
+                            // from_tx *after* deassertion of tready
 ) (
-    axi4s_intf.rx axi4s_in,
-    axi4s_intf.tx axi4s_out,
+    axi4s_intf.rx from_tx,
+    axi4s_intf.tx to_rx,
     output logic  oflow     // An overflow of the skid buffer is possible
                             // if the transmitter does not respect the
                             // SKID cycle maximum; this output can be used
                             // to monitor for that scenario
 );
     // Parameters
-    localparam int  DATA_BYTE_WID = axi4s_in.DATA_BYTE_WID;
-    localparam int  TID_WID = $bits(axi4s_in.TID_T);
-    localparam int  TDEST_WID = $bits(axi4s_in.TDEST_T);
-    localparam int  TUSER_WID = $bits(axi4s_in.TUSER_T);
-
-    localparam type TDATA_T = logic[DATA_BYTE_WID-1:0][7:0];
-    localparam type TKEEP_T = logic[DATA_BYTE_WID-1:0];
-    localparam type TID_T   = logic[TID_WID-1:0];
-    localparam type TDEST_T = logic[TDEST_WID-1:0];
-    localparam type TUSER_T = logic[TUSER_WID-1:0];
+    localparam int  DATA_BYTE_WID = from_tx.DATA_BYTE_WID;
+    localparam int  TDATA_WID = DATA_BYTE_WID * 8;
+    localparam int  TID_WID = from_tx.TID_WID;
+    localparam int  TDEST_WID = from_tx.TDEST_WID;
+    localparam int  TUSER_WID = from_tx.TUSER_WID;
 
     // Parameter checking
-    initial begin
-        std_pkg::param_check(axi4s_out.DATA_BYTE_WID, DATA_BYTE_WID, "axi4s_out.DATA_BYTE_WID");
-        std_pkg::param_check($bits(axi4s_out.TID_T), TID_WID, "axi4s_out.TID_T");
-        std_pkg::param_check($bits(axi4s_out.TDEST_T), TDEST_WID, "axi4s_out.TDEST_T");
-        std_pkg::param_check($bits(axi4s_out.TUSER_T), TUSER_WID, "axi4s_out.TUSER_T");
-    end
+    axi4s_intf_parameter_check i_param_check (.*);
 
     // Typedefs
     typedef struct packed {
-        TUSER_T tuser;
-        TDEST_T tdest;
-        TID_T   tid;
-        logic   tlast;
-        TKEEP_T tkeep;
-        TDATA_T tdata;
+        logic[TUSER_WID-1:0]     tuser;
+        logic[TDEST_WID-1:0]     tdest;
+        logic[TID_WID-1:0]       tid;
+        logic                    tlast;
+        logic[DATA_BYTE_WID-1:0] tkeep;
+        logic[TDATA_WID-1:0]     tdata;
     } fifo_data_t;
 
     // Signals
@@ -59,40 +49,37 @@ module axi4s_skid_buffer #(
     fifo_data_t axi4s_out_data;
 
     // Connect AXI-S input interface to write interface of skid buffer
-    assign axi4s_in_data.tdata = axi4s_in.tdata;
-    assign axi4s_in_data.tkeep = axi4s_in.tkeep;
-    assign axi4s_in_data.tlast = axi4s_in.tlast;
-    assign axi4s_in_data.tid   = axi4s_in.tid;
-    assign axi4s_in_data.tdest = axi4s_in.tdest;
-    assign axi4s_in_data.tuser = axi4s_in.tuser;
+    assign axi4s_in_data.tdata = from_tx.tdata;
+    assign axi4s_in_data.tkeep = from_tx.tkeep;
+    assign axi4s_in_data.tlast = from_tx.tlast;
+    assign axi4s_in_data.tid   = from_tx.tid;
+    assign axi4s_in_data.tdest = from_tx.tdest;
+    assign axi4s_in_data.tuser = from_tx.tuser;
 
     // Pipeline skid buffer
     // (catch SKID cycles of data already in flight after
-    //  deassertion axi4s_in.tready)
+    //  deassertion from_tx.tready)
     fifo_prefetch #(
-        .DATA_T          ( fifo_data_t ),
+        .DATA_WID        ( $bits(fifo_data_t) ),
         .PIPELINE_DEPTH  ( SKID )
     ) i_fifo_prefetch (
-        .clk      ( axi4s_in.aclk ),
-        .srst     ( !axi4s_in.aresetn ),
-        .wr       ( axi4s_in.tvalid ),
-        .wr_rdy   ( axi4s_in.tready ),
+        .clk      ( from_tx.aclk ),
+        .srst     ( !from_tx.aresetn ),
+        .wr       ( from_tx.tvalid ),
+        .wr_rdy   ( from_tx.tready ),
         .wr_data  ( axi4s_in_data ),
         .oflow    ( oflow ),
-        .rd       ( axi4s_out.tready ),
-        .rd_vld   ( axi4s_out.tvalid ),
+        .rd       ( to_rx.tready ),
+        .rd_vld   ( to_rx.tvalid ),
         .rd_data  ( axi4s_out_data )
     );
 
     // Drive AXI-S output interface from read interface of skid buffer
-    assign axi4s_out.aclk = axi4s_in.aclk;
-    assign axi4s_out.aresetn = axi4s_in.aresetn;
-
-    assign axi4s_out.tdata = axi4s_out_data.tdata;
-    assign axi4s_out.tkeep = axi4s_out_data.tkeep;
-    assign axi4s_out.tlast = axi4s_out_data.tlast;
-    assign axi4s_out.tid   = axi4s_out_data.tid;
-    assign axi4s_out.tdest = axi4s_out_data.tdest;
-    assign axi4s_out.tuser = axi4s_out_data.tuser;
+    assign to_rx.tdata = axi4s_out_data.tdata;
+    assign to_rx.tkeep = axi4s_out_data.tkeep;
+    assign to_rx.tlast = axi4s_out_data.tlast;
+    assign to_rx.tid   = axi4s_out_data.tid;
+    assign to_rx.tdest = axi4s_out_data.tdest;
+    assign to_rx.tuser = axi4s_out_data.tuser;
 
 endmodule : axi4s_skid_buffer

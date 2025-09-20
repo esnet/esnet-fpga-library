@@ -1,32 +1,33 @@
 class packet_intf_monitor #(
     parameter int DATA_BYTE_WID = 8,
-    parameter type META_T = logic
+    parameter type META_T = bit
 ) extends packet_monitor#(META_T);
 
     local static const string __CLASS_NAME = "packet_verif_pkg::packet_intf_monitor";
 
+    localparam int META_WID = $bits(META_T);
+
     //===================================
     // Properties
     //===================================
-    local bit __BIGENDIAN;
     local real __stall_rate;
 
     //===================================
     // Interfaces
     //===================================
-    virtual packet_intf #(DATA_BYTE_WID,META_T) packet_vif;
-
-    //===================================
-    // Typedefs
-    //===================================
-    typedef logic [DATA_BYTE_WID-1:0][7:0] data_t;
-    typedef logic [$clog2(DATA_BYTE_WID)-1:0] mty_t;
+    virtual packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_WID(META_WID)) packet_vif;
 
     // Constructor
-    function new(input string name="packet_intf_monitor", input bit BIGENDIAN=1);
+    function new(input string name="packet_intf_monitor");
         super.new(name);
-        this.__BIGENDIAN = BIGENDIAN;
         _reset();
+        // WORKAROUND-INIT-PROPS {
+        //     Provide/repeat default assignments for all remaining instance properties here.
+        //     Works around an apparent object initialization bug (as of Vivado 2024.2)
+        //     where properties are not properly allocated when they are not assigned
+        //     in the constructor.
+        packet_vif = null;
+        // } WORKAROUND-INIT-PROPS
     endfunction
 
     // Destructor
@@ -71,28 +72,27 @@ class packet_intf_monitor #(
 
     // Receive transaction (represented as raw byte array with associated metadata)
     protected task _receive_raw(
-            output byte    data[],
-            output META_T  meta,
-            output bit     err
+            output byte   data[],
+            output META_T meta,
+            output bit    err
         );
+        // Parameters
+        localparam int MTY_WID = $clog2(DATA_BYTE_WID);
         // Signals
-        automatic byte __data[$];
-        automatic data_t _data;
-        automatic logic  eop = 0;
-        automatic logic  __err;
-        automatic mty_t  mty;
-        automatic int byte_idx = 0;
-        automatic int word_idx = 0;
-        automatic int byte_cnt = 0;
+        byte __data[$];
+        bit [0:DATA_BYTE_WID-1][7:0] _data;
+        bit  eop = 0;
+        bit  __err;
+        bit [MTY_WID-1:0] mty;
+        int byte_idx = 0;
+        int word_idx = 0;
+        int byte_cnt = 0;
 
         debug_msg("receive_raw: Waiting for data...");
 
         while (!eop) begin
             packet_vif.receive(_data, eop, mty, __err, meta);
             trace_msg($sformatf("receive_raw: Received word %0d.", word_idx));
-            if (this.__BIGENDIAN) begin
-                _data = {<<byte{_data}};
-            end
             while (byte_idx < DATA_BYTE_WID) begin
                 if (!eop || (byte_idx < DATA_BYTE_WID - mty)) begin
                     __data.push_back(_data[byte_idx]);
@@ -100,6 +100,10 @@ class packet_intf_monitor #(
                 end else break;
             end
             byte_cnt += byte_idx;
+            if (byte_cnt > this.get_max_pkt_size()) begin
+                error_msg($sformatf("Received packet exceeded MAX_PKT_SIZE limit (%0d)", this.get_max_pkt_size()));
+                $fatal(2, "Received packet exceeded MAX_PKT_SIZE limit.");
+            end
             byte_idx = 0;
             word_idx++;
             while (stall()) packet_vif._wait(1);

@@ -38,21 +38,18 @@ module packet_capture #(
     // -----------------------------
     localparam int  DATA_BYTE_WID = packet_if.DATA_BYTE_WID;
     localparam int  DATA_WID = DATA_BYTE_WID*8;
-    localparam type DATA_T = logic[DATA_BYTE_WID-1:0][7:0];
     localparam int  MTY_WID  = $clog2(DATA_BYTE_WID);
     localparam type MTY_T    = logic[MTY_WID-1:0];
 
-    localparam type META_T = packet_if.META_T;
-    localparam int  META_WID = $bits(META_T);
+    localparam int  META_WID = packet_if.META_WID;
     localparam int  META_BYTES = META_WID % 8 == 0 ? META_WID / 8 : META_WID / 8 + 1;
     localparam int  META_REGS = META_BYTES % 4 == 0 ? META_BYTES / 4 : META_BYTES / 4 + 1;
 
     localparam int  PACKET_MEM_DEPTH = PACKET_MEM_SIZE / DATA_BYTE_WID;
     localparam int  PACKET_MEM_ADDR_WID = $clog2(PACKET_MEM_DEPTH);
-    localparam type PACKET_MEM_ADDR_T = logic[PACKET_MEM_ADDR_WID-1:0];
 
     localparam int  SIZE_WID = $bits(packet_capture_reg_pkg::fld_status_packet_bytes_t);
-    localparam type SIZE_T = logic[SIZE_WID-1:0];
+    localparam int  MAX_PKT_SIZE = 2**SIZE_WID;
 
     // -----------------------------
     // Parameter checking
@@ -96,10 +93,10 @@ module packet_capture #(
     logic             status_done;
     logic             status_error;
 
-    SIZE_T            packet_bytes;
+    logic [SIZE_WID-1:0] packet_bytes;
 
     logic [0:META_BYTES-1][7:0] meta_out;
-    META_T            meta;
+    logic [META_WID-1:0]        meta;
 
     // -----------------------------
     // Interfaces
@@ -111,14 +108,14 @@ module packet_capture #(
 
     packet_capture_reg_intf reg_if ();
 
-    mem_intf #(.ADDR_T(PACKET_MEM_ADDR_T), .DATA_T(DATA_T)) mem_if__proxy (.clk(clk));
-    mem_intf #(.ADDR_T(PACKET_MEM_ADDR_T), .DATA_T(DATA_T)) mem_if__write (.clk(clk));
+    mem_intf #(.ADDR_WID(PACKET_MEM_ADDR_WID), .DATA_WID(DATA_WID)) mem_if__proxy (.clk);
+    mem_intf #(.ADDR_WID(PACKET_MEM_ADDR_WID), .DATA_WID(DATA_WID)) mem_if__write (.clk);
 
-    mem_wr_intf #(.ADDR_WID(PACKET_MEM_ADDR_WID), .DATA_WID(DATA_WID)) mem_wr_if (.clk(clk));
-    mem_rd_intf #(.ADDR_WID(PACKET_MEM_ADDR_WID), .DATA_WID(DATA_WID)) mem_rd_if__unused (.clk(clk));
+    mem_wr_intf #(.ADDR_WID(PACKET_MEM_ADDR_WID), .DATA_WID(DATA_WID)) mem_wr_if (.clk);
+    mem_rd_intf #(.ADDR_WID(PACKET_MEM_ADDR_WID), .DATA_WID(DATA_WID)) mem_rd_if__unused (.clk);
 
-    packet_descriptor_intf #(.ADDR_T (PACKET_MEM_ADDR_T), .META_T(META_T), .SIZE_T(SIZE_T)) nxt_descriptor_if (.clk);
-    packet_descriptor_intf #(.ADDR_T (PACKET_MEM_ADDR_T), .META_T(META_T), .SIZE_T(SIZE_T)) descriptor_if (.clk);
+    packet_descriptor_intf #(.ADDR_WID (PACKET_MEM_ADDR_WID), .META_WID(META_WID), .MAX_PKT_SIZE(MAX_PKT_SIZE)) nxt_descriptor_if (.clk, .srst);
+    packet_descriptor_intf #(.ADDR_WID (PACKET_MEM_ADDR_WID), .META_WID(META_WID), .MAX_PKT_SIZE(MAX_PKT_SIZE)) descriptor_if (.clk, .srst);
 
     packet_event_intf event_if (.clk);
     // ----------------------------------------
@@ -147,7 +144,7 @@ module packet_capture #(
     // Report parameterization details
     assign reg_if.info_nxt_v = 1'b1;
     assign reg_if.info_nxt.mem_size = PACKET_MEM_SIZE;
-    assign reg_if.info_nxt.meta_width = $bits(META_T);
+    assign reg_if.info_nxt.meta_width = META_WID;
 
     // Export enable
     initial en = 1'b0;
@@ -234,8 +231,8 @@ module packet_capture #(
             CAPTURE : begin
                 capture = 1'b1;
                 if (nxt_descriptor_if.rdy) begin
-                    if (descriptor_if.valid) nxt_state = DONE;
-                    else                     nxt_state = ERROR;
+                    if (descriptor_if.vld) nxt_state = DONE;
+                    else                   nxt_state = ERROR;
                 end
             end
             DONE : begin
@@ -255,7 +252,7 @@ module packet_capture #(
     assign descriptor_if.rdy = capture;
 
     // Provide write descriptor when armed
-    assign nxt_descriptor_if.valid = capture;
+    assign nxt_descriptor_if.vld = capture;
     assign nxt_descriptor_if.addr = 0;
     assign nxt_descriptor_if.size = PACKET_MEM_SIZE >= 2**SIZE_WID ? 2**SIZE_WID-1 : PACKET_MEM_SIZE;
     assign nxt_descriptor_if.meta = 'x;
@@ -263,7 +260,7 @@ module packet_capture #(
 
     // Latch packet context
     always @(posedge clk) begin
-        if (descriptor_if.valid && descriptor_if.rdy) begin
+        if (descriptor_if.vld && descriptor_if.rdy) begin
             packet_bytes <= descriptor_if.size;
             meta <= descriptor_if.meta;
         end

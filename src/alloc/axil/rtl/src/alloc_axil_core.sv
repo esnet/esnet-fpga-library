@@ -3,7 +3,7 @@
 // Implements (common) control and monitoring functions for alloc components,
 // including terminating register interface, maintaining counts, etc.
 module alloc_axil_core #(
-    parameter type PTR_T = logic
+    parameter int PTR_WID = 1
 ) (
     // Clock/reset
     input logic               clk,
@@ -31,7 +31,7 @@ module alloc_axil_core #(
     // -----------------------------
     // Parameters
     // -----------------------------
-    localparam int MAX_PTRS = 2**$bits(PTR_T);
+    localparam int MAX_PTRS = 2**PTR_WID;
 
     // -----------------------------
     // Signals

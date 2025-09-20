@@ -1,7 +1,7 @@
 module state_vector_core
     import state_pkg::*;
 #(
-    parameter type ID_T = logic[7:0],
+    parameter int ID_WID = 1,
     parameter vector_t SPEC = DEFAULT_STATE_VECTOR,
     parameter int  NUM_WR_TRANSACTIONS = 4, // Maximum number of database write transactions that can
                                             // be in flight (from the perspective of this module)
@@ -42,73 +42,71 @@ module state_vector_core
     // ----------------------------------
     // Parameters
     // ----------------------------------
-    localparam type STATE_T = logic[getStateVectorSize(SPEC)-1:0];
-    localparam type UPDATE_T = logic[getUpdateVectorSize(SPEC)-1:0];
+    localparam int STATE_WID = getStateVectorSize(SPEC);
+    localparam int UPDATE_WID = getUpdateVectorSize(SPEC);
 
     // ----------------------------------
     // Parameter checking
     // ----------------------------------
     initial begin
-        std_pkg::param_check($bits(update_if.ID_T)    , $bits(ID_T)    , "update_if.ID_T");
-        std_pkg::param_check($bits(update_if.STATE_T) , $bits(STATE_T) , "update_if.STATE_T");
-        std_pkg::param_check($bits(update_if.UPDATE_T), $bits(UPDATE_T), "update_if.UPDATE_T");
-        std_pkg::param_check($bits(ctrl_if.ID_T)      , $bits(ID_T)    , "ctrl_if.ID_T");
-        std_pkg::param_check($bits(ctrl_if.STATE_T)   , $bits(STATE_T) , "ctrl_if.STATE_T");
-        std_pkg::param_check($bits(ctrl_if.UPDATE_T)  , $bits(UPDATE_T), "ctrl_if.UPDATE_T");
-        std_pkg::param_check($bits(db_ctrl_if.KEY_T)  , $bits(ID_T)    , "db_ctrl_if.KEY_T");
-        std_pkg::param_check($bits(db_ctrl_if.VALUE_T), $bits(STATE_T) , "db_ctrl_if.VALUE_T");
-        std_pkg::param_check($bits(db_wr_if.KEY_T)    , $bits(ID_T)    , "db_wr_if.KEY_T");
-        std_pkg::param_check($bits(db_wr_if.VALUE_T)  , $bits(STATE_T) , "db_wr_if.VALUE_T");
-        std_pkg::param_check($bits(db_rd_if.KEY_T)    , $bits(ID_T)    , "db_rd_if.KEY_T");
-        std_pkg::param_check($bits(db_rd_if.VALUE_T)  , $bits(STATE_T) , "db_rd_if.VALUE_T");
+        std_pkg::param_check(update_if.ID_WID    , ID_WID    , "update_if.ID_WID");
+        std_pkg::param_check(update_if.STATE_WID , STATE_WID , "update_if.STATE_WID");
+        std_pkg::param_check(update_if.UPDATE_WID, UPDATE_WID, "update_if.UPDATE_WID");
+        std_pkg::param_check(ctrl_if.ID_WID      , ID_WID    , "ctrl_if.ID_WID");
+        std_pkg::param_check(ctrl_if.STATE_WID   , STATE_WID , "ctrl_if.STATE_WID");
+        std_pkg::param_check(ctrl_if.UPDATE_WID  , UPDATE_WID, "ctrl_if.UPDATE_WID");
+        std_pkg::param_check(db_ctrl_if.KEY_WID  , ID_WID    , "db_ctrl_if.KEY_WID");
+        std_pkg::param_check(db_ctrl_if.VALUE_WID, STATE_WID , "db_ctrl_if.VALUE_WID");
+        std_pkg::param_check(db_wr_if.KEY_WID    , ID_WID    , "db_wr_if.KEY_WID");
+        std_pkg::param_check(db_wr_if.VALUE_WID  , STATE_WID , "db_wr_if.VALUE_WID");
+        std_pkg::param_check(db_rd_if.KEY_WID    , ID_WID    , "db_rd_if.KEY_WID");
+        std_pkg::param_check(db_rd_if.VALUE_WID  , STATE_WID , "db_rd_if.VALUE_WID");
     end
 
     // ----------------------------------
     // Typedefs
     // ----------------------------------
     typedef struct packed {
-        ID_T          id;
-        update_ctxt_t ctxt;
-        UPDATE_T      update;
-        logic         init;
-        logic         back_to_back;
+        logic [ID_WID-1:0]     id;
+        update_ctxt_t          ctxt;
+        logic [UPDATE_WID-1:0] update;
+        logic                  init;
+        logic                  back_to_back;
     } rmw_ctxt_t;
 
     // ----------------------------------
     // Signals
     // ----------------------------------
-    STATE_T prev_state;
-    STATE_T next_state;
-    STATE_T return_state;
+    logic [STATE_WID-1:0] prev_state;
+    logic [STATE_WID-1:0] next_state;
+    logic [STATE_WID-1:0] return_state;
 
     rmw_ctxt_t rmw_ctxt_in;
     rmw_ctxt_t rmw_ctxt_out;
 
-    ID_T    last_update_id;
-    logic   last_next_state_valid;
-    STATE_T last_next_state;
+    logic [ID_WID-1:0]    last_update_id;
+    logic                 last_next_state_valid;
+    logic [STATE_WID-1:0] last_next_state;
 
     // ----------------------------------
     // Interfaces
     // ----------------------------------
-    db_intf #(.KEY_T(ID_T), .VALUE_T(STATE_T)) __app_wr_if (.clk(clk));
-    db_intf #(.KEY_T(ID_T), .VALUE_T(STATE_T)) __app_rd_if (.clk(clk));
+    db_intf #(.KEY_WID(ID_WID), .VALUE_WID(STATE_WID)) __app_wr_if (.clk);
+    db_intf #(.KEY_WID(ID_WID), .VALUE_WID(STATE_WID)) __app_rd_if (.clk);
 
-    state_intf #(.ID_T(ID_T), .STATE_T(STATE_T), .UPDATE_T(UPDATE_T)) __update_if (.clk(clk));
+    state_intf #(.ID_WID(ID_WID), .STATE_WID(STATE_WID), .UPDATE_WID(UPDATE_WID)) __update_if (.clk);
 
     // ----------------------------------
     // Export info
     // ----------------------------------
     assign info_if._type = db_pkg::DB_TYPE_STATE;
     assign info_if.subtype = BLOCK_TYPE_VECTOR;
-    assign info_if.size = 2**$bits(ID_T);
+    assign info_if.size = 2**ID_WID;
 
     // ----------------------------------
     // (Generic) database core
     // ----------------------------------
     db_core #(
-        .KEY_T               ( ID_T ),
-        .VALUE_T             ( STATE_T ),
         .NUM_WR_TRANSACTIONS ( NUM_WR_TRANSACTIONS ),
         .NUM_RD_TRANSACTIONS ( NUM_RD_TRANSACTIONS ),
         .DB_CACHE_EN         ( 0 ), // No need to cache the database accesses since under normal
@@ -138,16 +136,13 @@ module state_vector_core
     //   coming from the datapath
     // ----------------------------------
     state_intf_control_mux #(
-        .ID_T               ( ID_T ),
-        .STATE_T            ( STATE_T ),
-        .UPDATE_T           ( UPDATE_T ),
         .NUM_TRANSACTIONS   ( NUM_RD_TRANSACTIONS )
     ) i_state_intf_control_mux  (
-        .clk                    ( clk ),
-        .srst                   ( srst ),
-        .state_if_from_datapath ( update_if ),
-        .state_if_from_control  ( ctrl_if ),
-        .state_if_to_target     ( __update_if )
+        .clk           ( clk ),
+        .srst          ( srst ),
+        .from_datapath ( update_if ),
+        .from_control  ( ctrl_if ),
+        .to_target     ( __update_if )
     );
 
     // ----------------------------------
@@ -184,8 +179,8 @@ module state_vector_core
     assign rmw_ctxt_in.back_to_back = (__update_if.id == last_update_id);
 
     fifo_small_ctxt #(
-        .DATA_T  ( rmw_ctxt_t ),
-        .DEPTH   ( NUM_RD_TRANSACTIONS )
+        .DATA_WID ( $bits(rmw_ctxt_t) ),
+        .DEPTH    ( NUM_RD_TRANSACTIONS )
     ) i_fifo_small_ctxt__rmw (
         .clk     ( clk ),
         .srst    ( srst ),

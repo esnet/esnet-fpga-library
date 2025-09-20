@@ -6,7 +6,7 @@ module sync_meta_unit_test;
     string name = "sync_meta_ut";
     svunit_testcase svunit_ut;
 
-    localparam RST_VALUE = 1'bx;
+    localparam RST_VALUE = 1'b1;
     //===================================
     // DUT
     //===================================

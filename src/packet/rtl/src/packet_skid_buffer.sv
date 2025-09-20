@@ -28,26 +28,20 @@ module packet_skid_buffer
                             // to monitor for that scenario
 );
     localparam int  DATA_BYTE_WID = from_tx.DATA_BYTE_WID;
-    localparam int  MTY_WID  = from_tx.MTY_WID;
-    localparam int  META_WID = $bits(from_tx.META_T);
-
-    localparam type DATA_T = logic[DATA_BYTE_WID-1:0][7:0];
-    localparam type META_T = logic[META_WID-1:0];
-    localparam type MTY_T  = logic[MTY_WID-1:0];
+    localparam int  DATA_WID = DATA_BYTE_WID * 8;
+    localparam int  MTY_WID  = $clog2(DATA_BYTE_WID);
+    localparam int  META_WID = from_tx.META_WID;
 
     // Parameter checking
-    initial begin
-        std_pkg::param_check(to_rx.DATA_BYTE_WID, DATA_BYTE_WID, "to_rx.DATA_BYTE_WID");
-        std_pkg::param_check($bits(to_rx.META_T), META_WID, "to_rx.META_T");
-    end
+    packet_intf_parameter_check param_check (.*);
 
     // Typedefs
     typedef struct packed {
-        META_T  meta;
-        logic   err;
-        MTY_T   mty;
-        logic   eop;
-        DATA_T  data;
+        logic[META_WID-1:0] meta;
+        logic               err;
+        logic[MTY_WID-1:0]  mty;
+        logic               eop;
+        logic[DATA_WID-1:0] data;
     } fifo_data_t;
 
     // Signals
@@ -65,17 +59,17 @@ module packet_skid_buffer
     // (catch SKID cycles of data already in flight after
     //  deassertion axi4s_in.tready)
     fifo_prefetch #(
-        .DATA_T          ( fifo_data_t ),
-        .PIPELINE_DEPTH  ( SKID )
+        .DATA_WID       ( $bits(fifo_data_t) ),
+        .PIPELINE_DEPTH ( SKID )
     ) i_fifo_prefetch (
         .clk      ( from_tx.clk ),
         .srst     ( from_tx.srst ),
-        .wr       ( from_tx.valid ),
+        .wr       ( from_tx.vld ),
         .wr_rdy   ( from_tx.rdy ),
         .wr_data  ( from_tx_data ),
         .oflow    ( oflow ),
         .rd       ( to_rx.rdy ),
-        .rd_vld   ( to_rx.valid ),
+        .rd_vld   ( to_rx.vld ),
         .rd_data  ( to_rx_data )
     );
 

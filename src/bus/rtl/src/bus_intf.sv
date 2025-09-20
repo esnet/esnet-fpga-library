@@ -1,19 +1,24 @@
 interface bus_intf #(
-    parameter type DATA_T = logic
+    parameter int DATA_WID = 1
 ) (
-    input logic clk
+    input logic clk,
+    input logic srst = 1'b0
 );
 
+    // Parameter validation
+    initial begin
+        std_pkg::param_check_gt(DATA_WID, 1, "DATA_WID");
+    end
+
     // Signals
-    logic  srst;
-    logic  valid;
-    logic  ready;
-    DATA_T data;
+    logic                valid;
+    logic                ready;
+    logic [DATA_WID-1:0] data;
 
     // Modports
     modport tx (
         input  clk,
-        output srst,
+        input  srst,
         output valid,
         input  ready,
         output data
@@ -28,7 +33,6 @@ interface bus_intf #(
     );
 
     clocking cb @(posedge clk);
-        default input #1step output #1step;
         inout valid, ready, data;
     endclocking
 
@@ -53,7 +57,7 @@ interface bus_intf #(
     // - indicate data to send regardless of readiness
     // - transaction is completed when both valid and
     //   ready are asserted on a particular cycle
-    task send(input DATA_T _data);
+    task send(input bit[DATA_WID-1:0] _data);
         cb.valid <= 1'b1;
         cb.data <= _data;
         @(cb);
@@ -65,7 +69,7 @@ interface bus_intf #(
     // - send data to interface, ignoring ready indication
     // - transaction is completed on cycle that valid is
     //   asserted, regardless of ready value
-    task push(input DATA_T _data);
+    task push(input bit[DATA_WID-1:0] _data);
         cb.valid <= 1'b1;
         cb.data <= _data;
         @(cb);
@@ -77,7 +81,7 @@ interface bus_intf #(
     // - Push data to interface, but only after interface signals
     //   readiness to receive it
     // - transaction is completed on cycle that valid is asserted
-    task push_when_ready(input DATA_T _data);
+    task push_when_ready(input bit[DATA_WID-1:0] _data);
         wait(ready);
         push(_data);
     endtask
@@ -87,7 +91,7 @@ interface bus_intf #(
     //   of valid indication from sender
     // - transaction is completed when both valid and
     //   ready are asserted on a particular cycle
-    task receive(output DATA_T _data);
+    task receive(output bit[DATA_WID-1:0] _data);
         cb.ready <= 1'b1;
         @(cb);
         wait (cb.valid && cb.ready);
@@ -99,7 +103,7 @@ interface bus_intf #(
     // - receive data from interface, ingnoring valid indication
     // - transaction is completed on cycle that ready is
     //   asserted, regardless of valid value
-    task pull(output DATA_T _data);
+    task pull(output bit[DATA_WID-1:0] _data);
         cb.ready <= 1'b1;
         @(cb);
         wait (cb.ready);
@@ -112,7 +116,7 @@ interface bus_intf #(
     //   response to valid indication
     // - transaction is completed on cycle that ready is
     //   asserted
-    task ack(output DATA_T _data);
+    task ack(output bit[DATA_WID-1:0] _data);
         wait(valid);
         pull(_data);
     endtask
@@ -121,7 +125,7 @@ interface bus_intf #(
     // - 'fetch' data from interface using 'ready' signal
     // - data is considered valid on cycle following fetch request,
     //   regardless of 'valid' value
-    task fetch(output DATA_T _data);
+    task fetch(output bit[DATA_WID-1:0] _data);
         cb.ready <= 1'b1;
         @(cb);
         wait (cb.ready);
@@ -133,7 +137,7 @@ interface bus_intf #(
     // Fetch + Valid
     // - 'fetch' data from interface using 'ready' signal
     // - data is considered valid when 'valid' signal is asserted
-    task fetch_val(output DATA_T _data);
+    task fetch_val(output bit[DATA_WID-1:0] _data);
         cb.ready <= 1'b1;
         @(cb);
         wait (cb.ready);
@@ -147,7 +151,7 @@ interface bus_intf #(
     // - 'fetch' data from interface using 'ready' signal, but only
     //   after data readiness is signaled via 'valid' signal
     // - data is considered valid on cycle following fetch request
-    task ack_fetch(output DATA_T _data);
+    task ack_fetch(output bit[DATA_WID-1:0] _data);
         wait(valid);
         fetch(_data);
     endtask
@@ -155,33 +159,27 @@ interface bus_intf #(
 endinterface : bus_intf
 
 
-module bus_intf_connector #(
-    parameter type DATA_T = logic
-) (
+module bus_intf_parameter_check (
     bus_intf.rx from_tx,
     bus_intf.tx to_rx
 );
-    // Parameter checking
     initial begin
-        std_pkg::param_check($bits(from_tx.DATA_T), $bits(DATA_T), "from_tx.DATA_T");
-        std_pkg::param_check($bits(to_rx.DATA_T), $bits(DATA_T), "to_rx.DATA_T");
+        std_pkg::param_check(from_tx.DATA_WID, to_rx.DATA_WID, "DATA_WID");
     end
+endmodule
 
-    logic  srst;
-    logic  valid;
-    DATA_T data;
-    logic  ready;
 
-    // Terminate bus interface from Tx
-    assign srst = from_tx.srst;
-    assign valid = from_tx.valid;
-    assign data = from_tx.data;
-    assign from_tx.ready = ready;
+module bus_intf_connector (
+    bus_intf.rx from_tx,
+    bus_intf.tx to_rx
+);
+    bus_intf_parameter_check param_check (.*);
 
-    // Drive bus interface to Rx
-    assign to_rx.srst = srst;
-    assign to_rx.valid = valid;
-    assign to_rx.data = data;
-    assign ready = to_rx.ready;
+    // Connect Tx to Rx signals
+    assign to_rx.valid = from_tx.valid;
+    assign to_rx.data = from_tx.data;
+
+    // Connect Rx to Tx signals
+    assign from_tx.ready = to_rx.ready;
 
 endmodule : bus_intf_connector

@@ -1,7 +1,7 @@
 module state_vector_sram_wrapper
     import state_pkg::*;
 #(
-    parameter type ID_T = logic[14:0],
+    parameter int ID_WID = 15,
     parameter vector_t SPEC = '{
         NUM_ELEMENTS : 8,
         ELEMENTS: '{
@@ -9,52 +9,52 @@ module state_vector_sram_wrapper
             default : '{ELEMENT_TYPE_COUNTER_COND, 64, 1, RETURN_MODE_PREV_STATE, REAP_MODE_CLEAR}
         }
     },
-    parameter type STATE_T = logic[getStateVectorSize(SPEC)-1:0],
-    parameter type UPDATE_T = logic[getUpdateVectorSize(SPEC)-1:0]
+    parameter int STATE_WID = getStateVectorSize(SPEC),
+    parameter int UPDATE_WID = getUpdateVectorSize(SPEC)
 ) (
     // Clock/reset
-    input  logic              clk,
-    input  logic              srst,
+    input  logic                  clk,
+    input  logic                  srst,
 
-    input  logic              en,
-    output logic              init_done,
+    input  logic                  en,
+    output logic                  init_done,
 
     // Control interface
-    input logic             db_ctrl_req,
-    input db_pkg::command_t db_ctrl_command,
-    input ID_T              db_ctrl_key,
-    input STATE_T           db_ctrl_set_value,
-    output logic            db_ctrl_rdy,
-    output logic            db_ctrl_ack,
-    output db_pkg::status_t db_ctrl_status,
-    output logic            db_ctrl_get_valid,
-    output ID_T             db_ctrl_get_key,
-    output STATE_T          db_ctrl_get_value,
+    input  logic                  db_ctrl_req,
+    input  db_pkg::command_t      db_ctrl_command,
+    input  logic [ID_WID-1:0]     db_ctrl_key,
+    input  logic [STATE_WID-1:0]  db_ctrl_set_value,
+    output logic                  db_ctrl_rdy,
+    output logic                  db_ctrl_ack,
+    output db_pkg::status_t       db_ctrl_status,
+    output logic                  db_ctrl_get_valid,
+    output logic [ID_WID-1:0]     db_ctrl_get_key,
+    output logic [STATE_WID-1:0]  db_ctrl_get_value,
 
     // Info interface
-    output db_pkg::type_t    info_type,
-    output db_pkg::subtype_t info_subtype,
-    output logic [31:0]      info_size,
+    output db_pkg::type_t         info_type,
+    output db_pkg::subtype_t      info_subtype,
+    output logic [31:0]           info_size,
 
     // Update interface (datapath)
-    input  logic         update_req,
-    input  update_ctxt_t update_ctxt,
-    input  ID_T          update_id,
-    input  logic         update_init,
-    input  UPDATE_T      update_update,
-    output logic         update_rdy,
-    output logic         update_ack,
-    output logic         update_state,
+    input  logic                  update_req,
+    input  update_ctxt_t          update_ctxt,
+    input  logic [ID_WID-1:0]     update_id,
+    input  logic                  update_init,
+    input  logic [UPDATE_WID-1:0] update_update,
+    output logic                  update_rdy,
+    output logic                  update_ack,
+    output logic                  update_state,
 
     // Update interface (control)
-    input  logic         ctrl_req,
-    input  update_ctxt_t ctrl_ctxt,
-    input  ID_T          ctrl_id,
-    input  logic         ctrl_init,
-    input  UPDATE_T      ctrl_update,
-    output logic         ctrl_rdy,
-    output logic         ctrl_ack,
-    output logic         ctrl_state
+    input  logic                  ctrl_req,
+    input  update_ctxt_t          ctrl_ctxt,
+    input  logic [ID_WID-1:0]     ctrl_id,
+    input  logic                  ctrl_init,
+    input  logic [UPDATE_WID-1:0] ctrl_update,
+    output logic                  ctrl_rdy,
+    output logic                  ctrl_ack,
+    output logic                  ctrl_state
 
 );
 
@@ -67,19 +67,19 @@ module state_vector_sram_wrapper
     // ----------------------------------
     // Interfaces
     // ----------------------------------
-    db_ctrl_intf #(.KEY_T(ID_T), .VALUE_T(STATE_T)) db_ctrl_if (.clk(clk));
+    db_ctrl_intf #(.KEY_WID(ID_WID), .VALUE_WID(STATE_WID)) db_ctrl_if (.clk);
     db_info_intf info_if ();
-    state_intf #(.ID_T(ID_T), .STATE_T(STATE_T), .UPDATE_T(UPDATE_T)) update_if (.clk(clk));
-    state_intf #(.ID_T(ID_T), .STATE_T(STATE_T), .UPDATE_T(UPDATE_T)) ctrl_if (.clk(clk));
+    state_intf #(.ID_WID(ID_WID), .STATE_WID(STATE_WID), .UPDATE_WID(UPDATE_WID)) update_if (.clk);
+    state_intf #(.ID_WID(ID_WID), .STATE_WID(STATE_WID), .UPDATE_WID(UPDATE_WID)) ctrl_if (.clk);
 
-    db_intf #(.KEY_T(ID_T), .VALUE_T(STATE_T)) db_wr_if (.clk(clk));
-    db_intf #(.KEY_T(ID_T), .VALUE_T(STATE_T)) db_rd_if (.clk(clk));
+    db_intf #(.KEY_WID(ID_WID), .VALUE_WID(STATE_WID)) db_wr_if (.clk);
+    db_intf #(.KEY_WID(ID_WID), .VALUE_WID(STATE_WID)) db_rd_if (.clk);
 
     // ----------------------------------
     // State logic
     // ----------------------------------
     state_vector_core #(
-        .ID_T ( ID_T ),
+        .ID_WID ( ID_WID ),
         .SPEC ( SPEC )
     ) i_state_vector_core  ( .* );
     
@@ -87,8 +87,8 @@ module state_vector_sram_wrapper
     // State data store
     // ----------------------------------
     db_store_array  #(
-        .KEY_T       ( ID_T ),
-        .VALUE_T     ( STATE_T ),
+        .KEY_WID     ( ID_WID ),
+        .VALUE_WID   ( STATE_WID ),
         .TRACK_VALID ( 1'b0 )
     ) i_db_store_array (
         .init      ( db_init ),

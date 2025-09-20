@@ -1,22 +1,22 @@
 module fifo_ctxt #(
-    parameter type DATA_T = logic[15:0],
+    parameter int DATA_WID = 1,
     parameter int DEPTH = 32
 ) (
     // Clock/reset
-    input  logic               clk,
-    input  logic               srst,
+    input  logic                clk,
+    input  logic                srst,
 
     // Write interface
-    output logic               wr_rdy,
-    input  logic               wr,
-    input  DATA_T              wr_data,
+    output logic                wr_rdy,
+    input  logic                wr,
+    input  logic [DATA_WID-1:0] wr_data,
 
-    input  logic               rd,
-    output logic               rd_vld,
-    output DATA_T              rd_data,
+    input  logic                rd,
+    output logic                rd_vld,
+    output logic [DATA_WID-1:0] rd_data,
 
-    output logic               oflow,
-    output logic               uflow
+    output logic                oflow,
+    output logic                uflow
 );
 
     // -----------------------------
@@ -34,10 +34,10 @@ module fifo_ctxt #(
     // Instantiate FIFO core
     // -----------------------------
     fifo_core #(
-        .DATA_T ( DATA_T ),
-        .DEPTH  ( CTXT_DEPTH ),
-        .ASYNC  ( 0 ),
-        .FWFT   ( 1 ),
+        .DATA_WID ( DATA_WID ),
+        .DEPTH    ( CTXT_DEPTH ),
+        .ASYNC    ( 0 ),
+        .FWFT     ( 1 ),
         .OFLOW_PROT ( 1 ),
         .UFLOW_PROT ( 1 ),
         .WR_OPT_MODE ( fifo_pkg::OPT_MODE_LATENCY ),

@@ -12,16 +12,18 @@ module mem_proxy_unit_test;
     //===================================
     // Parameters
     //===================================
-    localparam type ADDR_T = logic[7:0];
-    localparam type DATA_T = logic[511:0];
+    localparam int ADDR_WID = 8;
+    localparam int DATA_WID = 512;
+
     localparam access_t   ACCESS_TYPE = ACCESS_READ_WRITE;
     localparam mem_type_t MEM_TYPE = MEM_TYPE_SRAM;
 
-    localparam int ADDR_WID = $bits(ADDR_T);
     localparam int DEPTH = 2**ADDR_WID;
-    localparam int DATA_WID = $bits(DATA_T);
     localparam int DATA_BYTES = DATA_WID % 8 == 0 ? DATA_WID / 8 : DATA_WID / 8 + 1;
     localparam longint MEM_SIZE = DEPTH * DATA_BYTES;
+
+    localparam type ADDR_T = logic[ADDR_WID-1:0];
+    localparam type DATA_T = logic[DATA_WID-1:0];
 
     //===================================
     // DUT
@@ -32,7 +34,7 @@ module mem_proxy_unit_test;
 
     axi4l_intf axil_if ();
 
-    mem_intf #(.ADDR_T(ADDR_T), .DATA_T(DATA_T)) mem_if (.clk(clk));
+    mem_intf #(.ADDR_WID(ADDR_WID), .DATA_WID(DATA_WID)) mem_if (.clk(clk));
 
     mem_proxy       #(
         .ACCESS_TYPE ( ACCESS_TYPE ),

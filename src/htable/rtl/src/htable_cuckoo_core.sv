@@ -1,8 +1,8 @@
 module htable_cuckoo_core
     import htable_pkg::*;
 #(
-    parameter type KEY_T = logic[15:0],
-    parameter type VALUE_T = logic[15:0],
+    parameter int  KEY_WID = 1,
+    parameter int  VALUE_WID = 1,
     parameter int  NUM_TABLES = 3,
     parameter int  TABLE_SIZE [NUM_TABLES] = '{default: 4096},
     parameter int  HASH_LATENCY = 0,
@@ -10,58 +10,72 @@ module htable_cuckoo_core
     parameter int  NUM_RD_TRANSACTIONS = 8
 )(
     // Clock/reset
-    input  logic              clk,
-    input  logic              srst,
+    input  logic               clk,
+    input  logic               srst,
 
-    input  logic              en,
+    input  logic               en,
 
-    output logic              init_done,
+    output logic               init_done,
 
     // AXI-L control/monitoring
-    axi4l_intf.peripheral     axil_if,
+    axi4l_intf.peripheral      axil_if,
 
     // Info interface
-    db_info_intf.peripheral   info_if,
+    db_info_intf.peripheral    info_if,
 
     // Status interface
-    db_status_intf.peripheral status_if,
+    db_status_intf.peripheral  status_if,
 
     // Control interface
-    db_ctrl_intf.peripheral   ctrl_if,
+    db_ctrl_intf.peripheral    ctrl_if,
 
     // Lookup interface (from application)
-    db_intf.responder         lookup_if,
+    db_intf.responder          lookup_if,
 
     // Hashing interface
-    output KEY_T              lookup_key,
-    input  hash_t             lookup_hash [NUM_TABLES],
+    output logic [KEY_WID-1:0] lookup_key,
+    input  hash_t              lookup_hash [NUM_TABLES],
 
-    output KEY_T              ctrl_key    [NUM_TABLES],
-    input  hash_t             ctrl_hash   [NUM_TABLES],
+    output logic [KEY_WID-1:0] ctrl_key    [NUM_TABLES],
+    input  hash_t              ctrl_hash   [NUM_TABLES],
 
     // Read/write interfaces (to database)
-    output logic              tbl_init      [NUM_TABLES],
-    input  logic              tbl_init_done [NUM_TABLES],
-    db_intf.requester         tbl_wr_if     [NUM_TABLES],
-    db_intf.requester         tbl_rd_if     [NUM_TABLES]
+    output logic               tbl_init      [NUM_TABLES],
+    input  logic               tbl_init_done [NUM_TABLES],
+    db_intf.requester          tbl_wr_if     [NUM_TABLES],
+    db_intf.requester          tbl_rd_if     [NUM_TABLES]
 
 );
-
     // ----------------------------------
     // Parameters
     // ----------------------------------
-    localparam type TBL_ENTRY_T = struct packed {KEY_T key; VALUE_T value;};
+    localparam int ENTRY_WID = KEY_WID + VALUE_WID;
+
+    // ----------------------------------
+    // Parameter checks
+    // ----------------------------------
+    // Check
+    initial begin
+        std_pkg::param_check(lookup_if.KEY_WID,     KEY_WID,   "lookup_if.KEY_WID");
+        std_pkg::param_check(lookup_if.VALUE_WID,   VALUE_WID, "lookup_if.VALUE_WID");
+        std_pkg::param_check(ctrl_if.KEY_WID,       KEY_WID,   "ctrl_if.KEY_WID");
+        std_pkg::param_check(ctrl_if.VALUE_WID,     VALUE_WID, "ctrl_if.VALUE_WID");
+        std_pkg::param_check(tbl_wr_if[0].KEY_WID,   $bits(hash_t), "tbl_wr_if.KEY_WID");
+        std_pkg::param_check(tbl_wr_if[0].VALUE_WID, ENTRY_WID,     "tbl_wr_if.VALUE_WID");
+        std_pkg::param_check(tbl_rd_if[0].KEY_WID,   $bits(hash_t), "tbl_rd_if.KEY_WID");
+        std_pkg::param_check(tbl_rd_if[0].VALUE_WID, ENTRY_WID,     "tbl_rd_if.VALUE_WID");
+    end
 
     // ----------------------------------
     // Interfaces
     // ----------------------------------
-    db_intf #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) update_if__unused (.clk(clk));
+    db_intf #(.KEY_WID(KEY_WID), .VALUE_WID(VALUE_WID)) update_if__unused (.clk);
     
-    db_status_intf stash_status_if__unused (.clk(clk), .srst(srst));
-    db_ctrl_intf  #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) stash_ctrl_if (.clk(clk));
+    db_status_intf stash_status_if__unused (.clk, .srst);
+    db_ctrl_intf  #(.KEY_WID(KEY_WID), .VALUE_WID(VALUE_WID)) stash_ctrl_if (.clk);
 
     db_info_intf tbl_info_if ();
-    db_ctrl_intf #(.KEY_T(hash_t), .VALUE_T(TBL_ENTRY_T)) tbl_ctrl_if [NUM_TABLES] (.clk(clk));
+    db_ctrl_intf #(.KEY_WID($bits(hash_t)), .VALUE_WID(ENTRY_WID)) tbl_ctrl_if [NUM_TABLES] (.clk);
 
     // ----------------------------------
     // Export info
@@ -74,8 +88,8 @@ module htable_cuckoo_core
     // Cuckoo controller
     // ----------------------------------
     htable_cuckoo_controller #(
-        .KEY_T        ( KEY_T ),
-        .VALUE_T      ( VALUE_T ),
+        .KEY_WID      ( KEY_WID ),
+        .VALUE_WID    ( VALUE_WID ),
         .NUM_TABLES   ( NUM_TABLES ),
         .TABLE_SIZE   ( TABLE_SIZE ),
         .HASH_LATENCY ( HASH_LATENCY )
@@ -97,8 +111,8 @@ module htable_cuckoo_core
     // Multi-hash + stash core
     // ----------------------------------
     htable_multi_stash_core #(
-        .KEY_T               ( KEY_T ),
-        .VALUE_T             ( VALUE_T ),
+        .KEY_WID             ( KEY_WID ),
+        .VALUE_WID           ( VALUE_WID ),
         .NUM_TABLES          ( NUM_TABLES ),
         .TABLE_SIZE          ( TABLE_SIZE ),
         .HASH_LATENCY        ( HASH_LATENCY ),

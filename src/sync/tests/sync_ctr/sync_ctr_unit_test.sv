@@ -10,10 +10,10 @@ module sync_ctr_unit_test;
     // Test parameters and variables
     //===================================
 
-    localparam DATA_WID = 8;
+    localparam CNT_WID = 8;
 
-    typedef logic [DATA_WID-1:0] cnt_t;
-    localparam cnt_t RST_VALUE = { DATA_WID/8 {8'h5c} };
+    typedef bit [CNT_WID-1:0] cnt_t;
+    localparam cnt_t RST_VALUE = { CNT_WID/8 {8'h5c} };
 
     int clk_ratio      = 1;
     int clk_in_period  = 10;
@@ -35,7 +35,7 @@ module sync_ctr_unit_test;
 
     // sync_ctr - decoded output (binary)
     sync_ctr #(
-        .DATA_T       ( cnt_t ),
+        .CNT_WID      ( CNT_WID ),
         .RST_VALUE    ( RST_VALUE ),
         .DECODE_OUT   ( 1 )
     ) dut_sync_ctr_bin_out (
@@ -49,7 +49,7 @@ module sync_ctr_unit_test;
 
     // sync_ctr - undecoded output (gray)
     sync_ctr #(
-        .DATA_T       ( cnt_t ),
+        .CNT_WID      ( CNT_WID ),
         .RST_VALUE    ( RST_VALUE ),
         .DECODE_OUT   ( 0 )
     ) dut_sync_ctr_gray_out (
@@ -158,9 +158,9 @@ module sync_ctr_unit_test;
         `SVTEST(gray_output)
              cnt_out_gray_prev = 0; wait (cnt_out_gray == 1);
 
-             repeat (2**(DATA_WID+1)) @(posedge clk_out) begin
+             repeat (2**(CNT_WID+1)) @(posedge clk_out) begin
                 ones_count = 0;
-                for (int i=0; i<DATA_WID; i++) ones_count = ones_count + (cnt_out_gray[i] ^ cnt_out_gray_prev[i]);
+                for (int i=0; i<CNT_WID; i++) ones_count = ones_count + (cnt_out_gray[i] ^ cnt_out_gray_prev[i]);
 
                 `FAIL_UNLESS_LOG ( ones_count == 1,
                       $sformatf("Gray count mismatch. Exp: %0b, Got: %0b.", 1, ones_count) );
@@ -173,7 +173,7 @@ module sync_ctr_unit_test;
         `SVTEST(binary_output)
              cnt_out_bin_exp = 0; wait (cnt_out_bin == 0);
 
-             for (int i=0; i<2**(DATA_WID+1); i++) @(posedge clk_out) begin
+             for (int i=0; i<2**(CNT_WID+1); i++) @(posedge clk_out) begin
                  cnt_out_bin_exp = i;
 
                 `FAIL_UNLESS_LOG ( cnt_out_bin == cnt_out_bin_exp,
@@ -188,7 +188,7 @@ module sync_ctr_unit_test;
 
              cnt_out_bin_exp = 0; wait (cnt_out_bin == 0);
 
-             for (int i=0; i<2**(DATA_WID+1); i++) @(posedge clk_out) begin
+             for (int i=0; i<2**(CNT_WID+1); i++) @(posedge clk_out) begin
                  cnt_out_bin_exp = i / clk_ratio;
 
                 `FAIL_UNLESS_LOG ( cnt_out_bin == cnt_out_bin_exp,
@@ -203,7 +203,7 @@ module sync_ctr_unit_test;
 
              cnt_out_bin_exp = 0; wait (cnt_out_bin == 0);
 
-             for (int i=0; i<2**(DATA_WID+1); i++) @(posedge clk_out) begin
+             for (int i=0; i<2**(CNT_WID+1); i++) @(posedge clk_out) begin
                  cnt_out_bin_exp = i * clk_ratio;
 
                 `FAIL_UNLESS_LOG ( cnt_out_bin == cnt_out_bin_exp,

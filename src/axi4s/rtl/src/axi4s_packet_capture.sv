@@ -8,8 +8,7 @@
 //              register-by-register (i.e. slowly)
 module axi4s_packet_capture #(
     parameter bit  IGNORE_TREADY = 0,
-    parameter int  PACKET_MEM_SIZE = 16384,
-    parameter bit  NETWORK_BYTE_ORDER = 1
+    parameter int  PACKET_MEM_SIZE = 16384
 ) (
     // Clock/Reset
     input  logic                clk,
@@ -26,27 +25,23 @@ module axi4s_packet_capture #(
 );
     // Parameters
     localparam int DATA_BYTE_WID = axis_if.DATA_BYTE_WID;
-    localparam type TID_T   = logic[$bits(axis_if.TID_T)-1:0];
-    localparam type TDEST_T = logic[$bits(axis_if.TDEST_T)-1:0];
-    localparam type TUSER_T = logic[$bits(axis_if.TUSER_T)-1:0];
-    // renamed localparam META_T to avoid vivado segmentation fault.
-    localparam type _META_T = struct packed {TID_T tid; TDEST_T tdest; TUSER_T tuser;};
+    localparam int TID_WID   = axis_if.TID_WID;
+    localparam int TDEST_WID = axis_if.TDEST_WID;
+    localparam int TUSER_WID = axis_if.TUSER_WID;
 
-    // Parameter checking
-    initial begin
-        std_pkg::param_check(packet_if.DATA_BYTE_WID, DATA_BYTE_WID, "packet_if.DATA_BYTE_WID");
-    end
+    typedef struct packed {
+        logic [TID_WID-1:0] tid;
+        logic [TDEST_WID-1:0] tdest;
+        logic [TUSER_WID-1:0] tuser;
+    } meta_t;
+    localparam int META_WID = $bits(meta_t);
 
     // Interfaces
-    packet_intf #(
-        .DATA_BYTE_WID(DATA_BYTE_WID),
-//        .META_T(struct packed {TID_T tid; TDEST_T tdest; TUSER_T tuser;})
-        .META_T(_META_T) // reinstantiated with localparam _META_T to avoid vivado parameterization error.
-    ) packet_if (.clk(clk), .srst(srst));
+    packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_WID(META_WID)) packet_if (.clk, .srst);
 
     // Signals
     logic  err;
-    _META_T meta;
+    meta_t meta;
 
     // Logic
     assign err = 1'b0;
@@ -55,8 +50,7 @@ module axi4s_packet_capture #(
     assign meta.tuser = axis_if.tuser;
 
     axi4s_to_packet_adapter #(
-        .META_T ( _META_T ),
-        .NETWORK_BYTE_ORDER ( NETWORK_BYTE_ORDER )
+        .META_WID (META_WID)
     ) i_axi4s_to_packet_adapter (.*);
 
     packet_capture     #(

@@ -14,10 +14,12 @@ module packet_disaggregate_unit_test;
     localparam int DATA_IN_BYTE_WID = 64;
 
     localparam int DATA_OUT_BYTE_WID = 16;
-    localparam type META_T = logic[31:0];
+    localparam type META_T = bit[31:0];
+
+    localparam int META_WID = $bits(META_T);
 
     localparam int  CTXT_WID = $clog2(NUM_OUTPUTS);
-    localparam type CTXT_T = logic[CTXT_WID-1:0];
+    localparam type CTXT_T = bit[CTXT_WID-1:0];
 
     typedef packet#(META_T) PACKET_T;
 
@@ -27,8 +29,8 @@ module packet_disaggregate_unit_test;
     logic clk;
     logic srst;
 
-    packet_intf #(.DATA_BYTE_WID(DATA_IN_BYTE_WID),  .META_T(META_T))  packet_in_if (.clk, .srst);
-    packet_intf #(.DATA_BYTE_WID(DATA_OUT_BYTE_WID), .META_T(META_T)) packet_out_if [NUM_OUTPUTS] (.clk, .srst);
+    packet_intf #(.DATA_BYTE_WID(DATA_IN_BYTE_WID),  .META_WID(META_WID))  packet_in_if (.clk, .srst);
+    packet_intf #(.DATA_BYTE_WID(DATA_OUT_BYTE_WID), .META_WID(META_WID)) packet_out_if [NUM_OUTPUTS] (.clk, .srst);
 
     packet_event_intf event_in_if  (.clk);
     packet_event_intf event_out_if [NUM_OUTPUTS] (.clk);
@@ -43,7 +45,9 @@ module packet_disaggregate_unit_test;
     packet_disaggregate #(
         .NUM_OUTPUTS ( NUM_OUTPUTS ),
         .MUX_MODE    ( packet_pkg::MUX_MODE_SEL )
-    ) DUT (.*);
+    ) DUT (
+        .*
+    );
 
     //===================================
     // Testbench
@@ -78,11 +82,11 @@ module packet_disaggregate_unit_test;
         svunit_ut = new(name);
 
         // Driver
-        driver = new(.BIGENDIAN(1));
+        driver = new();
         driver.packet_vif = packet_in_if;
 
         // Monitor
-        monitor = new(.BIGENDIAN(1));
+        monitor = new();
         monitor.packet_vif = packet_out_if[0];
 
         model = new();

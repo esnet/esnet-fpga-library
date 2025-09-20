@@ -7,8 +7,8 @@ module state_vector
                                         // at any given time. Typically equal to the (max)
                                         // read latency.
     // Derived parameters (don't override)
-    parameter type STATE_T = logic[getStateVectorSize(SPEC)-1:0],
-    parameter type UPDATE_T = logic[getUpdateVectorSize(SPEC)-1:0]
+    parameter int STATE_WID = getStateVectorSize(SPEC),
+    parameter int UPDATE_WID = getUpdateVectorSize(SPEC)
 )(
     // Clock/reset
     input  logic         clk,
@@ -18,12 +18,12 @@ module state_vector
     input  logic         en,
 
     // Update interface
-    input  update_ctxt_t ctxt,
-    input  STATE_T       prev_state,
-    input  UPDATE_T      update,
-    input  logic         init,
-    output STATE_T       next_state,
-    output STATE_T       return_state
+    input  update_ctxt_t          ctxt,
+    input  logic [STATE_WID-1:0]  prev_state,
+    input  logic [UPDATE_WID-1:0] update,
+    input  logic                  init,
+    output logic [STATE_WID-1:0]  next_state,
+    output logic [STATE_WID-1:0]  return_state
 );
 
     // -----------------------------
@@ -38,9 +38,8 @@ module state_vector
             // (Local) Parameters
             localparam element_t ELEMENT_SPEC = SPEC.ELEMENTS[g_element];
 
-            localparam type __STATE_T = logic[ELEMENT_SPEC.STATE_WID-1:0];
-            localparam int  __UPDATE_WID = ELEMENT_SPEC.UPDATE_WID > 0 ? ELEMENT_SPEC.UPDATE_WID : 1;
-            localparam type __UPDATE_T = logic[__UPDATE_WID-1:0];
+            localparam int __STATE_WID = ELEMENT_SPEC.STATE_WID;
+            localparam int __UPDATE_WID = ELEMENT_SPEC.UPDATE_WID > 0 ? ELEMENT_SPEC.UPDATE_WID : 1;
 
             localparam int __STATE_OFFSET = getStateVectorOffset(SPEC, g_element);
             localparam int __UPDATE_OFFSET = getUpdateVectorOffset(SPEC, g_element);
@@ -49,10 +48,10 @@ module state_vector
             logic __srst;
             logic __en;
 
-            __STATE_T  __prev_state;
-            __UPDATE_T __update;
-            __STATE_T  __next_state;
-            __STATE_T  __return_state;
+            logic [__STATE_WID-1:0]  __prev_state;
+            logic [__UPDATE_WID-1:0] __update;
+            logic [__STATE_WID-1:0]  __next_state;
+            logic [__STATE_WID-1:0]  __return_state;
 
             // Pipeline reset
             initial __srst = 1'b1;

@@ -22,7 +22,11 @@ module db_ctrl_unit_test
     // Parameters
     //===================================
     localparam int TIMEOUT_CYCLES = 0;
-    localparam int SIZE = 2**$bits(KEY_T);
+
+    localparam int KEY_WID   = $bits(KEY_T);
+    localparam int VALUE_WID = $bits(VALUE_T);
+
+    localparam int SIZE = 2**KEY_WID;
 
     localparam type_t DB_TYPE = DB_TYPE_UNSPECIFIED;
     localparam subtype_t DB_SUBTYPE = 'hDB;
@@ -43,8 +47,8 @@ module db_ctrl_unit_test
     logic init;
     logic init_done;
 
-    db_intf #(KEY_T, VALUE_T) db_wr_if (.clk(clk));
-    db_intf #(KEY_T, VALUE_T) db_rd_if (.clk(clk));
+    db_intf #(.KEY_WID(KEY_WID), .VALUE_WID(VALUE_WID)) db_wr_if (.clk);
+    db_intf #(.KEY_WID(KEY_WID), .VALUE_WID(VALUE_WID)) db_rd_if (.clk);
 
     // Peripheral
     db_peripheral #(
@@ -61,8 +65,8 @@ module db_ctrl_unit_test
 
     // Database store
     db_store_array #(
-        .KEY_T     ( KEY_T ),
-        .VALUE_T   ( VALUE_T )
+        .KEY_WID   ( KEY_WID ),
+        .VALUE_WID ( VALUE_WID )
     ) i_db_store_array (
         .clk       ( clk ),
         .srst      ( srst ),
@@ -157,12 +161,15 @@ module db_ctrl_intf_unit_test;
     localparam type KEY_T = logic[11:0];
     localparam type VALUE_T = logic[31:0];
 
+    localparam int KEY_WID   = $bits(KEY_T);
+    localparam int VALUE_WID = $bits(VALUE_T);
+
     import svunit_pkg::svunit_testcase;
     svunit_testcase svunit_ut;
 
     logic clk;
     logic srst;
-    db_ctrl_intf #(KEY_T, VALUE_T) DUT (.clk(clk));
+    db_ctrl_intf #(.KEY_WID(KEY_WID), .VALUE_WID(VALUE_WID)) DUT (.clk);
 
     db_ctrl_unit_test #(
         .KEY_T    ( KEY_T ),
@@ -196,16 +203,19 @@ module db_ctrl_intf_connector_unit_test;
     //         assignments fail (i.e. assign a = b results in a != b)
     //       - bug occurs in regression run only, i.e. test suite passes
     //         when run standalone
-    localparam type KEY_T = logic[11:0];
+    localparam type KEY_T = logic[15:0];
     localparam type VALUE_T = logic[31:0];
+
+    localparam int KEY_WID   = $bits(KEY_T);
+    localparam int VALUE_WID = $bits(VALUE_T);
 
     import svunit_pkg::svunit_testcase;
     svunit_testcase svunit_ut;
 
     logic clk;
     logic srst;
-    db_ctrl_intf #(KEY_T, VALUE_T) db_ctrl_if_to_DUT (.clk(clk));
-    db_ctrl_intf #(KEY_T, VALUE_T) db_ctrl_if_from_DUT (.clk(clk));
+    db_ctrl_intf #(.KEY_WID(KEY_WID), .VALUE_WID(VALUE_WID)) db_ctrl_if_to_DUT (.clk);
+    db_ctrl_intf #(.KEY_WID(KEY_WID), .VALUE_WID(VALUE_WID)) db_ctrl_if_from_DUT (.clk);
 
     db_ctrl_unit_test #(
         .KEY_T    ( KEY_T ),
@@ -214,8 +224,8 @@ module db_ctrl_intf_connector_unit_test;
     ) test (.*);
 
     db_ctrl_intf_connector DUT (
-        .ctrl_if_from_controller ( db_ctrl_if_to_DUT ),
-        .ctrl_if_to_peripheral   ( db_ctrl_if_from_DUT )
+        .from_controller ( db_ctrl_if_to_DUT ),
+        .to_peripheral   ( db_ctrl_if_from_DUT )
     );
 
     function void build();

@@ -4,10 +4,11 @@ class bus_driver #(
 
     local static const string __CLASS_NAME = "bus_verif_pkg::bus_driver";
 
+    localparam int DATA_WID = $bits(DATA_T);
     //===================================
     // Properties
     //===================================
-    virtual bus_intf #(DATA_T) bus_vif;
+    virtual bus_intf #(DATA_WID) bus_vif;
 
     local tx_mode_t __tx_mode = TX_MODE_SEND;
     bit __stall = 1'b0;

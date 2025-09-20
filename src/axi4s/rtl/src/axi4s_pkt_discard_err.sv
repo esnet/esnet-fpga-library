@@ -5,7 +5,9 @@
 
 module axi4s_pkt_discard_err
    import axi4s_pkg::*;
-(
+#(
+   parameter axi4s_tuser_mode_t TUSER_MODE = USER
+) (
    axi4s_intf.rx           axi4s_in_if,
    axi4s_intf.tx           axi4s_out_if,
    axi4l_intf.peripheral   axi4l_if
@@ -15,7 +17,7 @@ module axi4s_pkt_discard_err
 
    // assert err_sop if first axi4s transaction has error flag set.
    assign err_sop = axi4s_in_if.tvalid && axi4s_in_if.tready && axi4s_in_if.sop &&
-                   (axi4s_in_if.TUSER_MODE == PKT_ERROR) && axi4s_in_if.tuser;
+                   (TUSER_MODE == PKT_ERROR) && axi4s_in_if.tuser;
 
    always @(posedge axi4s_in_if.aclk)
       if (~axi4s_in_if.aresetn) err_pkt <= 0;
@@ -31,8 +33,6 @@ module axi4s_pkt_discard_err
    assign axi4s_in_if.tready = axi4s_out_if.tready;
 
    // axis4s output signalling. gate tvalid when packet is errored.
-   assign axi4s_out_if.aclk    = axi4s_in_if.aclk;
-   assign axi4s_out_if.aresetn = axi4s_in_if.aresetn;
    assign axi4s_out_if.tvalid  = axi4s_in_if.tvalid && !(err_sop || err_pkt);
    assign axi4s_out_if.tdata   = axi4s_in_if.tdata;
    assign axi4s_out_if.tkeep   = axi4s_in_if.tkeep;
@@ -44,14 +44,10 @@ module axi4s_pkt_discard_err
 
    // error counter logic
    axi4s_intf  #( 
-      .MODE          (axi4s_in_if.MODE), 
-      .TUSER_MODE    (axi4s_in_if.TUSER_MODE), 
       .DATA_BYTE_WID (axi4s_in_if.DATA_BYTE_WID)
-   ) __axi4s_in_if ();
+   ) __axi4s_in_if (.aclk(axi4s_in_if.aclk), .aresetn(axi4s_in_if.aresetn));
 
    // __axis4s_in_if assignments. ensure tuser is high for full packet if error is detected on sop.
-   assign __axi4s_in_if.aclk    = axi4s_in_if.aclk;
-   assign __axi4s_in_if.aresetn = axi4s_in_if.aresetn;
    assign __axi4s_in_if.tready  = axi4s_in_if.tready;
    assign __axi4s_in_if.tvalid  = axi4s_in_if.tvalid;
    assign __axi4s_in_if.tlast   = axi4s_in_if.tlast;

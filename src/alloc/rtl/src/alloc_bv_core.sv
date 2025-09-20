@@ -24,7 +24,7 @@
 // the bit vector (to indicate available or unallocated).
 
 module alloc_bv_core #(
-    parameter type PTR_T = logic,
+    parameter int  PTR_WID = 1,
     parameter int  ALLOC_Q_DEPTH = 64,   // Scan process finds unallocated pointers and fills queue;
                                          // scan is a 'background' task and is 'slow', and therefore
                                          // allocation requests can be received faster than they can
@@ -37,39 +37,37 @@ module alloc_bv_core #(
                                          // behaviour of the deallocator
     parameter bit  DEALLOC_FC = 1'b1,    // Can flow control dealloc interface,
                                          // i.e. requester waits on dealloc_rdy
-    parameter int  MEM_RD_LATENCY = 8,   // Read latency (or max read latency) for memory
+    parameter int  MEM_RD_LATENCY = 8    // Read latency (or max read latency) for memory
                                          // (used for sizing context FIFO)
-    // Derived parameters (don't override)
-    parameter int  PTR_WID = $bits(PTR_T)
 ) (
     // Clock/reset
-    input logic               clk,
-    input logic               srst,
+    input logic                clk,
+    input logic                srst = 1'b0,
 
     // Control
-    input  logic              en,
-    input  logic              scan_en,
+    input  logic               en,
+    input  logic               scan_en,
 
     // Pointer allocation limit (or set to 0 for no limit, i.e. PTRS = 2**PTR_WID)
-    input  logic              [PTR_WID:0] PTRS = 0,
+    input  logic [PTR_WID:0]   PTRS = 0,
 
     // Allocate interface
-    input  logic              alloc_req,
-    output logic              alloc_rdy,
-    output PTR_T              alloc_ptr,
+    input  logic               alloc_req,
+    output logic               alloc_rdy,
+    output logic [PTR_WID-1:0] alloc_ptr,
 
     // Deallocate interface   
-    input  logic              dealloc_req,
-    output logic              dealloc_rdy,
-    input  PTR_T              dealloc_ptr,
+    input  logic               dealloc_req,
+    output logic               dealloc_rdy,
+    input  logic [PTR_WID-1:0] dealloc_ptr,
 
     // Monitoring
-    alloc_mon_intf.tx         mon_if,
+    alloc_mon_intf.tx          mon_if,
 
     // Memory interface
-    mem_wr_intf.controller    mem_wr_if,
-    mem_rd_intf.controller    mem_rd_if,
-    input logic               mem_init_done
+    mem_wr_intf.controller     mem_wr_if,
+    mem_rd_intf.controller     mem_rd_if,
+    input logic                mem_init_done
 );
     // -----------------------------
     // Parameters
@@ -157,27 +155,27 @@ module alloc_bv_core #(
     ptr_addr_t last_ptr;
 
     // Alloc FIFO
-    logic       alloc_q_wr;
-    logic       alloc_q_wr_rdy;
-    PTR_T       alloc_q_wr_data;
+    logic               alloc_q_wr;
+    logic               alloc_q_wr_rdy;
+    logic [PTR_WID-1:0] alloc_q_wr_data;
 
-    logic       alloc;
-    logic       alloc_fail;
-    logic       alloc_err;
-    PTR_T       alloc_err_ptr;
+    logic               alloc;
+    logic               alloc_fail;
+    logic               alloc_err;
+    logic [PTR_WID-1:0] alloc_err_ptr;
 
     logic       __alloc;
     ptr_addr_t  __alloc_ptr;
 
     // Dealloc FIFO
-    logic      dealloc_q_rd;
-    logic      dealloc_q_rd_rdy;
-    PTR_T      dealloc_q_rd_data;
+    logic               dealloc_q_rd;
+    logic               dealloc_q_rd_rdy;
+    logic [PTR_WID-1:0] dealloc_q_rd_data;
 
-    logic      dealloc;
-    logic      dealloc_fail;
-    logic      dealloc_err;
-    PTR_T      dealloc_err_ptr;
+    logic               dealloc;
+    logic               dealloc_fail;
+    logic               dealloc_err;
+    logic [PTR_WID-1:0] dealloc_err_ptr;
 
     logic      __dealloc;
     ptr_addr_t __dealloc_ptr;
@@ -203,11 +201,11 @@ module alloc_bv_core #(
     // -----------------------------
     // Allocation queue
     // -----------------------------
-    fifo_sync   #(
-        .DATA_T  ( PTR_T ),
-        .DEPTH   ( ALLOC_Q_DEPTH ),
-        .FWFT    ( 1 )
-    ) i_alloc_q  (
+    fifo_sync    #(
+        .DATA_WID ( PTR_WID ),
+        .DEPTH    ( ALLOC_Q_DEPTH ),
+        .FWFT     ( 1 )
+    ) i_alloc_q   (
         .clk,
         .srst,
         .wr_rdy  ( alloc_q_wr_rdy ),
@@ -232,7 +230,7 @@ module alloc_bv_core #(
     // Deallocation queue
     // -----------------------------
     fifo_sync    #(
-        .DATA_T   ( PTR_T ),
+        .DATA_WID ( PTR_WID ),
         .DEPTH    ( DEALLOC_Q_DEPTH ),
         .FWFT     ( 1 )
     ) i_dealloc_q (
@@ -279,8 +277,8 @@ module alloc_bv_core #(
     assign rd_ctxt_in.scan = !rd;
 
     fifo_small_ctxt #(
-        .DATA_T ( rd_ctxt_t ),
-        .DEPTH  ( MEM_RD_LATENCY )
+        .DATA_WID ( $bits(rd_ctxt_t) ),
+        .DEPTH    ( MEM_RD_LATENCY )
     ) i_fifo_small_ctxt__rd_ctxt (
         .clk,
         .srst,

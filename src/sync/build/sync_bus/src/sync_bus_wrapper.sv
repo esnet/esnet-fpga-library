@@ -9,8 +9,8 @@ module sync_bus_wrapper
 );
 
     sync_bus_sampled #(
-        .DATA_T    ( logic[7:0] ),
-        .RST_VALUE ( 1'b0 )
+        .DATA_WID  ( 8 ),
+        .RST_VALUE ( 8'h0 )
     ) i_sync_bus_sampled (
         .clk_in    ( clk_in ),
         .rst_in    ( rst_in ),

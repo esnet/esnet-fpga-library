@@ -133,8 +133,8 @@ module sync_event
     endgenerate
 
     // Synchronize REQ (input -> output)
-    sync_meta #(
-        .DATA_T    ( logic ),
+    sync_meta     #(
+        .DATA_WID  ( 1 ),
         .RST_VALUE ( 1'b0 )
     ) i_sync_meta__req  (
         .clk_in    ( clk_in ),
@@ -147,7 +147,7 @@ module sync_event
 
     // Synchronize ACK (output -> input)
     sync_meta #(
-        .DATA_T    ( logic ),
+        .DATA_WID  ( 1 ),
         .RST_VALUE ( 1'b0 )
     ) i_sync_meta__ack  (
         .clk_in    ( clk_out ),

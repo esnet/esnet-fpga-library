@@ -10,9 +10,9 @@ module axi4s_from_bus_adapter (
     localparam int DATA_BYTE_WID = axi4s_if_to_rx.DATA_BYTE_WID;
     localparam int TDATA_WID = DATA_BYTE_WID*8;
     localparam int TKEEP_WID = DATA_BYTE_WID;
-    localparam int TID_WID   = $bits(axi4s_if_to_rx.TID_T);
-    localparam int TDEST_WID = $bits(axi4s_if_to_rx.TDEST_T);
-    localparam int TUSER_WID = $bits(axi4s_if_to_rx.TUSER_T);
+    localparam int TID_WID   = axi4s_if_to_rx.TID_WID;
+    localparam int TDEST_WID = axi4s_if_to_rx.TDEST_WID;
+    localparam int TUSER_WID = axi4s_if_to_rx.TUSER_WID;
 
     // Payload struct (opaque to underlying bus_intf infrastructure)
     typedef struct packed {
@@ -26,26 +26,20 @@ module axi4s_from_bus_adapter (
 
     // Parameter checking
     initial begin
-        std_pkg::param_check($bits(bus_if_from_tx.DATA_T), $bits(payload_t), "bus_if_from_tx.DATA_T");
+        std_pkg::param_check(bus_if_from_tx.DATA_WID, $bits(payload_t), "bus_if_from_tx.DATA_WID");
     end
 
     // Signals
-    logic     clk;
     payload_t payload;
-    logic     srst;
     logic     valid;
     logic     ready;
 
     // Terminate bus interface
-    assign clk = bus_if_from_tx.clk;
-    assign srst = bus_if_from_tx.srst;
     assign valid = bus_if_from_tx.valid;
     assign payload = bus_if_from_tx.data;
     assign bus_if_from_tx.ready = ready;
 
     // Drive AXI-S interface
-    assign axi4s_if_to_rx.aclk = clk;
-    assign axi4s_if_to_rx.aresetn = !srst;
     assign axi4s_if_to_rx.tvalid = valid;
     assign axi4s_if_to_rx.tdata = payload.tdata;
     assign axi4s_if_to_rx.tkeep = payload.tkeep;

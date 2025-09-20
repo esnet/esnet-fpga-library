@@ -8,22 +8,22 @@
 //   (i.e. no handshaking). An async FIFO, or the sync_event, sync_bus or
 //   sync_ctr modules may be more appropriate in most cases.
 module sync_meta #(
-    parameter type  DATA_T = logic,
-    parameter DATA_T RST_VALUE = 'x
+    parameter int                  DATA_WID = 1,
+    parameter logic [DATA_WID-1:0] RST_VALUE = 'x
 ) (
     // Input clock domain
-    input  logic  clk_in,
-    input  logic  rst_in,
-    input  DATA_T sig_in,
+    input  logic                clk_in,
+    input  logic                rst_in,
+    input  logic [DATA_WID-1:0] sig_in,
     // Output clock domain
-    input  logic  clk_out,
-    input  logic  rst_out,
-    output DATA_T sig_out
+    input  logic                clk_out,
+    input  logic                rst_out,
+    output logic [DATA_WID-1:0] sig_out
 );
     localparam int STAGES = sync_pkg::RETIMING_STAGES;
 
-    (* DONT_TOUCH = "TRUE" *) DATA_T __sync_ff_in;
-    (* ASYNC_REG = "TRUE" *) DATA_T __sync_ff_meta [STAGES];
+    (* DONT_TOUCH = "TRUE" *) logic [DATA_WID-1:0] __sync_ff_in;
+    (* ASYNC_REG = "TRUE" *)  logic [DATA_WID-1:0] __sync_ff_meta [STAGES];
 
     // Register input signal in input clock domain
     initial __sync_ff_in = RST_VALUE;

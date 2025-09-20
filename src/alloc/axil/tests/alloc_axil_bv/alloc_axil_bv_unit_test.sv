@@ -43,7 +43,7 @@ module alloc_axil_bv_unit_test #(
     axi4l_intf axil_if ();
 
     alloc_axil_bv      #(
-        .PTR_T          ( PTR_T ),
+        .PTR_WID        ( PTR_WID ),
         .ALLOC_FC       ( ALLOC_FC ),
         .DEALLOC_FC     ( DEALLOC_FC ),
         .SIM__FAST_INIT ( 0 )

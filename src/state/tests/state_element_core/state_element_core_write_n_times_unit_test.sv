@@ -29,9 +29,11 @@ module state_element_core_write_n_times_unit_test;
     // NOTE: define ID_T/STATE_T here as 'logic' vectors and not 'bit' vectors
     //       - works around apparent simulation bug where some direct
     //         assignments fail (i.e. assign a = b results in a != b)
-    localparam type ID_T = logic[11:0];
-    localparam type STATE_T = logic[SPEC.STATE_WID-1:0];
+    localparam int ID_WID = 12;
+    localparam type ID_T = logic[ID_WID-1:0];
+    localparam int STATE_WID = SPEC.STATE_WID;
     localparam int UPDATE_WID = SPEC.UPDATE_WID > 0 ? SPEC.UPDATE_WID : 1;
+    localparam type STATE_T = logic[STATE_WID-1:0];
     localparam type UPDATE_T = logic[UPDATE_WID-1:0];
 
     localparam block_type_t BLOCK_TYPE = BLOCK_TYPE_ELEMENT;
@@ -57,15 +59,15 @@ module state_element_core_write_n_times_unit_test;
 
     // Interfaces
     db_info_intf  info_if ();
-    state_intf    #(.ID_T(ID_T),  .STATE_T(STATE_T), .UPDATE_T(UPDATE_T)) update_if (.clk(clk));
-    state_intf    #(.ID_T(ID_T),  .STATE_T(STATE_T), .UPDATE_T(UPDATE_T)) ctrl_if   (.clk(clk));
-    db_ctrl_intf  #(.KEY_T(ID_T), .VALUE_T(STATE_T)) db_ctrl_if (.clk(clk));
-    db_intf       #(.KEY_T(ID_T), .VALUE_T(STATE_T)) db_wr_if (.clk(clk));
-    db_intf       #(.KEY_T(ID_T), .VALUE_T(STATE_T)) db_rd_if (.clk(clk));
+    state_intf    #(.ID_WID(ID_WID),  .STATE_WID(STATE_WID), .UPDATE_WID(UPDATE_WID)) update_if (.clk);
+    state_intf    #(.ID_WID(ID_WID),  .STATE_WID(STATE_WID), .UPDATE_WID(UPDATE_WID)) ctrl_if   (.clk);
+    db_ctrl_intf  #(.KEY_WID(ID_WID), .VALUE_WID(STATE_WID)) db_ctrl_if (.clk);
+    db_intf       #(.KEY_WID(ID_WID), .VALUE_WID(STATE_WID)) db_wr_if (.clk);
+    db_intf       #(.KEY_WID(ID_WID), .VALUE_WID(STATE_WID)) db_rd_if (.clk);
 
     // Instantiation
     state_element_core #(
-        .ID_T ( ID_T ),
+        .ID_WID ( ID_WID ),
         .SPEC ( SPEC ),
         .NUM_WR_TRANSACTIONS ( 4 ),
         .NUM_RD_TRANSACTIONS ( 8 )
@@ -76,8 +78,8 @@ module state_element_core_write_n_times_unit_test;
     //===================================
     // Database store
     db_store_array #(
-        .KEY_T   ( ID_T ),
-        .VALUE_T ( STATE_T ),
+        .KEY_WID   ( ID_WID ),
+        .VALUE_WID ( STATE_WID ),
         .TRACK_VALID ( 0 ),
         .SIM__FAST_INIT ( 0 )
     ) i_db_store_array (
@@ -97,7 +99,7 @@ module state_element_core_write_n_times_unit_test;
     `SVUNIT_CLK_GEN(clk, 2.5ns);
 
     // Interfaces
-    std_reset_intf reset_if (.clk(clk));
+    std_reset_intf reset_if (.clk);
 
     // Drive srst from reset interface
     assign srst = reset_if.reset;
@@ -113,7 +115,7 @@ module state_element_core_write_n_times_unit_test;
         model = new($sformatf("state_element_model[%s]", getElementTypeString(SPEC.TYPE)), SPEC);
 
         // Database agent
-        db_agent = new("db_ctrl_agent", State#(ID_T)::numIDs());
+        db_agent = new("db_ctrl_agent", 2**ID_WID);
         db_agent.ctrl_vif = db_ctrl_if;
         db_agent.info_vif = info_if;
 

@@ -1,17 +1,17 @@
 interface state_check_intf #(
-    parameter type STATE_T = logic,
-    parameter type MSG_T = logic
+    parameter int STATE_WID = 1,
+    parameter int MSG_WID = 1
 ) (
     input logic clk
 );
     // Signals
-    logic   req;
-    STATE_T state;
+    logic                 req;
+    logic [STATE_WID-1:0] state;
 
-    logic   ack;
-    logic   active;
-    logic   notify;
-    MSG_T   msg;
+    logic                 ack;
+    logic                 active;
+    logic                 notify;
+    logic [MSG_WID-1:0]   msg;
 
     // Modports
     modport source (
@@ -33,7 +33,6 @@ interface state_check_intf #(
     );
 
     clocking cb @(posedge clk);
-        default input #1step output #1step;
         output state;
         input ack, active, notify, msg;
         inout req;
@@ -48,7 +47,7 @@ interface state_check_intf #(
         repeat (cycles) @(cb);
     endtask
 
-    task _send_req(input STATE_T _state);
+    task _send_req(input bit [STATE_WID-1:0] _state);
         cb.req <= 1'b1;
         cb.state <= _state;
         @(cb);
@@ -57,10 +56,10 @@ interface state_check_intf #(
     endtask
 
     task check(
-            input STATE_T _state,
-            output bit _active,
-            output bit _notify,
-            output MSG_T _msg
+            input bit [STATE_WID-1:0] _state,
+            output bit                _active,
+            output bit                _notify,
+            output bit [MSG_WID-1:0] _msg
         );
         _send_req(state);
         wait(cb.ack);

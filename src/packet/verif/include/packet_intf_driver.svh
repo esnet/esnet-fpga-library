@@ -1,35 +1,29 @@
 class packet_intf_driver #(
     parameter int DATA_BYTE_WID = 8,
-    parameter type META_T = logic
+    parameter type META_T = bit
 ) extends packet_driver#(META_T);
 
     local static const string __CLASS_NAME = "packet_verif_pkg::packet_intf_driver";
 
+    localparam int META_WID = $bits(META_T);
+
     //===================================
     // Properties
     //===================================
-    local bit __BIGENDIAN;
     local int __min_pkt_gap;
     local real __stall_rate;
 
     //===================================
     // Interfaces
     //===================================
-    virtual packet_intf #(DATA_BYTE_WID,META_T) packet_vif;
-
-    //===================================
-    // Typedefs
-    //===================================
-    typedef logic [DATA_BYTE_WID-1:0][7:0] data_t;
-    typedef logic [$clog2(DATA_BYTE_WID)-1:0] mty_t;
+    virtual packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_WID(META_WID)) packet_vif;
 
     //===================================
     // Methods
     //===================================
     // Constructor
-    function new(input string name="packet_intf_driver", input bit BIGENDIAN=1);
+    function new(input string name="packet_intf_driver");
         super.new(name);
-        this.__BIGENDIAN = BIGENDIAN;
         this.__stall_rate = 0.0;
     endfunction
 
@@ -81,18 +75,20 @@ class packet_intf_driver #(
     // Send packet (represented as raw byte array with associated metadata)
     // [[ implements packet_verif_pkg::packet_driver._send_raw() ]]
     protected task _send_raw(
-            input byte    data[],
-            input META_T  meta = '0,
-            input bit     err = 1'b0
+            const ref byte data [],
+            input META_T meta = '0,
+            input bit    err = 1'b0
         );
+        // Parameters
+        localparam int MTY_WID = $clog2(DATA_BYTE_WID);
         // Signals
-        automatic byte __data[$] = data;
-        automatic data_t _data = '0;
-        automatic mty_t  mty;
-        automatic logic __err = err;
-        automatic logic  eop;
-        automatic int byte_idx = 0;
-        automatic int word_idx = 0;
+        byte __data[$] = data;
+        bit [0:DATA_BYTE_WID-1][7:0] _data = '0;
+        bit [MTY_WID-1:0] mty;
+        bit __err = err;
+        bit eop;
+        int byte_idx = 0;
+        int word_idx = 0;
 
         debug_msg($sformatf("send_raw: Sending %0d bytes...", data.size()));
         // Send
@@ -102,9 +98,6 @@ class packet_intf_driver #(
             mty = 0;
             byte_idx++;
             if ((byte_idx == DATA_BYTE_WID) || (__data.size() == 0)) begin
-                if (this.__BIGENDIAN) begin
-                    _data = {<<byte{_data}};
-                end
                 if (__data.size() == 0) begin
                     eop = 1'b1;
                     mty = DATA_BYTE_WID - byte_idx;

@@ -7,12 +7,16 @@ class tb_env #(
     bus_verif_pkg::bus_monitor#(DATA_T),
     std_verif_pkg::raw_scoreboard#(DATA_T)
 );
+    //===================================
+    // Properties
+    //===================================
+    localparam int DATA_WID = $bits(DATA_T);
 
     //===================================
     // Properties
     //===================================
-    virtual bus_intf #(DATA_T) wr_vif;
-    virtual bus_intf #(DATA_T) rd_vif;
+    virtual bus_intf #(DATA_WID) wr_vif;
+    virtual bus_intf #(DATA_WID) rd_vif;
 
     //===================================
     // Methods
@@ -21,8 +25,8 @@ class tb_env #(
     function new(
             string name="tb_env",
             virtual std_reset_intf _reset_vif,
-            virtual bus_intf#(DATA_T) _wr_vif,
-            virtual bus_intf#(DATA_T) _rd_vif
+            virtual bus_intf#(DATA_WID) _wr_vif,
+            virtual bus_intf#(DATA_WID) _rd_vif
         );
         // Create superclass instance
         super.new(name);

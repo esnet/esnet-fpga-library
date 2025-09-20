@@ -13,6 +13,7 @@ virtual class model #(
     //===================================
     local int __cnt_in = 0;
     local int __cnt_out = 0;
+    local int __cnt_drop = 0;
 
     mailbox #(TRANSACTION_IN_T)  inbox;
     mailbox #(TRANSACTION_OUT_T) outbox;
@@ -36,6 +37,7 @@ virtual class model #(
         //     in the constructor.
         this.__cnt_in = 0;
         this.__cnt_out = 0;
+        this.__cnt_drop = 0;
         this.inbox = null;
         this.outbox = null;
         // } WORKAROUND-INIT-PROPS
@@ -81,6 +83,7 @@ virtual class model #(
     virtual protected function automatic void _reset();
         __cnt_in = 0;
         __cnt_out = 0;
+        __cnt_drop = 0;
     endfunction
 
     // Quiesce all interfaces
@@ -109,6 +112,16 @@ virtual class model #(
         outbox.put(transaction);
         __cnt_out++;
         trace_msg("_enqueue() Done.");
+    endtask
+
+    // Drop transaction
+    protected task _drop(input TRANSACTION_OUT_T transaction);
+        trace_msg("_drop()");
+        debug_msg(
+            $sformatf("Dropping transaction %s.", transaction.get_name())
+        );
+        __cnt_drop++;
+        trace_msg("_drop() Done.");
     endtask
 
     // Initialize model for processing

@@ -1,39 +1,39 @@
 module sar_reassembly
 #(
-    parameter type BUF_ID_T      = logic, // (Type) Reassembly buffer (context) pointer
-    parameter type OFFSET_T      = logic, // (Type) Offset in bytes describing location of segment within frame
-    parameter type SEGMENT_LEN_T = logic, // (Type) Length in bytes of current segment
-    parameter type TIMER_T       = logic, // (Type) Frame expiry timer
-    parameter int  MAX_FRAGMENTS = 8192,  // Number of disjoint (post-coalescing) fragments supported at any given time (across all buffers)
-    parameter int  BURST_SIZE    = 8
+    parameter int BUF_ID_WID       = 1, // Width (in bits) of reassembly buffer (context) pointer
+    parameter int OFFSET_WID       = 1, // Width (in bits) of byte offset describing location of segment within frame
+    parameter int SEGMENT_LEN_WID  = 1, // Width (in bits) of byte length of current segment 
+    parameter int TIMER_WID        = 1, // Width (in bits) of frame expiry timer
+    parameter int MAX_FRAGMENTS    = 8192,  // Number of disjoint (post-coalescing) fragments supported at any given time (across all buffers)
+    parameter int BURST_SIZE       = 8
 )(
     // Clock/reset
-    input  logic          clk,
-    input  logic          srst,
+    input  logic                       clk,
+    input  logic                       srst,
 
-    input  logic          en,
+    input  logic                       en,
 
-    output logic          init_done,
+    output logic                       init_done,
 
     // Segment (input) interface
-    output logic          seg_ready,
-    input  logic          seg_valid,
-    input  BUF_ID_T       seg_buf_id,
-    input  OFFSET_T       seg_offset,
-    input  SEGMENT_LEN_T  seg_len,
-    input  logic          seg_last,
+    output logic                       seg_ready,
+    input  logic                       seg_valid,
+    input  logic [BUF_ID_WID-1:0]      seg_buf_id,
+    input  logic [OFFSET_WID-1:0]      seg_offset,
+    input  logic [SEGMENT_LEN_WID-1:0] seg_len,
+    input  logic                       seg_last,
 
     // Timer interface
-    input  logic          ms_tick,
+    input  logic                       ms_tick,
 
     // Frame (output) interface
-    input  logic          frame_ready,
-    output logic          frame_valid,
-    output BUF_ID_T       frame_buf_id,
-    output OFFSET_T       frame_len,
+    input  logic                       frame_ready,
+    output logic                       frame_valid,
+    output logic [BUF_ID_WID-1:0]      frame_buf_id,
+    output logic [OFFSET_WID-1:0]      frame_len,
 
     // AXI-L control
-    axi4l_intf.peripheral axil_if
+    axi4l_intf.peripheral              axil_if
 );
     // -------------------------------------------------
     // Imports
@@ -44,50 +44,50 @@ module sar_reassembly
     // Parameters
     // -------------------------------------------------
     localparam int FRAGMENT_PTR_WID = $clog2(MAX_FRAGMENTS);
-    localparam type FRAGMENT_PTR_T = logic[FRAGMENT_PTR_WID-1:0];
 
-    
     // -------------------------------------------------
     // Typedefs
     // -------------------------------------------------
     typedef struct packed {
-        BUF_ID_T buf_id;
-        OFFSET_T offset;
-    } KEY_T;
+        logic [BUF_ID_WID-1:0] buf_id;
+        logic [OFFSET_WID-1:0] offset;
+    } key_t;
+    localparam int KEY_WID = $bits(key_t);
 
     typedef struct packed {
-        FRAGMENT_PTR_T ptr;
-        OFFSET_T       offset;
-    } VALUE_T;
+        logic [FRAGMENT_PTR_WID-1:0] ptr;
+        logic [OFFSET_WID-1:0]       offset;
+    } value_t;
+    localparam int VALUE_WID = $bits(value_t);
 
     // -------------------------------------------------
     // Signals
     // -------------------------------------------------
-    logic           __srst;
-    logic           __en;
-    logic           init_done__cache;
-    logic           init_done__state;
+    logic __srst;
+    logic __en;
+    logic init_done__cache;
+    logic init_done__state;
 
-    logic           frag_valid;
-    logic           frag_init;
-    BUF_ID_T        frag_buf_id;
-    FRAGMENT_PTR_T  frag_ptr;
-    logic           frag_last;
-    OFFSET_T        frag_offset_start;
-    OFFSET_T        frag_offset_end;
+    logic                         frag_valid;
+    logic                         frag_init;
+    logic [BUF_ID_WID-1:0]        frag_buf_id;
+    logic [FRAGMENT_PTR_WID-1:0]  frag_ptr;
+    logic                         frag_last;
+    logic [OFFSET_WID-1:0]        frag_offset_start;
+    logic [OFFSET_WID-1:0]        frag_offset_end;
 
-    logic           frag_merged;
-    FRAGMENT_PTR_T  frag_merged_ptr;
+    logic                         frag_merged;
+    logic [FRAGMENT_PTR_WID-1:0]  frag_merged_ptr;
 
-    logic           frag_ptr_dealloc_rdy;
-    logic           frag_ptr_dealloc_req;
-    FRAGMENT_PTR_T  frag_ptr_dealloc_value;
+    logic                         frag_ptr_dealloc_rdy;
+    logic                         frag_ptr_dealloc_req;
+    logic [FRAGMENT_PTR_WID-1:0]  frag_ptr_dealloc_value;
 
     // -------------------------------------------------
     // Interfaces
     // -------------------------------------------------
-    db_ctrl_intf #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) ctrl_if__append  (.clk(clk));
-    db_ctrl_intf #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) ctrl_if__prepend (.clk(clk));
+    db_ctrl_intf #(.KEY_WID(KEY_WID), .VALUE_WID(VALUE_WID)) ctrl_if__append  (.clk);
+    db_ctrl_intf #(.KEY_WID(KEY_WID), .VALUE_WID(VALUE_WID)) ctrl_if__prepend (.clk);
 
     axi4l_intf axil_if__regs ();
     axi4l_intf axil_if__regs__clk ();
@@ -148,10 +148,10 @@ module sar_reassembly
     // Reassembly segment cache
     // -------------------------------------------------
     sar_reassembly_cache       #(
-        .BUF_ID_T               ( BUF_ID_T ),
-        .OFFSET_T               ( OFFSET_T ),
-        .SEGMENT_LEN_T          ( SEGMENT_LEN_T ),
-        .FRAGMENT_PTR_T         ( FRAGMENT_PTR_T ),
+        .BUF_ID_WID             ( BUF_ID_WID ),
+        .OFFSET_WID             ( OFFSET_WID ),
+        .SEGMENT_LEN_WID        ( SEGMENT_LEN_WID ),
+        .FRAGMENT_PTR_WID       ( FRAGMENT_PTR_WID ),
         .BURST_SIZE             ( BURST_SIZE )
     ) i_sar_reassembly_cache    (
         .clk                    ( clk ),
@@ -185,11 +185,11 @@ module sar_reassembly
     // Reassembly state table
     // -------------------------------------------------
     sar_reassembly_state       #(
-        .BUF_ID_T               ( BUF_ID_T ),
-        .OFFSET_T               ( OFFSET_T ),
-        .SEGMENT_LEN_T          ( SEGMENT_LEN_T ),
-        .FRAGMENT_PTR_T         ( FRAGMENT_PTR_T ),
-        .TIMER_T                ( TIMER_T )
+        .BUF_ID_WID             ( BUF_ID_WID ),
+        .OFFSET_WID             ( OFFSET_WID ),
+        .SEGMENT_LEN_WID        ( SEGMENT_LEN_WID ),
+        .FRAGMENT_PTR_WID       ( FRAGMENT_PTR_WID ),
+        .TIMER_WID              ( TIMER_WID )
     ) i_sar_reassembly_state    (
         .clk                    ( clk ),
         .srst                   ( __srst ),

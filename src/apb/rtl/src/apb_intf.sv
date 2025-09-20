@@ -55,7 +55,6 @@ interface apb_intf
     );
 
     clocking cb @(posedge pclk);
-        default input #1step output #1step;
         output paddr, pprot, psel, penable, pwrite, pwdata, pstrb;
         input  pready, prdata, pslverr;
     endclocking

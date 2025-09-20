@@ -26,14 +26,14 @@ module mem_ram_tdp
     localparam int WR_LATENCY = get_wr_latency(SPEC);
     localparam int RD_LATENCY = get_rd_latency(SPEC);
 
-    localparam type ADDR_T = logic[SPEC.ADDR_WID-1:0];
-    localparam type DATA_T = logic[SPEC.DATA_WID-1:0];
+    localparam int ADDR_WID = SPEC.ADDR_WID;
+    localparam int DATA_WID = SPEC.DATA_WID;
 
     // -----------------------------
     // Interfaces
     // -----------------------------
-    mem_intf #(.ADDR_T(ADDR_T), .DATA_T(DATA_T)) __mem_if_0 (.clk(mem_if_0.clk));
-    mem_intf #(.ADDR_T(ADDR_T), .DATA_T(DATA_T)) __mem_if_1 (.clk(mem_if_1.clk));
+    mem_intf #(.ADDR_WID(ADDR_WID), .DATA_WID(DATA_WID)) __mem_if_0 (.clk(mem_if_0.clk));
+    mem_intf #(.ADDR_WID(ADDR_WID), .DATA_WID(DATA_WID)) __mem_if_1 (.clk(mem_if_1.clk));
 
     // -----------------------------
     // Reset FSM (optional)
@@ -98,8 +98,8 @@ module mem_ram_tdp
                     // (Local) signals
                     logic __mem_if_1__req;
                     logic __mem_if_1__wr;
-                    ADDR_T __mem_if_1__addr;
-                    DATA_T __mem_if_1__wr_data;
+                    logic [ADDR_WID-1:0] __mem_if_1__addr;
+                    logic [DATA_WID-1:0] __mem_if_1__wr_data;
                     // Pipeline requests on port 1 to maintain relative
                     // synchronization with port 0
                     initial __mem_if_1__req = 1'b0;

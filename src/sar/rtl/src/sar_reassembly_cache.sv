@@ -1,52 +1,51 @@
-module sar_reassembly_cache
-#(
-    parameter type BUF_ID_T       = logic, // (Type) Reassembly buffer (context) pointer
-    parameter type OFFSET_T       = logic, // (Type) Offset in bytes describing location of segment within frame
-    parameter type SEGMENT_LEN_T  = logic, // (Type) Length in bytes of current segment
-    parameter type FRAGMENT_PTR_T = logic, // (Type) Coalesced fragment pointer
-    parameter int  BURST_SIZE     = 8,
+module sar_reassembly_cache #(
+    parameter int BUF_ID_WID       = 1, // Width (in bits) of reassembly buffer (context) pointer
+    parameter int OFFSET_WID       = 1, // Width (in bits) of byte offset describing location of segment within frame
+    parameter int SEGMENT_LEN_WID  = 1, // Width (in bits) of byte length of current segment
+    parameter int FRAGMENT_PTR_WID = 1, // Width (in bits) of coalesced fragment pointer
+    parameter int BURST_SIZE       = 8,
     // Simulation-only
-    parameter bit  SIM__FAST_INIT = 1 // Optimize sim time by performing fast memory init
+    parameter bit  SIM__FAST_INIT  = 1 // Optimize sim time by performing fast memory init
 )(
     // Clock/reset
-    input  logic              clk,
-    input  logic              srst,
+    input  logic                        clk,
+    input  logic                        srst,
 
-    input  logic              en,
+    input  logic                        en,
 
-    output logic              init_done,
+    output logic                        init_done,
 
     // Lookup interface
-    output logic              seg_ready,
-    input  logic              seg_valid,
-    input  BUF_ID_T           seg_buf_id,
-    input  OFFSET_T           seg_offset,
-    input  SEGMENT_LEN_T      seg_len,
-    input  logic              seg_last,
+    output logic                        seg_ready,
+    input  logic                        seg_valid,
+    input  logic [BUF_ID_WID-1:0]       seg_buf_id,
+    input  logic [OFFSET_WID-1:0]       seg_offset,
+    input  logic [SEGMENT_LEN_WID-1:0]  seg_len,
+    input  logic                        seg_last,
 
     // Result interface
-    output logic              frag_valid,
-    output logic              frag_init,
-    output BUF_ID_T           frag_buf_id,
-    output logic              frag_last,
-    output FRAGMENT_PTR_T     frag_ptr,
-    output OFFSET_T           frag_offset_start,
-    output OFFSET_T           frag_offset_end,
+    output logic                        frag_valid,
+    output logic                        frag_init,
+    output logic [BUF_ID_WID-1:0]       frag_buf_id,
+    output logic                        frag_last,
+    output logic [FRAGMENT_PTR_WID-1:0] frag_ptr,
+    output logic [OFFSET_WID-1:0]       frag_offset_start,
+    output logic [OFFSET_WID-1:0]       frag_offset_end,
     
-    output logic              frag_merged,
-    output FRAGMENT_PTR_T     frag_merged_ptr,
+    output logic                        frag_merged,
+    output logic [FRAGMENT_PTR_WID-1:0] frag_merged_ptr,
 
     // Pointer deallocation interface
-    output logic              frag_ptr_dealloc_rdy,
-    input  logic              frag_ptr_dealloc_req,
-    input  FRAGMENT_PTR_T     frag_ptr_dealloc_value,
+    output logic                        frag_ptr_dealloc_rdy,
+    input  logic                        frag_ptr_dealloc_req,
+    input  logic [FRAGMENT_PTR_WID-1:0] frag_ptr_dealloc_value,
 
     // Control interfaces
-    db_ctrl_intf.peripheral   ctrl_if__append,
-    db_ctrl_intf.peripheral   ctrl_if__prepend,
+    db_ctrl_intf.peripheral             ctrl_if__append,
+    db_ctrl_intf.peripheral             ctrl_if__prepend,
 
     // AXI-L control
-    axi4l_intf.peripheral     axil_if
+    axi4l_intf.peripheral               axil_if
 );
     // -------------------------------------------------
     // Imports
@@ -58,27 +57,27 @@ module sar_reassembly_cache
     // -------------------------------------------------
     localparam int NUM_RD_TRANSACTIONS = 16;
 
-    localparam int MAX_FRAGMENTS = 2**$bits(FRAGMENT_PTR_T);
+    localparam int MAX_FRAGMENTS = 2**FRAGMENT_PTR_WID;
 
     // -------------------------------------------------
     // Typedefs
     // -------------------------------------------------
     typedef struct packed {
-        BUF_ID_T buf_id;
-        OFFSET_T offset;
+        logic [BUF_ID_WID-1:0] buf_id;
+        logic [OFFSET_WID-1:0] offset;
     } segment_table_key_t;
 
     typedef struct packed {
-        FRAGMENT_PTR_T ptr;
-        OFFSET_T       offset;
+        logic [FRAGMENT_PTR_WID-1:0] ptr;
+        logic [OFFSET_WID-1:0]       offset;
     } segment_table_value_t;
 
     typedef struct packed {
-        BUF_ID_T      buf_id; 
-        OFFSET_T      offset_start;
-        OFFSET_T      offset_end;
-        SEGMENT_LEN_T len;
-        logic         last;
+        logic [BUF_ID_WID-1:0]      buf_id; 
+        logic [OFFSET_WID-1:0]      offset_start;
+        logic [OFFSET_WID-1:0]      offset_end;
+        logic [SEGMENT_LEN_WID-1:0] len;
+        logic                       last;
     } segment_ctxt_t;
 
     typedef enum logic [1:0] {
@@ -89,13 +88,20 @@ module sar_reassembly_cache
     } fragment_action_t;
 
     // -------------------------------------------------
+    // (Derived) Parameters
+    // -------------------------------------------------
+    localparam int SEGMENT_TABLE_KEY_WID = $bits(segment_table_key_t);
+    localparam int SEGMENT_TABLE_VALUE_WID = $bits(segment_table_value_t);
+    localparam int SEGMENT_CTXT_WID = $bits(segment_ctxt_t);
+
+    // -------------------------------------------------
     // Interfaces
     // -------------------------------------------------
-    db_intf #(.KEY_T(segment_table_key_t), .VALUE_T(segment_table_value_t)) lookup_if__append (.clk(clk));
-    db_intf #(.KEY_T(segment_table_key_t), .VALUE_T(segment_table_value_t)) update_if__append (.clk(clk));
+    db_intf #(.KEY_WID(SEGMENT_TABLE_KEY_WID), .VALUE_WID(SEGMENT_TABLE_VALUE_WID)) lookup_if__append (.clk);
+    db_intf #(.KEY_WID(SEGMENT_TABLE_KEY_WID), .VALUE_WID(SEGMENT_TABLE_VALUE_WID)) update_if__append (.clk);
 
-    db_intf #(.KEY_T(segment_table_key_t), .VALUE_T(segment_table_value_t)) lookup_if__prepend (.clk(clk));
-    db_intf #(.KEY_T(segment_table_key_t), .VALUE_T(segment_table_value_t)) update_if__prepend (.clk(clk));
+    db_intf #(.KEY_WID(SEGMENT_TABLE_KEY_WID), .VALUE_WID(SEGMENT_TABLE_VALUE_WID)) lookup_if__prepend (.clk);
+    db_intf #(.KEY_WID(SEGMENT_TABLE_KEY_WID), .VALUE_WID(SEGMENT_TABLE_VALUE_WID)) update_if__prepend (.clk);
 
     axi4l_intf #() axil_if__cache ();
     axi4l_intf #() axil_if__cache__clk ();
@@ -118,22 +124,32 @@ module sar_reassembly_cache
     logic               lookup_done;
     logic               lookup_error;
 
+    segment_table_key_t   lookup_if__append_key;
+    segment_table_value_t lookup_if__append_value;
+    segment_table_key_t   lookup_if__prepend_key;
+    segment_table_value_t lookup_if__prepend_value;
+
+    segment_table_key_t   update_if__append_key;
+    segment_table_value_t update_if__append_value;
+    segment_table_key_t   update_if__prepend_key;
+    segment_table_value_t update_if__prepend_value;
+
     segment_ctxt_t      lookup_ctxt_in;
     segment_ctxt_t      lookup_ctxt_out;
 
-    logic               frag_ptr_alloc_req;
-    logic               frag_ptr_alloc_rdy;
-    FRAGMENT_PTR_T      frag_ptr_alloc_value;
+    logic                        frag_ptr_alloc_req;
+    logic                        frag_ptr_alloc_rdy;
+    logic [FRAGMENT_PTR_WID-1:0] frag_ptr_alloc_value;
 
-    logic               __frag_valid;
-    logic               __frag_init;
-    fragment_action_t   __frag_action;
-    FRAGMENT_PTR_T      __frag_ptr;
-    OFFSET_T            __frag_offset_start;
-    OFFSET_T            __frag_offset_end;
+    logic                        __frag_valid;
+    logic                        __frag_init;
+    fragment_action_t            __frag_action;
+    logic [FRAGMENT_PTR_WID-1:0] __frag_ptr;
+    logic [OFFSET_WID-1:0]       __frag_offset_start;
+    logic [OFFSET_WID-1:0]       __frag_offset_end;
 
-    logic               __frag_merged;
-    FRAGMENT_PTR_T      __frag_merged_ptr;
+    logic                        __frag_merged;
+    logic [FRAGMENT_PTR_WID-1:0] __frag_merged_ptr;
 
     logic               delete_q__append__wr;
     segment_table_key_t delete_q__append__wr_data;
@@ -203,8 +219,8 @@ module sar_reassembly_cache
     // Segment hash table (append lookup)
     // -------------------------------------------------
     sar_reassembly_htable #(
-        .KEY_T          ( segment_table_key_t ),
-        .VALUE_T        ( segment_table_value_t ),
+        .KEY_WID        ( SEGMENT_TABLE_KEY_WID ),
+        .VALUE_WID      ( SEGMENT_TABLE_VALUE_WID ),
         .NUM_ITEMS      ( MAX_FRAGMENTS ),
         .BURST_SIZE     ( BURST_SIZE ),
         .SIM__FAST_INIT ( SIM__FAST_INIT )
@@ -223,8 +239,8 @@ module sar_reassembly_cache
     // Segment hash table (prepend lookup)
     // -------------------------------------------------
     sar_reassembly_htable #(
-        .KEY_T          ( segment_table_key_t ),
-        .VALUE_T        ( segment_table_value_t ),
+        .KEY_WID        ( SEGMENT_TABLE_KEY_WID ),
+        .VALUE_WID      ( SEGMENT_TABLE_VALUE_WID ),
         .NUM_ITEMS      ( MAX_FRAGMENTS ),
         .BURST_SIZE     ( BURST_SIZE ),
         .SIM__FAST_INIT ( SIM__FAST_INIT )
@@ -242,8 +258,8 @@ module sar_reassembly_cache
     // ----------------------------------
     // Fragment pointer management
     // ----------------------------------
-    alloc_axil_bv #(
-        .PTR_T          ( FRAGMENT_PTR_T ),
+    alloc_axil_bv      #(
+        .PTR_WID        ( FRAGMENT_PTR_WID ),
         .ALLOC_FC       ( 0 ),
         .DEALLOC_FC     ( 1 ),
         .SIM__FAST_INIT ( SIM__FAST_INIT )
@@ -268,14 +284,18 @@ module sar_reassembly_cache
     //   - one lookup in 'Append' context, i.e. attempting to append new segment to existing fragment
     //   - one lookup in 'Prepend' context, i.e. attempting to prepend new segment to existing fragment
     assign lookup_if__append.req = seg_valid;
-    assign lookup_if__append.key.buf_id = seg_buf_id;
-    assign lookup_if__append.key.offset = seg_offset;
+    assign lookup_if__append_key.buf_id = seg_buf_id;
+    assign lookup_if__append_key.offset = seg_offset;
+    assign lookup_if__append.key = lookup_if__append_key;
     assign lookup_if__append.next = 1'b0;
+    assign lookup_if__append_value = lookup_if__append.value;
 
     assign lookup_if__prepend.req = seg_valid;
-    assign lookup_if__prepend.key.buf_id = seg_buf_id;
-    assign lookup_if__prepend.key.offset = seg_offset + seg_len;
+    assign lookup_if__prepend_key.buf_id = seg_buf_id;
+    assign lookup_if__prepend_key.offset = seg_offset + seg_len;
+    assign lookup_if__prepend.key = lookup_if__prepend_key;
     assign lookup_if__prepend.next = 1'b0;
+    assign lookup_if__prepend_value = lookup_if__prepend.value;
 
     assign seg_ready = lookup_if__append.rdy && lookup_if__prepend.rdy;
 
@@ -292,9 +312,9 @@ module sar_reassembly_cache
     // these tables are identical so this should never happen
     assign lookup_error = lookup_if__append.ack ^ lookup_if__prepend.ack;
 
-    fifo_small_ctxt  #(
-        .DATA_T  ( segment_ctxt_t ),
-        .DEPTH   ( NUM_RD_TRANSACTIONS )
+    fifo_small_ctxt #(
+        .DATA_WID ( SEGMENT_CTXT_WID ),
+        .DEPTH    ( NUM_RD_TRANSACTIONS )
     ) i_fifo_small_ctxt__lookup_req (
         .clk     ( clk ),
         .srst    ( __srst ),
@@ -333,25 +353,25 @@ module sar_reassembly_cache
                 2'b01 : begin
                     __frag_action = FRAGMENT_APPEND;
                     __frag_valid = 1'b1;
-                    __frag_ptr = lookup_if__append.value.ptr;
-                    __frag_offset_start = lookup_if__append.value.offset;
+                    __frag_ptr = lookup_if__append_value.ptr;
+                    __frag_offset_start = lookup_if__append_value.offset;
                     __frag_offset_end = lookup_ctxt_out.offset_end;
                 end
                 2'b10 : begin
                     __frag_action = FRAGMENT_PREPEND;
                     __frag_valid = 1'b1;
-                    __frag_ptr = lookup_if__prepend.value.ptr;
+                    __frag_ptr = lookup_if__prepend_value.ptr;
                     __frag_offset_start = lookup_ctxt_out.offset_start;
-                    __frag_offset_end = lookup_if__prepend.value.offset;
+                    __frag_offset_end = lookup_if__prepend_value.offset;
                 end
                 2'b11 : begin
                     __frag_action = FRAGMENT_MERGE;
                     __frag_valid = 1'b1;
-                    __frag_ptr = lookup_if__prepend.value.ptr;
-                    __frag_offset_start = lookup_if__append.value.offset;
-                    __frag_offset_end = lookup_if__prepend.value.offset;
+                    __frag_ptr = lookup_if__prepend_value.ptr;
+                    __frag_offset_start = lookup_if__append_value.offset;
+                    __frag_offset_end = lookup_if__prepend_value.offset;
                     __frag_merged = 1'b1;
-                    __frag_merged_ptr = lookup_if__append.value.ptr;
+                    __frag_merged_ptr = lookup_if__append_value.ptr;
                 end
             endcase
         end
@@ -379,24 +399,29 @@ module sar_reassembly_cache
         frag_merged_ptr    <= __frag_merged_ptr;
     end
      
+    assign update_if__append.key = update_if__append_key;
+    assign update_if__append.value = update_if__append_value;
     assign update_if__append.next = 1'b0;  // Unused
+
+    assign update_if__prepend.key = update_if__prepend_key;
+    assign update_if__prepend.value = update_if__prepend_value;
     assign update_if__prepend.next = 1'b0; // Unused
 
     // Perform table updates according to fragment action
     always_comb begin
         update_if__append.req = 1'b0;
         update_if__append.valid = 1'b0;
-        update_if__append.key.buf_id = lookup_ctxt_out.buf_id;
-        update_if__append.key.offset = '0;
-        update_if__append.value = '0;
+        update_if__append_key.buf_id = lookup_ctxt_out.buf_id;
+        update_if__append_key.offset = '0;
+        update_if__append_value = '0;
         delete_q__append__wr = 1'b0;
         delete_q__append__rd = 1'b0;
 
         update_if__prepend.req = 1'b0;
         update_if__prepend.valid = 1'b0;
-        update_if__prepend.key.buf_id = lookup_ctxt_out.buf_id;
-        update_if__prepend.key.offset = '0;
-        update_if__prepend.value = '0;
+        update_if__prepend_key.buf_id = lookup_ctxt_out.buf_id;
+        update_if__prepend_key.offset = '0;
+        update_if__prepend_value = '0;
         delete_q__prepend__wr = 1'b0;
         delete_q__prepend__rd = 1'b0;
 
@@ -405,57 +430,57 @@ module sar_reassembly_cache
                 FRAGMENT_CREATE : begin
                     update_if__append.req = (!lookup_ctxt_out.last);
                     update_if__append.valid = 1'b1; // Insert
-                    update_if__append.key.offset = lookup_ctxt_out.offset_end;
-                    update_if__append.value.ptr = __frag_ptr;
-                    update_if__append.value.offset = lookup_ctxt_out.offset_start;
+                    update_if__append_key.offset = lookup_ctxt_out.offset_end;
+                    update_if__append_value.ptr = __frag_ptr;
+                    update_if__append_value.offset = lookup_ctxt_out.offset_start;
                     
                     update_if__prepend.req = (lookup_ctxt_out.offset_start > 0);
                     update_if__prepend.valid = 1'b1; // Insert
-                    update_if__prepend.key.offset = lookup_ctxt_out.offset_start;
-                    update_if__prepend.value.ptr = __frag_ptr;
-                    update_if__prepend.value.offset = lookup_ctxt_out.last ? 0 : lookup_ctxt_out.offset_end;
+                    update_if__prepend_key.offset = lookup_ctxt_out.offset_start;
+                    update_if__prepend_value.ptr = __frag_ptr;
+                    update_if__prepend_value.offset = lookup_ctxt_out.last ? 0 : lookup_ctxt_out.offset_end;
                 end
                 FRAGMENT_APPEND : begin
                     update_if__append.req = (!lookup_ctxt_out.last);
                     update_if__append.valid = 1'b1; // Insert
-                    update_if__append.key.offset = lookup_ctxt_out.offset_end;
-                    update_if__append.value.ptr = __frag_ptr;
-                    update_if__append.value.offset = __frag_offset_start;
+                    update_if__append_key.offset = lookup_ctxt_out.offset_end;
+                    update_if__append_value.ptr = __frag_ptr;
+                    update_if__append_value.offset = __frag_offset_start;
                     delete_q__append__wr = 1'b1;
 
                     update_if__prepend.req = (__frag_offset_start > 0);
                     update_if__prepend.valid = 1'b1; // Update
-                    update_if__prepend.key.offset = __frag_offset_start;
-                    update_if__prepend.value.ptr = __frag_ptr;
-                    update_if__prepend.value.offset = lookup_ctxt_out.last ? 0 : lookup_ctxt_out.offset_end;
+                    update_if__prepend_key.offset = __frag_offset_start;
+                    update_if__prepend_value.ptr = __frag_ptr;
+                    update_if__prepend_value.offset = lookup_ctxt_out.last ? 0 : lookup_ctxt_out.offset_end;
                 end
                 FRAGMENT_PREPEND : begin
                     update_if__append.req = (__frag_offset_end > 0);
                     update_if__append.valid = 1'b1; // Update
-                    update_if__append.key.offset = __frag_offset_end;
-                    update_if__append.value.ptr = __frag_ptr;
-                    update_if__append.value.offset = lookup_ctxt_out.offset_start;
+                    update_if__append_key.offset = __frag_offset_end;
+                    update_if__append_value.ptr = __frag_ptr;
+                    update_if__append_value.offset = lookup_ctxt_out.offset_start;
 
                     update_if__prepend.req = (lookup_ctxt_out.offset_start > 0);
                     update_if__prepend.valid = 1'b1; // Insert
-                    update_if__prepend.key.offset = lookup_ctxt_out.offset_start;
-                    update_if__prepend.value.ptr = __frag_ptr;
-                    update_if__prepend.value.offset = __frag_offset_end;
+                    update_if__prepend_key.offset = lookup_ctxt_out.offset_start;
+                    update_if__prepend_value.ptr = __frag_ptr;
+                    update_if__prepend_value.offset = __frag_offset_end;
                     delete_q__prepend__wr = 1'b1;
                 end
                 FRAGMENT_MERGE : begin
                     update_if__append.req = (__frag_offset_end > 0);
                     update_if__append.valid = 1'b1; // Insert
-                    update_if__append.key.offset = __frag_offset_end;
-                    update_if__append.value.ptr = __frag_ptr;
-                    update_if__append.value.offset = __frag_offset_start;
+                    update_if__append_key.offset = __frag_offset_end;
+                    update_if__append_value.ptr = __frag_ptr;
+                    update_if__append_value.offset = __frag_offset_start;
                     delete_q__append__wr = 1'b1;
 
                     update_if__prepend.req = (__frag_offset_start > 0);
                     update_if__prepend.valid = 1'b1; // Insert
-                    update_if__prepend.key.offset = __frag_offset_start;
-                    update_if__prepend.value.ptr = __frag_ptr;
-                    update_if__prepend.value.offset = __frag_offset_end;
+                    update_if__prepend_key.offset = __frag_offset_start;
+                    update_if__prepend_value.ptr = __frag_ptr;
+                    update_if__prepend_value.offset = __frag_offset_end;
                     delete_q__prepend__wr = 1'b1;
                 end
                 default : begin
@@ -481,9 +506,9 @@ module sar_reassembly_cache
     // -------------------------------------------------
     // Deletion queues
     // -------------------------------------------------
-    fifo_small  #(
-        .DATA_T  ( segment_table_key_t ),
-        .DEPTH   ( 16 )
+    fifo_small   #(
+        .DATA_WID ( SEGMENT_TABLE_KEY_WID ),
+        .DEPTH    ( 16 )
     ) i_fifo_small__delete_q__append (
         .clk     ( clk ),
         .srst    ( __srst ),
@@ -501,9 +526,9 @@ module sar_reassembly_cache
     assign delete_q__append__wr_data.buf_id = lookup_ctxt_out.buf_id;
     assign delete_q__append__wr_data.offset = lookup_ctxt_out.offset_start;
 
-    fifo_small  #(
-        .DATA_T  ( segment_table_key_t ),
-        .DEPTH   ( 16 )
+    fifo_small   #(
+        .DATA_WID ( SEGMENT_TABLE_KEY_WID ),
+        .DEPTH    ( 16 )
     ) i_fifo_small__delete_q__prepend (
         .clk     ( clk ),
         .srst    ( __srst ),

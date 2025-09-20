@@ -1,9 +1,9 @@
 module state_core
     import state_pkg::*;
 #(
-    parameter type ID_T = logic[7:0],
+    parameter int ID_WID = 1,
     parameter vector_t SPEC = DEFAULT_STATE_VECTOR,
-    parameter type NOTIFY_MSG_T = expiry_msg_t,
+    parameter int NOTIFY_MSG_WID = EXPIRY_MSG_WID,
     parameter int  NUM_WR_TRANSACTIONS = 4, // Maximum number of database write transactions that can
                                             // be in flight (from the perspective of this module)
                                             // at any given time.
@@ -48,29 +48,29 @@ module state_core
     // -------------------------------------------------
     // Parameters
     // -------------------------------------------------
-    localparam type STATE_T = logic[getStateVectorSize(SPEC)-1:0];
-    localparam type UPDATE_T = logic[getUpdateVectorSize(SPEC)-1:0];
+    localparam int STATE_WID = getStateVectorSize(SPEC);
+    localparam int UPDATE_WID = getUpdateVectorSize(SPEC);
 
-    localparam int NUM_IDS = State#(ID_T)::numIDs();
+    localparam int NUM_IDS = 2**ID_WID;
 
     // -------------------------------------------------
     // Parameter checking
     // -------------------------------------------------
     initial begin
-        std_pkg::param_check($bits(update_if.ID_T)    , $bits(ID_T)        , "update_if.ID_T");
-        std_pkg::param_check($bits(update_if.STATE_T) , $bits(STATE_T)     , "update_if.STATE_T");
-        std_pkg::param_check($bits(update_if.UPDATE_T), $bits(UPDATE_T)    , "update_if.UPDATE_T");
-        std_pkg::param_check($bits(ctrl_if.ID_T)      , $bits(ID_T)        , "ctrl_if.ID_T");
-        std_pkg::param_check($bits(ctrl_if.STATE_T)   , $bits(STATE_T)     , "ctrl_if.STATE_T");
-        std_pkg::param_check($bits(ctrl_if.UPDATE_T)  , $bits(UPDATE_T)    , "ctrl_if.UPDATE_T");
-        std_pkg::param_check($bits(check_if.STATE_T)  , $bits(STATE_T)     , "check_if.STATE_T");
-        std_pkg::param_check($bits(check_if.MSG_T)    , $bits(NOTIFY_MSG_T), "check_if.MSG_T");
-        std_pkg::param_check($bits(notify_if.ID_T)    , $bits(ID_T)        , "notify_if.ID_T");
-        std_pkg::param_check($bits(notify_if.MSG_T)   , $bits(NOTIFY_MSG_T), "notify_if.MSG_T");
-        std_pkg::param_check($bits(db_wr_if.KEY_T)    , $bits(ID_T)        , "db_wr_if.KEY_T");
-        std_pkg::param_check($bits(db_wr_if.VALUE_T)  , $bits(STATE_T)     , "db_wr_if.VALUE_T");
-        std_pkg::param_check($bits(db_rd_if.KEY_T)    , $bits(ID_T)        , "db_rd_if.KEY_T");
-        std_pkg::param_check($bits(db_rd_if.VALUE_T)  , $bits(STATE_T)     , "db_rd_if.VALUE_T");
+        std_pkg::param_check(update_if.ID_WID    , ID_WID        , "update_if.ID_WID");
+        std_pkg::param_check(update_if.STATE_WID , STATE_WID     , "update_if.STATE_WID");
+        std_pkg::param_check(update_if.UPDATE_WID, UPDATE_WID    , "update_if.UPDATE_WID");
+        std_pkg::param_check(ctrl_if.ID_WID      , ID_WID        , "ctrl_if.ID_WID");
+        std_pkg::param_check(ctrl_if.STATE_WID   , STATE_WID     , "ctrl_if.STATE_WID");
+        std_pkg::param_check(ctrl_if.UPDATE_WID  , UPDATE_WID    , "ctrl_if.UPDATE_WID");
+        std_pkg::param_check(check_if.STATE_WID  , STATE_WID     , "check_if.STATE_WID");
+        std_pkg::param_check(check_if.MSG_WID    , NOTIFY_MSG_WID, "check_if.MSG_WID");
+        std_pkg::param_check(notify_if.ID_WID    , ID_WID        , "notify_if.ID_WID");
+        std_pkg::param_check(notify_if.MSG_WID   , NOTIFY_MSG_WID, "notify_if.MSG_WID");
+        std_pkg::param_check(db_wr_if.KEY_WID    , ID_WID        , "db_wr_if.KEY_WID");
+        std_pkg::param_check(db_wr_if.VALUE_WID  , STATE_WID     , "db_wr_if.VALUE_WID");
+        std_pkg::param_check(db_rd_if.KEY_WID    , ID_WID        , "db_rd_if.KEY_WID");
+        std_pkg::param_check(db_rd_if.VALUE_WID  , STATE_WID     , "db_rd_if.VALUE_WID");
     end
 
     // -------------------------------------------------
@@ -92,9 +92,9 @@ module state_core
     db_info_intf info_if ();
     db_status_intf status_if (.clk(clk), .srst(srst));
 
-    db_ctrl_intf #(.KEY_T(ID_T), .VALUE_T(STATE_T)) db_ctrl_if__hw (.clk(clk));
-    db_ctrl_intf #(.KEY_T(ID_T), .VALUE_T(STATE_T)) db_ctrl_if__sw (.clk(clk));
-    db_ctrl_intf #(.KEY_T(ID_T), .VALUE_T(STATE_T)) db_ctrl_if     (.clk(clk));
+    db_ctrl_intf #(.KEY_WID(ID_WID), .VALUE_WID(STATE_WID)) db_ctrl_if__hw (.clk);
+    db_ctrl_intf #(.KEY_WID(ID_WID), .VALUE_WID(STATE_WID)) db_ctrl_if__sw (.clk);
+    db_ctrl_intf #(.KEY_WID(ID_WID), .VALUE_WID(STATE_WID)) db_ctrl_if     (.clk);
 
     // -------------------------------------------------
     // AXI-L control
@@ -151,10 +151,7 @@ module state_core
     // - allows reading/(and writing) flow state via
     //   the regmap, primarily for debug purposes
     // -------------------------------------------------
-    db_axil_ctrl    #(
-        .KEY_T       ( ID_T ),
-        .VALUE_T     ( STATE_T )
-    ) i_db_axil_ctrl (
+    db_axil_ctrl i_db_axil_ctrl (
         .clk         ( clk ),
         .srst        ( __srst ),
         .init_done   ( init_done ),
@@ -181,7 +178,7 @@ module state_core
     //   control updates
     // -------------------------------------------------
     state_vector_core #(
-        .ID_T ( ID_T ),
+        .ID_WID ( ID_WID ),
         .SPEC ( SPEC ),
         .NUM_WR_TRANSACTIONS ( NUM_WR_TRANSACTIONS ),
         .NUM_RD_TRANSACTIONS ( NUM_RD_TRANSACTIONS ),
@@ -205,24 +202,21 @@ module state_core
     // Database control mux
     // -------------------------------------------------
     // Mux between s/w (regmap) and h/w (notify fsm) control interfaces
-    db_ctrl_intf_prio_mux #(
-        .KEY_T   ( ID_T ),
-        .VALUE_T ( STATE_T )
-    ) i_db_ctrl_prio_mux (
-        .clk                             ( clk ),
-        .srst                            ( __srst ),
-        .ctrl_if_from_controller_hi_prio ( db_ctrl_if__hw ),
-        .ctrl_if_from_controller_lo_prio ( db_ctrl_if__sw ),
-        .ctrl_if_to_peripheral           ( db_ctrl_if )
+    db_ctrl_intf_prio_mux i_db_ctrl_prio_mux (
+        .clk                     ( clk ),
+        .srst                    ( __srst ),
+        .from_controller_hi_prio ( db_ctrl_if__hw ),
+        .from_controller_lo_prio ( db_ctrl_if__sw ),
+        .to_peripheral           ( db_ctrl_if )
     );
 
     // -----------------------------
     // Notification FSM
     // -----------------------------
     state_notify_fsm #(
-        .ID_T    ( ID_T ),
-        .STATE_T ( STATE_T ),
-        .MSG_T   ( NOTIFY_MSG_T )
+        .ID_WID    ( ID_WID ),
+        .STATE_WID ( STATE_WID ),
+        .MSG_WID   ( NOTIFY_MSG_WID )
     ) i_state_notify_fsm (
         .clk        ( clk ),
         .srst       ( __srst ),

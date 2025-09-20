@@ -26,12 +26,10 @@ module mem_proxy
     // -----------------------------
     // Parameters
     // -----------------------------
-    localparam type    ADDR_T = mem_if.ADDR_T;
-    localparam int     ADDR_WID = $bits(ADDR_T);
+    localparam int     ADDR_WID = mem_if.ADDR_WID;
     localparam longint MEM_DEPTH = 2**ADDR_WID;
 
-    localparam type DATA_T = mem_if.DATA_T;
-    localparam int  DATA_WID = $bits(DATA_T);
+    localparam int  DATA_WID = mem_if.DATA_WID;
     localparam bit  DATA_WID_IS_N_BYTES = (DATA_WID % 8 == 0);
     localparam int  DATA_BYTES = DATA_WID % 8 == 0 ? DATA_WID / 8 : DATA_WID / 8 + 1;
 
@@ -128,14 +126,14 @@ module mem_proxy
     logic      req;
     logic      rdy;
 
-    logic      mem_init;
-    logic      mem_wr_req;
-    logic      mem_rd_req;
-    ADDR_T     mem_addr;
-    DATA_T     mem_wr_data;
+    logic                mem_init;
+    logic                mem_wr_req;
+    logic                mem_rd_req;
+    logic [ADDR_WID-1:0] mem_addr;
+    logic [DATA_WID-1:0] mem_wr_data;
 
-    command_t  command;
-    ADDR_T     addr;
+    command_t            command;
+    logic [ADDR_WID-1:0] addr;
 
     logic [0:BURST_LEN_MAX-1][DATA_BYTES-1:0][7:0] wr_data_in;
     logic [0:BURST_LEN_MAX-1][DATA_BYTES-1:0][7:0] wr_data;

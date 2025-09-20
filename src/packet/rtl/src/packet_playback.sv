@@ -39,21 +39,18 @@ module packet_playback #(
     // -----------------------------
     localparam int  DATA_BYTE_WID = packet_if.DATA_BYTE_WID;
     localparam int  DATA_WID = DATA_BYTE_WID*8;
-    localparam type DATA_T = logic[DATA_BYTE_WID-1:0][7:0];
     localparam int  MTY_WID  = $clog2(DATA_BYTE_WID);
     localparam type MTY_T    = logic[MTY_WID-1:0];
 
-    localparam type META_T = packet_if.META_T;
-    localparam int  META_WID = $bits(META_T);
+    localparam int  META_WID = packet_if.META_WID;
     localparam int  META_BYTES = META_WID % 8 == 0 ? META_WID / 8 : META_WID / 8 + 1;
     localparam int  META_REGS = META_BYTES % 4 == 0 ? META_BYTES / 4 : META_BYTES / 4 + 1;
 
     localparam int  PACKET_MEM_DEPTH = PACKET_MEM_SIZE / DATA_BYTE_WID;
     localparam int  PACKET_MEM_ADDR_WID = $clog2(PACKET_MEM_DEPTH);
-    localparam type PACKET_MEM_ADDR_T = logic[PACKET_MEM_ADDR_WID-1:0];
 
     localparam int  SIZE_WID = $bits(packet_playback_reg_pkg::fld_config_packet_bytes_t);
-    localparam type SIZE_T = logic[SIZE_WID-1:0];
+    localparam int  MAX_PKT_SIZE = 2**SIZE_WID;
     localparam int  BURST_SIZE_WID = $bits(packet_playback_reg_pkg::fld_config_burst_size_t);
     localparam type BURST_CNT_T = logic[BURST_SIZE_WID-1:0];
 
@@ -104,12 +101,12 @@ module packet_playback #(
     logic             status_error;
     logic             status_timeout;
 
-    SIZE_T            packet_bytes;
-    BURST_CNT_T       burst_size_m1;
-    BURST_CNT_T       burst_cnt;
+    logic [SIZE_WID-1:0] packet_bytes;
+    BURST_CNT_T          burst_size_m1;
+    BURST_CNT_T          burst_cnt;
 
     logic [0:META_BYTES-1][7:0] meta_in;
-    META_T            meta;
+    logic [META_WID-1:0]        meta;
 
     // -----------------------------
     // Interfaces
@@ -121,13 +118,13 @@ module packet_playback #(
 
     packet_playback_reg_intf reg_if ();
 
-    mem_intf #(.ADDR_T(PACKET_MEM_ADDR_T), .DATA_T(DATA_T)) mem_if__proxy (.clk(clk));
-    mem_intf #(.ADDR_T(PACKET_MEM_ADDR_T), .DATA_T(DATA_T)) mem_if__read (.clk(clk));
+    mem_intf #(.ADDR_WID(PACKET_MEM_ADDR_WID), .DATA_WID(DATA_WID)) mem_if__proxy (.clk);
+    mem_intf #(.ADDR_WID(PACKET_MEM_ADDR_WID), .DATA_WID(DATA_WID)) mem_if__read (.clk);
 
-    mem_wr_intf #(.ADDR_WID(PACKET_MEM_ADDR_WID), .DATA_WID(DATA_WID)) mem_wr_if__unused (.clk(clk));
-    mem_rd_intf #(.ADDR_WID(PACKET_MEM_ADDR_WID), .DATA_WID(DATA_WID)) mem_rd_if (.clk(clk));
+    mem_wr_intf #(.ADDR_WID(PACKET_MEM_ADDR_WID), .DATA_WID(DATA_WID)) mem_wr_if__unused (.clk);
+    mem_rd_intf #(.ADDR_WID(PACKET_MEM_ADDR_WID), .DATA_WID(DATA_WID)) mem_rd_if (.clk);
 
-    packet_descriptor_intf #(.ADDR_T (PACKET_MEM_ADDR_T), .META_T(META_T), .SIZE_T(SIZE_T)) descriptor_if (.clk);
+    packet_descriptor_intf #(.ADDR_WID (PACKET_MEM_ADDR_WID), .META_WID(META_WID), .MAX_PKT_SIZE(MAX_PKT_SIZE)) descriptor_if (.clk, .srst);
     packet_event_intf event_if (.clk);
     // ----------------------------------------
     // Packet playback registers
@@ -155,7 +152,7 @@ module packet_playback #(
     // Report parameterization details
     assign reg_if.info_nxt_v = 1'b1;
     assign reg_if.info_nxt.mem_size = PACKET_MEM_SIZE;
-    assign reg_if.info_nxt.meta_width = $bits(META_T);
+    assign reg_if.info_nxt.meta_width = META_WID;
 
     // Export enable
     initial en = 1'b0;
@@ -303,7 +300,7 @@ module packet_playback #(
         else if (send && descriptor_if.rdy) burst_cnt <= burst_cnt + 1;
     end
 
-    assign descriptor_if.valid = send;
+    assign descriptor_if.vld = send;
     assign descriptor_if.addr = '0;
     assign descriptor_if.size = packet_bytes;
     assign descriptor_if.err = 1'b0;

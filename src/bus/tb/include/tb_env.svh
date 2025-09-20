@@ -8,14 +8,19 @@ class tb_env #(
 );
 
     //===================================
+    // Parameters
+    //===================================
+    localparam int DATA_WID = $bits(DATA_T);
+
+    //===================================
     // Methods
     //===================================
     // Constructor
     function new(
             string name="tb_env",
             virtual std_reset_intf _reset_vif,
-            virtual bus_intf#(DATA_T) _in_vif,
-            virtual bus_intf#(DATA_T) _out_vif
+            virtual bus_intf#(DATA_WID) _in_vif,
+            virtual bus_intf#(DATA_WID) _out_vif
         );
         // Create superclass instance
         super.new(name);

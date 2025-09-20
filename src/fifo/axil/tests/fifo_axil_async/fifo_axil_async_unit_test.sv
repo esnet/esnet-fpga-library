@@ -21,7 +21,8 @@ module fifo_axil_async_unit_test #(
     //===================================
     // Parameters
     //===================================
-    localparam type DATA_T = bit[31:0];
+    localparam int  DATA_WID = 32;
+    localparam type DATA_T = bit[DATA_WID-1:0];
     localparam bit ASYNC = 1'b1;
 
     //===================================
@@ -49,29 +50,27 @@ module fifo_axil_async_unit_test #(
     logic   wr_rdy;
     logic   wr;
     DATA_T  wr_data;
+    count_t wr_count;
+    logic   wr_full;
+    logic   wr_oflow;
 
     logic   rd_clk;
     logic   rd_srst;
     logic   rd;
     logic   rd_ack;
     DATA_T  rd_data;
-
-    logic   full;
-    logic   empty;
-    count_t wr_count;
     count_t rd_count;
-
-    logic   oflow;
-    logic   uflow;
+    logic   rd_empty;
+    logic   rd_uflow;
 
     axi4l_intf axil_if ();
 
     localparam FIFO_ASYNC_LATENCY = 6;  // 1 (bin2gray) + 3 (sync) + 1 (gray2bin) + 1 (phase delta)
 
     fifo_axil_async #(
-        .DATA_T  ( DATA_T ),
-        .DEPTH   ( DEPTH ),
-        .FWFT    ( FWFT )
+        .DATA_WID ( DATA_WID ),
+        .DEPTH    ( DEPTH ),
+        .FWFT     ( FWFT )
     ) DUT (.*);
 
     //===================================
@@ -88,8 +87,8 @@ module fifo_axil_async_unit_test #(
 
     std_reset_intf reset_if (.clk(wr_clk));
 
-    bus_intf #(DATA_T) wr_if (.clk(wr_clk));
-    bus_intf #(DATA_T) rd_if (.clk(rd_clk));
+    bus_intf #(DATA_WID) wr_if (.clk(wr_clk));
+    bus_intf #(DATA_WID) rd_if (.clk(rd_clk));
 
     axi4l_verif_pkg::axi4l_reg_agent axil_reg_agent;
     fifo_reg_agent reg_agent;
@@ -111,13 +110,11 @@ module fifo_axil_async_unit_test #(
     assign rd_if.valid = rd_ack;
 
     clocking cb_wr @(posedge wr_clk);
-        default input #1step output #1step;
-        input full, oflow;
+        input wr_full, wr_oflow;
     endclocking
 
     clocking cb_rd @(posedge rd_clk);
-        default input #1step output #1step;
-        input empty, uflow;
+        input rd_empty, rd_uflow;
     endclocking
 
     // Generate clocks
@@ -281,7 +278,7 @@ module fifo_axil_async_unit_test #(
             check_status();
 
             // Receive transaction
-            wait(!cb_rd.empty); env.monitor.receive(got_transaction);
+            wait(!cb_rd.rd_empty); env.monitor.receive(got_transaction);
             unused_flag = ctrl_model_read();
 
             // Wait
@@ -328,7 +325,7 @@ module fifo_axil_async_unit_test #(
             check_status();
 
             // Receive transaction
-            wait(!cb_rd.empty); env.monitor.receive(got_transaction);
+            wait(!cb_rd.rd_empty); env.monitor.receive(got_transaction);
             unused_flag = ctrl_model_read();
 
             // Wait
@@ -383,7 +380,7 @@ module fifo_axil_async_unit_test #(
                 env.driver.send(exp_transaction);
                 @(cb_wr);
 
-                if (!FWFT) wait(!cb_rd.empty);
+                if (!FWFT) wait(!cb_rd.rd_empty);
                 env.monitor.receive(got_transaction);
                 match = exp_transaction.compare(got_transaction, msg);
                 `FAIL_UNLESS_LOG( match == 1, msg );
@@ -426,7 +423,7 @@ module fifo_axil_async_unit_test #(
             // Read back all FIFO entries and compare.
             for (int i = 0; i < (__DEPTH); i++) begin
                 exp_transaction = new("exp_transaction", i);
-                if (!FWFT) wait (!cb_rd.empty);
+                if (!FWFT) wait (!cb_rd.rd_empty);
                 env.monitor.receive(got_transaction);
 
                 match = exp_transaction.compare(got_transaction, msg);
@@ -459,7 +456,7 @@ module fifo_axil_async_unit_test #(
                 env.driver.send(exp_transaction);
                 @(cb_wr);
 
-                if (!FWFT) wait (!cb_rd.empty);
+                if (!FWFT) wait (!cb_rd.rd_empty);
                 env.monitor.receive(got_transaction);
                 match = exp_transaction.compare(got_transaction, msg);
                 `FAIL_UNLESS_LOG( match == 1, msg );
@@ -500,7 +497,7 @@ module fifo_axil_async_unit_test #(
             // Read back all FIFO entries and compare.
             for (int i = 0; i < (__DEPTH); i++) begin
                 exp_transaction = new("exp_transaction", i);
-                if (!FWFT) wait (!cb_rd.empty);
+                if (!FWFT) wait (!cb_rd.rd_empty);
                 env.monitor.receive(got_transaction);
 
                 match = exp_transaction.compare(got_transaction, msg);
@@ -526,7 +523,7 @@ module fifo_axil_async_unit_test #(
             std_verif_pkg::raw_transaction#(DATA_T) exp_transaction;
 
             // Empty should be asserted immediately following init
-            `FAIL_UNLESS(cb_rd.empty == 1);
+            `FAIL_UNLESS(cb_rd.rd_empty == 1);
 
             // Send transaction
             exp_transaction = new("exp_transaction", exp_item);
@@ -536,14 +533,14 @@ module fifo_axil_async_unit_test #(
             // Check that empty is deasserted immediately (once write transaction is registered by FIFO)
             rd_if._wait(FIFO_ASYNC_LATENCY);
             if (FWFT) rd_if._wait(MEM_RD_LATENCY);
-            `FAIL_UNLESS(cb_rd.empty == 0);
+            `FAIL_UNLESS(cb_rd.rd_empty == 0);
 
             // Receive transaction
             env.monitor.receive(got_transaction);
 
             // Check that empty is reasserted on next cycle
             @(cb_rd);
-            `FAIL_UNLESS(cb_rd.empty == 1);
+            `FAIL_UNLESS(cb_rd.rd_empty == 1);
         `SVTEST_END
 
         //===================================
@@ -565,12 +562,12 @@ module fifo_axil_async_unit_test #(
             exp_transaction = new("exp_transaction", exp_item);
 
             // Full should be deasserted immediately following init
-            `FAIL_UNLESS(cb_wr.full == 0);
+            `FAIL_UNLESS(cb_wr.wr_full == 0);
 
             // Send DEPTH transactions
             for (int i = 0; i < __DEPTH; i++) begin
-                if (FWFT && cb_wr.full) repeat (MEM_RD_LATENCY) @(cb_wr);
-                `FAIL_UNLESS(cb_wr.full == 0);
+                if (FWFT && cb_wr.wr_full) repeat (MEM_RD_LATENCY) @(cb_wr);
+                `FAIL_UNLESS(cb_wr.wr_full == 0);
                 env.driver.send(exp_transaction);
                 unused_flag = ctrl_model_write();
             end
@@ -579,8 +576,8 @@ module fifo_axil_async_unit_test #(
             // to account for possiblity of additional entries in read pipeline
             if (FWFT) begin
                 for (int i = 0; i < MEM_RD_LATENCY-1; i++) begin
-                    if (full) repeat (MEM_RD_LATENCY) @(cb_wr);
-                    if (full) break;
+                    if (cb_wr.wr_full) repeat (MEM_RD_LATENCY) @(cb_wr);
+                    if (cb_wr.wr_full) break;
                     env.driver.send(exp_transaction);
                     unused_flag = ctrl_model_write();
                 end
@@ -588,13 +585,13 @@ module fifo_axil_async_unit_test #(
 
             // Full should be asserted
             @(cb_wr);
-            `FAIL_UNLESS(cb_wr.full == 1);
+            `FAIL_UNLESS(cb_wr.wr_full == 1);
 
             // Check status
             check_status();
 
             // Receive single transaction
-            if (!FWFT) wait (!empty);
+            if (!FWFT) wait (!cb_rd.rd_empty);
             env.monitor.receive(got_transaction);
             unused_flag = ctrl_model_read();
             @(cb_rd);
@@ -603,7 +600,7 @@ module fifo_axil_async_unit_test #(
             wr_if._wait(FIFO_ASYNC_LATENCY);
 
             // Check that full is once again deasserted
-            `FAIL_UNLESS(cb_wr.full == 0);
+            `FAIL_UNLESS(cb_wr.wr_full == 0);
 
             // Check status
             check_status();
@@ -633,39 +630,39 @@ module fifo_axil_async_unit_test #(
             env.driver.set_tx_mode(bus_verif_pkg::TX_MODE_PUSH);
 
             // Overflow should be deasserted immediately following init
-            `FAIL_UNLESS(cb_wr.full == 0);
-            `FAIL_UNLESS(cb_wr.oflow == 0);
+            `FAIL_UNLESS(cb_wr.wr_full == 0);
+            `FAIL_UNLESS(cb_wr.wr_oflow == 0);
 
             // Send DEPTH transactions
             for (int i = 0; i < __DEPTH; i++) begin
                 // Full/overflow should be deasserted
-                `FAIL_UNLESS(cb_wr.full == 0);
-                `FAIL_UNLESS(cb_wr.oflow == 0);
+                `FAIL_UNLESS(cb_wr.wr_full == 0);
+                `FAIL_UNLESS(cb_wr.wr_oflow == 0);
                 exp_transaction = new($sformatf("exp_transaction_%d", i), i);
                 env.driver.send(exp_transaction);
             end
 
             // After filling FIFO, full should be asserted (oflow should remain deasserted)
             @(cb_wr);
-            `FAIL_UNLESS(full == 1);
-            `FAIL_UNLESS(oflow == 0);
+            `FAIL_UNLESS(cb_wr.wr_full == 1);
+            `FAIL_UNLESS(cb_wr.wr_oflow == 0);
 
             // Send one more transaction
             exp_transaction = new($sformatf("exp_transaction_%d", __DEPTH), __DEPTH);
             env.driver.send(exp_transaction);
 
             // This should trigger oflow on the same cycle
-            `FAIL_UNLESS(cb_wr.oflow == 1);
+            `FAIL_UNLESS(cb_wr.wr_oflow == 1);
 
             // Full should remain asserted, oflow should be deasserted on following cycle
             @(cb_wr);
-            `FAIL_UNLESS(cb_wr.full == 1);
-            `FAIL_UNLESS(cb_wr.oflow == 0);
+            `FAIL_UNLESS(cb_wr.wr_full == 1);
+            `FAIL_UNLESS(cb_wr.wr_oflow == 0);
 
             // Empty FIFO
             for (int i = 0; i < __DEPTH; i++) begin
                 exp_transaction = new($sformatf("exp_transaction_%d", i), i);
-                wait(!cb_rd.empty); env.monitor.receive(got_transaction);
+                wait(!cb_rd.rd_empty); env.monitor.receive(got_transaction);
                 match = exp_transaction.compare(got_transaction, msg);
                 `FAIL_UNLESS_LOG(
                     match == 1, msg
@@ -675,9 +672,9 @@ module fifo_axil_async_unit_test #(
             // Send and receive one more transaction
             exp_transaction = new($sformatf("exp_transaction_%d", __DEPTH), __DEPTH);
             env.driver.send(exp_transaction);
-            `FAIL_UNLESS(cb_wr.oflow == 0);
+            `FAIL_UNLESS(cb_wr.wr_oflow == 0);
 
-            wait(!cb_rd.empty); env.monitor.receive(got_transaction);
+            wait(!cb_rd.rd_empty); env.monitor.receive(got_transaction);
             match = exp_transaction.compare(got_transaction, msg);
             `FAIL_UNLESS_LOG(
                 match == 1, msg

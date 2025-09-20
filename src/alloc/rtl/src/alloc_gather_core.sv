@@ -1,19 +1,15 @@
 module alloc_gather_core #(
     parameter int  CONTEXTS = 1,
-    parameter type PTR_T = logic,
+    parameter int  PTR_WID = 1,
     parameter int  BUFFER_SIZE = 1,
-    parameter type META_T = logic,
+    parameter int  META_WID = 1,
     parameter int  Q_DEPTH = 8,
-    // Derived parameters (don't override)
-    parameter int  PTR_WID = $bits(PTR_T),
-    parameter int  SIZE_WID = $clog2(BUFFER_SIZE),
-    parameter type SIZE_T = logic [SIZE_WID-1:0],
     // Simulation-only
     parameter bit  SIM__FAST_INIT = 1 // Optimize sim time by performing fast memory init
 ) (
     // Clock/reset
     input logic            clk,
-    input logic            srst,
+    input logic            srst = 1'b0,
 
     // Control
     input  logic           en,
@@ -29,9 +25,10 @@ module alloc_gather_core #(
     // -----------------------------
     // Parameters
     // -----------------------------
+    localparam int  SIZE_WID = $clog2(BUFFER_SIZE);
     localparam int  CTXT_SEL_WID = $clog2(CONTEXTS);
     localparam type CTXT_SEL_T = logic [CTXT_SEL_WID-1:0];
-    localparam type DESC_T = alloc_pkg::alloc#(BUFFER_SIZE, PTR_T, META_T)::desc_t;
+    localparam type DESC_T = alloc_pkg::alloc#(BUFFER_SIZE, PTR_WID, META_WID)::desc_t;
 
     // -----------------------------
     // Typedefs
@@ -44,8 +41,8 @@ module alloc_gather_core #(
     } state_t;
 
     typedef struct packed {
-        logic  sof;
-        PTR_T  ptr;
+        logic               sof;
+        logic [PTR_WID-1:0] ptr;
     } req_ctxt_t;
 
     typedef struct packed {
@@ -54,11 +51,11 @@ module alloc_gather_core #(
     } rd_ctxt_t;
 
     typedef struct packed {
-        PTR_T  ptr;
-        logic  eof;
-        SIZE_T size;
-        META_T meta;
-        logic  err;
+        logic [PTR_WID-1:0]  ptr;
+        logic                eof;
+        logic [SIZE_WID-1:0] size;
+        logic [META_WID-1:0] meta;
+        logic                err;
     } buffer_ctxt_t;
 
     // -----------------------------
@@ -133,8 +130,8 @@ module alloc_gather_core #(
             assign __buffer_ctxt_in.err  = _desc.err;
 
             fifo_ctxt #(
-                .DATA_T ( buffer_ctxt_t ),
-                .DEPTH  ( Q_DEPTH )
+                .DATA_WID ( $bits(buffer_ctxt_t) ),
+                .DEPTH    ( Q_DEPTH )
             ) i_fifo_ctxt (
                 .clk,
                 .srst,
@@ -148,7 +145,7 @@ module alloc_gather_core #(
                 .uflow   ( )
             );
 
-            assign gather_if[g_ctxt].valid   = __buffer_valid;
+            assign gather_if[g_ctxt].vld     = __buffer_valid;
             assign gather_if[g_ctxt].nxt_ptr = __buffer_ctxt_out.ptr;
             assign gather_if[g_ctxt].eof     = __buffer_ctxt_out.eof;
             assign gather_if[g_ctxt].size    = __buffer_ctxt_out.size;
@@ -218,8 +215,8 @@ module alloc_gather_core #(
         end
     end
 
-    fifo_small_ctxt   #(
-        .DATA_T   ( rd_ctxt_t ),
+    fifo_small_ctxt #(
+        .DATA_WID ( $bits(rd_ctxt_t) ),
         .DEPTH    ( CONTEXTS )
     ) i_fifo_small_ctxt__rd_ctxt (
         .clk,

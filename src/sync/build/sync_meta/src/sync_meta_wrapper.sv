@@ -9,7 +9,7 @@ module sync_meta_wrapper
 );
 
     sync_meta     #(
-        .DATA_T    ( logic ),
+        .DATA_WID  ( 1 ),
         .RST_VALUE ( 1'b0 )
     ) i_sync_meta  (
         .clk_in    ( clk_in ),

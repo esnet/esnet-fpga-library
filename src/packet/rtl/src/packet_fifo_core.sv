@@ -11,6 +11,7 @@ module packet_fifo_core
     parameter int  MAX_DESCRIPTORS = 32,
     parameter int  MAX_RD_LATENCY = 8
  ) (
+
     // Packet input (synchronous to packet_in_if.clk)
     packet_intf.rx              packet_in_if,
     packet_event_intf.publisher event_in_if,
@@ -28,27 +29,26 @@ module packet_fifo_core
     // Parameters
     // -----------------------------
     localparam int  DATA_BYTE_WID = packet_in_if.DATA_BYTE_WID;
-    localparam int  META_WID = $bits(packet_in_if.META_T);
-    localparam type META_T = logic[META_WID-1:0];
+    localparam int  META_WID = packet_in_if.META_WID;
 
     localparam int  MAX_PKT_WORDS = MAX_PKT_SIZE % DATA_BYTE_WID == 0 ? MAX_PKT_SIZE / DATA_BYTE_WID : MAX_PKT_SIZE / DATA_BYTE_WID + 1;
 
     localparam int  ADDR_WID = $clog2(DEPTH);
     localparam int  PTR_WID = ADDR_WID + 1;
-    localparam type ADDR_T = logic[ADDR_WID-1:0];
-    localparam type PTR_T = logic[PTR_WID-1:0];
 
     // -----------------------------
     // Parameter checking
     // -----------------------------
+    packet_intf_parameter_check param_check (
+        .from_tx ( packet_in_if ),
+        .to_rx   ( packet_out_if )
+    );
     initial begin
-        std_pkg::param_check(packet_out_if.DATA_BYTE_WID, DATA_BYTE_WID, "packet_out_if.DATA_BYTE_WID");
-        std_pkg::param_check($bits(packet_out_if.META_T), $bits(META_T), "packet_out_if.META_T");
         if (!CUT_THROUGH) std_pkg::param_check_gt(DEPTH, MAX_PKT_WORDS, "DEPTH");
     end
 
     // -----------------------------
-    // Signals
+    // Logic
     // -----------------------------
     generate
         if (CUT_THROUGH) begin : g__cut_through
@@ -56,10 +56,10 @@ module packet_fifo_core
         end : g__cut_through
         else begin : g__store_and_forward
             // (Local) interfaces
-            packet_descriptor_intf #(.ADDR_T(ADDR_T), .META_T(META_T)) wr_descriptor_if__in_clk  [1] (.clk(packet_in_if.clk),  .srst(packet_in_if.srst));
-            packet_descriptor_intf #(.ADDR_T(ADDR_T), .META_T(META_T)) wr_descriptor_if__out_clk [1] (.clk(packet_out_if.clk), .srst(packet_out_if.srst));
-            packet_descriptor_intf #(.ADDR_T(ADDR_T), .META_T(META_T)) rd_descriptor_if__in_clk  [1] (.clk(packet_in_if.clk),  .srst(packet_in_if.srst));
-            packet_descriptor_intf #(.ADDR_T(ADDR_T), .META_T(META_T)) rd_descriptor_if__out_clk [1] (.clk(packet_out_if.clk), .srst(packet_out_if.srst));
+            packet_descriptor_intf #(.ADDR_WID(ADDR_WID), .META_WID(META_WID), .MAX_PKT_SIZE(MAX_PKT_SIZE)) wr_descriptor_if__in_clk  [1] (.clk(packet_in_if.clk),  .srst(packet_in_if.srst));
+            packet_descriptor_intf #(.ADDR_WID(ADDR_WID), .META_WID(META_WID), .MAX_PKT_SIZE(MAX_PKT_SIZE)) wr_descriptor_if__out_clk [1] (.clk(packet_out_if.clk), .srst(packet_out_if.srst));
+            packet_descriptor_intf #(.ADDR_WID(ADDR_WID), .META_WID(META_WID), .MAX_PKT_SIZE(MAX_PKT_SIZE)) rd_descriptor_if__in_clk  [1] (.clk(packet_in_if.clk),  .srst(packet_in_if.srst));
+            packet_descriptor_intf #(.ADDR_WID(ADDR_WID), .META_WID(META_WID), .MAX_PKT_SIZE(MAX_PKT_SIZE)) rd_descriptor_if__out_clk [1] (.clk(packet_out_if.clk), .srst(packet_out_if.srst));
 
             // Enqueue FSM
             packet_enqueue       #(

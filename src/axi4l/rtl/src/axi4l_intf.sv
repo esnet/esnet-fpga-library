@@ -90,7 +90,6 @@ interface axi4l_intf
     );
 
     clocking cb @(posedge aclk);
-        default input #1step output #1step;
         output awaddr, awprot, wdata, wstrb, araddr, arprot;
         input  awready, wready, bvalid, bresp, arready, rvalid, rdata, rresp;
         inout  awvalid, wvalid, bready, arvalid, rready;
@@ -142,25 +141,29 @@ interface axi4l_intf
             output bit                timeout,
             input  int RD_TIMEOUT = DEFAULT_RD_TIMEOUT
         );
-        resp = axi4l_pkg::RESP_SLVERR;
+        automatic bit [DATA_WID-1:0] _data = '0;
+        automatic resp_t _resp = axi4l_pkg::RESP_SLVERR;
+        automatic bit _timeout = 1'b0;
         fork
             begin
                 fork
                     begin
-                        timeout = 1'b0;
-                        _read(addr, data, resp);
+                        _read(addr, _data, _resp);
                     end
                     begin
                         if (RD_TIMEOUT > 0) begin
                             _wait(RD_TIMEOUT);
-                            timeout = 1'b1;
+                            _timeout = 1'b1;
                         end else forever _wait(1);
                     end
                 join_any
                 disable fork;
             end
         join
-        if (timeout) idle_controller();
+        if (_timeout) idle_controller();
+        data = _data;
+        resp = _resp;
+        timeout = _timeout;
     endtask
 
     task read_byte(
@@ -230,25 +233,27 @@ interface axi4l_intf
             input  int WR_TIMEOUT = DEFAULT_WR_TIMEOUT,
             input  bit RANDOMIZE_AW_W_ALIGNMENT = 1'b0
         );
-        resp = axi4l_pkg::RESP_SLVERR;
+        automatic bit _timeout = 1'b0;
+        automatic resp_t _resp = axi4l_pkg::RESP_SLVERR;
         fork
             begin
                 fork
                     begin
-                        timeout = 1'b0;
-                        _write(addr, data, strb, resp, RANDOMIZE_AW_W_ALIGNMENT);
+                        _write(addr, data, strb, _resp, RANDOMIZE_AW_W_ALIGNMENT);
                     end
                     begin
                         if (WR_TIMEOUT > 0) begin
                             _wait(WR_TIMEOUT);
-                            timeout = 1'b1;
+                            _timeout = 1'b1;
                         end else forever _wait(1);
                     end
                 join_any
                 disable fork;
             end
         join
-        if (timeout) idle_controller();
+        if (_timeout) idle_controller();
+        resp = _resp;
+        timeout = _timeout;
     endtask
 
     task write(

@@ -4,8 +4,9 @@
 {#- DEFINE MACROS -#}
 {#- Read-Only (ro) register instantiation -#}
 {%- macro reg_ro(reg) %}
-reg_ro #(reg_{{ reg.name_lower }}_t, INIT_{{ reg.name_upper }}) {{ reg.name_lower }}_reg (
+reg_ro #({{ reg.computed_width }}) {{ reg.name_lower }}_reg (
     .clk (reg_if.clk), .srst (reg_if.srst),
+    .INIT_VALUE (INIT_{{ reg.name_upper }}),
     .upd_en (reg_blk_if.{{ reg.name_lower }}_nxt_v{{ "[i]" if reg.count > 1}}), .upd_data (reg_blk_if.{{ reg.name_lower }}_nxt{{ "[i]" if reg.count > 1 }}),
     .rd_data (reg_blk_if.{{ "_" if reg.name_lower in SV_RESERVED_KEYWORDS }}{{ reg.name_lower }}{{ "[i]" if reg.count > 1 }})
 );
@@ -13,8 +14,9 @@ reg_ro #(reg_{{ reg.name_lower }}_t, INIT_{{ reg.name_upper }}) {{ reg.name_lowe
 
 {#- Read-Write (rw) register instantiation -#}
 {%- macro reg_rw(reg) %}
-reg_rw #(reg_{{ reg.name_lower }}_t, INIT_{{ reg.name_upper }}) {{ reg.name_lower }}_reg (
+reg_rw #({{ reg.computed_width }}) {{ reg.name_lower }}_reg (
     .clk (reg_if.clk), .srst (reg_if.srst),
+    .INIT_VALUE (INIT_{{ reg.name_upper }}),
     .wr (reg_if.wr), .wr_en (reg_if.wr_addr == OFFSET_{{ reg.name_upper }}{{ "[i]" if reg.count > 1 }}), .wr_data (reg_if.wr_data), .wr_byte_en (reg_if.wr_byte_en),
     .rd_data (reg_blk_if.{{ "_" if reg.name_lower in SV_RESERVED_KEYWORDS }}{{ reg.name_lower }}{{ "[i]" if reg.count > 1 }})
 );
@@ -22,17 +24,19 @@ reg_rw #(reg_{{ reg.name_lower }}_t, INIT_{{ reg.name_upper }}) {{ reg.name_lowe
 
 {#- Write-Only (wo) register instantiation -#}
 {%- macro reg_wo(reg) %}
-reg_wo #(reg_{{ reg.name_lower }}_t, INIT_{{ reg.name_upper }}) {{ reg.name_lower }}_reg (
+reg_wo #({{ reg.computed_width }}) {{ reg.name_lower }}_reg (
     .clk (reg_if.clk), .srst (reg_if.srst),
+    .INIT_VALUE (INIT_{{ reg.name_upper }}),
     .wr (reg_if.wr), .wr_en (reg_if.wr_addr == OFFSET_{{ reg.name_upper }}{{ "[i]" if reg.count > 1 }}), .wr_data (reg_if.wr_data), .wr_byte_en (reg_if.wr_byte_en),
-    .wr_evt (reg_blk_if.{{ reg.name_lower }}_wr_evt{{ "[i]" if reg.count > 1 }})
+    .rd_data (reg_blk_if.{{ "_" if reg.name_lower in SV_RESERVED_KEYWORDS }}{{ reg.name_lower }}{{ "[i]" if reg.count > 1 }})
 );
 {%- endmacro -%}
 
 {#- Write Event (wr_evt) register instantiation -#}
 {%- macro reg_wr_evt(reg) %}
-reg_wr_evt #(reg_{{ reg.name_lower }}_t, INIT_{{ reg.name_upper }}) {{ reg.name_lower }}_reg (
+reg_wr_evt #({{ reg.computed_width }}) {{ reg.name_lower }}_reg (
     .clk (reg_if.clk), .srst (reg_if.srst),
+    .INIT_VALUE (INIT_{{ reg.name_upper }}),
     .wr (reg_if.wr), .wr_en (reg_if.wr_addr == OFFSET_{{ reg.name_upper }}{{ "[i]" if reg.count > 1 }}), .wr_data (reg_if.wr_data), .wr_byte_en (reg_if.wr_byte_en),
     .rd_data (reg_blk_if.{{ "_" if reg.name_lower in SV_RESERVED_KEYWORDS }}{{ reg.name_lower }}{{ "[i]" if reg.count > 1 }}),
     .wr_evt (reg_blk_if.{{ reg.name_lower }}_wr_evt{{ "[i]" if reg.count > 1 }})
@@ -41,8 +45,9 @@ reg_wr_evt #(reg_{{ reg.name_lower }}_t, INIT_{{ reg.name_upper }}) {{ reg.name_
 
 {#- Read Event (rd_evt) register instantiation -#}
 {%- macro reg_rd_evt(reg) %}
-reg_rd_evt #(reg_{{ reg.name_lower }}_t, INIT_{{ reg.name_upper }}) {{ reg.name_lower }}_reg (
+reg_rd_evt #({{ reg.computed_width }}) {{ reg.name_lower }}_reg (
     .clk (reg_if.clk), .srst (reg_if.srst),
+    .INIT_VALUE(INIT_{{ reg.name_upper }}),
     .rd (reg_if.rd), .rd_en (reg_if.rd_addr == OFFSET_{{ reg.name_upper }}{{ "[i]" if reg.count > 1 }}),
     .upd_en (reg_blk_if.{{ reg.name_lower }}_nxt_v{{ "[i]" if reg.count > 1 }}), .upd_data (reg_blk_if.{{ reg.name_lower }}_nxt{{ "[i]" if reg.count > 1 }}),
     .rd_data (reg_blk_if.{{ "_" if reg.name_lower in SV_RESERVED_KEYWORDS }}{{ reg.name_lower }}{{ "[i]" if reg.count > 1}}),
@@ -85,7 +90,7 @@ axi4l_reg_peripheral i_axi4l_reg_peripheral (
   {% if reg.count > 1 -%} {%- set indent_width = 8 -%}
   {%- else -%}            {%- set indent_width = 0 -%}
   {%- endif -%}
-// {{ reg.name_upper }} ({{ reg.width }}-bit, {{ reg.access }}{{ ", x{}".format(reg.count) if reg.count > 1 }})
+// {{ reg.name_upper }} ({{ reg.computed_width }}-bit, {{ reg.access }}{{ ", x{}".format(reg.count) if reg.count > 1 }})
   {%- if reg.count > 1 %}
 generate
     for (genvar i = 0; i < {{ reg.count }}; i++) begin : g__{{ reg.name_lower }}

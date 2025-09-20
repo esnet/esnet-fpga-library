@@ -7,36 +7,32 @@
 //  signaling directions).
 //
 (* autopipeline_module = "true" *) module bus_pipe_auto #(
-    parameter type DATA_T = logic,
     parameter bit  IGNORE_READY = 1'b0
 ) (
     bus_intf.rx   from_tx,
     bus_intf.tx   to_rx
 );
+    // Parameters
+    localparam int DATA_WID = from_tx.DATA_WID;
+
     // Parameter checking
-    initial begin
-        std_pkg::param_check($bits(from_tx.DATA_T), $bits(DATA_T), "from_tx.DATA_T");
-        std_pkg::param_check($bits(to_rx.DATA_T),   $bits(DATA_T), "to_rx.DATA_T");
-    end
+    bus_intf_parameter_check param_check (.*);
 
     // Signals
     logic clk;
     assign clk = from_tx.clk;
 
     // Interfaces
-    bus_intf #(.DATA_T(DATA_T)) bus_if__tx (.clk);
-    bus_intf #(.DATA_T(DATA_T)) bus_if__rx (.clk);
+    bus_intf #(.DATA_WID(DATA_WID)) bus_if__tx (.clk);
+    bus_intf #(.DATA_WID(DATA_WID)) bus_if__rx (.clk);
 
     // Signals
-    (* autopipeline_group = "fwd", autopipeline_limit=12, autopipeline_include = "rev" *) logic srst;
     (* autopipeline_group = "fwd", autopipeline_limit=12, autopipeline_include = "rev" *) logic valid;
     (* autopipeline_group = "rev" *) logic ready;
-    (* autopipeline_group = "fwd", autopipeline_limit=12, autopipeline_include = "rev" *) DATA_T data;
+    (* autopipeline_group = "fwd", autopipeline_limit=12, autopipeline_include = "rev" *) logic [DATA_WID-1:0] data;
 
     // Pipeline transmitter
-    bus_pipe_tx #(
-        .DATA_T  ( DATA_T )
-    ) i_bus_pipe_tx (
+    bus_pipe_tx i_bus_pipe_tx (
         .from_tx,
         .to_rx ( bus_if__tx )
     );
@@ -50,24 +46,18 @@
 
     // Auto-pipelined nets must have fanout == 1
     // (bus_pipe_tx receives reverse signals into registers)
-    initial begin
-        srst = 1'b1;
-        valid = 1'b0;
-    end
+    initial valid = 1'b0;
     always @(posedge clk) begin
-        srst  <= bus_if__tx.srst;
         valid <= bus_if__tx.valid;
         data  <= bus_if__tx.data;
     end
 
-    assign bus_if__rx.srst = srst;
     assign bus_if__rx.valid = valid;
     assign bus_if__rx.data = data;
     assign bus_if__tx.ready = ready;
 
     // Pipeline receiver
     bus_pipe_rx #(
-        .DATA_T       ( DATA_T ),
         .IGNORE_READY ( IGNORE_READY ),
         .TOTAL_SLACK  ( 16 )
     ) i_bus_pipe_rx (

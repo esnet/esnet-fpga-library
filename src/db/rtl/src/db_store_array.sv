@@ -1,6 +1,6 @@
 module db_store_array #(
-    parameter type KEY_T = logic[15:0],
-    parameter type VALUE_T = logic[15:0],
+    parameter int  KEY_WID = 1,
+    parameter int  VALUE_WID = 1,
     parameter bit  TRACK_VALID = 1,// When set, each record includes a valid bit
                                    // When unset, records do not include a valid bit (all records are considered valid)
     // Simulation-only
@@ -21,9 +21,15 @@ module db_store_array #(
     // ----------------------------------
     // Parameters
     // ----------------------------------
-    localparam int KEY_WID = $bits(KEY_T);
-    localparam int VALUE_WID = $bits(VALUE_T);
     localparam int ENTRY_WID = TRACK_VALID ? VALUE_WID + 1 : VALUE_WID;
+
+    // Check
+    initial begin
+        std_pkg::param_check_gt(db_wr_if.KEY_WID,   KEY_WID,   "db_wr_if.KEY_WID");
+        std_pkg::param_check(db_wr_if.VALUE_WID, VALUE_WID, "db_wr_if.VALUE_WID");
+        std_pkg::param_check_gt(db_rd_if.KEY_WID,   KEY_WID,   "db_rd_if.KEY_WID");
+        std_pkg::param_check(db_rd_if.VALUE_WID, VALUE_WID, "db_rd_if.VALUE_WID");
+    end
 
     // ----------------------------------
     // Interfaces

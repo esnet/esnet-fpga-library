@@ -1,33 +1,37 @@
-interface axi4s_intf
-    import axi4s_pkg::*;
-#(
-    parameter axi4s_mode_t MODE = STANDARD,
-    parameter axi4s_tuser_mode_t TUSER_MODE = USER,
-    parameter int  DATA_BYTE_WID = 8,
-    parameter type TID_T = bit,
-    parameter type TDEST_T = bit,
-    parameter type TUSER_T = bit
+interface axi4s_intf #(
+    parameter int DATA_BYTE_WID = 8,
+    parameter int TID_WID   = 1,
+    parameter int TDEST_WID = 1,
+    parameter int TUSER_WID = 1
+) (
+    input logic aclk,
+    input logic aresetn = 1'b1
 );
-    // Signals
-    logic                          aclk;
-    logic                          aresetn;
+    // Parameter validation
+    initial begin
+        std_pkg::param_check_gt(DATA_BYTE_WID, 1, "DATA_BYTE_WID");
+        std_pkg::param_check_gt(TID_WID,       1, "TID_WID");
+        std_pkg::param_check_gt(TDEST_WID,     1, "TDEST_WID");
+        std_pkg::param_check_gt(TUSER_WID,     1, "TUSER_WID");
+    end
 
+    // Signals
     logic                          tvalid;
     logic                          tready;
     logic [DATA_BYTE_WID-1:0][7:0] tdata;
     logic [DATA_BYTE_WID-1:0]      tkeep;
     logic                          tlast;
-    TID_T                          tid;
-    TDEST_T                        tdest;
-    TUSER_T                        tuser;
+    logic [TID_WID-1:0]            tid;
+    logic [TDEST_WID-1:0]          tdest;
+    logic [TUSER_WID-1:0]          tuser;
 
     // Status
     logic                          sop;
 
     // Modports
     modport tx (
-        output aclk,
-        output aresetn,
+        input  aclk,
+        input  aresetn,
         output tvalid,
         input  tready,
         output tdata,
@@ -55,22 +59,6 @@ interface axi4s_intf
         input  sop
     );
 
-    modport tx_async (
-        input  aclk,
-        input  aresetn,
-        output tvalid,
-        input  tready,
-        output tdata,
-        output tkeep,
-        output tlast,
-        output tid,
-        output tdest,
-        output tuser,
-        // Status
-        input  sop
-    );
-
-
     modport prb (
         input  aclk,
         input  aresetn,
@@ -86,36 +74,18 @@ interface axi4s_intf
         input  sop
     );
 
-    modport rx_async (
-        output aclk,
-        output aresetn,
-        input  tvalid,
-        output tready,
-        input  tdata,
-        input  tkeep,
-        input  tlast,
-        input  tid,
-        input  tdest,
-        input  tuser,
-        // Status
-        input  sop
-    );
-
     clocking cb_tx @(posedge aclk);
-        default input #1step output #1step;
         output tdata, tkeep, tlast, tid, tdest, tuser;
         input tready;
         inout tvalid;
     endclocking
 
     clocking cb_rx @(posedge aclk);
-        default input #1step output #1step;
         input tvalid, tdata, tkeep, tlast, tid, tdest, tuser;
         inout tready;
     endclocking
 
     clocking cb @(posedge aclk);
-        default input #1step output #1step;
         input tvalid, tready, tdata, tkeep, tlast, tid, tdest, tuser;
     endclocking
 
@@ -141,9 +111,9 @@ interface axi4s_intf
             input bit [DATA_BYTE_WID-1:0][7:0] _tdata,
             input bit [DATA_BYTE_WID-1:0]      _tkeep,
             input bit                          _tlast,
-            input TID_T                        _tid=0,
-            input TDEST_T                      _tdest=0,
-            input TUSER_T                      _tuser=0,
+            input bit [TID_WID-1:0]            _tid=0,
+            input bit [TDEST_WID-1:0]          _tdest=0,
+            input bit [TUSER_WID-1:0]          _tuser=0,
             input int twait = 0
         );
         if (twait > 0) begin
@@ -167,9 +137,9 @@ interface axi4s_intf
             output bit [DATA_BYTE_WID-1:0][7:0] _tdata,
             output bit [DATA_BYTE_WID-1:0]      _tkeep,
             output bit                          _tlast,
-            output TID_T                        _tid,
-            output TDEST_T                      _tdest,
-            output TUSER_T                      _tuser,
+            output bit [TID_WID-1:0]            _tid,
+            output bit [TDEST_WID-1:0]          _tdest,
+            output bit [TUSER_WID-1:0]          _tuser,
             input  int tpause = 0
         );
         if (tpause > 0) begin
@@ -192,9 +162,9 @@ interface axi4s_intf
             output bit [DATA_BYTE_WID-1:0][7:0] _tdata,
             output bit [DATA_BYTE_WID-1:0]      _tkeep,
             output bit                          _tlast,
-            output TID_T _tid,
-            output TDEST_T _tdest,
-            output TUSER_T _tuser
+            output bit [TID_WID-1:0]            _tid,
+            output bit [TDEST_WID-1:0]          _tdest,
+            output bit [TUSER_WID-1:0]          _tuser
         );
         do @(cb); while (!(cb.tvalid && cb.tready));
         _tdata = cb.tdata;
@@ -209,6 +179,7 @@ interface axi4s_intf
             output bit _timeout,
             input  int TIMEOUT=0
         );
+        automatic bit __timeout = 1'b0;
         fork
             begin
                 fork
@@ -216,16 +187,16 @@ interface axi4s_intf
                         wait(cb_tx.tready);
                     end
                     begin
-                        _timeout = 1'b0;
                         if (TIMEOUT > 0) begin
                             _wait(TIMEOUT);
-                            _timeout = 1'b1;
+                            __timeout = 1'b1;
                         end else forever _wait(1);
                     end
                 join_any
                 disable fork;
             end
         join
+        _timeout = __timeout;
     endtask
 
     // Synthesize SOP
@@ -240,115 +211,125 @@ interface axi4s_intf
 
 endinterface : axi4s_intf
 
+module axi4s_intf_parameter_check (
+    axi4s_intf from_tx,
+    axi4s_intf to_rx
+);
+    initial begin
+        std_pkg::param_check(from_tx.DATA_BYTE_WID, to_rx.DATA_BYTE_WID, "DATA_BYTE_WID");
+        std_pkg::param_check(from_tx.TID_WID,       to_rx.TID_WID,       "TID_WID");
+        std_pkg::param_check(from_tx.TDEST_WID,     to_rx.TDEST_WID,     "TDEST_WID");
+        std_pkg::param_check(from_tx.TUSER_WID,     to_rx.TUSER_WID,     "TUSER_WID");
+    end
+endmodule
+
 // AXI4-Stream transmit termination helper module
 module axi4s_intf_tx_term (
-    input logic aclk = 1'b0,
-    input logic aresetn = 1'b0,
-    axi4s_intf.tx axi4s_if
+    axi4s_intf.tx to_rx
 );
     // Tie off transmit outputs
-    assign axi4s_if.aclk = aclk;
-    assign axi4s_if.aresetn = aresetn;
-    assign axi4s_if.tvalid = 1'b0;
-    assign axi4s_if.tdata = '0;
-    assign axi4s_if.tkeep = '0;
-    assign axi4s_if.tlast = 1'b0;
-    assign axi4s_if.tid = '0;
-    assign axi4s_if.tdest = '0;
-    assign axi4s_if.tuser = '0;
+    assign to_rx.tvalid = 1'b0;
+    assign to_rx.tdata = '0;
+    assign to_rx.tkeep = '0;
+    assign to_rx.tlast = 1'b0;
+    assign to_rx.tid = '0;
+    assign to_rx.tdest = '0;
+    assign to_rx.tuser = '0;
 
 endmodule : axi4s_intf_tx_term
 
 
 // AXI4-Stream (blocking) receive termination helper module
 module axi4s_intf_rx_block (
-    axi4s_intf.rx axi4s_if
+    axi4s_intf.rx from_tx
 );
     // Tie off receive outputs
-    assign axi4s_if.tready = 1'b0;
+    assign from_tx.tready = 1'b0;
 
 endmodule : axi4s_intf_rx_block
 
 
 // AXI4-Stream (sink) receive termination helper module
 module axi4s_intf_rx_sink (
-    axi4s_intf.rx axi4s_if
+    axi4s_intf.rx from_tx
 );
     // Tie off receive outputs
-    assign axi4s_if.tready = 1'b1;
+    assign from_tx.tready = 1'b1;
 
 endmodule : axi4s_intf_rx_sink
 
 
 // AXI4-Stream (back-to-back) connector helper module
-module axi4s_intf_connector (
-    axi4s_intf.rx axi4s_from_tx,
-    axi4s_intf.tx axi4s_to_rx
+module axi4s_intf_connector #(
+    parameter bit IGNORE_TREADY = 0
+) (
+    axi4s_intf.rx from_tx,
+    axi4s_intf.tx to_rx
 );
-    import axi4s_pkg::*;
+    axi4s_intf_parameter_check param_check_0 (.*);
 
     // Connect signals (rx -> tx)
-    assign axi4s_to_rx.aclk    = axi4s_from_tx.aclk;
-    assign axi4s_to_rx.aresetn = axi4s_from_tx.aresetn;
-    assign axi4s_to_rx.tvalid  = axi4s_from_tx.tvalid;
-    assign axi4s_to_rx.tdata   = axi4s_from_tx.tdata;
-    assign axi4s_to_rx.tkeep   = axi4s_from_tx.tkeep;
-    assign axi4s_to_rx.tlast   = axi4s_from_tx.tlast;
-    assign axi4s_to_rx.tid     = axi4s_from_tx.tid;
-    assign axi4s_to_rx.tdest   = axi4s_from_tx.tdest;
-    assign axi4s_to_rx.tuser   = axi4s_from_tx.tuser;
+    assign to_rx.tvalid  = from_tx.tvalid;
+    assign to_rx.tdata   = from_tx.tdata;
+    assign to_rx.tkeep   = from_tx.tkeep;
+    assign to_rx.tlast   = from_tx.tlast;
+    assign to_rx.tid     = from_tx.tid;
+    assign to_rx.tdest   = from_tx.tdest;
+    assign to_rx.tuser   = from_tx.tuser;
 
     // Connect signals (tx -> rx)
-    assign axi4s_from_tx.tready = (axi4s_from_tx.MODE == IGNORES_TREADY) ? 1'b1 : axi4s_to_rx.tready;
+    assign from_tx.tready = IGNORE_TREADY ? 1'b1 : to_rx.tready;
 endmodule : axi4s_intf_connector
 
 
-// AXI4-Stream set TID helper module
+// AXI4-Stream set metadata helper module
 module axi4s_intf_set_meta #(
-    parameter type TID_T = logic,
-    parameter type TDEST_T = logic,
-    parameter type TUSER_T = logic
+    parameter int TID_WID = 1,
+    parameter int TDEST_WID = 1,
+    parameter int TUSER_WID = 1
 ) (
-    axi4s_intf.rx axi4s_from_tx,
-    axi4s_intf.tx axi4s_to_rx,
-    input TID_T tid = '0,
-    input TDEST_T tdest = '0,
-    input TUSER_T tuser = '0
+    axi4s_intf.rx from_tx,
+    axi4s_intf.tx to_rx,
+    input logic [TID_WID-1:0]   tid = '0,
+    input logic [TDEST_WID-1:0] tdest = '0,
+    input logic [TUSER_WID-1:0] tuser = '0
 );
+
+    // Parameter check
+    initial begin
+        std_pkg::param_check(to_rx.DATA_BYTE_WID, from_tx.DATA_BYTE_WID, "DATA_BYTE_WID");
+    end
+
     // Connect signals (rx -> tx)
-    assign axi4s_to_rx.aclk    = axi4s_from_tx.aclk;
-    assign axi4s_to_rx.aresetn = axi4s_from_tx.aresetn;
-    assign axi4s_to_rx.tvalid  = axi4s_from_tx.tvalid;
-    assign axi4s_to_rx.tdata   = axi4s_from_tx.tdata;
-    assign axi4s_to_rx.tkeep   = axi4s_from_tx.tkeep;
-    assign axi4s_to_rx.tlast   = axi4s_from_tx.tlast;
-    assign axi4s_to_rx.tid     = tid;
-    assign axi4s_to_rx.tdest   = tdest;
-    assign axi4s_to_rx.tuser   = tuser;
+    assign to_rx.tvalid  = from_tx.tvalid;
+    assign to_rx.tdata   = from_tx.tdata;
+    assign to_rx.tkeep   = from_tx.tkeep;
+    assign to_rx.tlast   = from_tx.tlast;
+    assign to_rx.tid     = tid;
+    assign to_rx.tdest   = tdest;
+    assign to_rx.tuser   = tuser;
 
     // Connect signals (tx -> rx)
-    assign axi4s_from_tx.tready = axi4s_to_rx.tready;
+    assign from_tx.tready = to_rx.tready;
 
 endmodule
 
 // AXI4-Stream monitor helper module
 module axi4s_intf_monitor (
-    axi4s_intf.rx  axi4s_from_tx,
-    axi4s_intf.prb axi4s_to_prb
+    axi4s_intf.rx  from_tx,
+    axi4s_intf.prb to_prb
 );
-    import axi4s_pkg::*;
+    axi4s_intf_parameter_check param_check_0 (.from_tx, .to_rx(to_prb));
 
     // Connect signals (rx -> tx)
-    assign axi4s_to_prb.aclk    = axi4s_from_tx.aclk;
-    assign axi4s_to_prb.aresetn = axi4s_from_tx.aresetn;
-    assign axi4s_to_prb.tvalid  = axi4s_from_tx.tvalid;
-    assign axi4s_to_prb.tdata   = axi4s_from_tx.tdata;
-    assign axi4s_to_prb.tkeep   = axi4s_from_tx.tkeep;
-    assign axi4s_to_prb.tlast   = axi4s_from_tx.tlast;
-    assign axi4s_to_prb.tid     = axi4s_from_tx.tid;
-    assign axi4s_to_prb.tdest   = axi4s_from_tx.tdest;
-    assign axi4s_to_prb.tuser   = axi4s_from_tx.tuser;
-    assign axi4s_to_prb.tready  = axi4s_from_tx.tready;
+    assign to_prb.tvalid  = from_tx.tvalid;
+    assign to_prb.tdata   = from_tx.tdata;
+    assign to_prb.tkeep   = from_tx.tkeep;
+    assign to_prb.tlast   = from_tx.tlast;
+    assign to_prb.tid     = from_tx.tid;
+    assign to_prb.tdest   = from_tx.tdest;
+    assign to_prb.tuser   = from_tx.tuser;
+    assign to_prb.tready  = from_tx.tready;
 
 endmodule : axi4s_intf_monitor
 
@@ -359,44 +340,39 @@ module axi4s_intf_pipe
 #(
     parameter axi4s_pipe_mode_t MODE = PULL
 ) (
-    axi4s_intf.rx axi4s_if_from_tx,
-    axi4s_intf.tx axi4s_if_to_rx
+    axi4s_intf.rx from_tx,
+    axi4s_intf.tx to_rx
 );
+    axi4s_intf_parameter_check param_check_0 (.*);
+
     logic ready;
 
-    // ACLK
-    assign axi4s_if_to_rx.aclk = axi4s_if_from_tx.aclk;
-
-    // ARESETN
-    initial axi4s_if_to_rx.aresetn = 1'b0;
-    always @(posedge axi4s_if_from_tx.aclk) axi4s_if_to_rx.aresetn <= axi4s_if_from_tx.aresetn;
-
     // TVALID buffer
-    initial axi4s_if_to_rx.tvalid = 1'b0;
-    always @(posedge axi4s_if_from_tx.aclk) begin
-        if (!axi4s_if_from_tx.aresetn)                               axi4s_if_to_rx.tvalid <= 1'b0;
-        else if (axi4s_if_from_tx.tvalid && axi4s_if_from_tx.tready) axi4s_if_to_rx.tvalid <= 1'b1;
-        else if (axi4s_if_to_rx.tready)                              axi4s_if_to_rx.tvalid <= 1'b0;
+    initial to_rx.tvalid = 1'b0;
+    always @(posedge from_tx.aclk) begin
+        if (!from_tx.aresetn)                      to_rx.tvalid <= 1'b0;
+        else if (from_tx.tvalid && from_tx.tready) to_rx.tvalid <= 1'b1;
+        else if (to_rx.tready)                     to_rx.tvalid <= 1'b0;
     end
 
     // TREADY
     initial ready = 1'b1;
-    always @(posedge axi4s_if_from_tx.aclk) begin
-        if (!axi4s_if_from_tx.aresetn)    ready <= 1'b1;
-        else if (axi4s_if_from_tx.tvalid) ready <= 1'b0;
-        else if (axi4s_if_to_rx.tready)   ready <= 1'b1;
+    always @(posedge from_tx.aclk) begin
+        if (!from_tx.aresetn)    ready <= 1'b1;
+        else if (from_tx.tvalid) ready <= 1'b0;
+        else if (to_rx.tready)   ready <= 1'b1;
     end
-    assign axi4s_if_from_tx.tready = (MODE == PUSH) ? axi4s_if_to_rx.tready : (ready || axi4s_if_to_rx.tready);
+    assign from_tx.tready = (MODE == PUSH) ? to_rx.tready : (ready || to_rx.tready);
 
     // Data
-    always_ff @(posedge axi4s_if_from_tx.aclk) begin
-        if (axi4s_if_from_tx.tready) begin
-            axi4s_if_to_rx.tdata <= axi4s_if_from_tx.tdata;
-            axi4s_if_to_rx.tkeep <= axi4s_if_from_tx.tkeep;
-            axi4s_if_to_rx.tlast <= axi4s_if_from_tx.tlast;
-            axi4s_if_to_rx.tid   <= axi4s_if_from_tx.tid;
-            axi4s_if_to_rx.tdest <= axi4s_if_from_tx.tdest;
-            axi4s_if_to_rx.tuser <= axi4s_if_from_tx.tuser;
+    always_ff @(posedge from_tx.aclk) begin
+        if (from_tx.tready) begin
+            to_rx.tdata <= from_tx.tdata;
+            to_rx.tkeep <= from_tx.tkeep;
+            to_rx.tlast <= from_tx.tlast;
+            to_rx.tid   <= from_tx.tid;
+            to_rx.tdest <= from_tx.tdest;
+            to_rx.tuser <= from_tx.tuser;
         end
     end
 
@@ -405,86 +381,78 @@ endmodule : axi4s_intf_pipe
 
 // axi4-stream tready pipeline helper module
 module axi4s_tready_pipe (
-    axi4s_intf.rx axi4s_if_from_tx,
-    axi4s_intf.tx axi4s_if_to_rx
+    axi4s_intf.rx from_tx,
+    axi4s_intf.tx to_rx
 );
     import axi4s_pkg::*;
 
-    localparam int  DATA_BYTE_WID = axi4s_if_from_tx.DATA_BYTE_WID;
-    localparam type TID_T         = axi4s_if_from_tx.TID_T;
-    localparam type TDEST_T       = axi4s_if_from_tx.TDEST_T;
-    localparam type TUSER_T       = axi4s_if_from_tx.TUSER_T;
+    localparam int DATA_BYTE_WID = from_tx.DATA_BYTE_WID;
+    localparam int TID_WID       = from_tx.TID_WID;
+    localparam int TDEST_WID     = from_tx.TDEST_WID;
+    localparam int TUSER_WID     = from_tx.TUSER_WID;
+
+    axi4s_intf_parameter_check param_check_0 (.*);
 
     logic  tready_falling;
     logic  fwft;
     logic  sample_enable;
 
-    axi4s_intf  #( .DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T) )
-                axi4s_if_from_tx_p ();
+    axi4s_intf  #( .DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID) )
+                from_tx_p (.aclk (from_tx.aclk), .aresetn(from_tx.aresetn));
 
-    // aclk.
-    assign axi4s_if_to_rx.aclk = axi4s_if_from_tx.aclk;
-
-    // aresetn.
-    initial axi4s_if_to_rx.aresetn = 1'b0;
-    always @(posedge axi4s_if_from_tx.aclk) axi4s_if_to_rx.aresetn <= axi4s_if_from_tx.aresetn;
-
-    logic axi4s_if_to_rx_tready_p = 0;
-    always @(posedge axi4s_if_from_tx.aclk) begin
-        if (!axi4s_if_from_tx.aresetn)  axi4s_if_to_rx_tready_p <= 1'b0;
-        else                            axi4s_if_to_rx_tready_p <= axi4s_if_to_rx.tready;
+    logic to_rx_tready_p = 0;
+    always @(posedge from_tx.aclk) begin
+        if (!from_tx.aresetn)  to_rx_tready_p <= 1'b0;
+        else                   to_rx_tready_p <= to_rx.tready;
     end
 
-    assign fwft = axi4s_if_from_tx.tvalid && !axi4s_if_from_tx_p.tvalid && !axi4s_if_to_rx_tready_p;
+    assign fwft = from_tx.tvalid && !from_tx_p.tvalid && !to_rx_tready_p;
 
-    assign tready_falling = axi4s_if_to_rx_tready_p && !axi4s_if_to_rx.tready;
+    assign tready_falling = to_rx_tready_p && !to_rx.tready;
 
     // sample data flops if rx is deasserting tready, or if sample flops can receive next valid word (first-word-fall-through).
-    assign sample_enable  = tready_falling || (fwft && !axi4s_if_to_rx.tready);
+    assign sample_enable  = tready_falling || (fwft && !to_rx.tready);
 
 
     // assert tready if rx is ready, or if sample flops can receive next valid word (first-word-fall-through).
-    assign axi4s_if_from_tx.tready = axi4s_if_to_rx_tready_p || fwft;
-
-    assign axi4s_if_from_tx_p.aclk    = axi4s_if_from_tx.aclk;
-    assign axi4s_if_from_tx_p.aresetn = axi4s_if_from_tx.aresetn;
+    assign from_tx.tready = to_rx_tready_p || fwft;
 
     // sample data flops, and deassert tvalid when flopped data is transferred.
-    always_ff @(posedge axi4s_if_from_tx.aclk) begin
-        if (!axi4s_if_from_tx.aresetn)                               axi4s_if_from_tx_p.tvalid <= '0;
-        else if (axi4s_if_to_rx.tready && axi4s_if_from_tx_p.tvalid) axi4s_if_from_tx_p.tvalid <= '0;
-        else if (sample_enable)                                      axi4s_if_from_tx_p.tvalid <= axi4s_if_from_tx.tvalid;
+    always_ff @(posedge from_tx.aclk) begin
+        if (!from_tx.aresetn)                      from_tx_p.tvalid <= '0;
+        else if (to_rx.tready && from_tx_p.tvalid) from_tx_p.tvalid <= '0;
+        else if (sample_enable)                    from_tx_p.tvalid <= from_tx.tvalid;
 
-        if (!axi4s_if_from_tx_p.tvalid) begin
-            axi4s_if_from_tx_p.tdata  <= axi4s_if_from_tx.tdata;
-            axi4s_if_from_tx_p.tkeep  <= axi4s_if_from_tx.tkeep;
-            axi4s_if_from_tx_p.tlast  <= axi4s_if_from_tx.tlast;
-            axi4s_if_from_tx_p.tid    <= axi4s_if_from_tx.tid;
-            axi4s_if_from_tx_p.tdest  <= axi4s_if_from_tx.tdest;
-            axi4s_if_from_tx_p.tuser  <= axi4s_if_from_tx.tuser;
+        if (!from_tx_p.tvalid) begin
+            from_tx_p.tdata  <= from_tx.tdata;
+            from_tx_p.tkeep  <= from_tx.tkeep;
+            from_tx_p.tlast  <= from_tx.tlast;
+            from_tx_p.tid    <= from_tx.tid;
+            from_tx_p.tdest  <= from_tx.tdest;
+            from_tx_p.tuser  <= from_tx.tuser;
         end
     end
 
     // output mux logic.
     always_comb begin
        // select sample flops when a valid sample is captured.
-       if (axi4s_if_from_tx_p.tvalid) begin
-            axi4s_if_to_rx.tvalid = axi4s_if_from_tx_p.tvalid;
-            axi4s_if_to_rx.tdata  = axi4s_if_from_tx_p.tdata;
-            axi4s_if_to_rx.tkeep  = axi4s_if_from_tx_p.tkeep;
-            axi4s_if_to_rx.tlast  = axi4s_if_from_tx_p.tlast;
-            axi4s_if_to_rx.tid    = axi4s_if_from_tx_p.tid;
-            axi4s_if_to_rx.tdest  = axi4s_if_from_tx_p.tdest;
-            axi4s_if_to_rx.tuser  = axi4s_if_from_tx_p.tuser;
+       if (from_tx_p.tvalid) begin
+            to_rx.tvalid = from_tx_p.tvalid;
+            to_rx.tdata  = from_tx_p.tdata;
+            to_rx.tkeep  = from_tx_p.tkeep;
+            to_rx.tlast  = from_tx_p.tlast;
+            to_rx.tid    = from_tx_p.tid;
+            to_rx.tdest  = from_tx_p.tdest;
+            to_rx.tuser  = from_tx_p.tuser;
        // otherwise select input data.
        end else begin
-            axi4s_if_to_rx.tvalid = axi4s_if_from_tx.tvalid;
-            axi4s_if_to_rx.tdata  = axi4s_if_from_tx.tdata;
-            axi4s_if_to_rx.tkeep  = axi4s_if_from_tx.tkeep;
-            axi4s_if_to_rx.tlast  = axi4s_if_from_tx.tlast;
-            axi4s_if_to_rx.tid    = axi4s_if_from_tx.tid;
-            axi4s_if_to_rx.tdest  = axi4s_if_from_tx.tdest;
-            axi4s_if_to_rx.tuser  = axi4s_if_from_tx.tuser;
+            to_rx.tvalid = from_tx.tvalid;
+            to_rx.tdata  = from_tx.tdata;
+            to_rx.tkeep  = from_tx.tkeep;
+            to_rx.tlast  = from_tx.tlast;
+            to_rx.tid    = from_tx.tid;
+            to_rx.tdest  = from_tx.tdest;
+            to_rx.tuser  = from_tx.tuser;
        end
     end
 
@@ -497,80 +465,90 @@ module axi4s_full_pipe
 #(
     parameter axi4s_pipe_mode_t MODE = PULL
 ) (
-    axi4s_intf.rx axi4s_if_from_tx,
-    axi4s_intf.tx axi4s_if_to_rx
+    axi4s_intf.rx from_tx,
+    axi4s_intf.tx to_rx
 );
-    import axi4s_pkg::*;
+    localparam int DATA_BYTE_WID = from_tx.DATA_BYTE_WID;
+    localparam int TID_WID       = from_tx.TID_WID;
+    localparam int TDEST_WID     = from_tx.TDEST_WID;
+    localparam int TUSER_WID     = from_tx.TUSER_WID;
 
-    localparam int  DATA_BYTE_WID = axi4s_if_from_tx.DATA_BYTE_WID;
-    localparam type TID_T         = axi4s_if_from_tx.TID_T;
-    localparam type TDEST_T       = axi4s_if_from_tx.TDEST_T;
-    localparam type TUSER_T       = axi4s_if_from_tx.TUSER_T;
+    axi4s_intf_parameter_check param_check_0 (.*);
 
-    axi4s_intf  #( .DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T) )
-                axi4s_if_from_tx_p ();
+    axi4s_intf  #( .DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID) )
+                from_tx_p (.aclk(from_tx.aclk), .aresetn(from_tx.aresetn));
 
-    axi4s_intf_pipe #(.MODE(MODE))  axi4s_intf_pipe_0   (.axi4s_if_from_tx(axi4s_if_from_tx),   .axi4s_if_to_rx(axi4s_if_from_tx_p));
+    axi4s_intf_pipe #(.MODE(MODE))  axi4s_intf_pipe_0   (.from_tx, .to_rx(from_tx_p));
 
-    axi4s_tready_pipe axi4s_tready_pipe_0 (.axi4s_if_from_tx(axi4s_if_from_tx_p), .axi4s_if_to_rx(axi4s_if_to_rx));
+    axi4s_tready_pipe axi4s_tready_pipe_0 (.from_tx(from_tx_p), .to_rx);
 
 endmodule : axi4s_full_pipe
 
 
 // AXI-Stream interface N:1 mux
-module axi4s_intf_mux
-#(
-    parameter int  N = 2,  // number of ingress axi4s interfaces.
-    parameter int  DATA_BYTE_WID = 8,
-    parameter type TID_T         = bit,
-    parameter type TDEST_T       = bit,
-    parameter type TUSER_T       = bit
+module axi4s_intf_mux #(
+    parameter int N = 2,  // number of ingress axi4s interfaces.
+    // Derived parameters (don't override)
+    parameter int SEL_WID = N > 1 ? $clog2(N) : 1
 ) (
-    axi4s_intf.rx                axi4s_in_if[N],
-    axi4s_intf.tx                axi4s_out_if,
-    input logic [$clog2(N)-1:0]  sel
+    axi4s_intf.rx             from_tx [N],
+    axi4s_intf.tx             to_rx,
+    input logic [SEL_WID-1:0] sel
 );
 
-    logic                          aresetn[N];
-    logic                          tvalid[N];
-    logic [DATA_BYTE_WID-1:0][7:0] tdata[N];
-    logic [DATA_BYTE_WID-1:0]      tkeep[N];
-    logic                          tlast[N];
-    TID_T                          tid[N];
-    TDEST_T                        tdest[N];
-    TUSER_T                        tuser[N];
+    localparam int DATA_BYTE_WID = to_rx.DATA_BYTE_WID;
+    localparam int TID_WID       = to_rx.TID_WID;
+    localparam int TDEST_WID     = to_rx.TDEST_WID;
+    localparam int TUSER_WID     = to_rx.TUSER_WID;
+
+    localparam int N_POW2 = 2**SEL_WID;
+
+    axi4s_intf_parameter_check param_check (.from_tx(from_tx[0]), .to_rx);
+
+    logic                          tvalid[N_POW2];
+    logic [DATA_BYTE_WID-1:0][7:0] tdata [N_POW2];
+    logic [DATA_BYTE_WID-1:0]      tkeep [N_POW2];
+    logic                          tlast [N_POW2];
+    logic [TID_WID-1:0]            tid   [N_POW2];
+    logic [TDEST_WID-1:0]          tdest [N_POW2];
+    logic [TUSER_WID-1:0]          tuser [N_POW2];
 
     logic                          tready[N];
 
     // Convert between array of signals and array of interfaces
     generate
         for (genvar g_if = 0; g_if < N; g_if++) begin : g__if
-            assign aresetn[g_if] = axi4s_in_if[g_if].aresetn;
-            assign  tvalid[g_if] = axi4s_in_if[g_if].tvalid;
-            assign   tdata[g_if] = axi4s_in_if[g_if].tdata;
-            assign   tkeep[g_if] = axi4s_in_if[g_if].tkeep;
-            assign   tlast[g_if] = axi4s_in_if[g_if].tlast;
-            assign     tid[g_if] = axi4s_in_if[g_if].tid;
-            assign   tdest[g_if] = axi4s_in_if[g_if].tdest;
-            assign   tuser[g_if] = axi4s_in_if[g_if].tuser;
+            assign  tvalid[g_if] = from_tx[g_if].tvalid;
+            assign   tdata[g_if] = from_tx[g_if].tdata;
+            assign   tkeep[g_if] = from_tx[g_if].tkeep;
+            assign   tlast[g_if] = from_tx[g_if].tlast;
+            assign     tid[g_if] = from_tx[g_if].tid;
+            assign   tdest[g_if] = from_tx[g_if].tdest;
+            assign   tuser[g_if] = from_tx[g_if].tuser;
 
-            assign axi4s_in_if[g_if].tready = (sel == g_if) ? axi4s_out_if.tready : 1'b0;
-        end
+            assign from_tx[g_if].tready = (sel == g_if) ? to_rx.tready : 1'b0;
+        end : g__if
+        // Specify 'out-of-range' values
+        for (genvar g_if = N; g_if < N_POW2; g_if++) begin : g__if_out_of_range
+            assign  tvalid[g_if] = 1'b0;
+            assign   tdata[g_if] = '0;
+            assign   tkeep[g_if] = '0;
+            assign   tlast[g_if] = 1'b0;
+            assign     tid[g_if] = '0;
+            assign   tdest[g_if] = '0;
+            assign   tuser[g_if] = '0;
+        end : g__if_out_of_range
     endgenerate
 
     always_comb begin
-        // all interfaces must be synchronous to axi4s_in_if[0].
-        axi4s_out_if.aclk    = axi4s_in_if[0].aclk;
-
         // mux logic
-        axi4s_out_if.aresetn = aresetn [sel];
-        axi4s_out_if.tvalid  = tvalid  [sel];
-        axi4s_out_if.tlast   = tlast   [sel];
-        axi4s_out_if.tkeep   = tkeep   [sel];
-        axi4s_out_if.tdata   = tdata   [sel];
-        axi4s_out_if.tid     = tid     [sel];
-        axi4s_out_if.tdest   = tdest   [sel];
-        axi4s_out_if.tuser   = tuser   [sel];
+        to_rx.tvalid  = tvalid  [sel];
+        to_rx.tlast   = tlast   [sel];
+        to_rx.tkeep   = tkeep   [sel];
+        to_rx.tdata   = tdata   [sel];
+        to_rx.tid     = tid     [sel];
+        to_rx.tdest   = tdest   [sel];
+        to_rx.tuser   = tuser   [sel];
     end
 
 endmodule
@@ -578,74 +556,76 @@ endmodule
 
 // AXI-Stream interface 2:1 mux
 module axi4s_intf_2to1_mux (
-    axi4s_intf.rx axi4s_in_if_0,
-    axi4s_intf.rx axi4s_in_if_1,
-    axi4s_intf.tx axi4s_out_if,
+    axi4s_intf.rx from_tx_0,
+    axi4s_intf.rx from_tx_1,
+    axi4s_intf.tx to_rx,
     input logic   mux_sel
 );
-    // All interfaces must be synchronous
-    assign axi4s_out_if.aclk    = axi4s_in_if_0.aclk;
-    assign axi4s_out_if.aresetn = mux_sel ? axi4s_in_if_1.aresetn : axi4s_in_if_0.aresetn;
+    axi4s_intf_parameter_check param_check_0 (.from_tx(from_tx_0), .to_rx);
+    axi4s_intf_parameter_check param_check_1 (.from_tx(from_tx_1), .to_rx);
 
     // Mux
-    assign axi4s_out_if.tvalid = mux_sel ? axi4s_in_if_1.tvalid : axi4s_in_if_0.tvalid;
-    assign axi4s_out_if.tlast  = mux_sel ? axi4s_in_if_1.tlast  : axi4s_in_if_0.tlast;
-    assign axi4s_out_if.tkeep  = mux_sel ? axi4s_in_if_1.tkeep  : axi4s_in_if_0.tkeep;
-    assign axi4s_out_if.tdata  = mux_sel ? axi4s_in_if_1.tdata  : axi4s_in_if_0.tdata;
-    assign axi4s_out_if.tid    = mux_sel ? axi4s_in_if_1.tid    : axi4s_in_if_0.tid;
-    assign axi4s_out_if.tdest  = mux_sel ? axi4s_in_if_1.tdest  : axi4s_in_if_0.tdest;
-    assign axi4s_out_if.tuser  = mux_sel ? axi4s_in_if_1.tuser  : axi4s_in_if_0.tuser;
+    assign to_rx.tvalid = mux_sel ? from_tx_1.tvalid : from_tx_0.tvalid;
+    assign to_rx.tlast  = mux_sel ? from_tx_1.tlast  : from_tx_0.tlast;
+    assign to_rx.tkeep  = mux_sel ? from_tx_1.tkeep  : from_tx_0.tkeep;
+    assign to_rx.tdata  = mux_sel ? from_tx_1.tdata  : from_tx_0.tdata;
+    assign to_rx.tid    = mux_sel ? from_tx_1.tid    : from_tx_0.tid;
+    assign to_rx.tdest  = mux_sel ? from_tx_1.tdest  : from_tx_0.tdest;
+    assign to_rx.tuser  = mux_sel ? from_tx_1.tuser  : from_tx_0.tuser;
 
     // Demux TREADY
-    assign axi4s_in_if_0.tready = mux_sel ? 1'b0 : axi4s_out_if.tready;
-    assign axi4s_in_if_1.tready = mux_sel ? axi4s_out_if.tready : 1'b0;
+    assign from_tx_0.tready = mux_sel ? 1'b0 : to_rx.tready;
+    assign from_tx_1.tready = mux_sel ? to_rx.tready : 1'b0;
 
 endmodule
 
 
 // AXI-Stream interface 1:N demux
-module axi4s_intf_demux
-#(
-    parameter int N = 2  // number of egress axi4s interfaces.
+module axi4s_intf_demux #(
+    parameter int N = 2,  // number of egress axi4s interfaces.
+    // Derived parameters (don't override)
+    parameter int SEL_WID = N > 1 ? $clog2(N) : 1
 ) (
-    axi4s_intf.rx  axi4s_in,
-    axi4s_intf.tx  axi4s_out[N],
-
-    input logic [$clog2(N)-1:0]  sel
+    axi4s_intf.rx              from_tx,
+    axi4s_intf.tx              to_rx [N],
+    input logic [SEL_WID-1:0]  sel
 );
 
-    localparam int  DATA_BYTE_WID = axi4s_in.DATA_BYTE_WID;
-    localparam type TID_T         = axi4s_in.TID_T;
-    localparam type TDEST_T       = axi4s_in.TDEST_T;
-    localparam type TUSER_T       = axi4s_in.TUSER_T;
+    localparam int DATA_BYTE_WID = from_tx.DATA_BYTE_WID;
+    localparam int TID_WID       = from_tx.TID_WID;
+    localparam int TDEST_WID     = from_tx.TDEST_WID;
+    localparam int TUSER_WID     = from_tx.TUSER_WID;
 
-    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) axi4s_in_p ();
-    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T)) axi4s_out_p[N] ();
+    localparam int N_POW2 = 2**SEL_WID;
 
-    logic tready[N];
+    axi4s_intf_parameter_check param_check (.from_tx, .to_rx(to_rx[0]));
 
-    axi4s_intf_connector axi4s_intf_connector_in (.axi4s_from_tx(axi4s_in), .axi4s_to_rx(axi4s_in_p));
+    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID)) to_rx_p[N] (.aclk(from_tx.aclk), .aresetn(from_tx.aresetn));
+
+    logic tready[N_POW2];
 
     // axis4s input interface signalling.
-    assign axi4s_in_p.tready = tready[sel];
+    assign from_tx.tready = tready[sel];
 
     generate
         for (genvar g_if = 0; g_if < N; g_if++) begin : g__if
-            assign tready[g_if] = axi4s_out_p[g_if].tready;
+            assign tready[g_if] = to_rx_p[g_if].tready;
 
             // axis4s output interface signalling.
-            assign axi4s_out_p[g_if].aclk    = axi4s_in_p.aclk;
-            assign axi4s_out_p[g_if].aresetn = axi4s_in_p.aresetn;
-            assign axi4s_out_p[g_if].tvalid  = (sel == g_if) ? axi4s_in_p.tvalid : 1'b0;
-            assign axi4s_out_p[g_if].tdata   = axi4s_in_p.tdata;
-            assign axi4s_out_p[g_if].tkeep   = axi4s_in_p.tkeep;
-            assign axi4s_out_p[g_if].tlast   = axi4s_in_p.tlast;
-            assign axi4s_out_p[g_if].tid     = axi4s_in_p.tid;
-            assign axi4s_out_p[g_if].tdest   = axi4s_in_p.tdest;
-            assign axi4s_out_p[g_if].tuser   = axi4s_in_p.tuser;
+            assign to_rx_p[g_if].tvalid  = (sel == g_if) ? from_tx.tvalid : 1'b0;
+            assign to_rx_p[g_if].tdata   = from_tx.tdata;
+            assign to_rx_p[g_if].tkeep   = from_tx.tkeep;
+            assign to_rx_p[g_if].tlast   = from_tx.tlast;
+            assign to_rx_p[g_if].tid     = from_tx.tid;
+            assign to_rx_p[g_if].tdest   = from_tx.tdest;
+            assign to_rx_p[g_if].tuser   = from_tx.tuser;
 
-            axi4s_intf_pipe out_pipe (.axi4s_if_from_tx(axi4s_out_p[g_if]), .axi4s_if_to_rx(axi4s_out[g_if]));
-        end
+            axi4s_pipe #(.STAGES(1)) out_pipe (.from_tx(to_rx_p[g_if]), .to_rx(to_rx[g_if]));
+        end : g__if
+        // Specify 'out-of-range' values
+        for (genvar g_if = N; g_if < N_POW2; g_if++) begin : g__if_out_of_range
+            assign tready[g_if] = 1'b1;
+        end : g__if_out_of_range
 
     endgenerate
 
@@ -654,114 +634,113 @@ endmodule
 
 // AXI-Stream interface 1:2 demux
 module axi4s_intf_1to2_demux (
-    axi4s_intf.rx       axi4s_in,
-    axi4s_intf.tx       axi4s_out0,
-    axi4s_intf.tx       axi4s_out1,
+    axi4s_intf.rx       from_tx,
+    axi4s_intf.tx       to_rx_0,
+    axi4s_intf.tx       to_rx_1,
     input logic         output_sel
 );
 
+    axi4s_intf_parameter_check param_check_0 (.from_tx, .to_rx(to_rx_0));
+    axi4s_intf_parameter_check param_check_1 (.from_tx, .to_rx(to_rx_1));
+
     // axis4s input interface signalling.
-    assign axi4s_in.tready = output_sel ? axi4s_out1.tready : axi4s_out0.tready;
+    assign from_tx.tready = output_sel ? to_rx_1.tready : to_rx_0.tready;
 
     // axis4s output interface signalling.
-    assign axi4s_out0.aclk    = axi4s_in.aclk;
-    assign axi4s_out0.aresetn = axi4s_in.aresetn;
-    assign axi4s_out0.tvalid  = axi4s_in.tvalid && !output_sel;
-    assign axi4s_out0.tdata   = axi4s_in.tdata;
-    assign axi4s_out0.tkeep   = axi4s_in.tkeep;
-    assign axi4s_out0.tlast   = axi4s_in.tlast;
-    assign axi4s_out0.tid     = axi4s_in.tid;
-    assign axi4s_out0.tdest   = axi4s_in.tdest;
-    assign axi4s_out0.tuser   = axi4s_in.tuser;
+    assign to_rx_0.tvalid = from_tx.tvalid && !output_sel;
+    assign to_rx_0.tdata  = from_tx.tdata;
+    assign to_rx_0.tkeep  = from_tx.tkeep;
+    assign to_rx_0.tlast  = from_tx.tlast;
+    assign to_rx_0.tid    = from_tx.tid;
+    assign to_rx_0.tdest  = from_tx.tdest;
+    assign to_rx_0.tuser  = from_tx.tuser;
 
-    assign axi4s_out1.aclk    = axi4s_in.aclk;
-    assign axi4s_out1.aresetn = axi4s_in.aresetn;
-    assign axi4s_out1.tvalid  = axi4s_in.tvalid && output_sel;
-    assign axi4s_out1.tdata   = axi4s_in.tdata;
-    assign axi4s_out1.tkeep   = axi4s_in.tkeep;
-    assign axi4s_out1.tlast   = axi4s_in.tlast;
-    assign axi4s_out1.tid     = axi4s_in.tid;
-    assign axi4s_out1.tdest   = axi4s_in.tdest;
-    assign axi4s_out1.tuser   = axi4s_in.tuser;
+    assign to_rx_1.tvalid = from_tx.tvalid && output_sel;
+    assign to_rx_1.tdata  = from_tx.tdata;
+    assign to_rx_1.tkeep  = from_tx.tkeep;
+    assign to_rx_1.tlast  = from_tx.tlast;
+    assign to_rx_1.tid    = from_tx.tid;
+    assign to_rx_1.tdest  = from_tx.tdest;
+    assign to_rx_1.tuser  = from_tx.tuser;
 
 endmodule
 
 
 // AXI-Stream interface bypass mux
 module axi4s_intf_bypass_mux #(
-    parameter logic RESET_BLK_IF = 0,
-    parameter int   PIPE_STAGES = 1,
-    parameter int   DATA_BYTE_WID = 8,
-    parameter type  TID_T = bit,
-    parameter type  TDEST_T = bit,
-    parameter type  TUSER_T = bit
+    parameter int PIPE_STAGES = 1
 ) (
-    axi4s_intf.rx axi4s_in,
-    axi4s_intf.tx axi4s_to_block,
-    axi4s_intf.rx axi4s_from_block,
-    axi4s_intf.tx axi4s_out,
+    axi4s_intf.rx from_tx,
+    axi4s_intf.tx to_block,
+    axi4s_intf.rx from_block,
+    axi4s_intf.tx to_rx,
     input logic   bypass
 );
+    axi4s_intf_parameter_check param_check_port          (.*);
+    axi4s_intf_parameter_check param_check_block         (.from_tx(from_block), .to_rx(to_block));
+    axi4s_intf_parameter_check param_check_port_to_block (.from_tx, .to_rx(to_block));
+
+    localparam int DATA_BYTE_WID = from_tx.DATA_BYTE_WID;
+    localparam int TID_WID       = from_tx.TID_WID;
+    localparam int TDEST_WID     = from_tx.TDEST_WID;
+    localparam int TUSER_WID     = from_tx.TUSER_WID;
 
     // interface instantiations
-    axi4s_intf  #( .DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T) )
-                __axi4s_in ();
+    axi4s_intf  #( .DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID) )
+                __from_tx (.aclk(from_tx.aclk), .aresetn(from_tx.aresetn));
 
-    axi4s_intf  #( .DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T) )
-                axi4s_from_pipe ();
+    axi4s_intf  #( .DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID) )
+                from_pipe (.aclk(from_tx.aclk), .aresetn(from_tx.aresetn));
 
-    // __axi4s_in assignments
-    assign __axi4s_in.aclk    = axi4s_in.aclk;
-    assign __axi4s_in.aresetn = axi4s_in.aresetn;
-    assign __axi4s_in.tvalid  = bypass ? axi4s_in.tvalid  : 1'b0;
-    assign __axi4s_in.tlast   = axi4s_in.tlast;
-    assign __axi4s_in.tkeep   = axi4s_in.tkeep;
-    assign __axi4s_in.tdata   = axi4s_in.tdata;
-    assign __axi4s_in.tid     = axi4s_in.tid;
-    assign __axi4s_in.tdest   = axi4s_in.tdest;
-    assign __axi4s_in.tuser   = axi4s_in.tuser;
+    // __from_tx assignments
+    assign __from_tx.tvalid  = bypass ? from_tx.tvalid  : 1'b0;
+    assign __from_tx.tlast   = from_tx.tlast;
+    assign __from_tx.tkeep   = from_tx.tkeep;
+    assign __from_tx.tdata   = from_tx.tdata;
+    assign __from_tx.tid     = from_tx.tid;
+    assign __from_tx.tdest   = from_tx.tdest;
+    assign __from_tx.tuser   = from_tx.tuser;
 
-    // axi4s_to_block assignments
-    assign axi4s_to_block.aclk    = axi4s_in.aclk;
-    assign axi4s_to_block.aresetn = (bypass && RESET_BLK_IF) ? 1'b0 : axi4s_in.aresetn;
-    assign axi4s_to_block.tvalid  = bypass ? 1'b0 : axi4s_in.tvalid;
-    assign axi4s_to_block.tlast   = axi4s_in.tlast;
-    assign axi4s_to_block.tkeep   = axi4s_in.tkeep;
-    assign axi4s_to_block.tdata   = axi4s_in.tdata;
-    assign axi4s_to_block.tid     = axi4s_in.tid;
-    assign axi4s_to_block.tdest   = axi4s_in.tdest;
-    assign axi4s_to_block.tuser   = axi4s_in.tuser;
+    // from_tx assignments
+    assign to_block.tvalid  = bypass ? 1'b0 : from_tx.tvalid;
+    assign to_block.tlast   = from_tx.tlast;
+    assign to_block.tkeep   = from_tx.tkeep;
+    assign to_block.tdata   = from_tx.tdata;
+    assign to_block.tid     = from_tx.tid;
+    assign to_block.tdest   = from_tx.tdest;
+    assign to_block.tuser   = from_tx.tuser;
 
-    // axi4s_in tready assignment
-    assign axi4s_in.tready = bypass ? __axi4s_in.tready : axi4s_to_block.tready;
+    // from_tx tready assignment
+    assign from_tx.tready = bypass ? __from_tx.tready : to_block.tready;
 
     // pipeline instantation
     generate
        if (PIPE_STAGES > 0) begin : g__bypass_pipe
-          axi4s_intf  #( .DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T) )
-                          axi4s_bypass_pipe [PIPE_STAGES] ();
+          axi4s_intf  #( .DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID) )
+                          axi4s_bypass_pipe [PIPE_STAGES] (.aclk(from_tx.aclk), .aresetn(from_tx.aresetn));
 
           axi4s_intf_pipe axi4s_intf_pipe_0
-                (.axi4s_if_from_tx(__axi4s_in), .axi4s_if_to_rx(axi4s_bypass_pipe[0]));
+                (.from_tx(__from_tx), .to_rx(axi4s_bypass_pipe[0]));
 
-          for (genvar i = 1; i < PIPE_STAGES; i++)
+          for (genvar i = 1; i < PIPE_STAGES; i++) begin: g__stage
              axi4s_intf_pipe axi4s_intf_pipe
-                (.axi4s_if_from_tx(axi4s_bypass_pipe[i-1]), .axi4s_if_to_rx(axi4s_bypass_pipe[i]));
+                (.from_tx(axi4s_bypass_pipe[i-1]), .to_rx(axi4s_bypass_pipe[i]));
+          end : g__stage
 
           axi4s_intf_connector axi4s_intf_connector_out
-                (.axi4s_from_tx(axi4s_bypass_pipe[PIPE_STAGES-1]), .axi4s_to_rx(axi4s_from_pipe));
+                (.from_tx(axi4s_bypass_pipe[PIPE_STAGES-1]), .to_rx(from_pipe));
 
        end : g__bypass_pipe
 
        else if (PIPE_STAGES == 0) begin : g__no_bypass_pipe
-          axi4s_intf_connector axi4s_intf_connector_out (.axi4s_from_tx(__axi4s_in), .axi4s_to_rx(axi4s_from_pipe));
+          axi4s_intf_connector axi4s_intf_connector_out (.from_tx(__from_tx), .to_rx(from_pipe));
 
        end : g__no_bypass_pipe
     endgenerate
 
     // output mux instantation
     axi4s_intf_2to1_mux axi4s_intf_2to1_mux_0 (
-       .axi4s_in_if_0(axi4s_from_block), .axi4s_in_if_1(axi4s_from_pipe), .axi4s_out_if(axi4s_out), .mux_sel(bypass)
+       .from_tx_0(from_block), .from_tx_1(from_pipe), .to_rx, .mux_sel(bypass)
     );
 
 endmodule
@@ -769,116 +748,126 @@ endmodule
 
 // axi4s advance tlast module (used to eliminate all-zeros tlast transactions that result from packet joining).
 module axi4s_adv_tlast (
-    axi4s_intf.rx axi4s_if_from_tx,
-    axi4s_intf.tx axi4s_if_to_rx
+    axi4s_intf.rx from_tx,
+    axi4s_intf.tx to_rx
 );
     import axi4s_pkg::*;
 
-    localparam int  DATA_BYTE_WID = axi4s_if_from_tx.DATA_BYTE_WID;
-    localparam type TID_T         = axi4s_if_from_tx.TID_T;
-    localparam type TDEST_T       = axi4s_if_from_tx.TDEST_T;
-    localparam type TUSER_T       = axi4s_if_from_tx.TUSER_T;
+    axi4s_intf_parameter_check param_check_port (.*);
 
-    axi4s_intf  #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_T(TID_T), .TDEST_T(TDEST_T), .TUSER_T(TUSER_T))
-                axi4s_pipe ();
+    localparam int DATA_BYTE_WID = from_tx.DATA_BYTE_WID;
+    localparam int TID_WID       = from_tx.TID_WID;
+    localparam int TDEST_WID     = from_tx.TDEST_WID;
+    localparam int TUSER_WID     = from_tx.TUSER_WID;
 
-    axi4s_intf_pipe axi4s_intf_pipe_0 (.axi4s_if_from_tx(axi4s_if_from_tx), .axi4s_if_to_rx(axi4s_pipe));
+    axi4s_intf  #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID))
+                from_tx_p (.aclk(from_tx.aclk), .aresetn(from_tx.aresetn));
+
+    axi4s_intf_pipe axi4s_intf_pipe_0 (.from_tx(from_tx), .to_rx(from_tx_p));
 
     logic  adv_tlast;
-    assign adv_tlast = axi4s_if_from_tx.tready && axi4s_if_from_tx.tvalid && axi4s_if_from_tx.tlast &&
-                       axi4s_if_from_tx.tkeep == '0;
+    assign adv_tlast = from_tx.tready && from_tx.tvalid && from_tx.tlast &&
+                       from_tx.tkeep == '0;
 
     logic skip;
-    always @(posedge axi4s_if_from_tx.aclk) begin
-        if (!axi4s_if_from_tx.aresetn) skip <= 0;
+    always @(posedge from_tx.aclk) begin
+        if (!from_tx.aresetn) skip <= 0;
         else if (skip == 0) skip <= adv_tlast;
-        else if (axi4s_pipe.tready && axi4s_pipe.tvalid) skip <= 0;  // skip == 1
+        else if (from_tx_p.tready && from_tx_p.tvalid) skip <= 0;  // skip == 1
     end
 
     // Connect output signals (pipe -> if_to_rx)
-    assign axi4s_if_to_rx.aclk    = axi4s_pipe.aclk;
-    assign axi4s_if_to_rx.aresetn = axi4s_pipe.aresetn;
-    assign axi4s_if_to_rx.tvalid  = axi4s_pipe.tvalid && !skip;
-    assign axi4s_if_to_rx.tdata   = axi4s_pipe.tdata;
-    assign axi4s_if_to_rx.tkeep   = axi4s_pipe.tkeep;
-    assign axi4s_if_to_rx.tlast   = axi4s_pipe.tlast || adv_tlast;
-    assign axi4s_if_to_rx.tid     = axi4s_pipe.tid;
-    assign axi4s_if_to_rx.tdest   = axi4s_pipe.tdest;
-    assign axi4s_if_to_rx.tuser   = axi4s_pipe.tuser;
+    assign to_rx.tvalid  = from_tx_p.tvalid && !skip;
+    assign to_rx.tdata   = from_tx_p.tdata;
+    assign to_rx.tkeep   = from_tx_p.tkeep;
+    assign to_rx.tlast   = from_tx_p.tlast || adv_tlast;
+    assign to_rx.tid     = from_tx_p.tid;
+    assign to_rx.tdest   = from_tx_p.tdest;
+    assign to_rx.tuser   = from_tx_p.tuser;
 
-    assign axi4s_pipe.tready  = axi4s_if_to_rx.tready;
+    assign from_tx_p.tready  = to_rx.tready;
 
 endmodule : axi4s_adv_tlast
 
 
 // group flattened AXI-S signals (from tx) into interface (to rx)
-module axi4s_intf_from_signals #(
-    parameter int  DATA_BYTE_WID = 8,
-    parameter type TID_T = bit,
-    parameter type TDEST_T = bit,
-    parameter type TUSER_T = bit
+module axi4s_intf_from_signals
+    import axi4s_pkg::*;
+#(
+    parameter int DATA_BYTE_WID = 8,
+    parameter int TID_WID   = 1,
+    parameter int TDEST_WID = 1,
+    parameter int TUSER_WID = 1,
+    parameter axi4s_mode_t MODE = STANDARD
 ) (
     // Signals (from tx)
-    input  logic                          aclk,
-    input  logic                          aresetn,
     input  logic                          tvalid,
     output logic                          tready,
     input  logic [DATA_BYTE_WID-1:0][7:0] tdata,
     input  logic [DATA_BYTE_WID-1:0]      tkeep,
     input  logic                          tlast,
-    input  TID_T                          tid,
-    input  TDEST_T                        tdest,
-    input  TUSER_T                        tuser,
+    input  logic [TID_WID-1:0]            tid,
+    input  logic [TDEST_WID-1:0]          tdest,
+    input  logic [TUSER_WID-1:0]          tuser,
     // Interface (to rx)
     axi4s_intf.tx axi4s_if
 );
-    import axi4s_pkg::*;
+    // Parameter checking
+    initial begin
+        std_pkg::param_check(DATA_BYTE_WID, axi4s_if.DATA_BYTE_WID, "DATA_BYTE_WID");
+        std_pkg::param_check(TID_WID, axi4s_if.TID_WID, "TID_WID");
+        std_pkg::param_check(TDEST_WID, axi4s_if.TDEST_WID, "TDEST_WID");
+        std_pkg::param_check(TUSER_WID, axi4s_if.TUSER_WID, "TUSER_WID");
+    end
 
     // Connect signals to interface (tx -> rx)
-    assign axi4s_if.aclk = aclk;
-    assign axi4s_if.aresetn = aresetn;
     assign axi4s_if.tvalid = tvalid;
     assign axi4s_if.tdata = tdata;
     assign axi4s_if.tkeep = tkeep;
     assign axi4s_if.tlast = tlast;
-    assign axi4s_if.tid = tid;
+    assign axi4s_if.tid   = tid;
     assign axi4s_if.tdest = tdest;
     assign axi4s_if.tuser = tuser;
 
     // Connect interface to signals (rx -> tx)
-    assign tready = (axi4s_if.MODE == IGNORES_TREADY) ? 1'b1 : axi4s_if.tready;
+    assign tready = (MODE == IGNORES_TREADY) ? 1'b1 : axi4s_if.tready;
 endmodule : axi4s_intf_from_signals
 
 
 // expand interface (from tx) into flattened AXI-S signals (to rx)
-module axi4s_intf_to_signals #(
-    parameter int  DATA_BYTE_WID = 8,
-    parameter type TID_T = bit,
-    parameter type TDEST_T = bit,
-    parameter type TUSER_T = bit
+module axi4s_intf_to_signals
+    import axi4s_pkg::*;
+#(
+    parameter int DATA_BYTE_WID = 8,
+    parameter int TID_WID = 1,
+    parameter int TDEST_WID = 1,
+    parameter int TUSER_WID = 1,
+    parameter axi4s_mode_t MODE = STANDARD
 ) (
     // Signals (to rx)
-    output logic                          aclk,
-    output logic                          aresetn,
     output logic                          tvalid,
     input  logic                          tready,
     output logic [DATA_BYTE_WID-1:0][7:0] tdata,
     output logic [DATA_BYTE_WID-1:0]      tkeep,
     output logic                          tlast,
-    output TID_T                          tid,
-    output TDEST_T                        tdest,
-    output TUSER_T                        tuser,
+    output logic [TID_WID-1:0]            tid,
+    output logic [TDEST_WID-1:0]          tdest,
+    output logic [TUSER_WID-1:0]          tuser,
     // Interface (from tx)
     axi4s_intf.rx axi4s_if
 );
-    import axi4s_pkg::*;
+    // Parameter checking
+    initial begin
+        std_pkg::param_check(DATA_BYTE_WID, axi4s_if.DATA_BYTE_WID, "DATA_BYTE_WID");
+        std_pkg::param_check(TID_WID, axi4s_if.TID_WID, "TID_WID");
+        std_pkg::param_check(TDEST_WID, axi4s_if.TDEST_WID, "TDEST_WID");
+        std_pkg::param_check(TUSER_WID, axi4s_if.TUSER_WID, "TUSER_WID");
+    end
 
     // Connect interface to signals (tx -> rx)
-    assign axi4s_if.tready = (axi4s_if.MODE == IGNORES_TREADY) ? 1'b1 : tready;
+    assign axi4s_if.tready = (MODE == IGNORES_TREADY) ? 1'b1 : tready;
 
     // Connect signals to interface (tx -> rx)
-    assign aclk    = axi4s_if.aclk;
-    assign aresetn = axi4s_if.aresetn;
     assign tvalid  = axi4s_if.tvalid;
     assign tdata   = axi4s_if.tdata;
     assign tkeep   = axi4s_if.tkeep;

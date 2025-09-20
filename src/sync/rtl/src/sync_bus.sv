@@ -7,26 +7,26 @@
 module sync_bus
     import sync_pkg::*;
 #(
-    parameter type     DATA_T = logic,
-    parameter DATA_T   RST_VALUE = {$bits(DATA_T){1'bx}},
-    parameter handshake_mode_t HANDSHAKE_MODE = HANDSHAKE_MODE_4PHASE
+    parameter int                  DATA_WID = 1,
+    parameter logic [DATA_WID-1:0] RST_VALUE = 'x,
+    parameter handshake_mode_t     HANDSHAKE_MODE = HANDSHAKE_MODE_4PHASE
 ) (
     // Input clock domain
-    input  logic  clk_in,
-    input  logic  rst_in,
-    output logic  rdy_in,
-    input  logic  req_in,
-    input  DATA_T data_in,
+    input  logic                clk_in,
+    input  logic                rst_in,
+    output logic                rdy_in,
+    input  logic                req_in,
+    input  logic [DATA_WID-1:0] data_in,
     // Output clock domain
-    input  logic  clk_out,
-    input  logic  rst_out,
-    output logic  ack_out,
-    output DATA_T data_out
+    input  logic                clk_out,
+    input  logic                rst_out,
+    output logic                ack_out,
+    output logic [DATA_WID-1:0] data_out
 );
 
     // Signals
-    (* DONT_TOUCH= "TRUE" *) DATA_T __sync_ff_bus_data_in;
-    (* ASYNC_REG = "TRUE" *) DATA_T __sync_ff_bus_data_out;
+    (* DONT_TOUCH= "TRUE" *) logic [DATA_WID-1:0] __sync_ff_bus_data_in;
+    (* ASYNC_REG = "TRUE" *) logic [DATA_WID-1:0] __sync_ff_bus_data_out;
     logic _ack_out;
 
     // Latch input data

@@ -1,8 +1,8 @@
 module htable_cuckoo_fast_update_core
     import htable_pkg::*;
 #(
-    parameter type KEY_T = logic[15:0],
-    parameter type VALUE_T = logic[15:0],
+    parameter int  KEY_WID = 1,
+    parameter int  VALUE_WID = 1,
     parameter int  NUM_TABLES = 3,
     parameter int  TABLE_SIZE [NUM_TABLES] = '{default: 4096},
     parameter int  HASH_LATENCY = 0,
@@ -11,43 +11,43 @@ module htable_cuckoo_fast_update_core
     parameter int  UPDATE_BURST_SIZE = 8
 )(
     // Clock/reset
-    input  logic              clk,
-    input  logic              srst,
+    input  logic               clk,
+    input  logic               srst,
 
-    input  logic              en,
+    input  logic               en,
 
-    output logic              init_done,
+    output logic               init_done,
 
     // Info interface
-    db_info_intf.peripheral   info_if,
+    db_info_intf.peripheral    info_if,
 
     // Status interface
-    db_status_intf.peripheral status_if,
+    db_status_intf.peripheral  status_if,
 
     // Control interface
-    db_ctrl_intf.peripheral   ctrl_if,
+    db_ctrl_intf.peripheral    ctrl_if,
 
     // AXI-L control/monitoring interface
-    axi4l_intf.peripheral     axil_if,
+    axi4l_intf.peripheral      axil_if,
 
     // Lookup interface (from application)
-    db_intf.responder         lookup_if,
+    db_intf.responder          lookup_if,
 
     // Update interface (from application)
-    db_intf.responder         update_if,
+    db_intf.responder          update_if,
 
     // Hashing interface
-    output KEY_T              lookup_key,
-    input  hash_t             lookup_hash [NUM_TABLES],
+    output logic [KEY_WID-1:0] lookup_key,
+    input  hash_t              lookup_hash [NUM_TABLES],
 
-    output KEY_T              ctrl_key    [NUM_TABLES],
-    input  hash_t             ctrl_hash   [NUM_TABLES],
+    output logic [KEY_WID-1:0] ctrl_key    [NUM_TABLES],
+    input  hash_t              ctrl_hash   [NUM_TABLES],
 
     // Read/write interfaces (to database)
-    output logic              tbl_init      [NUM_TABLES],
-    input  logic              tbl_init_done [NUM_TABLES],
-    db_intf.requester         tbl_wr_if     [NUM_TABLES],
-    db_intf.requester         tbl_rd_if     [NUM_TABLES]
+    output logic               tbl_init      [NUM_TABLES],
+    input  logic               tbl_init_done [NUM_TABLES],
+    db_intf.requester          tbl_wr_if     [NUM_TABLES],
+    db_intf.requester          tbl_rd_if     [NUM_TABLES]
 
 );
 
@@ -63,11 +63,11 @@ module htable_cuckoo_fast_update_core
     // Interfaces
     // ----------------------------------
     db_info_intf cuckoo_info_if ();
-    db_ctrl_intf  #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) cuckoo_ctrl_if (.clk(clk));
-    db_intf #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) cuckoo_lookup_if (.clk(clk));
+    db_ctrl_intf  #(.KEY_WID(KEY_WID), .VALUE_WID(VALUE_WID)) cuckoo_ctrl_if (.clk);
+    db_intf #(.KEY_WID(KEY_WID), .VALUE_WID(VALUE_WID)) cuckoo_lookup_if (.clk);
 
-    db_intf #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) __lookup_if (.clk(clk));
-    db_intf #(.KEY_T(KEY_T), .VALUE_T(VALUE_T)) __update_if (.clk(clk));
+    db_intf #(.KEY_WID(KEY_WID), .VALUE_WID(VALUE_WID)) __lookup_if (.clk);
+    db_intf #(.KEY_WID(KEY_WID), .VALUE_WID(VALUE_WID)) __update_if (.clk);
 
     axi4l_intf #() cuckoo_axil_if ();
     axi4l_intf #() fast_update_axil_if ();
@@ -93,8 +93,6 @@ module htable_cuckoo_fast_update_core
     // Database core
     // ----------------------------------
     db_core          #(
-        .KEY_T        ( KEY_T ),
-        .VALUE_T      ( VALUE_T ),
         .NUM_WR_TRANSACTIONS ( NUM_WR_TRANSACTIONS ),
         .NUM_RD_TRANSACTIONS ( NUM_RD_TRANSACTIONS ),
         .APP_CACHE_EN ( 1 )
@@ -124,8 +122,8 @@ module htable_cuckoo_fast_update_core
     // Fast update core
     // ----------------------------------
     htable_fast_update_core #(
-        .KEY_T               ( KEY_T ),
-        .VALUE_T             ( VALUE_T ),
+        .KEY_WID             ( KEY_WID ),
+        .VALUE_WID           ( VALUE_WID ),
         .NUM_RD_TRANSACTIONS ( NUM_RD_TRANSACTIONS ),
         .UPDATE_BURST_SIZE   ( UPDATE_BURST_SIZE )
     ) i_htable_fast_update_core (
@@ -145,8 +143,8 @@ module htable_cuckoo_fast_update_core
     // Cuckoo hash core
     // ----------------------------------
     htable_cuckoo_core #(
-        .KEY_T               ( KEY_T ),
-        .VALUE_T             ( VALUE_T ),
+        .KEY_WID             ( KEY_WID ),
+        .VALUE_WID           ( VALUE_WID ),
         .NUM_TABLES          ( NUM_TABLES ),
         .TABLE_SIZE          ( TABLE_SIZE ),
         .HASH_LATENCY        ( HASH_LATENCY ),

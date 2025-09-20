@@ -1,33 +1,32 @@
 module sync_ctr #(
-    parameter type     DATA_T = logic,
-    parameter DATA_T   RST_VALUE = {$bits(DATA_T){1'bx}},
-    parameter bit      DECODE_OUT = 1'b1  // Set to 1'b1 to decode output i.e. gray2bin.
+    parameter int                 CNT_WID = 1,
+    parameter logic [CNT_WID-1:0] RST_VALUE = 'x,
+    parameter bit                 DECODE_OUT = 1'b1  // Set to 1'b1 to decode output i.e. gray2bin.
 ) (
     // Input clock domain
-    input  logic  clk_in,
-    input  logic  rst_in,
-    input  DATA_T cnt_in,
+    input  logic               clk_in,
+    input  logic               rst_in,
+    input  logic [CNT_WID-1:0] cnt_in,
     // Output clock domain
-    input  logic  clk_out,
-    input  logic  rst_out,
-    output DATA_T cnt_out
+    input  logic               clk_out,
+    input  logic               rst_out,
+    output logic [CNT_WID-1:0] cnt_out
 );
 
-    DATA_T cnt_in_gray, cnt_out_gray;
+    logic [CNT_WID-1:0] cnt_in_gray, cnt_out_gray;
 
     // bin2gray encoding function.
-    function automatic DATA_T bin2gray (input DATA_T bin_in);
-        automatic DATA_T gray_out;
+    function automatic logic[CNT_WID-1:0] bin2gray (input logic[CNT_WID-1:0] bin_in);
+        automatic logic[CNT_WID-1:0] gray_out;
         gray_out = bin_in ^ (bin_in >> 1);                
         return gray_out;
     endfunction
 
     // gray2bin decoding function.
-    function automatic DATA_T gray2bin (input DATA_T gray_in);
-        automatic  DATA_T bin_out;
-        localparam DATA_WID = $bits(DATA_T);
-        bin_out[DATA_WID-1] = gray_in[DATA_WID-1];
-        for (int i=DATA_WID-1; i>0; i--) bin_out[i-1] = bin_out[i] ^ gray_in [i-1];
+    function automatic logic[CNT_WID-1:0] gray2bin (input logic[CNT_WID-1:0] gray_in);
+        automatic logic [CNT_WID-1:0] bin_out;
+        bin_out[CNT_WID-1] = gray_in[CNT_WID-1];
+        for (int i=CNT_WID-1; i>0; i--) bin_out[i-1] = bin_out[i] ^ gray_in [i-1];
         return bin_out;
     endfunction
 
@@ -35,8 +34,8 @@ module sync_ctr #(
     always_comb cnt_in_gray = bin2gray(cnt_in);
 
     // basic synchronizer
-    sync_meta #(
-        .DATA_T    ( DATA_T ),
+    sync_meta     #(
+        .DATA_WID  ( CNT_WID ),
         .RST_VALUE ( bin2gray(RST_VALUE) )
     ) sync_meta_0  (
         .clk_in    ( clk_in ),

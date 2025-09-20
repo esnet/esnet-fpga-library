@@ -1,20 +1,20 @@
 module sar_reassembly_state_check #(
-    parameter type TIMER_T = logic,
-    parameter type STATE_T = logic,
-    parameter type notify_msg_t = logic
+    parameter int BUF_ID_WID = 1,
+    parameter int OFFSET_WID = 1,
+    parameter int TIMER_WID = 1 // Width (in bits) of frame expiry timer
 ) (
     // Clock/reset
-    input logic              clk,
-    input logic              srst,
+    input logic                 clk,
+    input logic                 srst,
 
     // AXI-L control
-    axi4l_intf.peripheral    axil_if,
+    axi4l_intf.peripheral       axil_if,
 
     // Check interface
-    state_check_intf.target  check_if,
+    state_check_intf.target     check_if,
 
     // Timers
-    input TIMER_T            timer
+    input logic [TIMER_WID-1:0] timer
 );
     // -----------------------------
     // Imports
@@ -24,7 +24,32 @@ module sar_reassembly_state_check #(
     // -----------------------------
     // Parameters
     // -----------------------------
-    localparam int TIMER_WID = $bits(TIMER_T);
+    typedef struct packed {
+        logic [BUF_ID_WID-1:0] buf_id;
+        logic [OFFSET_WID-1:0] offset_start;
+        logic [OFFSET_WID-1:0] offset_end;
+    } notify_ctxt_t;
+
+    typedef struct packed {
+        reassembly_notify_type_t _type;
+        notify_ctxt_t            ctxt;
+    } notify_msg_t;
+    localparam NOTIFY_MSG_WID = $bits(notify_msg_t);
+
+    typedef struct packed {
+        logic                  valid;
+        logic [BUF_ID_WID-1:0] buf_id;
+        logic [OFFSET_WID-1:0] offset_start;
+        logic [OFFSET_WID-1:0] offset_end;
+        logic [TIMER_WID-1:0]  timer;
+        logic                  last;
+    } state_t;
+    localparam int STATE_WID = $bits(state_t);
+
+    initial begin
+        std_pkg::param_check(NOTIFY_MSG_WID, check_if.MSG_WID,   "check_if.MSG_WID");
+        std_pkg::param_check(STATE_WID,      check_if.STATE_WID, "check_if.STATE_WID");
+    end
 
     // -----------------------------
     // Typedefs
@@ -44,12 +69,14 @@ module sar_reassembly_state_check #(
     fsm_state_t fsm_state;
     fsm_state_t nxt_fsm_state;
 
-    STATE_T __state;
+    state_t __state;
 
     logic buffer_done;
 
-    TIMER_T age;
-    logic   timeout;
+    logic [TIMER_WID-1:0] age;
+    logic                 timeout;
+
+    notify_msg_t check_if_msg;
 
     // -----------------------------
     // Interfaces
@@ -100,7 +127,7 @@ module sar_reassembly_state_check #(
         check_if.ack = 1'b0;
         check_if.active = 1'b0;
         check_if.notify = 1'b0;
-        check_if.msg._type = REASSEMBLY_NOTIFY_EXPIRED;
+        check_if_msg._type = REASSEMBLY_NOTIFY_EXPIRED;
         nxt_fsm_state = fsm_state;
         case (fsm_state)
             RESET : begin
@@ -118,10 +145,10 @@ module sar_reassembly_state_check #(
                     check_if.active = 1'b1;
                     if (buffer_done) begin
                         check_if.notify = 1'b1;
-                        check_if.msg._type = REASSEMBLY_NOTIFY_DONE;
+                        check_if_msg._type = REASSEMBLY_NOTIFY_DONE;
                     end else if (timeout) begin
                         check_if.notify = 1'b1;
-                        check_if.msg._type = REASSEMBLY_NOTIFY_EXPIRED;
+                        check_if_msg._type = REASSEMBLY_NOTIFY_EXPIRED;
                     end
                 end
                 nxt_fsm_state = IDLE;
@@ -129,9 +156,10 @@ module sar_reassembly_state_check #(
         endcase
     end
 
-    assign check_if.msg.ctxt.buf_id = __state.buf_id;
-    assign check_if.msg.ctxt.offset_start = __state.offset_start;
-    assign check_if.msg.ctxt.offset_end = __state.offset_end;
+    assign check_if_msg.ctxt.buf_id = __state.buf_id;
+    assign check_if_msg.ctxt.offset_start = __state.offset_start;
+    assign check_if_msg.ctxt.offset_end = __state.offset_end;
+    assign check_if.msg = check_if_msg;
 
     // Latch state
     always_ff @(posedge clk) if (check_if.req) __state <= check_if.state;
@@ -180,7 +208,7 @@ module sar_reassembly_state_check #(
         end else begin
             // Selective update
             if (check_if.notify) begin
-                case (check_if.msg._type)
+                case (check_if_msg._type)
                     REASSEMBLY_NOTIFY_DONE : reg_if.dbg_cnt_buffer_done_nxt_v = 1'b1;
                     default                : reg_if.dbg_cnt_fragment_expired_nxt_v = 1'b1;
                 endcase

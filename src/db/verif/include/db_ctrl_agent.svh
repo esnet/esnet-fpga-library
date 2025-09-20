@@ -5,11 +5,14 @@ class db_ctrl_agent #(
 
     local static const string __CLASS_NAME = "db_verif_pkg::db_ctrl_agent";
 
+    localparam int KEY_WID = $bits(KEY_T);
+    localparam int VALUE_WID = $bits(VALUE_T);
+
     //===================================
     // Properties
     //===================================
     // Control interface
-    virtual db_ctrl_intf #(KEY_T, VALUE_T) ctrl_vif;
+    virtual db_ctrl_intf #(KEY_WID, VALUE_WID) ctrl_vif;
 
     // Info interface
     virtual db_info_intf info_vif;
@@ -52,7 +55,7 @@ class db_ctrl_agent #(
     endfunction
 
     function automatic void attach(
-            input virtual db_ctrl_intf#(KEY_T, VALUE_T) v_ctrl_if,
+            input virtual db_ctrl_intf#(KEY_WID, VALUE_WID) v_ctrl_if,
             input virtual db_status_intf v_status_if = null,
             input virtual db_info_intf v_info_if = null
         );
@@ -61,7 +64,7 @@ class db_ctrl_agent #(
         attach_info_if(v_info_if);
     endfunction
 
-    function automatic void attach_ctrl_if(virtual db_ctrl_intf#(KEY_T, VALUE_T) ctrl_if);
+    function automatic void attach_ctrl_if(virtual db_ctrl_intf#(KEY_WID, VALUE_WID) ctrl_if);
         this.ctrl_vif = ctrl_if;
     endfunction
 

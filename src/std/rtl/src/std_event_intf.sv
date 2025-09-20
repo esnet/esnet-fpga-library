@@ -1,11 +1,11 @@
 interface std_event_intf #(
-    parameter type MSG_T = logic
+    parameter int MSG_WID = 1
 ) (
     input logic clk
 );
     // Signals
-    logic  evt;
-    MSG_T  msg;
+    logic               evt;
+    logic [MSG_WID-1:0] msg;
 
     // Modports
     modport publisher (
@@ -19,7 +19,6 @@ interface std_event_intf #(
     );
 
     clocking cb @(posedge clk);
-        default input #1step output #1step;
         output evt, msg;
     endclocking
 
@@ -32,7 +31,7 @@ interface std_event_intf #(
         repeat (cycles) @(cb);
     endtask
 
-    task notify(input MSG_T _msg);
+    task notify(input bit[MSG_WID-1:0] _msg);
         cb.evt <= 1'b1;
         cb.msg <= _msg;
         @(cb);
