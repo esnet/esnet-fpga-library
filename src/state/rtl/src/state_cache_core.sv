@@ -91,6 +91,8 @@ module state_cache_core
 
     lookup_req_ctxt_t lookup_req_ctxt_in;
     lookup_req_ctxt_t lookup_req_ctxt_out;
+    logic             lookup_req_oflow;
+    logic             lookup_req_uflow;
 
     logic init_done__id_manager;
 
@@ -288,13 +290,13 @@ module state_cache_core
         .wr_data  ( lookup_req_ctxt_in ),
         .wr_count ( ),
         .full     ( ),
-        .oflow    ( ),
+        .oflow    ( lookup_req_oflow ),
         .rd       ( lookup_if.ack ),
         .rd_ack   ( ),
         .rd_data  ( lookup_req_ctxt_out ),
         .rd_count ( ),
         .empty    ( ),
-        .uflow    ( )
+        .uflow    ( lookup_req_uflow )
     );
 
     // -----------------------------------------------------------
@@ -464,22 +466,22 @@ module state_cache_core
 
     // Requests
     always_ff @(posedge clk) begin
-        if (cnt_clear)  cnt_req <= 0;
+        if (cnt_clear)  cnt_req <= '0;
         else if (__req) cnt_req <= cnt_req + 1;
     end
     // Tracked (existing)
     always_ff @(posedge clk) begin
-        if (cnt_clear)               cnt_tracked_existing <= 0;
+        if (cnt_clear)               cnt_tracked_existing <= '0;
         else if (__tracked_existing) cnt_tracked_existing <= cnt_tracked_existing + 1;
     end
     // Tracked (new)
     always_ff @(posedge clk) begin
-        if (cnt_clear)          cnt_tracked_new <= 0;
+        if (cnt_clear)          cnt_tracked_new <= '0;
         else if (__tracked_new) cnt_tracked_new <= cnt_tracked_new + 1;
     end
     // Not tracked
     always_ff @(posedge clk) begin
-        if (cnt_clear)          cnt_not_tracked <= 0;
+        if (cnt_clear)          cnt_not_tracked <= '0;
         else if (__not_tracked) cnt_not_tracked <= cnt_not_tracked + 1;
     end
 
@@ -500,8 +502,87 @@ module state_cache_core
     // -----------------------------
     // Debug
     // -----------------------------
+    logic __insert_error_no_flowid;
+    logic __insert_error_no_slot;
+    logic __insert_error_no_flowid_no_slot;
+    logic __htable_error;
+
+    logic dbg_cnt_clear;
+
+    logic [31:0] dbg_cnt_insert_error_no_flowid;
+    logic [31:0] dbg_cnt_insert_error_no_slot;
+    logic [31:0] dbg_cnt_insert_error_no_flowid_no_slot;
+    logic [31:0] dbg_cnt_htable_error;
+    logic dbg_flag_lookup_req_oflow;
+    logic dbg_flag_lookup_req_uflow;
+
+    // Synthesize (and buffer) counter update signals
+    always_ff @(posedge clk) begin
+        __insert_error_no_flowid_no_slot <= 1'b0;
+        __insert_error_no_flowid <= 1'b0;
+        __insert_error_no_slot <= 1'b0;
+        __htable_error <= 1'b0;
+        if (insert_error) begin
+            if (!__insert_rdy && !htable_update_if.rdy) __insert_error_no_flowid_no_slot <= 1'b1;
+            else if (!__insert_rdy)                     __insert_error_no_flowid <= 1'b1;
+            else if (!htable_update_if.rdy)             __insert_error_no_slot <= 1'b1;
+        end
+        if (htable_lookup_if.ack && htable_lookup_if.error) __htable_error <= 1'b1;
+    end
+
+    // Buffer clear signals from regmap
+    always_ff @(posedge clk) begin
+        if (__srst || reg_if.dbg_control.clear_counts) dbg_cnt_clear <= 1'b1;
+        else dbg_cnt_clear <= 1'b0;
+    end
+
+    // Insertion error (no flow ID/no slot)
+    always_ff @(posedge clk) begin
+        if (dbg_cnt_clear)                         dbg_cnt_insert_error_no_flowid_no_slot <= '0;
+        else if (__insert_error_no_flowid_no_slot) dbg_cnt_insert_error_no_flowid_no_slot <= dbg_cnt_insert_error_no_flowid_no_slot + 1;
+    end
+    // Insertion error (no flow ID)
+    always_ff @(posedge clk) begin
+        if (dbg_cnt_clear)                 dbg_cnt_insert_error_no_flowid <= '0;
+        else if (__insert_error_no_flowid) dbg_cnt_insert_error_no_flowid <= dbg_cnt_insert_error_no_flowid + 1;
+    end
+    // Insertion error (no slot)
+    always_ff @(posedge clk) begin
+        if (dbg_cnt_clear)               dbg_cnt_insert_error_no_slot <= '0;
+        else if (__insert_error_no_slot) dbg_cnt_insert_error_no_slot <= dbg_cnt_insert_error_no_slot + 1;
+    end
+    // Hash table lookup error
+    always_ff @(posedge clk) begin
+        if (dbg_cnt_clear)       dbg_cnt_htable_error <= '0;
+        else if (__htable_error) dbg_cnt_htable_error <= dbg_cnt_htable_error + 1;
+    end
+    // Overflow/underflow flags
+    always_ff @(posedge clk) begin
+        if (__srst || reg_if.dbg_flags_rd_evt) begin
+            dbg_flag_lookup_req_oflow <= 1'b0;
+            dbg_flag_lookup_req_uflow <= 1'b0;
+        end else begin
+            dbg_flag_lookup_req_oflow <= dbg_flag_lookup_req_oflow || lookup_req_oflow;
+            dbg_flag_lookup_req_uflow <= dbg_flag_lookup_req_uflow || lookup_req_uflow;
+        end
+    end
+
     assign reg_if.dbg_cnt_active_nxt_v = 1'b1;
+    assign reg_if.dbg_cnt_insert_error_no_flowid_no_slot_nxt_v = 1'b1;
+    assign reg_if.dbg_cnt_insert_error_no_flowid_nxt_v = 1'b1;
+    assign reg_if.dbg_cnt_insert_error_no_slot_nxt_v = 1'b1;
+    assign reg_if.dbg_cnt_htable_error_nxt_v = 1'b1;
+    assign reg_if.dbg_flags_nxt_v = 1'b1;
+
     assign reg_if.dbg_cnt_active_nxt = htable_status_if.fill;
+    assign reg_if.dbg_cnt_insert_error_no_flowid_no_slot_nxt = dbg_cnt_insert_error_no_flowid_no_slot;
+    assign reg_if.dbg_cnt_insert_error_no_flowid_nxt         = dbg_cnt_insert_error_no_flowid;
+    assign reg_if.dbg_cnt_insert_error_no_slot_nxt           = dbg_cnt_insert_error_no_slot;
+    assign reg_if.dbg_cnt_htable_error_nxt = dbg_cnt_htable_error;
+    assign reg_if.dbg_flags_nxt.lookup_req_oflow = dbg_flag_lookup_req_oflow;
+    assign reg_if.dbg_flags_nxt.lookup_req_uflow = dbg_flag_lookup_req_uflow;
+
+
 
 endmodule : state_cache_core
 
