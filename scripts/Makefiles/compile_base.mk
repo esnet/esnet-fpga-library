@@ -1,4 +1,9 @@
 # -----------------------------------------------
+# Includes
+# -----------------------------------------------
+include $(SCRIPTS_ROOT)/Makefiles/funcs.mk
+
+# -----------------------------------------------
 # Configure paths
 # -----------------------------------------------
 # Specify standard directory structure
@@ -108,7 +113,8 @@ get_subcomponent_sublibs = $(if $(wildcard $(subcomponent_sublib_file)),$(shell 
 SUBCOMPONENT_SUBLIBS = $(sort $(foreach subcomponent_path,$(SUBCOMPONENT_PATHS),$(get_subcomponent_sublibs)))
 
 # Perform recursive operations on subcomponents
-__COMPILE_OPS = compile synth clean
+__COMPILE_OPS = pre compile synth clean
+
 define SUBCOMPONENT_OP_RULE
 .subcomponents_$(op):
 	@for subcomponent in $(SUBCOMPONENT_REFS); do \
@@ -118,6 +124,52 @@ endef
 $(foreach op,$(__COMPILE_OPS),$(eval $(SUBCOMPONENT_OP_RULE)))
 
 .PHONY: $(addprefix .subcomponents_,$(__COMPILE_OPS))
+
+# Generate comprehensive source lists (including subcomponent sources)
+DEFINES__ALL = $(sort $(DEFINES) $(foreach subcomponent_path,$(SUBCOMPONENT_PATHS),$(call get_list_from_file,$(subcomponent_path)/srcs/defines.f)))
+SV_SRC_FILES__ALL = $(sort $(abspath $(SV_SRC_FILES)) $(foreach subcomponent_path,$(SUBCOMPONENT_PATHS),$(call get_list_from_file,$(subcomponent_path)/srcs/sv_srcs.f)))
+SV_HDR_FILES__ALL = $(sort $(abspath $(SV_HDR_FILES)) $(foreach subcomponent_path,$(SUBCOMPONENT_PATHS),$(call get_list_from_file,$(subcomponent_path)/srcs/sv_hdr_srcs.f)))
+V_SRC_FILES__ALL = $(sort $(abspath $(V_SRC_FILES)) $(foreach subcomponent_path,$(SUBCOMPONENT_PATHS),$(call get_list_from_file,$(subcomponent_path)/srcs/v_srcs.f)))
+V_HDR_FILES__ALL = $(sort $(abspath $(V_HDR_FILES)) $(foreach subcomponent_path,$(SUBCOMPONENT_PATHS),$(call get_list_from_file,$(subcomponent_path)/srcs/v_hdr_srcs.f)))
+INC_DIRS__ALL = $(sort $(abspath $(INCLUDES)) $(foreach subcomponent_path,$(SUBCOMPONENT_PATHS),$(call get_list_from_file,$(subcomponent_path)/srcs/inc_dirs.f)))
+
+# List of package files should be unique, but not sorted, to preserve ordering of dependencies
+SV_PKG_FILES__ALL = $(call uniq,$(foreach subcomponent_path,$(SUBCOMPONENT_PATHS),$(call get_list_from_file,$(subcomponent_path)/srcs/sv_pkg_srcs.f)) $(abspath $(SV_PKG_FILES)))
+
+$(COMPONENT_OUT_SRCS_PATH):
+	@mkdir -p $@
+
+.pre: .subcomponents_pre | $(COMPONENT_OUT_SRCS_PATH)
+	@echo -n "" > $(COMPONENT_OUT_SRCS_PATH)/defines.f
+	@-for define in $(DEFINES__ALL); do \
+		echo $$define >> $(COMPONENT_OUT_SRCS_PATH)/defines.f; \
+	done
+	@echo -n "" > $(COMPONENT_OUT_SRCS_PATH)/sv_pkg_srcs.f
+	@-for sv_pkg_src in $(SV_PKG_FILES__ALL); do \
+		echo $$sv_pkg_src >> $(COMPONENT_OUT_SRCS_PATH)/sv_pkg_srcs.f; \
+	done
+	@echo -n "" > $(COMPONENT_OUT_SRCS_PATH)/sv_srcs.f
+	@-for sv_src in $(SV_SRC_FILES__ALL); do \
+		echo $$sv_src >> $(COMPONENT_OUT_SRCS_PATH)/sv_srcs.f; \
+	done
+	@echo -n "" > $(COMPONENT_OUT_SRCS_PATH)/sv_hdr_srcs.f
+	@-for sv_hdr in $(SV_HDR_FILES__ALL); do \
+		echo $$sv_hdr >> $(COMPONENT_OUT_SRCS_PATH)/sv_hdr_srcs.f; \
+	done
+	@echo -n "" > $(COMPONENT_OUT_SRCS_PATH)/v_srcs.f
+	@-for v_src in $(V_SRC_FILES__ALL); do \
+		echo $$v_src >> $(COMPONENT_OUT_SRCS_PATH)/v_srcs.f; \
+	done
+	@echo -n "" > $(COMPONENT_OUT_SRCS_PATH)/v_hdr_srcs.f
+	@-for v_hdr in $(V_HDR_FILES__ALL); do \
+		echo $$v_hdr >> $(COMPONENT_OUT_SRCS_PATH)/v_hdr_srcs.f; \
+	done
+	@echo -n "" > $(COMPONENT_OUT_SRCS_PATH)/inc_dirs.f
+	@-for inc_dir in $(INC_DIRS__ALL); do \
+		echo $$inc_dir >> $(COMPONENT_OUT_SRCS_PATH)/inc_dirs.f; \
+	done
+
+.PHONY: .pre
 
 # ----------------------------------------------------
 # Library dependencies

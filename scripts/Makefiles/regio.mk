@@ -165,6 +165,10 @@ $(REGIO_VERIF_PACKAGE_OUTPUT_DIR): | $(REGIO_VERIF_OUTPUT_DIR)
 $(REGIO_IR_OUTPUT_DIR):
 	@mkdir -p $@
 
+_reg_pre: reg
+	@$(MAKE) -s -C $(REGIO_RTL_OUTPUT_DIR) pre
+	@$(MAKE) -s -C $(REGIO_VERIF_OUTPUT_DIR) pre
+
 _reg_compile: $(REGIO_RTL_SIM_OBJ) $(REGIO_VERIF_SIM_OBJ)
 
 _reg_synth: reg
@@ -180,7 +184,7 @@ _reg_compile_clean:
 	@[ ! -f $(REGIO_RTL_OUTPUT_DIR)/Makefile ] || $(MAKE) -s -C $(REGIO_RTL_OUTPUT_DIR) clean
 	@[ ! -f $(REGIO_VERIF_OUTPUT_DIR)/Makefile ] || $(MAKE) -s -C $(REGIO_VERIF_OUTPUT_DIR) clean
 
-.PHONY: _reg_compile _reg_synth _reg_compile_clean
+.PHONY: _reg_pre _reg_compile _reg_synth _reg_compile_clean
 
 # Display component configuration
 _reg_config_info:

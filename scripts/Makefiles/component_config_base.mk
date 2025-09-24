@@ -51,6 +51,7 @@ COMPONENT_NAME := $(call get_component_name_from_ref,$(COMPONENT_REF))
 # Synthesize output paths
 COMPONENT_OUT_PATH := $(abspath $(call get_component_out_path_from_ref,$(COMPONENT_REF),$(LIB_OUTPUT_ROOT)))
 
+COMPONENT_OUT_SRCS_PATH := $(COMPONENT_OUT_PATH)/srcs
 COMPONENT_OUT_SYNTH_PATH := $(COMPONENT_OUT_PATH)/synth
 
 # ----------------------------------------------------
@@ -65,6 +66,7 @@ COMPONENT_OUT_SYNTH_PATH := $(COMPONENT_OUT_PATH)/synth
 	@echo "SUBCOMPONENT        : $(SUBCOMPONENT)"
 	@echo "COMPONENT_PATH      : $(COMPONENT_PATH)"
 	@echo "COMPONENT_OUT_PATH  : $(COMPONENT_OUT_PATH)"
+	@echo "COMPONENT_OUT_SRCS_PATH  : $(COMPONENT_OUT_SRCS_PATH)"
 	@echo "COMPONENT_OUT_SYNTH_PATH : $(COMPONENT_OUT_SYNTH_PATH)"
 .PHONY: .component_info
 
