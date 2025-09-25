@@ -1,5 +1,6 @@
 module axi3_mem_bfm #(
     parameter int CHANNELS = 1,
+    parameter bit GLOBAL_ADDRESSING = 1'b0,
     parameter bit DEBUG = 1'b0
 ) (
     axi3_intf.peripheral axi3_if [CHANNELS]
@@ -13,6 +14,7 @@ module axi3_mem_bfm #(
     localparam int DATA_BYTE_WID = axi3_if[0].DATA_BYTE_WID;
     localparam int BYTE_SEL_WID = $clog2(DATA_BYTE_WID);
     localparam int AXI_ID_WID = axi3_if[0].ID_WID;
+    localparam int CHANNEL_ID_WID = $clog2(CHANNELS);
 
     // Typedefs
     typedef logic [ADDR_WID-1:0]           addr_t;
@@ -32,6 +34,7 @@ module axi3_mem_bfm #(
 
             // (Local) signals
             addr_ctxt_t  aw_ctxt_q[$];
+            addr_t       axi3_if_awaddr;
             addr_t       awaddr;
             __addr_t     __awaddr; // Word address
             id_t         awid;
@@ -45,6 +48,7 @@ module axi3_mem_bfm #(
             logic        wip;
 
             addr_ctxt_t  ar_ctxt_q[$];
+            addr_t       axi3_if_araddr;
             addr_t       araddr;
             __addr_t     __araddr; // Word address
             id_t         arid;
@@ -59,14 +63,23 @@ module axi3_mem_bfm #(
             // Always ready for write address
             assign axi3_if[g_if].awready = 1'b1;
 
+            if (GLOBAL_ADDRESSING) begin : g__global_addressing
+                assign axi3_if_awaddr = axi3_if[g_if].awaddr;
+                assign axi3_if_araddr = axi3_if[g_if].araddr;
+            end : g__global_addressing
+            else begin : g__channel_addressing
+                assign axi3_if_awaddr = {CHANNEL_ID_WID'(g_if), axi3_if[g_if].awaddr[ADDR_WID-CHANNEL_ID_WID-1:0]};
+                assign axi3_if_araddr = {CHANNEL_ID_WID'(g_if), axi3_if[g_if].araddr[ADDR_WID-CHANNEL_ID_WID-1:0]};
+            end : g__channel_addressing
+
             // Latch write address/id
             always @(posedge axi3_if[g_if].aclk) begin
                 if (!axi3_if[g_if].aresetn) begin
                     aw_ctxt_q.delete();
                 end else begin
                     if (axi3_if[g_if].awvalid && axi3_if[g_if].awready) begin
-                        if (DEBUG) $display("[Ch%0d] Push 0x%0x (ID 0x%0x) onto write address queue.", g_if, axi3_if[g_if].awaddr, axi3_if[g_if].awid);
-                        aw_ctxt_q.push_back({axi3_if[g_if].awid, axi3_if[g_if].awaddr});
+                        if (DEBUG) $display("[Ch%0d] Push 0x%0x (ID 0x%0x) onto write address queue.", g_if, axi3_if_awaddr, axi3_if[g_if].awid);
+                        aw_ctxt_q.push_back({axi3_if[g_if].awid, axi3_if_awaddr});
                     end
                 end
             end
@@ -163,8 +176,8 @@ module axi3_mem_bfm #(
                     ar_ctxt_q.delete();
                 end else begin
                     if (axi3_if[g_if].arvalid && axi3_if[g_if].arready) begin
-                        if (DEBUG) $display("Push 0x%x (ID 0x%0x) onto read address queue.", axi3_if[g_if].araddr, axi3_if[g_if].arid);
-                        ar_ctxt_q.push_back({axi3_if[g_if].arid, axi3_if[g_if].araddr});
+                        if (DEBUG) $display("Push 0x%x (ID 0x%0x) onto read address queue.", axi3_if_araddr, axi3_if[g_if].arid);
+                        ar_ctxt_q.push_back({axi3_if[g_if].arid, axi3_if_araddr});
                     end
                 end
             end
