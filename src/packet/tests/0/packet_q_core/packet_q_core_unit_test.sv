@@ -7,20 +7,25 @@ module packet_q_core_unit_test #(
     import svunit_pkg::svunit_testcase;
     import packet_verif_pkg::*;
 
-    string name = "packet_q_core_ut";
+    string name = $sformatf("packet_q_core_%0din_%0dout_ut", NUM_INPUT_IFS, NUM_OUTPUT_IFS);
     svunit_testcase svunit_ut;
 
     //===================================
     // Parameters
     //===================================
     localparam int  DATA_IN_BYTE_WID = 64;
-    localparam int  NUM_MEM_WR_IFS = 2;
-
-    localparam int  DATA_OUT_BYTE_WID = 64;
-    localparam int  NUM_MEM_RD_IFS = 2;
+    localparam int  DATA_OUT_BYTE_WID = DATA_IN_BYTE_WID;
+    localparam int  DATA_IN_WID = DATA_IN_BYTE_WID * 8;
+    localparam int  DATA_OUT_WID = DATA_OUT_BYTE_WID * 8;
 
     localparam int  MEM_DATA_BYTE_WID = 32;
     localparam int  MEM_DATA_WID = MEM_DATA_BYTE_WID * 8;
+
+    localparam int  NUM_MEM_WR_IFS_PER_INPUT  = DATA_IN_BYTE_WID  / MEM_DATA_BYTE_WID;
+    localparam int  NUM_MEM_RD_IFS_PER_OUTPUT = DATA_OUT_BYTE_WID / MEM_DATA_BYTE_WID;
+    localparam int  NUM_MEM_DATA_IFS = NUM_INPUT_IFS * NUM_MEM_WR_IFS_PER_INPUT;
+
+    initial std_pkg::param_check(NUM_OUTPUT_IFS*NUM_MEM_RD_IFS_PER_OUTPUT, NUM_MEM_DATA_IFS, "NUM_MEM_RD_IFS");
 
     localparam int  BUFFER_SIZE = 2048;
     localparam int  BUFFER_WORDS = BUFFER_SIZE / MEM_DATA_BYTE_WID;
@@ -55,13 +60,15 @@ module packet_q_core_unit_test #(
     packet_intf #(.DATA_BYTE_WID(DATA_IN_BYTE_WID), .META_WID(META_WID)) packet_in_if [NUM_INPUT_IFS]   (.clk, .srst);
 
     mem_wr_intf #(.DATA_WID(MEM_DATA_WID), .ADDR_WID(PTR_WID))  desc_mem_wr_if (.clk);
-    mem_wr_intf #(.DATA_WID(MEM_DATA_WID), .ADDR_WID(ADDR_WID)) mem_wr_if [NUM_MEM_WR_IFS] (.clk);
+    mem_wr_intf #(.DATA_WID(DATA_IN_WID),  .ADDR_WID(ADDR_WID)) mem_wr_if [NUM_INPUT_IFS] (.clk);
+    mem_wr_intf #(.DATA_WID(MEM_DATA_WID), .ADDR_WID(ADDR_WID)) __mem_wr_if [NUM_MEM_DATA_IFS] (.clk);
 
     packet_descriptor_intf #(.ADDR_WID(PTR_WID), .META_WID(META_WID), .MAX_PKT_SIZE(MAX_PKT_SIZE)) desc_in_if  [NUM_INPUT_IFS] (.clk, .srst);
     packet_descriptor_intf #(.ADDR_WID(PTR_WID), .META_WID(META_WID), .MAX_PKT_SIZE(MAX_PKT_SIZE)) desc_out_if [NUM_OUTPUT_IFS] (.clk, .srst);
 
     mem_rd_intf #(.DATA_WID(MEM_DATA_WID), .ADDR_WID(PTR_WID))  desc_mem_rd_if (.clk);
-    mem_rd_intf #(.DATA_WID(MEM_DATA_WID), .ADDR_WID(ADDR_WID)) mem_rd_if [NUM_MEM_RD_IFS] (.clk);
+    mem_rd_intf #(.DATA_WID(DATA_OUT_WID), .ADDR_WID(ADDR_WID)) mem_rd_if [NUM_INPUT_IFS] (.clk);
+    mem_rd_intf #(.DATA_WID(MEM_DATA_WID), .ADDR_WID(ADDR_WID)) __mem_rd_if [NUM_MEM_DATA_IFS] (.clk);
 
     packet_intf #(.DATA_BYTE_WID(DATA_OUT_BYTE_WID), .META_WID(META_WID)) packet_out_if [NUM_OUTPUT_IFS] (.clk, .srst);
 
@@ -70,8 +77,7 @@ module packet_q_core_unit_test #(
     packet_q_core      #(
         .NUM_INPUT_IFS  ( NUM_INPUT_IFS ),
         .NUM_OUTPUT_IFS ( NUM_OUTPUT_IFS ),
-        .NUM_MEM_WR_IFS ( NUM_MEM_WR_IFS ),
-        .NUM_MEM_RD_IFS ( NUM_MEM_RD_IFS ),
+        .MAX_PKT_SIZE   ( MAX_PKT_SIZE ),
         .NUM_BUFFERS    ( NUM_BUFFERS ),
         .BUFFER_SIZE    ( BUFFER_SIZE ),
         .SIM__FAST_INIT ( 0 ),
@@ -81,7 +87,7 @@ module packet_q_core_unit_test #(
     //===================================
     // Memory
     //===================================
-    localparam int NUM_MEM_CHANNELS = NUM_MEM_WR_IFS + NUM_MEM_RD_IFS + 1;
+    localparam int NUM_MEM_CHANNELS = NUM_MEM_DATA_IFS + 1;
     localparam int AXI_ADDR_WID = $clog2(PACKET_Q_CAPACITY + NUM_BUFFERS);
     axi3_intf #(.DATA_BYTE_WID(MEM_DATA_BYTE_WID), .ADDR_WID(AXI_ADDR_WID)) axi3_if [NUM_MEM_CHANNELS] (.aclk(clk));
     axi3_mem_bfm #(
@@ -90,35 +96,46 @@ module packet_q_core_unit_test #(
         .axi3_if
     );
 
-    for (genvar g_if = 0; g_if < NUM_MEM_WR_IFS; g_if++) begin : g_mem_wr_if
-        mem_rd_intf #(.DATA_WID(MEM_DATA_WID), .ADDR_WID(ADDR_WID)) mem_rd_if__unused (.clk);
+    // Per-input-port logic
+    for (genvar g_if = 0; g_if < NUM_INPUT_IFS; g_if++) begin : g__input_if
+        mem_wr_intf #(.DATA_WID(MEM_DATA_WID), .ADDR_WID(ADDR_WID)) __mem_wr_if__slice [NUM_MEM_WR_IFS_PER_INPUT] (.clk);
+
+        // Distribute (wide) memory interfaces over multiple (narrow) interfaces (adapt 512-bit AXI-S interface to 256-bit AXI-3 HBM interface, for example)
+        mem_wr_aggregate #(.N(NUM_MEM_WR_IFS_PER_INPUT)) i_mem_wr_aggregate (.from_controller(mem_wr_if[g_if]), .to_peripheral (__mem_wr_if__slice));
+
+        // Connect memory interface in input slice to global interface pool
+        for (genvar g_mem_if = 0; g_mem_if < NUM_MEM_WR_IFS_PER_INPUT; g_mem_if++) begin : g__mem_if
+            mem_wr_intf_connector i_mem_wr_intf_connector (.from_controller(__mem_wr_if__slice[g_mem_if]), .to_peripheral(__mem_wr_if[g_if*NUM_MEM_WR_IFS_PER_INPUT + g_mem_if]));
+        end : g__mem_if
+    end : g__input_if
+
+    // Per-output-port logic
+    for (genvar g_if = 0; g_if < NUM_OUTPUT_IFS; g_if++) begin : g__output_if
+        mem_rd_intf #(.DATA_WID(MEM_DATA_WID), .ADDR_WID(ADDR_WID)) __mem_rd_if__slice [NUM_MEM_RD_IFS_PER_OUTPUT] (.clk);
+
+        // Distribute (wide) memory interfaces over multiple (narrow) interfaces (adapt 512-bit AXI-S interface to 256-bit AXI-3 HBM interface, for example)
+        mem_rd_aggregate #(.N(NUM_MEM_RD_IFS_PER_OUTPUT)) i_mem_rd_aggregate (.from_controller(mem_rd_if[g_if]), .to_peripheral (__mem_rd_if__slice));
+
+        // Connect memory interface in output slice to global interface pool
+        for (genvar g_mem_if = 0; g_mem_if < NUM_MEM_RD_IFS_PER_OUTPUT; g_mem_if++) begin : g__mem_if
+            mem_rd_intf_connector i_mem_rd_intf_connector (.from_controller(__mem_rd_if__slice[g_mem_if]), .to_peripheral(__mem_rd_if[g_if*NUM_MEM_RD_IFS_PER_OUTPUT + g_mem_if]));
+        end : g__mem_if
+    end : g__output_if
+
+    // Convert memory interfaces to AXI-3
+    for (genvar g_if = 0; g_if < NUM_MEM_DATA_IFS; g_if++) begin : g_mem_if
         axi3_from_mem_adapter #(
             .SIZE(axi3_pkg::SIZE_32BYTES)
         ) i_axi3_from_mem_adapter (
             .clk,
             .srst,
             .init_done (),
-            .mem_wr_if ( mem_wr_if [g_if] ),
-            .mem_rd_if ( mem_rd_if__unused ),
+            .mem_wr_if ( __mem_wr_if [g_if] ),
+            .mem_rd_if ( __mem_rd_if [g_if] ),
             .axi3_if   ( axi3_if[g_if] )
         );
-        mem_rd_intf_controller_term i_mem_rd_intf_controller_term (.to_peripheral(mem_rd_if__unused));
     end
-    for (genvar g_if = 0; g_if < NUM_MEM_RD_IFS; g_if++) begin : g_mem_rd_if
-        mem_wr_intf #(.DATA_WID(MEM_DATA_WID), .ADDR_WID(ADDR_WID)) mem_wr_if__unused (.clk);
-        axi3_from_mem_adapter #(
-            .SIZE(axi3_pkg::SIZE_32BYTES)
-        ) i_axi3_from_mem_adapter (
-            .clk,
-            .srst,
-            .init_done (),
-            .mem_wr_if ( mem_wr_if__unused ),
-            .mem_rd_if ( mem_rd_if[g_if] ),
-            .axi3_if   ( axi3_if[NUM_MEM_WR_IFS + g_if] )
-        );
-        mem_wr_intf_controller_term i_mem_wr_intf_controller_term (.to_peripheral(mem_wr_if__unused));
-    end
-
+    
     axi3_from_mem_adapter #(
         .SIZE(axi3_pkg::SIZE_32BYTES),
         .BASE_ADDR ( PACKET_Q_CAPACITY )
@@ -128,7 +145,7 @@ module packet_q_core_unit_test #(
         .init_done (),
         .mem_wr_if ( desc_mem_wr_if ),
         .mem_rd_if ( desc_mem_rd_if ),
-        .axi3_if   ( axi3_if[NUM_MEM_WR_IFS + NUM_MEM_RD_IFS] )
+        .axi3_if   ( axi3_if[NUM_MEM_DATA_IFS] )
     );
 
     generate
@@ -353,4 +370,8 @@ endmodule
 
 module packet_q_core_1in_1out_unit_test;
 `PACKET_Q_CORE_TEST(1,1)
+endmodule
+
+module packet_q_core_2in_2out_unit_test;
+`PACKET_Q_CORE_TEST(2,2)
 endmodule
