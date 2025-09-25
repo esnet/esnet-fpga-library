@@ -239,7 +239,7 @@ module packet_enqueue_unit_test #(
         `SVTEST(overflow)
             int words;
             int rd_size;
-            len = $urandom_range(MIN_PKT_SIZE, MAX_PKT_SIZE);
+            len = $urandom_range(2*DATA_BYTE_WID, MAX_PKT_SIZE);
             words = $ceil(len * 1.0 / DATA_BYTE_WID);
             rd_size = BUFFER_WORDS*DATA_BYTE_WID+(words-2)*DATA_BYTE_WID;
             while (rd_size > 0) begin
