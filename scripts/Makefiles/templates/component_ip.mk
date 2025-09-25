@@ -66,6 +66,7 @@ COMPILE_OPTS =
 all: ip compile synth
 
 ip:      _ip
+pre:     _ip_pre
 compile: _ip_compile
 synth:   _ip_synth
 info:    _ip_info
@@ -73,7 +74,7 @@ status:  _ip_status
 upgrade: _ip_upgrade
 clean:   _ip_clean
 
-.PHONY: all ip compile synth info status upgrade clean
+.PHONY: all ip pre compile synth info status upgrade clean
 
 # ----------------------------------------------------
 # IP project management targets

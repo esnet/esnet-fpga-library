@@ -46,6 +46,7 @@ else
 ip:      _vitisnetp4_ip
 endif
 ip_exdes: _ip_exdes
+pre:     _ip_pre
 compile: ip_exdes _vitisnetp4_compile
 synth:   _vitisnetp4_synth
 driver:  _vitisnetp4_driver
@@ -54,7 +55,7 @@ status:  _ip_status
 upgrade: _ip_upgrade
 clean:   _vitisnetp4_clean
 
-.PHONY: all ip compile synth info status upgrade clean
+.PHONY: all ip pre compile synth info status upgrade clean
 
 # ----------------------------------------------------
 # IP project management targets

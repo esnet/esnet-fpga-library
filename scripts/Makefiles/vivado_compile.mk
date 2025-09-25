@@ -126,6 +126,8 @@ SV_COMPILE_CMD_LOG = $(if $(DO_SV_COMPILE), $(shell echo $(SV_COMPILE_CMD) > $(O
 # -----------------------------------------------
 # TARGETS
 # -----------------------------------------------
+_compile_pre: .pre
+
 _compile_sim: .subcomponents_compile $(SIM_LIB)
 
 _compile_synth: .subcomponents_synth _synth_sources _synth_constraints
@@ -135,7 +137,7 @@ _compile_clean: .subcomponents_clean
 	@-find $(LIB_OUTPUT_ROOT) -type d -empty -delete 2>/dev/null
 	@rm -f xvlog.pb
 
-.PHONY: _compile_sim _compile_synth _compile_clean
+.PHONY: _compile_pre _compile_sim _compile_synth _compile_clean
 
 # Make output directories as necessary
 $(OBJ_DIR):

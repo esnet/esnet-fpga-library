@@ -210,6 +210,8 @@ _ip_status: ip | $(PROJ_XPR)
 _ip_upgrade: ip | $(PROJ_XPR)
 	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_IP_CMD) -tclargs upgrade $(BUILD_OPTIONS)
 
+_ip_pre: ;
+
 # Compile IP
 _ip_compile: _ip_sim_sources _compile_sim
 
@@ -221,7 +223,7 @@ _ip_clean: _vivado_clean_logs _ip_proj_clean _compile_clean
 	@rm -rf $(COMPONENT_OUT_PATH)
 	@-find $(LIB_OUTPUT_ROOT) -type d -empty -delete 2>/dev/null
 
-.PHONY: _ip_exdes _ip_reset _ip_status _ip_upgrade _ip_compile _ip_synth _ip_clean
+.PHONY: _ip_exdes _ip_reset _ip_status _ip_upgrade _ip_pre _ip_compile _ip_synth _ip_clean
 
 # -----------------------------------------------
 # Generate/manage synthesis products

@@ -29,7 +29,12 @@ COMPILE_OPTS=
 # ----------------------------------------------------
 all: synth compile
 
+ifeq ($(P4_FILE),)
+$(error No P4 file specified)
+else
 ip:      _vitisnetp4_ip
+endif
+pre:     _vitisnetp4_pre
 compile: _vitisnetp4_compile
 synth:   _vitisnetp4_synth
 driver:  _vitisnetp4_driver
@@ -38,7 +43,7 @@ status:  _ip_status
 upgrade: _ip_upgrade
 clean:   _vitisnetp4_clean
 
-.PHONY: all ip compile synth info status upgrade clean
+.PHONY: all ip pre compile synth info status upgrade clean
 
 # ----------------------------------------------------
 # IP project management targets
