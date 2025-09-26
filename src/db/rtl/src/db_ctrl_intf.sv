@@ -144,17 +144,6 @@ interface db_ctrl_intf #(
 endinterface : db_ctrl_intf
 
 
-module db_ctrl_intf_parameter_check (
-    db_ctrl_intf from_controller,
-    db_ctrl_intf to_peripheral
-);
-    initial begin
-        std_pkg::param_check(from_controller.KEY_WID,   to_peripheral.KEY_WID,   "KEY_WID");
-        std_pkg::param_check(from_controller.VALUE_WID, to_peripheral.VALUE_WID, "VALUE_WID");
-    end
-endmodule
-
-
 // Database control interface controller termination helper module
 module db_ctrl_intf_controller_term (
     db_ctrl_intf.controller to_peripheral
@@ -183,7 +172,11 @@ module db_ctrl_intf_connector (
     db_ctrl_intf.peripheral from_controller,
     db_ctrl_intf.controller to_peripheral
 );
-    db_ctrl_intf_parameter_check param_check_0 (.*);
+    // Parameter check
+    initial begin
+        std_pkg::param_check(from_controller.KEY_WID,   to_peripheral.KEY_WID,   "KEY_WID");
+        std_pkg::param_check(from_controller.VALUE_WID, to_peripheral.VALUE_WID, "VALUE_WID");
+    end
 
     // Connect signals (controller -> peripheral)
     assign to_peripheral.req = from_controller.req;
@@ -209,7 +202,11 @@ module db_ctrl_intf_proxy (
     db_ctrl_intf.peripheral from_controller,
     db_ctrl_intf.controller to_peripheral
 );
-    db_ctrl_intf_parameter_check param_check_0 (.*);
+    // Parameter check
+    initial begin
+        std_pkg::param_check(from_controller.KEY_WID,   to_peripheral.KEY_WID,   "KEY_WID");
+        std_pkg::param_check(from_controller.VALUE_WID, to_peripheral.VALUE_WID, "VALUE_WID");
+    end
 
     // Signals
     logic pending;
@@ -270,7 +267,11 @@ module db_ctrl_intf_mux #(
 
     localparam int NUM_IFS__POW2 = 2**SEL_WID;
 
-    db_ctrl_intf_parameter_check param_check_0 (.from_controller(from_controller[0]), .to_peripheral);
+    // Parameter check
+    initial begin
+        std_pkg::param_check(from_controller[0].KEY_WID,   to_peripheral.KEY_WID,   "KEY_WID");
+        std_pkg::param_check(from_controller[0].VALUE_WID, to_peripheral.VALUE_WID, "VALUE_WID");
+    end
 
     generate
         if (NUM_IFS > 1) begin : g__mux
@@ -470,7 +471,11 @@ module db_ctrl_intf_demux #(
     localparam int KEY_WID = from_controller.KEY_WID;
     localparam int VALUE_WID = from_controller.VALUE_WID;
 
-    db_ctrl_intf_parameter_check param_check_0 (.from_controller, .to_peripheral(to_peripheral[0]));
+    // Parameter check
+    initial begin
+        std_pkg::param_check(from_controller.KEY_WID,   to_peripheral[0].KEY_WID,   "KEY_WID");
+        std_pkg::param_check(from_controller.VALUE_WID, to_peripheral[0].VALUE_WID, "VALUE_WID");
+    end
 
     generate
         if (NUM_IFS > 1) begin : g__demux

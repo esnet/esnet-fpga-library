@@ -229,15 +229,6 @@ interface db_intf #(
 
 endinterface : db_intf
 
-module db_intf_parameter_check (
-    db_intf from_requester,
-    db_intf to_responder
-);
-    initial begin
-        std_pkg::param_check(from_requester.KEY_WID,   to_responder.KEY_WID,   "KEY_WID");
-        std_pkg::param_check(from_requester.VALUE_WID, to_responder.VALUE_WID, "VALUE_WID");
-    end
-endmodule
 
 // DB interface requester termination helper module
 module db_intf_requester_term (
@@ -270,8 +261,11 @@ module db_intf_connector #(
     db_intf.responder from_requester,
     db_intf.requester to_responder
 );
-
-    db_intf_parameter_check param_check_0 (.*);
+    // Parameter check
+    initial begin
+        std_pkg::param_check(from_requester.KEY_WID,   to_responder.KEY_WID,   "KEY_WID");
+        std_pkg::param_check(from_requester.VALUE_WID, to_responder.VALUE_WID, "VALUE_WID");
+    end
 
     assign to_responder.req = from_requester.req;
     assign to_responder.key = from_requester.key;
@@ -349,7 +343,11 @@ module db_intf_mux #(
 
     localparam int NUM_IFS__POW2 = 2**SEL_WID;
 
-    db_intf_parameter_check param_check_0 (.from_requester(from_requester[0]), .to_responder);
+    // Parameter check
+    initial begin
+        std_pkg::param_check(from_requester[0].KEY_WID,   to_responder.KEY_WID,   "KEY_WID");
+        std_pkg::param_check(from_requester[0].VALUE_WID, to_responder.VALUE_WID, "VALUE_WID");
+    end
 
     generate
         if (NUM_IFS > 1) begin : g__mux
@@ -732,7 +730,11 @@ module db_intf_demux #(
     localparam int KEY_WID = from_requester.KEY_WID;
     localparam int VALUE_WID = from_requester.VALUE_WID;
 
-    db_intf_parameter_check param_check_0 (.from_requester, .to_responder(to_responder[0]));
+    // Parameter check
+    initial begin
+        std_pkg::param_check(from_requester.KEY_WID,   to_responder[0].KEY_WID,   "KEY_WID");
+        std_pkg::param_check(from_requester.VALUE_WID, to_responder[0].VALUE_WID, "VALUE_WID");
+    end
 
     generate
         if (NUM_IFS > 1) begin : g__demux
