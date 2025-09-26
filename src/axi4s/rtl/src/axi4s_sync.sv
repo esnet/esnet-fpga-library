@@ -23,11 +23,28 @@ module axi4s_sync
    output logic     sop_mismatch
 );
 
-   axi4s_intf_parameter_check param_check_0 (.from_tx(axi4s_in0), .to_rx(axi4s_out0));
-   axi4s_intf_parameter_check param_check_1 (.from_tx(axi4s_in1), .to_rx(axi4s_out1));
-   axi4s_intf_parameter_check param_check_0_1 (.from_tx(axi4s_in0), .to_rx(axi4s_in1));
-
+   // Parameters
+   localparam int DATA_BYTE_WID = axi4s_in0.DATA_BYTE_WID;
+   localparam int TID_WID   = axi4s_in0.TID_WID;
+   localparam int TDEST_WID = axi4s_in0.TDEST_WID;
    localparam int TUSER_WID = axi4s_in0.TUSER_WID;
+
+   // Parameter check
+   initial begin
+       std_pkg::param_check(axi4s_in1.DATA_BYTE_WID,  DATA_BYTE_WID, "axi4s_in1.DATA_BYTE_WID");
+       std_pkg::param_check(axi4s_in1.TID_WID,        TID_WID,       "axi4s_in1.TID_WID");
+       std_pkg::param_check(axi4s_in1.TDEST_WID,      TDEST_WID,     "axi4s_in1.TDEST_WID");
+       std_pkg::param_check(axi4s_in1.TUSER_WID,      TUSER_WID,     "axi4s_in1.TUSER_WID");
+       std_pkg::param_check(axi4s_out0.DATA_BYTE_WID, DATA_BYTE_WID, "axi4s_out0.DATA_BYTE_WID");
+       std_pkg::param_check(axi4s_out0.TID_WID,       TID_WID,       "axi4s_out0.TID_WID");
+       std_pkg::param_check(axi4s_out0.TDEST_WID,     TDEST_WID,     "axi4s_out0.TDEST_WID");
+       std_pkg::param_check(axi4s_out0.TUSER_WID,     TUSER_WID,     "axi4s_out0.TUSER_WID");
+       std_pkg::param_check(axi4s_out1.DATA_BYTE_WID, DATA_BYTE_WID, "axi4s_out1.DATA_BYTE_WID");
+       std_pkg::param_check(axi4s_out1.TID_WID,       TID_WID,       "axi4s_out1.TID_WID");
+       std_pkg::param_check(axi4s_out1.TDEST_WID,     TDEST_WID,     "axi4s_out1.TDEST_WID");
+       std_pkg::param_check(axi4s_out1.TUSER_WID,     TUSER_WID,     "axi4s_out1.TUSER_WID");
+   end
+
    typedef struct packed {
        logic [PTR_LEN-1:0] pid;
        logic               hdr_tlast;

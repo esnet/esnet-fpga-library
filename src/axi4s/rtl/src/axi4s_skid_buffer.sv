@@ -31,8 +31,13 @@ module axi4s_skid_buffer #(
     localparam int  TDEST_WID = from_tx.TDEST_WID;
     localparam int  TUSER_WID = from_tx.TUSER_WID;
 
-    // Parameter checking
-    axi4s_intf_parameter_check i_param_check (.*);
+    // Parameter check
+    initial begin
+        std_pkg::param_check(from_tx.DATA_BYTE_WID, to_rx.DATA_BYTE_WID, "DATA_BYTE_WID");
+        std_pkg::param_check(from_tx.TID_WID,       to_rx.TID_WID,       "TID_WID");
+        std_pkg::param_check(from_tx.TDEST_WID,     to_rx.TDEST_WID,     "TDEST_WID");
+        std_pkg::param_check(from_tx.TUSER_WID,     to_rx.TUSER_WID,     "TUSER_WID");
+    end
 
     // Typedefs
     typedef struct packed {

@@ -22,7 +22,13 @@ module axi4s_pkt_discard_ovfl
    localparam int TDEST_WID     = axi4s_in.TDEST_WID;
    localparam int TUSER_WID     = axi4s_in.TUSER_WID;
 
-   axi4s_intf_parameter_check param_check_0 (.from_tx(axi4s_in), .to_rx(axi4s_out));
+   // Parameter check
+   initial begin
+       std_pkg::param_check(axi4s_out.DATA_BYTE_WID, DATA_BYTE_WID, "axi4s_out.DATA_BYTE_WID");
+       std_pkg::param_check(axi4s_out.TID_WID,       TID_WID,       "axi4s_out.TID_WID");
+       std_pkg::param_check(axi4s_out.TDEST_WID,     TDEST_WID,     "axi4s_out.TDEST_WID");
+       std_pkg::param_check(axi4s_out.TUSER_WID,     TUSER_WID,     "axi4s_out.TUSER_WID");
+   end
 
    // fifo params
    localparam int MAX_PKT_WRDS = $ceil($itor(MAX_PKT_LEN) / $itor(DATA_BYTE_WID));
