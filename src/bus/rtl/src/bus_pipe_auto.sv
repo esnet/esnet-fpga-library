@@ -15,8 +15,10 @@
     // Parameters
     localparam int DATA_WID = from_tx.DATA_WID;
 
-    // Parameter checking
-    bus_intf_parameter_check param_check (.*);
+    // Parameter check
+    initial begin
+        std_pkg::param_check(from_tx.DATA_WID, to_rx.DATA_WID, "DATA_WID");
+    end
 
     // Signals
     logic clk;

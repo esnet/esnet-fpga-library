@@ -8,8 +8,10 @@ module bus_pipe_tx (
     bus_intf.rx   from_tx,
     bus_intf.tx   to_rx
 );
-    // Parameter checking
-    bus_intf_parameter_check param_check (.*);
+    // Parameter check
+    initial begin
+        std_pkg::param_check(from_tx.DATA_WID, to_rx.DATA_WID, "DATA_WID");
+    end
 
     // Evaluate valid <-> ready handshake at input
     logic valid;

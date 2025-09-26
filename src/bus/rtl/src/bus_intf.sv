@@ -158,22 +158,14 @@ interface bus_intf #(
 
 endinterface : bus_intf
 
-
-module bus_intf_parameter_check (
-    bus_intf.rx from_tx,
-    bus_intf.tx to_rx
-);
-    initial begin
-        std_pkg::param_check(from_tx.DATA_WID, to_rx.DATA_WID, "DATA_WID");
-    end
-endmodule
-
-
 module bus_intf_connector (
     bus_intf.rx from_tx,
     bus_intf.tx to_rx
 );
-    bus_intf_parameter_check param_check (.*);
+    // Parameter check
+    initial begin
+        std_pkg::param_check(from_tx.DATA_WID, to_rx.DATA_WID, "DATA_WID");
+    end
 
     // Connect Tx to Rx signals
     assign to_rx.valid = from_tx.valid;

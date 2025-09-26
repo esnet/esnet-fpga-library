@@ -18,9 +18,9 @@
     localparam int  TOTAL_SLACK = 2*PRE_PIPE_STAGES + 2 + 2 + 2*POST_PIPE_STAGES; // pre + SLRx + SLRy + post
     localparam int  DATA_WID = from_tx.DATA_WID;
 
-    // Parameter checking
-    bus_intf_parameter_check param_check (.*);
+    // Parameter check
     initial begin
+        std_pkg::param_check(from_tx.DATA_WID, to_rx.DATA_WID, "DATA_WID");
         std_pkg::param_check_gt(PRE_PIPE_STAGES, 0, "PRE_PIPE_STAGES");
         std_pkg::param_check_gt(POST_PIPE_STAGES, 0, "PRE_PIPE_STAGES");
     end
