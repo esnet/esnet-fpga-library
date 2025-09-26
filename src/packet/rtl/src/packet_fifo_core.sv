@@ -39,11 +39,9 @@ module packet_fifo_core
     // -----------------------------
     // Parameter checking
     // -----------------------------
-    packet_intf_parameter_check param_check (
-        .from_tx ( packet_in_if ),
-        .to_rx   ( packet_out_if )
-    );
     initial begin
+        std_pkg::param_check(packet_out_if.DATA_BYTE_WID, packet_in_if.DATA_BYTE_WID, "to_rx.DATA_BYTE_WID");
+        std_pkg::param_check(packet_out_if.META_WID, packet_in_if.META_WID, "to_rx.META_WID");
         if (!CUT_THROUGH) std_pkg::param_check_gt(DEPTH, MAX_PKT_WORDS, "DEPTH");
     end
 

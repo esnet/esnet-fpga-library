@@ -55,7 +55,7 @@ module packet_dequeue
     localparam int DATA_BYTE_WID = packet_if.DATA_BYTE_WID;
     localparam int DATA_WID = DATA_BYTE_WID*8;
 
-    localparam int ADDR_WID = wr_descriptor_if[0].ADDR_WID;
+    localparam int ADDR_WID = mem_rd_if.ADDR_WID;
     localparam int DEPTH = 2**ADDR_WID;
 
     localparam int META_WID = packet_if.META_WID;
@@ -71,11 +71,12 @@ module packet_dequeue
         std_pkg::param_check(mem_rd_if.ADDR_WID, ADDR_WID, "mem_rd_if.ADDR_WID");
         std_pkg::param_check(DATA_BYTE_WID, 2**$clog2(DATA_BYTE_WID), "DATA_BYTE_WID (power of 2)");
         std_pkg::param_check(wr_descriptor_if[0].META_WID, META_WID, "wr_descriptor_if[0].META_WID");
+        std_pkg::param_check(rd_descriptor_if[0].META_WID, META_WID, "rd_descriptor_if[0].META_WID");
         std_pkg::param_check_gt(wr_descriptor_if[0].ADDR_WID, ADDR_WID, "wr_descriptor_if[0].ADDR_WID");
+        std_pkg::param_check_gt(rd_descriptor_if[0].ADDR_WID, ADDR_WID, "rd_descriptor_if[0].ADDR_WID");
+        std_pkg::param_check_gt(wr_descriptor_if[0].MAX_PKT_SIZE, MAX_PKT_SIZE, "wr_descriptor_if[0].MAX_PKT_SIZE");
+        std_pkg::param_check_gt(rd_descriptor_if[0].MAX_PKT_SIZE, MAX_PKT_SIZE, "rd_descriptor_if[0].MAX_PKT_SIZE");
     end
-    packet_descriptor_intf_parameter_check param_check_desc_wr_rd (
-        .from_tx (wr_descriptor_if[0]), .to_rx(rd_descriptor_if[0])
-    );
     
     // -----------------------------
     // Typedefs

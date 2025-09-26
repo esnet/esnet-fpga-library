@@ -61,7 +61,7 @@ module packet_enqueue
 
     localparam int ROW_DATA_BYTE_WID = DATA_BYTE_WID * ALIGNMENT;
 
-    localparam int ADDR_WID = wr_descriptor_if[0].ADDR_WID;
+    localparam int ADDR_WID = mem_wr_if.ADDR_WID;
     localparam int DEPTH = 2**ADDR_WID;
     localparam int ROW_DEPTH = DEPTH / ALIGNMENT;
     localparam int ROW_ADDR_WID = $clog2(ROW_DEPTH);
@@ -78,17 +78,17 @@ module packet_enqueue
         std_pkg::param_check(mem_wr_if.DATA_WID, DATA_WID, "mem_wr_if.DATA_WID");
         std_pkg::param_check(mem_wr_if.ADDR_WID, ADDR_WID, "mem_wr_if.ADDR_WID");
         std_pkg::param_check(wr_descriptor_if[0].META_WID, META_WID, "wr_descriptor_if[0].META_WID");
+        std_pkg::param_check(rd_descriptor_if[0].META_WID, META_WID, "rd_descriptor_if[0].META_WID");
         std_pkg::param_check_gt(wr_descriptor_if[0].ADDR_WID, ADDR_WID, "wr_descriptor_if[0].ADDR_WID");
+        std_pkg::param_check_gt(rd_descriptor_if[0].ADDR_WID, ADDR_WID, "rd_descriptor_if[0].ADDR_WID");
         std_pkg::param_check_gt(wr_descriptor_if[0].MAX_PKT_SIZE, MAX_PKT_SIZE, "wr_descriptor_if[0].MAX_PKT_SIZE");
+        std_pkg::param_check_gt(rd_descriptor_if[0].MAX_PKT_SIZE, MAX_PKT_SIZE, "rd_descriptor_if[0].MAX_PKT_SIZE");
         std_pkg::param_check_gt(ALIGNMENT, 1, "ALIGNMENT");
         std_pkg::param_check(ALIGNMENT, 2**$clog2(ALIGNMENT), "ALIGNMENT (power of 2)");
         std_pkg::param_check(DATA_BYTE_WID, 2**$clog2(DATA_BYTE_WID), "DATA_BYTE_WID (power of 2)");
         std_pkg::param_check_lt(ALIGNMENT, DATA_BYTE_WID-1, "ALIGNMENT");
         if (MUX_MODE == MUX_MODE_LIST) std_pkg::param_check(IGNORE_RDY, 0, "IGNORE_RDY (when MUX_MODE == MUX_MODE_LIST)");
     end
-    packet_descriptor_intf_parameter_check param_check_desc_wr_rd (
-        .from_tx (rd_descriptor_if[0]), .to_rx(wr_descriptor_if[0])
-    );
 
     // -----------------------------
     // Typedefs

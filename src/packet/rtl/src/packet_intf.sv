@@ -158,24 +158,16 @@ interface packet_intf #(
 
 endinterface : packet_intf
 
-// Helper module to check that parameterization of a 2-port component is consistent on rx/tx ports
-module packet_intf_parameter_check (
-    packet_intf from_tx,
-    packet_intf to_rx
-);
-    initial begin
-        std_pkg::param_check(to_rx.DATA_BYTE_WID, from_tx.DATA_BYTE_WID, "to_rx.DATA_BYTE_WID");
-        std_pkg::param_check(to_rx.META_WID, from_tx.META_WID, "to_rx.META_WID");
-    end
-endmodule
-
-
 // Packet interface (back-to-back) connector helper module
 module packet_intf_connector (
     packet_intf.rx from_tx,
     packet_intf.tx to_rx
 );
-    packet_intf_parameter_check param_check (.*);
+    // Parameter check
+    initial begin
+        std_pkg::param_check(to_rx.DATA_BYTE_WID, from_tx.DATA_BYTE_WID, "to_rx.DATA_BYTE_WID");
+        std_pkg::param_check(to_rx.META_WID, from_tx.META_WID, "to_rx.META_WID");
+    end
 
     // Connect signals (tx -> rx)
     assign to_rx.vld   = from_tx.vld;

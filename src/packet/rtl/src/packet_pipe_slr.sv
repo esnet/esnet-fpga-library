@@ -13,8 +13,11 @@
     localparam int MTY_WID = $clog2(DATA_BYTE_WID);
     localparam int META_WID = from_tx.META_WID;
 
-    // Parameter checking
-    packet_intf_parameter_check param_check (.*);
+    // Parameter check
+    initial begin
+        std_pkg::param_check(to_rx.DATA_BYTE_WID, from_tx.DATA_BYTE_WID, "to_rx.DATA_BYTE_WID");
+        std_pkg::param_check(to_rx.META_WID, from_tx.META_WID, "to_rx.META_WID");
+    end
 
     // Payload struct (opaque to underlying bus_intf infrastructure)
     typedef struct packed {
