@@ -188,26 +188,18 @@ interface axi3_intf
 
 endinterface : axi3_intf
 
-// AXI-3 interface parameter check component
-module axi3_intf_parameter_check (
+// AXI-3 (back-to-back) connector helper module
+module axi3_intf_connector (
     axi3_intf.peripheral from_controller,
     axi3_intf.controller to_peripheral
 );
+    // Parameter check
     initial begin
         std_pkg::param_check(from_controller.DATA_BYTE_WID, to_peripheral.DATA_BYTE_WID, "DATA_BYTE_WID");
         std_pkg::param_check(from_controller.ADDR_WID,      to_peripheral.ADDR_WID,      "ADDR_WID");
         std_pkg::param_check(from_controller.ID_WID,        to_peripheral.ID_WID,        "ID_WID");
         std_pkg::param_check(from_controller.USER_WID,      to_peripheral.USER_WID,      "USER_WID");
     end
-
-endmodule
-
-// AXI-3 (back-to-back) connector helper module
-module axi3_intf_connector (
-    axi3_intf.peripheral from_controller,
-    axi3_intf.controller to_peripheral
-);
-    axi3_intf_parameter_check param_check (.*);
 
     // Write address
     assign to_peripheral.awid = from_controller.awid;

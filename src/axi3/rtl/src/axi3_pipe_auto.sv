@@ -23,8 +23,13 @@ module axi3_pipe_auto (
     localparam int ID_WID   = from_controller.ID_WID;
     localparam int USER_WID = from_controller.USER_WID;
 
-    // Parameter checking
-    axi3_intf_parameter_check param_check (.*);
+    // Parameter check
+    initial begin
+        std_pkg::param_check(from_controller.DATA_BYTE_WID, to_peripheral.DATA_BYTE_WID, "DATA_BYTE_WID");
+        std_pkg::param_check(from_controller.ADDR_WID,      to_peripheral.ADDR_WID,      "ADDR_WID");
+        std_pkg::param_check(from_controller.ID_WID,        to_peripheral.ID_WID,        "ID_WID");
+        std_pkg::param_check(from_controller.USER_WID,      to_peripheral.USER_WID,      "USER_WID");
+    end
 
     // Payload structs
     typedef struct packed {
