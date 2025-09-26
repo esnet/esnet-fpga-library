@@ -209,18 +209,6 @@ interface state_intf #(
 endinterface : state_intf
 
 
-module state_intf_parameter_check (
-    state_intf from_source,
-    state_intf to_target
-);
-    initial begin
-        std_pkg::param_check(from_source.ID_WID,     to_target.ID_WID,      "ID_WID");
-        std_pkg::param_check(from_source.STATE_WID,  to_target.STATE_WID,   "STATE_WID");
-        std_pkg::param_check(from_source.UPDATE_WID,  to_target.UPDATE_WID, "UPDATE_WID");
-    end
-endmodule
-
-
 // State interface source termination helper module
 module state_intf_source_term (
     state_intf.source to_target
@@ -248,7 +236,12 @@ module state_intf_connector (
     state_intf.target from_source,
     state_intf.source to_target
 );
-    state_intf_parameter_check param_check_0 (.*);
+    // Parameter check
+    initial begin
+        std_pkg::param_check(from_source.ID_WID,     to_target.ID_WID,      "ID_WID");
+        std_pkg::param_check(from_source.STATE_WID,  to_target.STATE_WID,   "STATE_WID");
+        std_pkg::param_check(from_source.UPDATE_WID,  to_target.UPDATE_WID, "UPDATE_WID");
+    end
 
     assign to_target.req = from_source.req;
     assign to_target.ctxt = from_source.ctxt;
@@ -269,7 +262,12 @@ module state_intf_proxy (
     state_intf.target from_source,
     state_intf.source to_target
 );
-    state_intf_parameter_check param_check_0 (.*);
+    // Parameter check
+    initial begin
+        std_pkg::param_check(from_source.ID_WID,     to_target.ID_WID,      "ID_WID");
+        std_pkg::param_check(from_source.STATE_WID,  to_target.STATE_WID,   "STATE_WID");
+        std_pkg::param_check(from_source.UPDATE_WID,  to_target.UPDATE_WID, "UPDATE_WID");
+    end
 
     logic pending;
     logic in_progress;
@@ -331,9 +329,15 @@ module state_intf_control_mux #(
     localparam int STATE_WID = to_target.STATE_WID;
     localparam int UPDATE_WID = to_target.UPDATE_WID;
 
-    // Parameter checking
-    state_intf_parameter_check param_check_0 (.from_source(from_datapath), .to_target);
-    state_intf_parameter_check param_check_1 (.from_source(from_control), .to_target);
+    // Parameter check
+    initial begin
+        std_pkg::param_check(from_datapath.ID_WID,     to_target.ID_WID,      "ID_WID");
+        std_pkg::param_check(from_datapath.STATE_WID,  to_target.STATE_WID,   "STATE_WID");
+        std_pkg::param_check(from_datapath.UPDATE_WID, to_target.UPDATE_WID, "UPDATE_WID");
+        std_pkg::param_check(from_control.ID_WID,     to_target.ID_WID,      "ID_WID");
+        std_pkg::param_check(from_control.STATE_WID,  to_target.STATE_WID,   "STATE_WID");
+        std_pkg::param_check(from_control.UPDATE_WID, to_target.UPDATE_WID, "UPDATE_WID");
+    end
 
     // Signals
     logic ctrl_sel_in;
