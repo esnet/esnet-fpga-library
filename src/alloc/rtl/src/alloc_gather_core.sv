@@ -80,6 +80,8 @@ module alloc_gather_core #(
 
     DESC_T  _desc;
 
+    initial req = '0;
+
     // Per-context logic
     generate
         for (genvar g_ctxt = 0; g_ctxt < CONTEXTS; g_ctxt++) begin : g__ctxt
@@ -103,7 +105,6 @@ module alloc_gather_core #(
             assign gather_if[g_ctxt].rdy = !__load_in_progress;
 
             // Manage current descriptor state
-            initial req[g_ctxt] = 1'b0;
             always @(posedge clk) begin
                 if (srst)                                                req[g_ctxt] <= 1'b0;
                 else if (gather_if[g_ctxt].req && gather_if[g_ctxt].rdy) req[g_ctxt] <= 1'b1;
