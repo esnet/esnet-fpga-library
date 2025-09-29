@@ -1,6 +1,5 @@
 // AXI4-S SLR crossing component
 (* keep_hierarchy = "yes" *) module axi4s_pipe_slr #(
-    parameter bit  IGNORE_TREADY = 1'b0,
     parameter int  PRE_PIPE_STAGES = 0,  // Input (pre-crossing) pipe stages, in addition to SLR-crossing stage
     parameter int  POST_PIPE_STAGES = 0  // Output (post-crossing) pipe stages, in addition to SLR-crossing stage
 ) (
@@ -52,7 +51,7 @@
     generate
         begin : g__fwd
             bus_pipe_slr #(
-                .IGNORE_READY(IGNORE_TREADY), .PRE_PIPE_STAGES(PRE_PIPE_STAGES), .POST_PIPE_STAGES(POST_PIPE_STAGES) 
+                .PRE_PIPE_STAGES(PRE_PIPE_STAGES), .POST_PIPE_STAGES(POST_PIPE_STAGES)
             ) i_bus_pipe_slr ( .from_tx ( bus_if__from_tx ), .to_rx ( bus_if__to_rx ));
         end : g__fwd
     endgenerate

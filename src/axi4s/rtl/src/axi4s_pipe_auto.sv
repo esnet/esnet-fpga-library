@@ -5,9 +5,7 @@
 // and reverse (tready) directions, and up to 11 auto-inserted pipeline
 // stages, which can be flexibly allocated by the tool between forward
 // and reverse directions.
-module axi4s_pipe_auto #(
-    parameter bit  IGNORE_TREADY = 1'b0
-) (
+module axi4s_pipe_auto (
     axi4s_intf.rx  from_tx,
     axi4s_intf.tx  to_rx
 );
@@ -55,7 +53,7 @@ module axi4s_pipe_auto #(
 
     generate
         begin : g__fwd
-            bus_pipe_auto #(.IGNORE_READY(IGNORE_TREADY)) i_bus_pipe_auto ( .from_tx ( bus_if__from_tx ), .to_rx ( bus_if__to_rx ));
+            bus_pipe_auto i_bus_pipe_auto ( .from_tx ( bus_if__from_tx ), .to_rx ( bus_if__to_rx ));
         end : g__fwd
     endgenerate
 

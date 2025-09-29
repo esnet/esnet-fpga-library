@@ -6,9 +6,7 @@
 //  be flexibly allocated by the tool between forward and reverse
 //  signaling directions).
 //
-(* autopipeline_module = "true" *) module bus_pipe_auto #(
-    parameter bit  IGNORE_READY = 1'b0
-) (
+(* autopipeline_module = "true" *) module bus_pipe_auto (
     bus_intf.rx   from_tx,
     bus_intf.tx   to_rx
 );
@@ -20,34 +18,34 @@
         std_pkg::param_check(from_tx.DATA_WID, to_rx.DATA_WID, "DATA_WID");
     end
 
-    // Signals
+    // Clock/reset
     logic clk;
+    logic srst;
+
     assign clk = from_tx.clk;
+    assign srst = from_tx.srst;
 
     // Interfaces
-    bus_intf #(.DATA_WID(DATA_WID)) bus_if__tx (.clk);
-    bus_intf #(.DATA_WID(DATA_WID)) bus_if__rx (.clk);
+    bus_intf #(.DATA_WID(DATA_WID)) bus_if__tx (.clk, .srst);
+    bus_intf #(.DATA_WID(DATA_WID)) bus_if__rx (.clk, .srst);
 
     // Signals
     (* autopipeline_group = "fwd", autopipeline_limit=12, autopipeline_include = "rev" *) logic valid;
     (* autopipeline_group = "rev" *) logic ready;
     (* autopipeline_group = "fwd", autopipeline_limit=12, autopipeline_include = "rev" *) logic [DATA_WID-1:0] data;
 
-    // Pipeline transmitter
-    bus_pipe_tx i_bus_pipe_tx (
-        .from_tx,
-        .to_rx ( bus_if__tx )
-    );
+    // Evaluate valid <-> ready handshake at input
+    assign bus_if__tx.valid = from_tx.valid && bus_if__tx.ready;
+    assign bus_if__tx.data = from_tx.data;
+    assign from_tx.ready = bus_if__tx.ready;
 
     // Auto-pipelined nets must be driven from register
-    // (bus_pipe_tx drives forward signals from registers)
     initial ready = 1'b0;
     always @(posedge clk) begin
         ready <= bus_if__rx.ready;
     end
 
     // Auto-pipelined nets must have fanout == 1
-    // (bus_pipe_tx receives reverse signals into registers)
     initial valid = 1'b0;
     always @(posedge clk) begin
         valid <= bus_if__tx.valid;
@@ -58,13 +56,21 @@
     assign bus_if__rx.data = data;
     assign bus_if__tx.ready = ready;
 
-    // Pipeline receiver
-    bus_pipe_rx #(
-        .IGNORE_READY ( IGNORE_READY ),
-        .TOTAL_SLACK  ( 16 )
-    ) i_bus_pipe_rx (
-        .from_tx ( bus_if__rx ),
-        .to_rx
+    // Implement Rx FIFO to accommodate specified slack
+    // in valid <-> ready handshake protocol
+    fifo_prefetch #(
+        .DATA_WID  ( DATA_WID ),
+        .PIPELINE_DEPTH ( 16 )
+    ) i_fifo_prefetch (
+        .clk,
+        .srst,
+        .wr      ( bus_if__rx.valid ),
+        .wr_rdy  ( bus_if__rx.ready ),
+        .wr_data ( bus_if__rx.data ),
+        .oflow   ( ),
+        .rd      ( to_rx.ready ),
+        .rd_vld  ( to_rx.valid ),
+        .rd_data ( to_rx.data )
     );
 
 endmodule : bus_pipe_auto
