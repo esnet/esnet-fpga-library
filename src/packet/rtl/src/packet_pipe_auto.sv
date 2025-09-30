@@ -5,9 +5,7 @@
 // and reverse (rdy) directions, and up to 11 auto-inserted pipeline
 // stages, which can be flexibly allocated by the tool between forward
 // and reverse directions.
-module packet_pipe_auto #(
-    parameter bit  IGNORE_RDY = 1'b0
-) (
+module packet_pipe_auto (
     packet_intf.rx  from_tx,
     packet_intf.tx  to_rx
 );
@@ -17,8 +15,11 @@ module packet_pipe_auto #(
     localparam int MTY_WID = $clog2(DATA_BYTE_WID);
     localparam int META_WID = from_tx.META_WID;
 
-    // Parameter checking
-    packet_intf_parameter_check param_check (.*);
+    // Parameter check
+    initial begin
+        std_pkg::param_check(to_rx.DATA_BYTE_WID, from_tx.DATA_BYTE_WID, "to_rx.DATA_BYTE_WID");
+        std_pkg::param_check(to_rx.META_WID, from_tx.META_WID, "to_rx.META_WID");
+    end
 
     // Payload struct (opaque to underlying bus_intf infrastructure)
     typedef struct packed {
@@ -32,10 +33,13 @@ module packet_pipe_auto #(
 
     // Signals
     logic clk;
-    assign clk = from_tx.clk;
+    logic srst;
 
-    bus_intf #(.DATA_WID(PAYLOAD_WID)) bus_if__from_tx (.clk);
-    bus_intf #(.DATA_WID(PAYLOAD_WID)) bus_if__to_rx   (.clk);
+    assign clk = from_tx.clk;
+    assign srst = from_tx.srst;
+
+    bus_intf #(.DATA_WID(PAYLOAD_WID)) bus_if__from_tx (.clk, .srst);
+    bus_intf #(.DATA_WID(PAYLOAD_WID)) bus_if__to_rx   (.clk, .srst);
 
     packet_to_bus_adapter i_packet_to_bus_adapter (
         .packet_if_from_tx ( from_tx ),
@@ -44,7 +48,7 @@ module packet_pipe_auto #(
 
     generate
         begin : g__fwd
-            bus_pipe_auto #(.IGNORE_READY(IGNORE_RDY)) i_bus_pipe_auto ( .from_tx ( bus_if__from_tx ), .to_rx ( bus_if__to_rx ));
+            bus_pipe_auto i_bus_pipe_auto ( .from_tx ( bus_if__from_tx ), .to_rx ( bus_if__to_rx ));
         end : g__fwd
     endgenerate
 

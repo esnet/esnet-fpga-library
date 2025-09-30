@@ -127,25 +127,17 @@ interface packet_descriptor_intf #(
 
 endinterface : packet_descriptor_intf
 
-// Helper module to check that parameterization of a 2-port component is consistent on rx/tx ports
-module packet_descriptor_intf_parameter_check (
-    packet_descriptor_intf from_tx,
-    packet_descriptor_intf to_rx
-);
-    initial begin
-        std_pkg::param_check(to_rx.ADDR_WID, from_tx.ADDR_WID, "to_rx.ADDR_WID");
-        std_pkg::param_check(to_rx.META_WID, from_tx.META_WID, "to_rx.META_WID");
-        std_pkg::param_check_gt(to_rx.MAX_PKT_SIZE, from_tx.MAX_PKT_SIZE, "to_rx.MAX_PKT_SIZE");
-    end
-endmodule
-
 // Packet descriptor interface (back-to-back) connector helper module
 module packet_descriptor_intf_connector (
     packet_descriptor_intf.rx from_tx,
     packet_descriptor_intf.tx to_rx
 );
-    // Parameter checking
-    packet_descriptor_intf_parameter_check param_check (.*);
+    // Parameter check
+    initial begin
+        std_pkg::param_check(to_rx.ADDR_WID, from_tx.ADDR_WID, "to_rx.ADDR_WID");
+        std_pkg::param_check(to_rx.META_WID, from_tx.META_WID, "to_rx.META_WID");
+        std_pkg::param_check_gt(to_rx.MAX_PKT_SIZE, from_tx.MAX_PKT_SIZE, "to_rx.MAX_PKT_SIZE");
+    end
 
     // Connect signals (tx -> rx)
     assign to_rx.vld  = from_tx.vld;

@@ -14,9 +14,13 @@ module packet_descriptor_fifo #(
     localparam int SIZE_WID     = $clog2(MAX_PKT_SIZE+1);
 
     // -----------------------------
-    // Parameter checking
+    // Parameter check
     // -----------------------------
-    packet_descriptor_intf_parameter_check param_check (.*);
+    initial begin
+        std_pkg::param_check(to_rx.ADDR_WID, from_tx.ADDR_WID, "to_rx.ADDR_WID");
+        std_pkg::param_check(to_rx.META_WID, from_tx.META_WID, "to_rx.META_WID");
+        std_pkg::param_check_gt(to_rx.MAX_PKT_SIZE, from_tx.MAX_PKT_SIZE, "to_rx.MAX_PKT_SIZE");
+    end
 
     // -----------------------------
     // Typedefs

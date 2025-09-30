@@ -18,14 +18,19 @@ module axi4s_trunc
    input logic [15:0] length  // specified in bytes.
 );
 
-   // Check that input/output interfaces have identical parameterization
-   axi4s_intf_parameter_check param_check_0 (.from_tx(axi4s_in), .to_rx(axi4s_out));
-
    localparam int DATA_BYTE_WID = axi4s_in.DATA_BYTE_WID;
    localparam int COUNT_WID     =   $clog2(DATA_BYTE_WID);
    localparam int TID_WID       = axi4s_in.TID_WID;
    localparam int TDEST_WID     = axi4s_in.TDEST_WID;
    localparam int TUSER_WID     = axi4s_in.TUSER_WID;
+
+   // Parameter check
+   initial begin
+       std_pkg::param_check(axi4s_out.DATA_BYTE_WID, DATA_BYTE_WID, "axi4s_out.DATA_BYTE_WID");
+       std_pkg::param_check(axi4s_out.TID_WID,       TID_WID,       "axi4s_out.TID_WID");
+       std_pkg::param_check(axi4s_out.TDEST_WID,     TDEST_WID,     "axi4s_out.TDEST_WID");
+       std_pkg::param_check(axi4s_out.TUSER_WID,     TUSER_WID,     "axi4s_out.TUSER_WID");
+   end
 
    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID)) axi4s_in_p (.aclk(axi4s_in.aclk), .aresetn(axi4s_in.aresetn));
    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID)) axi4s_out_p (.aclk(axi4s_out.aclk), .aresetn(axi4s_out.aresetn));

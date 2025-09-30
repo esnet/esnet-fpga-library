@@ -283,18 +283,18 @@ module sim__mem_ram_sdp_model
         end
         always @(posedge mem_rd_if.clk) begin
             if (mem_rd_if.req) begin
-                if (mem.exists(mem_rd_if.addr))  rd_data <= mem[mem_rd_if.addr];
+                if (mem.exists(mem_rd_if.addr))       rd_data <= mem[mem_rd_if.addr];
                 else if (SPEC.RESET_FSM && FAST_INIT) rd_data <= RESET_VAL;
-                else                             rd_data <= 'x;
+                else                                  rd_data <= 'x;
             end
         end
     end : g__async
     else begin : g__sync
         always @(posedge mem_wr_if.clk) begin
             if (mem_rd_if.req) begin
-                if (mem.exists(mem_rd_if.addr))  rd_data <= mem[mem_rd_if.addr];
+                if (mem.exists(mem_rd_if.addr))       rd_data <= mem[mem_rd_if.addr];
                 else if (SPEC.RESET_FSM && FAST_INIT) rd_data <= RESET_VAL;
-                else                             rd_data <= 'x;
+                else                                  rd_data <= 'x;
             end
             if (SPEC.RESET_FSM && FAST_INIT && mem_wr_if.rst) mem.delete();
             else if (wr_en) begin

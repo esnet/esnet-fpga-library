@@ -5,9 +5,7 @@
 // and reverse (tready) directions, and up to 11 auto-inserted pipeline
 // stages, which can be flexibly allocated by the tool between forward
 // and reverse directions.
-module axi4s_pipe_auto #(
-    parameter bit  IGNORE_TREADY = 1'b0
-) (
+module axi4s_pipe_auto (
     axi4s_intf.rx  from_tx,
     axi4s_intf.tx  to_rx
 );
@@ -30,8 +28,13 @@ module axi4s_pipe_auto #(
     } payload_t;
     localparam int PAYLOAD_WID = $bits(payload_t);
 
-    // Parameter checking
-    axi4s_intf_parameter_check i_param_check (.*);
+    // Parameter check
+    initial begin
+        std_pkg::param_check(from_tx.DATA_BYTE_WID, to_rx.DATA_BYTE_WID, "DATA_BYTE_WID");
+        std_pkg::param_check(from_tx.TID_WID,       to_rx.TID_WID,       "TID_WID");
+        std_pkg::param_check(from_tx.TDEST_WID,     to_rx.TDEST_WID,     "TDEST_WID");
+        std_pkg::param_check(from_tx.TUSER_WID,     to_rx.TUSER_WID,     "TUSER_WID");
+    end
 
     // Signals
     logic clk;
@@ -50,7 +53,7 @@ module axi4s_pipe_auto #(
 
     generate
         begin : g__fwd
-            bus_pipe_auto #(.IGNORE_READY(IGNORE_TREADY)) i_bus_pipe_auto ( .from_tx ( bus_if__from_tx ), .to_rx ( bus_if__to_rx ));
+            bus_pipe_auto i_bus_pipe_auto ( .from_tx ( bus_if__from_tx ), .to_rx ( bus_if__to_rx ));
         end : g__fwd
     endgenerate
 

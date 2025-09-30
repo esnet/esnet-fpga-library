@@ -1,6 +1,5 @@
 // AXI4-S SLR crossing component
 (* keep_hierarchy = "yes" *) module axi4s_pipe_slr #(
-    parameter bit  IGNORE_TREADY = 1'b0,
     parameter int  PRE_PIPE_STAGES = 0,  // Input (pre-crossing) pipe stages, in addition to SLR-crossing stage
     parameter int  POST_PIPE_STAGES = 0  // Output (post-crossing) pipe stages, in addition to SLR-crossing stage
 ) (
@@ -26,8 +25,13 @@
     } payload_t;
     localparam int PAYLOAD_WID = $bits(payload_t);
 
-    // Parameter checking
-    axi4s_intf_parameter_check i_param_check (.*);
+    // Parameter check
+    initial begin
+        std_pkg::param_check(from_tx.DATA_BYTE_WID, to_rx.DATA_BYTE_WID, "DATA_BYTE_WID");
+        std_pkg::param_check(from_tx.TID_WID,       to_rx.TID_WID,       "TID_WID");
+        std_pkg::param_check(from_tx.TDEST_WID,     to_rx.TDEST_WID,     "TDEST_WID");
+        std_pkg::param_check(from_tx.TUSER_WID,     to_rx.TUSER_WID,     "TUSER_WID");
+    end
 
     // Signals
     logic clk;
@@ -47,7 +51,7 @@
     generate
         begin : g__fwd
             bus_pipe_slr #(
-                .IGNORE_READY(IGNORE_TREADY), .PRE_PIPE_STAGES(PRE_PIPE_STAGES), .POST_PIPE_STAGES(POST_PIPE_STAGES) 
+                .PRE_PIPE_STAGES(PRE_PIPE_STAGES), .POST_PIPE_STAGES(POST_PIPE_STAGES)
             ) i_bus_pipe_slr ( .from_tx ( bus_if__from_tx ), .to_rx ( bus_if__to_rx ));
         end : g__fwd
     endgenerate

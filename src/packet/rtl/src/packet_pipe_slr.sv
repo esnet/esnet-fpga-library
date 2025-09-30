@@ -1,6 +1,5 @@
 // Packet SLR crossing component
 (* keep_hierarchy = "yes" *) module packet_pipe_slr #(
-    parameter bit  IGNORE_RDY = 1'b0,
     parameter int  PRE_PIPE_STAGES = 0,  // Input (pre-crossing) pipe stages, in addition to SLR-crossing stage
     parameter int  POST_PIPE_STAGES = 0  // Output (post-crossing) pipe stages, in addition to SLR-crossing stage
 ) (
@@ -13,8 +12,11 @@
     localparam int MTY_WID = $clog2(DATA_BYTE_WID);
     localparam int META_WID = from_tx.META_WID;
 
-    // Parameter checking
-    packet_intf_parameter_check param_check (.*);
+    // Parameter check
+    initial begin
+        std_pkg::param_check(to_rx.DATA_BYTE_WID, from_tx.DATA_BYTE_WID, "to_rx.DATA_BYTE_WID");
+        std_pkg::param_check(to_rx.META_WID, from_tx.META_WID, "to_rx.META_WID");
+    end
 
     // Payload struct (opaque to underlying bus_intf infrastructure)
     typedef struct packed {
@@ -28,10 +30,13 @@
 
     // Signals
     logic clk;
-    assign clk = from_tx.clk;
+    logic srst;
 
-    bus_intf #(.DATA_WID(PAYLOAD_WID)) bus_if__from_tx (.clk);
-    bus_intf #(.DATA_WID(PAYLOAD_WID)) bus_if__to_rx   (.clk);
+    assign clk = from_tx.clk;
+    assign srst = from_tx.srst;
+
+    bus_intf #(.DATA_WID(PAYLOAD_WID)) bus_if__from_tx (.clk, .srst);
+    bus_intf #(.DATA_WID(PAYLOAD_WID)) bus_if__to_rx   (.clk, .srst);
 
     packet_to_bus_adapter i_packet_to_bus_adapter (
         .packet_if_from_tx ( from_tx ),
@@ -41,7 +46,7 @@
     generate
         begin : g__fwd
             bus_pipe_slr #(
-                .IGNORE_READY(IGNORE_RDY), .PRE_PIPE_STAGES(PRE_PIPE_STAGES), .POST_PIPE_STAGES(POST_PIPE_STAGES) 
+                .PRE_PIPE_STAGES(PRE_PIPE_STAGES), .POST_PIPE_STAGES(POST_PIPE_STAGES)
             ) i_bus_pipe_slr ( .from_tx ( bus_if__from_tx ), .to_rx ( bus_if__to_rx ));
         end : g__fwd
     endgenerate

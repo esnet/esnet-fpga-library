@@ -211,17 +211,6 @@ interface axi4s_intf #(
 
 endinterface : axi4s_intf
 
-module axi4s_intf_parameter_check (
-    axi4s_intf from_tx,
-    axi4s_intf to_rx
-);
-    initial begin
-        std_pkg::param_check(from_tx.DATA_BYTE_WID, to_rx.DATA_BYTE_WID, "DATA_BYTE_WID");
-        std_pkg::param_check(from_tx.TID_WID,       to_rx.TID_WID,       "TID_WID");
-        std_pkg::param_check(from_tx.TDEST_WID,     to_rx.TDEST_WID,     "TDEST_WID");
-        std_pkg::param_check(from_tx.TUSER_WID,     to_rx.TUSER_WID,     "TUSER_WID");
-    end
-endmodule
 
 // AXI4-Stream transmit termination helper module
 module axi4s_intf_tx_term (
@@ -266,7 +255,13 @@ module axi4s_intf_connector #(
     axi4s_intf.rx from_tx,
     axi4s_intf.tx to_rx
 );
-    axi4s_intf_parameter_check param_check_0 (.*);
+    // Parameter check
+    initial begin
+        std_pkg::param_check(from_tx.DATA_BYTE_WID, to_rx.DATA_BYTE_WID, "DATA_BYTE_WID");
+        std_pkg::param_check(from_tx.TID_WID,       to_rx.TID_WID,       "TID_WID");
+        std_pkg::param_check(from_tx.TDEST_WID,     to_rx.TDEST_WID,     "TDEST_WID");
+        std_pkg::param_check(from_tx.TUSER_WID,     to_rx.TUSER_WID,     "TUSER_WID");
+    end
 
     // Connect signals (rx -> tx)
     assign to_rx.tvalid  = from_tx.tvalid;
@@ -319,7 +314,13 @@ module axi4s_intf_monitor (
     axi4s_intf.rx  from_tx,
     axi4s_intf.prb to_prb
 );
-    axi4s_intf_parameter_check param_check_0 (.from_tx, .to_rx(to_prb));
+    // Parameter check
+    initial begin
+        std_pkg::param_check(from_tx.DATA_BYTE_WID, to_prb.DATA_BYTE_WID, "DATA_BYTE_WID");
+        std_pkg::param_check(from_tx.TID_WID,       to_prb.TID_WID,       "TID_WID");
+        std_pkg::param_check(from_tx.TDEST_WID,     to_prb.TDEST_WID,     "TDEST_WID");
+        std_pkg::param_check(from_tx.TUSER_WID,     to_prb.TUSER_WID,     "TUSER_WID");
+    end
 
     // Connect signals (rx -> tx)
     assign to_prb.tvalid  = from_tx.tvalid;
@@ -343,7 +344,13 @@ module axi4s_intf_pipe
     axi4s_intf.rx from_tx,
     axi4s_intf.tx to_rx
 );
-    axi4s_intf_parameter_check param_check_0 (.*);
+    // Parameter check
+    initial begin
+        std_pkg::param_check(from_tx.DATA_BYTE_WID, to_rx.DATA_BYTE_WID, "DATA_BYTE_WID");
+        std_pkg::param_check(from_tx.TID_WID,       to_rx.TID_WID,       "TID_WID");
+        std_pkg::param_check(from_tx.TDEST_WID,     to_rx.TDEST_WID,     "TDEST_WID");
+        std_pkg::param_check(from_tx.TUSER_WID,     to_rx.TUSER_WID,     "TUSER_WID");
+    end
 
     logic ready;
 
@@ -391,7 +398,13 @@ module axi4s_tready_pipe (
     localparam int TDEST_WID     = from_tx.TDEST_WID;
     localparam int TUSER_WID     = from_tx.TUSER_WID;
 
-    axi4s_intf_parameter_check param_check_0 (.*);
+    // Parameter check
+    initial begin
+        std_pkg::param_check(from_tx.DATA_BYTE_WID, to_rx.DATA_BYTE_WID, "DATA_BYTE_WID");
+        std_pkg::param_check(from_tx.TID_WID,       to_rx.TID_WID,       "TID_WID");
+        std_pkg::param_check(from_tx.TDEST_WID,     to_rx.TDEST_WID,     "TDEST_WID");
+        std_pkg::param_check(from_tx.TUSER_WID,     to_rx.TUSER_WID,     "TUSER_WID");
+    end
 
     logic  tready_falling;
     logic  fwft;
@@ -473,7 +486,13 @@ module axi4s_full_pipe
     localparam int TDEST_WID     = from_tx.TDEST_WID;
     localparam int TUSER_WID     = from_tx.TUSER_WID;
 
-    axi4s_intf_parameter_check param_check_0 (.*);
+    // Parameter check
+    initial begin
+        std_pkg::param_check(from_tx.DATA_BYTE_WID, to_rx.DATA_BYTE_WID, "DATA_BYTE_WID");
+        std_pkg::param_check(from_tx.TID_WID,       to_rx.TID_WID,       "TID_WID");
+        std_pkg::param_check(from_tx.TDEST_WID,     to_rx.TDEST_WID,     "TDEST_WID");
+        std_pkg::param_check(from_tx.TUSER_WID,     to_rx.TUSER_WID,     "TUSER_WID");
+    end
 
     axi4s_intf  #( .DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID) )
                 from_tx_p (.aclk(from_tx.aclk), .aresetn(from_tx.aresetn));
@@ -503,7 +522,13 @@ module axi4s_intf_mux #(
 
     localparam int N_POW2 = 2**SEL_WID;
 
-    axi4s_intf_parameter_check param_check (.from_tx(from_tx[0]), .to_rx);
+    // Parameter check
+    initial begin
+        std_pkg::param_check(from_tx[0].DATA_BYTE_WID, to_rx.DATA_BYTE_WID, "from_tx[0].DATA_BYTE_WID");
+        std_pkg::param_check(from_tx[0].TID_WID,       to_rx.TID_WID,       "from_tx[0].TID_WID");
+        std_pkg::param_check(from_tx[0].TDEST_WID,     to_rx.TDEST_WID,     "from_tx[0].TDEST_WID");
+        std_pkg::param_check(from_tx[0].TUSER_WID,     to_rx.TUSER_WID,     "from_tx[0].TUSER_WID");
+    end
 
     logic                          tvalid[N_POW2];
     logic [DATA_BYTE_WID-1:0][7:0] tdata [N_POW2];
@@ -561,8 +586,17 @@ module axi4s_intf_2to1_mux (
     axi4s_intf.tx to_rx,
     input logic   mux_sel
 );
-    axi4s_intf_parameter_check param_check_0 (.from_tx(from_tx_0), .to_rx);
-    axi4s_intf_parameter_check param_check_1 (.from_tx(from_tx_1), .to_rx);
+    // Parameter check
+    initial begin
+        std_pkg::param_check(from_tx_0.DATA_BYTE_WID, to_rx.DATA_BYTE_WID, "from_tx_0.DATA_BYTE_WID");
+        std_pkg::param_check(from_tx_0.TID_WID,       to_rx.TID_WID,       "from_tx_0.TID_WID");
+        std_pkg::param_check(from_tx_0.TDEST_WID,     to_rx.TDEST_WID,     "from_tx_0.TDEST_WID");
+        std_pkg::param_check(from_tx_0.TUSER_WID,     to_rx.TUSER_WID,     "from_tx_0.TUSER_WID");
+        std_pkg::param_check(from_tx_1.DATA_BYTE_WID, to_rx.DATA_BYTE_WID, "from_tx_1.DATA_BYTE_WID");
+        std_pkg::param_check(from_tx_1.TID_WID,       to_rx.TID_WID,       "from_tx_1.TID_WID");
+        std_pkg::param_check(from_tx_1.TDEST_WID,     to_rx.TDEST_WID,     "from_tx_1.TDEST_WID");
+        std_pkg::param_check(from_tx_1.TUSER_WID,     to_rx.TUSER_WID,     "from_tx_1.TUSER_WID");
+    end
 
     // Mux
     assign to_rx.tvalid = mux_sel ? from_tx_1.tvalid : from_tx_0.tvalid;
@@ -598,7 +632,13 @@ module axi4s_intf_demux #(
 
     localparam int N_POW2 = 2**SEL_WID;
 
-    axi4s_intf_parameter_check param_check (.from_tx, .to_rx(to_rx[0]));
+    // Parameter check
+    initial begin
+        std_pkg::param_check(from_tx.DATA_BYTE_WID, to_rx[0].DATA_BYTE_WID, "to_rx[0].DATA_BYTE_WID");
+        std_pkg::param_check(from_tx.TID_WID,       to_rx[0].TID_WID,       "to_rx[0].TID_WID");
+        std_pkg::param_check(from_tx.TDEST_WID,     to_rx[0].TDEST_WID,     "to_rx[0].TDEST_WID");
+        std_pkg::param_check(from_tx.TUSER_WID,     to_rx[0].TUSER_WID,     "to_rx[0].TUSER_WID");
+    end
 
     axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID)) to_rx_p[N] (.aclk(from_tx.aclk), .aresetn(from_tx.aresetn));
 
@@ -640,8 +680,17 @@ module axi4s_intf_1to2_demux (
     input logic         output_sel
 );
 
-    axi4s_intf_parameter_check param_check_0 (.from_tx, .to_rx(to_rx_0));
-    axi4s_intf_parameter_check param_check_1 (.from_tx, .to_rx(to_rx_1));
+    // Parameter check
+    initial begin
+        std_pkg::param_check(from_tx.DATA_BYTE_WID, to_rx_0.DATA_BYTE_WID, "to_rx_0.DATA_BYTE_WID");
+        std_pkg::param_check(from_tx.TID_WID,       to_rx_0.TID_WID,       "to_rx_0.TID_WID");
+        std_pkg::param_check(from_tx.TDEST_WID,     to_rx_0.TDEST_WID,     "to_rx_0.TDEST_WID");
+        std_pkg::param_check(from_tx.TUSER_WID,     to_rx_0.TUSER_WID,     "to_rx_0.TUSER_WID");
+        std_pkg::param_check(from_tx.DATA_BYTE_WID, to_rx_1.DATA_BYTE_WID, "to_rx_1.DATA_BYTE_WID");
+        std_pkg::param_check(from_tx.TID_WID,       to_rx_1.TID_WID,       "to_rx_1.TID_WID");
+        std_pkg::param_check(from_tx.TDEST_WID,     to_rx_1.TDEST_WID,     "to_rx_1.TDEST_WID");
+        std_pkg::param_check(from_tx.TUSER_WID,     to_rx_1.TUSER_WID,     "to_rx_1.TUSER_WID");
+    end
 
     // axis4s input interface signalling.
     assign from_tx.tready = output_sel ? to_rx_1.tready : to_rx_0.tready;
@@ -676,14 +725,27 @@ module axi4s_intf_bypass_mux #(
     axi4s_intf.tx to_rx,
     input logic   bypass
 );
-    axi4s_intf_parameter_check param_check_port          (.*);
-    axi4s_intf_parameter_check param_check_block         (.from_tx(from_block), .to_rx(to_block));
-    axi4s_intf_parameter_check param_check_port_to_block (.from_tx, .to_rx(to_block));
-
+    // Parameters
     localparam int DATA_BYTE_WID = from_tx.DATA_BYTE_WID;
     localparam int TID_WID       = from_tx.TID_WID;
     localparam int TDEST_WID     = from_tx.TDEST_WID;
     localparam int TUSER_WID     = from_tx.TUSER_WID;
+
+    // Parameter check
+    initial begin
+        std_pkg::param_check(to_rx.DATA_BYTE_WID,      DATA_BYTE_WID, "to_rx.DATA_BYTE_WID");
+        std_pkg::param_check(to_rx.TID_WID,            TID_WID,       "to_rx.TID_WID");
+        std_pkg::param_check(to_rx.TDEST_WID,          TDEST_WID,     "to_rx.TDEST_WID");
+        std_pkg::param_check(to_rx.TUSER_WID,          TUSER_WID,     "to_rx.TUSER_WID");
+        std_pkg::param_check(from_block.DATA_BYTE_WID, DATA_BYTE_WID, "from_block.DATA_BYTE_WID");
+        std_pkg::param_check(from_block.TID_WID,       TID_WID,       "from_block.TID_WID");
+        std_pkg::param_check(from_block.TDEST_WID,     TDEST_WID,     "from_block.TDEST_WID");
+        std_pkg::param_check(from_block.TUSER_WID,     TUSER_WID,     "from_block.TUSER_WID");
+        std_pkg::param_check(to_block.DATA_BYTE_WID,   DATA_BYTE_WID, "to_block.DATA_BYTE_WID");
+        std_pkg::param_check(to_block.TID_WID,         TID_WID,       "to_block.TID_WID");
+        std_pkg::param_check(to_block.TDEST_WID,       TDEST_WID,     "to_block.TDEST_WID");
+        std_pkg::param_check(to_block.TUSER_WID,       TUSER_WID,     "to_block.TUSER_WID");
+    end
 
     // interface instantiations
     axi4s_intf  #( .DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID) )
@@ -753,7 +815,13 @@ module axi4s_adv_tlast (
 );
     import axi4s_pkg::*;
 
-    axi4s_intf_parameter_check param_check_port (.*);
+    // Parameter check
+    initial begin
+        std_pkg::param_check(from_tx.DATA_BYTE_WID, to_rx.DATA_BYTE_WID, "DATA_BYTE_WID");
+        std_pkg::param_check(from_tx.TID_WID,       to_rx.TID_WID,       "TID_WID");
+        std_pkg::param_check(from_tx.TDEST_WID,     to_rx.TDEST_WID,     "TDEST_WID");
+        std_pkg::param_check(from_tx.TUSER_WID,     to_rx.TUSER_WID,     "TUSER_WID");
+    end
 
     localparam int DATA_BYTE_WID = from_tx.DATA_BYTE_WID;
     localparam int TID_WID       = from_tx.TID_WID;

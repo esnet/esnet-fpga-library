@@ -29,7 +29,13 @@ module axi4s_pkt_fifo_sync #(
 );
    import axi4s_pkg::*;
 
-   axi4s_intf_parameter_check param_check_0 (.from_tx(axi4s_in), .to_rx(axi4s_out));
+   // Parameter check
+   initial begin
+       std_pkg::param_check(axi4s_in.DATA_BYTE_WID, axi4s_out.DATA_BYTE_WID, "DATA_BYTE_WID");
+       std_pkg::param_check(axi4s_in.TID_WID,       axi4s_out.TID_WID,       "TID_WID");
+       std_pkg::param_check(axi4s_in.TDEST_WID,     axi4s_out.TDEST_WID,     "TDEST_WID");
+       std_pkg::param_check(axi4s_in.TUSER_WID,     axi4s_out.TUSER_WID,     "TUSER_WID");
+   end
 
    localparam int DATA_BYTE_WID = axi4s_in.DATA_BYTE_WID;
    localparam int TDATA_WID     = DATA_BYTE_WID*8;

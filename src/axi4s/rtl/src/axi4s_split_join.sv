@@ -44,14 +44,21 @@ module axi4s_split_join
    } tuser_int_t;
    localparam int TUSER_INT_WID = $bits(tuser_int_t);
 
-   axi4s_intf_parameter_check param_check_pkt (.from_tx(axi4s_in), .to_rx(axi4s_out));
-   axi4s_intf_parameter_check param_check_hdr (.from_tx(axi4s_hdr_in), .to_rx(axi4s_hdr_out));
+   // Parameter check
    initial begin
-       std_pkg::param_check(axi4s_hdr_in.TID_WID, TID_WID, "axi4s_hdr_in.TID_WID");
-       std_pkg::param_check(axi4s_hdr_in.TDEST_WID, TDEST_WID, "axi4s_hdr_in.TDEST_WID");
-       std_pkg::param_check(axi4s_hdr_in.TUSER_WID, TUSER_INT_WID, "axi4s_hdr_in.TUSER_WID");
+       std_pkg::param_check(axi4s_out.DATA_BYTE_WID,     DATA_BYTE_WID, "axi4s_out.DATA_BYTE_WID");
+       std_pkg::param_check(axi4s_out.TID_WID,           TID_WID,       "axi4s_out.TID_WID");
+       std_pkg::param_check(axi4s_out.TDEST_WID,         TDEST_WID,     "axi4s_out.TDEST_WID");
+       std_pkg::param_check(axi4s_out.TUSER_WID,         TUSER_EXT_WID, "axi4s_out.TUSER_WID");
+       std_pkg::param_check(axi4s_hdr_in.DATA_BYTE_WID,  DATA_BYTE_WID, "axi4s_hdr_in.DATA_BYTE_WID");
+       std_pkg::param_check(axi4s_hdr_in.TID_WID,        TID_WID,       "axi4s_hdr_in.TID_WID");
+       std_pkg::param_check(axi4s_hdr_in.TDEST_WID,      TDEST_WID,     "axi4s_hdr_in.TDEST_WID");
+       std_pkg::param_check(axi4s_hdr_in.TUSER_WID,      TUSER_INT_WID, "axi4s_hdr_in.TUSER_WID");
+       std_pkg::param_check(axi4s_hdr_out.DATA_BYTE_WID, DATA_BYTE_WID, "axi4s_hdr_out.DATA_BYTE_WID");
+       std_pkg::param_check(axi4s_hdr_out.TID_WID,       TID_WID,       "axi4s_hdr_out.TID_WID");
+       std_pkg::param_check(axi4s_hdr_out.TDEST_WID,     TDEST_WID,     "axi4s_hdr_out.TDEST_WID");
+       std_pkg::param_check(axi4s_hdr_out.TUSER_WID,     TUSER_INT_WID, "axi4s_hdr_out.TUSER_WID");
    end
-
 
    axi4s_intf #( .DATA_BYTE_WID(DATA_BYTE_WID),
                  .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_EXT_WID) ) axi4s_in_p (.aclk(axi4s_in.aclk), .aresetn(axi4s_in.aresetn));
