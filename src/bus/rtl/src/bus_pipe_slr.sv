@@ -76,7 +76,7 @@
     fifo_prefetch #(
         .DATA_WID  ( DATA_WID ),
         .PIPELINE_DEPTH ( TOTAL_SLACK )
-    ) i_fifo_prefetch (
+    ) i_fifo_prefetch_rx (
         .clk,
         .srst,
         .wr      ( bus_if__rx.valid ),
