@@ -60,8 +60,6 @@ module axi4s_probe
        axi4s_if_tlast_p <= axi4s_if.tlast;
     end
    
-   logic        srst;
-
    logic        pkt_cnt_incr;
    logic        pkt_cnt_incr_p;
 
@@ -87,14 +85,8 @@ module axi4s_probe
 
    assign byte_cnt_int_val = pkt_cnt_incr_p;
 
-   util_reset_buffer i_util_reset_buffer (
-       .clk       ( axi4s_if.aclk ),
-       .srst_in   ( !axi4s_if.aresetn ),
-       .srst_out  ( srst )
-   );
-
    always @(posedge axi4s_if.aclk) 
-      if (srst) begin
+      if (!axi4s_if.aresetn) begin
          pkt_cnt_incr     <= 0;
          pkt_cnt_incr_p   <= 0;
          byte_cnt_incr    <= 0;
@@ -160,7 +152,7 @@ module axi4s_probe
    struct packed {logic tvalid; logic tready; logic tlast;} activity;
 
    always @(posedge axi4s_if.aclk) begin
-       if (srst) activity <= '0;
+       if (!axi4s_if.aresetn) activity <= '0;
        else begin
            if (reg_if.activity_rd_evt) activity <= '0;
            else begin
