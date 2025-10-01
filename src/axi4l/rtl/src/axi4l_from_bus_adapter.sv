@@ -1,5 +1,8 @@
 // AXI4-L from multi-bus interface adapter
 module axi4l_from_bus_adapter (
+    // AXI-L reset
+    input logic   aresetn,
+
     // Generic bus interfaces (from controller)
     // Write address (AW) bus
     bus_intf.rx   aw_bus_if,
@@ -55,7 +58,6 @@ module axi4l_from_bus_adapter (
 
     // Signals
     logic clk;
-    logic srst;
 
     logic        aw_valid;
     ax_payload_t aw_payload;
@@ -80,7 +82,6 @@ module axi4l_from_bus_adapter (
     // Terminate write address bus interface
     // -- (arbitrarily) choose this interface as the reference for clock/reset
     assign clk  = aw_bus_if.clk;
-    assign srst = aw_bus_if.srst;
     assign aw_valid = aw_bus_if.valid;
     assign aw_payload = aw_bus_if.data;
     assign aw_bus_if.ready = aw_ready;
@@ -103,7 +104,7 @@ module axi4l_from_bus_adapter (
 
     // Drive AXI-L interface
     assign axi4l_if.aclk = clk;
-    assign axi4l_if.aresetn = !srst;
+    assign axi4l_if.aresetn = aresetn;
 
     assign axi4l_if.awvalid = aw_valid;
     assign axi4l_if.awaddr = aw_payload.addr;
