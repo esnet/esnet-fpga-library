@@ -5,7 +5,6 @@ module bus_pipe_slr_wrapper
     input  logic        valid_in,
     input  logic [31:0] data_in,
     output logic        ready_in,
-    output logic        srst_out,
     output logic        valid_out,
     output logic [31:0] data_out,
     input  logic        ready_out
