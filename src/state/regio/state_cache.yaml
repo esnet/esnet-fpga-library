@@ -102,8 +102,46 @@ regs:
     desc: Count of cache misses with no entry added (untracked) (bits 31:0).
     width: 32
 
+  - name: dbg_control
+    access: rw
+    fields:
+        - name:  clear_counts
+          desc:  clear all debug counters.
+          width: 1
+          init:  0
+
   - name: dbg_cnt_active
     access: ro
     desc: Count of currently active cache entries.
     width: 32
 
+  - name: dbg_cnt_insert_error_no_flowid
+    access: ro
+    desc: Count of cache insertion failures due to no flow ID available.
+    width: 32
+
+  - name: dbg_cnt_insert_error_no_slot
+    access: ro
+    desc: Count of cache insertion failures due to no insertion slot available.
+    width: 32
+
+  - name: dbg_cnt_insert_error_no_flowid_no_slot
+    access: ro
+    desc: Count of cache insertion failures due to no flow ID and no insertion slot available.
+    width: 32
+
+  - name: dbg_cnt_htable_error
+    access: ro
+    desc: Count of hash table lookup errors.
+    width: 32
+
+  - name: dbg_flags
+    access: rd_evt
+    desc: Debug flags (clear-on-read).
+    fields:
+        - name: lookup_req_oflow
+          desc: When set, indicates overflow event on lookup context FIFO.
+          width: 1
+        - name: lookup_req_uflow
+          desc: When set, indicates underflow event on lookup context FIFO.
+          width: 1
