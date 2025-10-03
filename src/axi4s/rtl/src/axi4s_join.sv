@@ -45,6 +45,8 @@ module axi4s_join #(
    end
 
    // signals
+   logic reset, resetn;
+
    typedef enum logic[1:0] {
       HEADER,
       PAYLOAD,
@@ -70,44 +72,43 @@ module axi4s_join #(
 
    // internal axi4s interfaces.
    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID),
-                .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_IN_WID)) sync_hdr[2] (.aclk(axi4s_in.aclk), .aresetn(axi4s_in.aresetn));
+                .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_IN_WID)) sync_hdr[2] (.aclk(clk), .aresetn(resetn));
 
    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID),
-                .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_IN_WID)) sync_pyld[2] (.aclk(axi4s_in.aclk), .aresetn(axi4s_in.aresetn));
+                .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_IN_WID)) sync_pyld[2] (.aclk(clk), .aresetn(resetn));
 
    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID),
-                .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_IN_WID)) drop_hdr[2] (.aclk(axi4s_in.aclk), .aresetn(axi4s_in.aresetn));
+                .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_IN_WID)) drop_hdr[2] (.aclk(clk), .aresetn(resetn));
 
    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID),
-                .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_IN_WID)) drop_pyld[2] (.aclk(axi4s_in.aclk), .aresetn(axi4s_in.aresetn));
+                .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_IN_WID)) drop_pyld[2] (.aclk(clk), .aresetn(resetn));
 
    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID),
-                .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_OUT_WID)) pipe_hdr[7] (.aclk(axi4s_in.aclk), .aresetn(axi4s_in.aresetn));
+                .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_OUT_WID)) pipe_hdr[7] (.aclk(clk), .aresetn(resetn));
 
    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID),
-                .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_OUT_WID)) pipe_pyld[7] (.aclk(axi4s_in.aclk), .aresetn(axi4s_in.aresetn));
+                .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_OUT_WID)) pipe_pyld[7] (.aclk(clk), .aresetn(resetn));
 
    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID),
-                .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_OUT_WID)) shifted_pyld (.aclk(axi4s_in.aclk), .aresetn(axi4s_in.aresetn));
+                .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_OUT_WID)) shifted_pyld (.aclk(clk), .aresetn(resetn));
 
    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID),
-                .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_OUT_WID)) b2b_hdr (.aclk(axi4s_in.aclk), .aresetn(axi4s_in.aresetn));
+                .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_OUT_WID)) b2b_hdr (.aclk(clk), .aresetn(resetn));
 
    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID),
-                .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_OUT_WID)) joined (.aclk(axi4s_in.aclk), .aresetn(axi4s_in.aresetn));
+                .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_OUT_WID)) joined (.aclk(clk), .aresetn(resetn));
 
    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID),
-                .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_OUT_WID)) joined_mux (.aclk(axi4s_in.aclk), .aresetn(axi4s_in.aresetn));
+                .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_OUT_WID)) joined_mux (.aclk(clk), .aresetn(resetn));
 
    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID),
-                .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_OUT_WID)) joined_pipe (.aclk(axi4s_in.aclk), .aresetn(axi4s_in.aresetn));
+                .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_OUT_WID)) joined_pipe (.aclk(clk), .aresetn(resetn));
 
    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID),
-                .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_OUT_WID)) axi4s_to_fifo (.aclk(axi4s_in.aclk), .aresetn(axi4s_in.aresetn));
+                .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_OUT_WID)) axi4s_to_fifo (.aclk(clk), .aresetn(resetn));
 
-
-   logic resetn;
-   assign resetn = !srst && enable;
+   always @(posedge clk) reset <= srst || !enable;
+   assign resetn = !reset;
 
    // axi4s SOP synchronizer instantiation.
    axi4s_sync #(.MODE(SOP), .PTR_LEN(PTR_LEN)) axi4s_sync_0 (
@@ -127,8 +128,8 @@ module axi4s_join #(
    axi4l_intf axil_to_drop_hdr ();
 
    axi4s_drop #(.OUT_PIPE_MODE(PUSH)) axi4s_drop_hdr (
-      .clk,
-      .srst        (!resetn),
+      .clk         (clk),
+      .srst        (reset),
       .axi4s_in    (drop_hdr[0]),
       .axi4s_out   (drop_hdr[1]),
       .axil_if     (axil_to_drop_hdr),
@@ -141,8 +142,8 @@ module axi4s_join #(
    axi4l_intf axil_to_drop_pyld ();
 
    axi4s_drop #(.OUT_PIPE_MODE(PUSH)) axi4s_drop_pyld (
-      .clk,
-      .srst        (!resetn),
+      .clk         (clk),
+      .srst        (reset),
       .axi4s_in    (drop_pyld[0]),
       .axi4s_out   (drop_pyld[1]),
       .axil_if     (axil_to_drop_pyld),
@@ -266,7 +267,7 @@ module axi4s_join #(
    generate 
       for (genvar i = 2; i < 6; i += 1) begin : g__pipe_shift
          always @(posedge clk)
-            if (!resetn) begin
+            if (reset) begin
                pyld_shift_pipe[i] <= '0;
                hdr_shift_pipe[i]  <= '0;
             end else begin
@@ -281,8 +282,8 @@ module axi4s_join #(
    // --- state machine logic. ---
    always @(posedge clk) begin
       // latch state.
-      if (!resetn)  state <= HEADER;
-      else          state <= state_nxt;
+      if (reset) state <= HEADER;
+      else       state <= state_nxt;
 
       // latch tid and tdest signals.
       if ((state_nxt == B2B_HEADER) && pipe_hdr[5].tvalid && pipe_hdr[5].tready && pipe_hdr[5].sop) begin
@@ -302,8 +303,8 @@ module axi4s_join #(
       // otherwise assert adv_tlast if next transaction is tlast and tkeep all-zeros (only when combining data in PAYLOAD states).
       else  adv_tlast <= pipe_pyld[3].tvalid && pipe_pyld[3].tlast && (lookahead_tkeep == '0) && (state_nxt != HEADER);
 
-      if (!resetn)  adv_tlast_p <= 0;
-      else          adv_tlast_p <= (pipe_pyld[4].tready && pipe_pyld[4].tvalid) ? adv_tlast : adv_tlast_p;
+      if (reset) adv_tlast_p <= 0;
+      else       adv_tlast_p <= (pipe_pyld[4].tready && pipe_pyld[4].tvalid) ? adv_tlast : adv_tlast_p;
    end
 
    assign lookahead_tkeep = join_tkeep (.shift(pyld_shift_pipe[2]), .tkeep_lsb(pipe_pyld[3].tkeep), .tkeep_msb('0));
