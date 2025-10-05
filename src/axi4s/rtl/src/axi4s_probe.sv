@@ -53,9 +53,15 @@ module axi4s_probe
    logic  pkt_error;
    always @(posedge axi4s_if.aclk) pkt_error <= (TUSER_MODE == PKT_ERROR) && axi4s_if.tuser;
 
+   logic                     axi4s_if_aresetn_p;
+   logic                     axi4s_if_tvalid_p;
+   logic                     axi4s_if_tready_p;
    logic [DATA_BYTE_WID-1:0] axi4s_if_tkeep_p;
    logic                     axi4s_if_tlast_p;
-   always @(posedge axi4s_if.aclk) begin
+   always_ff @(posedge axi4s_if.aclk) begin
+       axi4s_if_aresetn_p <= axi4s_if.aresetn;
+       axi4s_if_tvalid_p <= axi4s_if.tvalid;
+       axi4s_if_tready_p <= axi4s_if.tready;
        axi4s_if_tkeep_p <= axi4s_if.tkeep;
        axi4s_if_tlast_p <= axi4s_if.tlast;
     end
@@ -143,24 +149,21 @@ module axi4s_probe
 
    // Control signal monitoring
    assign reg_if.monitor_nxt_v = 1'b1;
-   assign reg_if.monitor_nxt.aresetn = axi4s_if.aresetn;
-   assign reg_if.monitor_nxt.tvalid  = axi4s_if.tvalid;
-   assign reg_if.monitor_nxt.tready  = axi4s_if.tready;
-   assign reg_if.monitor_nxt.tlast   = axi4s_if.tlast;
+   assign reg_if.monitor_nxt.aresetn = axi4s_if_aresetn_p;
+   assign reg_if.monitor_nxt.tvalid  = axi4s_if_tvalid_p;
+   assign reg_if.monitor_nxt.tready  = axi4s_if_tready_p;
+   assign reg_if.monitor_nxt.tlast   = axi4s_if_tlast_p;
 
    // Control signal activity tracking
    struct packed {logic tvalid; logic tready; logic tlast;} activity;
 
-   always @(posedge axi4s_if.aclk) begin
-       if (!axi4s_if.aresetn) activity <= '0;
-       else begin
-           if (reg_if.activity_rd_evt) activity <= '0;
-           else begin
-              activity.tvalid <= activity.tvalid || axi4s_if.tvalid;
-              activity.tready <= activity.tready || axi4s_if.tready;
-              activity.tlast  <= activity.tlast  || axi4s_if.tlast;
-           end
-       end
+   always_comb begin
+      if (reg_if.activity_rd_evt) activity = '0;
+      else begin
+          activity.tvalid = reg_if.activity.tvalid || axi4s_if_tvalid_p;
+          activity.tready = reg_if.activity.tready || axi4s_if_tready_p;
+          activity.tlast  = reg_if.activity.tlast  || axi4s_if_tlast_p;
+      end
    end
    assign reg_if.activity_nxt_v = 1'b1;
    assign reg_if.activity_nxt.tvalid = activity.tvalid;
