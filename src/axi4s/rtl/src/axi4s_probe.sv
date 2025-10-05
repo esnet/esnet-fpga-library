@@ -84,25 +84,25 @@ module axi4s_probe
 
    logic        clear_evt;
 
-   assign clear_evt = reg_if.probe_control_wr_evt && (reg_if.probe_control.clear == '1);  // CLR_ON_WR_EVT
+   assign clear_evt = !axi4l_to_regif__axi4s_aclk.aresetn || (reg_if.probe_control_wr_evt && (reg_if.probe_control.clear == '1));  // CLR_ON_WR_EVT
 
    assign byte_cnt_base = clear_evt ? '0 : byte_cnt;
    assign  pkt_cnt_base = clear_evt ? '0 :  pkt_cnt;
 
    assign byte_cnt_int_val = pkt_cnt_incr_p;
 
+   initial begin
+       pkt_cnt_incr = 1'b0;
+       pkt_cnt_incr_p = 1'b0;
+       byte_cnt_incr = '0;
+       disable_update = 1'b0;
+       disable_update_p = 1'b0;
+       byte_cnt_int = '0;
+       pkt_cnt = '0;
+       byte_cnt = '0;
+   end
    always @(posedge axi4s_if.aclk) 
-      if (!axi4s_if.aresetn) begin
-         pkt_cnt_incr     <= 0;
-         pkt_cnt_incr_p   <= 0;
-         byte_cnt_incr    <= 0;
-         disable_update   <= 0;
-         disable_update_p <= 0;
-         byte_cnt_int     <= 0;
-         pkt_cnt          <= 0;
-         byte_cnt         <= 0;
-
-      end else begin
+      begin
          pkt_cnt_incr    <= incr_en && axi4s_if_tlast_p;
          pkt_cnt_incr_p  <= pkt_cnt_incr;
 
