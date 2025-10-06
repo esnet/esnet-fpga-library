@@ -1,0 +1,19 @@
+name: sar_packet_reassembly
+visible: true
+
+blocks:
+  counters: &counters
+    !include src/packet/regio/packet_counters.yaml
+decoders:
+  reassembly: &reassembly
+    !include src/sar/regio/sar_reassembly_decoder.yaml
+
+interfaces:
+  - block: *counters
+    width: 8
+    address: 0x0000
+    name: packets
+  - decoder: *reassembly
+    width: 14
+    address: 0x4000
+    name: reassembly

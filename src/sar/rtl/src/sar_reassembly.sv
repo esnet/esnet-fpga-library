@@ -1,11 +1,16 @@
 module sar_reassembly
 #(
-    parameter int BUF_ID_WID       = 1, // Width (in bits) of reassembly buffer (context) pointer
-    parameter int OFFSET_WID       = 1, // Width (in bits) of byte offset describing location of segment within frame
-    parameter int SEGMENT_LEN_WID  = 1, // Width (in bits) of byte length of current segment 
-    parameter int TIMER_WID        = 1, // Width (in bits) of frame expiry timer
-    parameter int MAX_FRAGMENTS    = 8192,  // Number of disjoint (post-coalescing) fragments supported at any given time (across all buffers)
-    parameter int BURST_SIZE       = 8
+    parameter int NUM_FRAME_BUFFERS = 1,
+    parameter int MAX_FRAME_SIZE    = 1,
+    parameter int MAX_SEGMENT_SIZE  = 1,
+    parameter int TIMER_WID         = 1, // Width (in bits) of frame expiry timer
+    parameter int MAX_FRAGMENTS     = 1, // Number of disjoint (post-coalescing) fragments supported at any given time (across all buffers)
+    parameter int BURST_SIZE        = 8,
+    // Derived parameters (don't override)
+    parameter int BUF_ID_WID      = $clog2(NUM_FRAME_BUFFERS), // Width (in bits) of reassembly buffer (context) pointer
+    parameter int OFFSET_WID      = $clog2(MAX_FRAME_SIZE),    // Width (in bits) of byte offset describing location of segment within frame
+    parameter int FRAME_SIZE_WID  = $clog2(MAX_FRAME_SIZE+1),  // Width (in bits) of byte length of frame
+    parameter int SEGMENT_LEN_WID = $clog2(MAX_SEGMENT_SIZE+1) // Width (in bits) of byte length of current segment
 )(
     // Clock/reset
     input  logic                       clk,
@@ -30,7 +35,7 @@ module sar_reassembly
     input  logic                       frame_ready,
     output logic                       frame_valid,
     output logic [BUF_ID_WID-1:0]      frame_buf_id,
-    output logic [OFFSET_WID-1:0]      frame_len,
+    output logic [FRAME_SIZE_WID-1:0]  frame_len,
 
     // AXI-L control
     axi4l_intf.peripheral              axil_if
@@ -148,10 +153,10 @@ module sar_reassembly
     // Reassembly segment cache
     // -------------------------------------------------
     sar_reassembly_cache       #(
-        .BUF_ID_WID             ( BUF_ID_WID ),
-        .OFFSET_WID             ( OFFSET_WID ),
-        .SEGMENT_LEN_WID        ( SEGMENT_LEN_WID ),
-        .FRAGMENT_PTR_WID       ( FRAGMENT_PTR_WID ),
+        .NUM_FRAME_BUFFERS      ( NUM_FRAME_BUFFERS ),
+        .MAX_FRAME_SIZE         ( MAX_FRAME_SIZE ),
+        .MAX_SEGMENT_SIZE       ( MAX_SEGMENT_SIZE ),
+        .MAX_FRAGMENTS          ( MAX_FRAGMENTS ),
         .BURST_SIZE             ( BURST_SIZE )
     ) i_sar_reassembly_cache    (
         .clk                    ( clk ),
@@ -171,8 +176,8 @@ module sar_reassembly
         .frag_ptr               ( frag_ptr ),
         .frag_offset_start      ( frag_offset_start ),
         .frag_offset_end        ( frag_offset_end ),
-        .frag_merged            ( frag_merged ),               
-        .frag_merged_ptr        ( frag_merged_ptr ),               
+        .frag_merged            ( frag_merged ),
+        .frag_merged_ptr        ( frag_merged_ptr ),
         .frag_ptr_dealloc_rdy   ( frag_ptr_dealloc_rdy ),
         .frag_ptr_dealloc_req   ( frag_ptr_dealloc_req ),
         .frag_ptr_dealloc_value ( frag_ptr_dealloc_value ),
@@ -185,11 +190,10 @@ module sar_reassembly
     // Reassembly state table
     // -------------------------------------------------
     sar_reassembly_state       #(
-        .BUF_ID_WID             ( BUF_ID_WID ),
-        .OFFSET_WID             ( OFFSET_WID ),
-        .SEGMENT_LEN_WID        ( SEGMENT_LEN_WID ),
-        .FRAGMENT_PTR_WID       ( FRAGMENT_PTR_WID ),
-        .TIMER_WID              ( TIMER_WID )
+        .NUM_FRAME_BUFFERS      ( NUM_FRAME_BUFFERS ),
+        .MAX_FRAME_SIZE         ( MAX_FRAME_SIZE ),
+        .TIMER_WID              ( TIMER_WID ),
+        .MAX_FRAGMENTS          ( MAX_FRAGMENTS )
     ) i_sar_reassembly_state    (
         .clk                    ( clk ),
         .srst                   ( __srst ),
