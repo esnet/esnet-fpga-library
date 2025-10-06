@@ -48,28 +48,30 @@ module axi4s_split #(
    logic [PTR_LEN-1:0] wr_ptr; // wr pointer for pkt buffer addressing, or pkt_id.   
    logic [PTR_LEN-1:0] pid;    // wr_ptr of hdr_out sop.
 
-   logic reset;
+   logic reset, resetn;
    tuser_t axi4s_to_copy_tuser;
    tuser_t _axi4s_hdr_out_p_tuser;
    tuser_t axi4s_hdr_out_p_tuser;
 
    // internal axi4s interfaces.
    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID),
-                .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_OUT_WID)) axi4s_to_copy (.aclk(axi4s_in.aclk), .aresetn(axi4s_in.aresetn));
+                .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_OUT_WID)) axi4s_to_copy (.aclk(clk), .aresetn(resetn));
 
    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID),
-                .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_OUT_WID)) axi4s_to_trunc (.aclk(axi4s_in.aclk), .aresetn(axi4s_in.aresetn));
+                .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_OUT_WID)) axi4s_to_trunc (.aclk(clk), .aresetn(resetn));
 
    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID),
-                .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_OUT_WID)) _axi4s_hdr_out_p (.aclk(axi4s_in.aclk), .aresetn(axi4s_in.aresetn));
+                .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_OUT_WID)) _axi4s_hdr_out_p (.aclk(clk), .aresetn(resetn));
 
    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID),
-                .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_OUT_WID)) axi4s_hdr_out_p (.aclk(axi4s_in.aclk), .aresetn(axi4s_in.aresetn));
+                .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_OUT_WID)) axi4s_hdr_out_p (.aclk(clk), .aresetn(resetn));
 
    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID),
-                .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_OUT_WID)) axi4s_out_p (.aclk(axi4s_in.aclk), .aresetn(axi4s_in.aresetn));
+                .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_OUT_WID)) axi4s_out_p (.aclk(clk), .aresetn(resetn));
 
-   assign reset = srst || !enable;
+   always @(posedge clk) reset <= srst || !enable;
+   assign resetn = !reset;
+
 
    // wr_ptr logic
    always @(posedge clk)
