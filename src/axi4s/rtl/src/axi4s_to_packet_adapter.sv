@@ -4,7 +4,7 @@
 module axi4s_to_packet_adapter #(
     parameter int META_WID = 1
 ) (
-    input logic                srst = 1'b0,
+    input logic                srst,
     // AXI-S data interface
     axi4s_intf.rx              axis_if,
     // Packet data interface

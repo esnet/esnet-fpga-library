@@ -3,7 +3,7 @@
 module axi4s_pipe #(
     parameter int  STAGES = 1 // Pipeline stages, inserted in both forward (valid) and reverse (ready) directions
 ) (
-    input logic    srst = 1'b0,
+    input logic    srst,
     axi4s_intf.rx  from_tx,
     axi4s_intf.tx  to_rx
 );

@@ -53,13 +53,11 @@ module axi4s_probe
    logic  pkt_error;
    always @(posedge axi4s_if.aclk) pkt_error <= (TUSER_MODE == PKT_ERROR) && axi4s_if.tuser;
 
-   logic                     axi4s_if_aresetn_p;
    logic                     axi4s_if_tvalid_p;
    logic                     axi4s_if_tready_p;
    logic [DATA_BYTE_WID-1:0] axi4s_if_tkeep_p;
    logic                     axi4s_if_tlast_p;
    always_ff @(posedge axi4s_if.aclk) begin
-       axi4s_if_aresetn_p <= axi4s_if.aresetn;
        axi4s_if_tvalid_p <= axi4s_if.tvalid;
        axi4s_if_tready_p <= axi4s_if.tready;
        axi4s_if_tkeep_p <= axi4s_if.tkeep;
@@ -149,7 +147,6 @@ module axi4s_probe
 
    // Control signal monitoring
    assign reg_if.monitor_nxt_v = 1'b1;
-   assign reg_if.monitor_nxt.aresetn = axi4s_if_aresetn_p;
    assign reg_if.monitor_nxt.tvalid  = axi4s_if_tvalid_p;
    assign reg_if.monitor_nxt.tready  = axi4s_if_tready_p;
    assign reg_if.monitor_nxt.tlast   = axi4s_if_tlast_p;

@@ -3,7 +3,7 @@
     parameter int  PRE_PIPE_STAGES = 0,  // Input (pre-crossing) pipe stages, in addition to SLR-crossing stage
     parameter int  POST_PIPE_STAGES = 0  // Output (post-crossing) pipe stages, in addition to SLR-crossing stage
 ) (
-    input logic    srst = 1'b0,
+    input logic    srst,
     axi4s_intf.rx  from_tx,
     axi4s_intf.tx  to_rx
 );

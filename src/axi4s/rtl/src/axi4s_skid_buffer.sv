@@ -17,7 +17,7 @@ module axi4s_skid_buffer #(
     parameter int SKID = 1  // Number of cycles that can be received on
                             // from_tx *after* deassertion of tready
 ) (
-    input logic   srst = 1'b0,
+    input logic   srst,
     axi4s_intf.rx from_tx,
     axi4s_intf.tx to_rx,
     output logic  oflow     // An overflow of the skid buffer is possible

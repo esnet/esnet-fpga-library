@@ -12,6 +12,7 @@ module axi4s_pkt_discard_ovfl
    parameter int MAX_PKT_LEN = 9100, // max number of bytes per packet.
    parameter bit DROP_ERRORED = 0    // when 1, drop 'errored' packets, where error status is carried in lsb of axi4s_in.TUSER
 )  (
+   input logic     srst,
    axi4s_intf.rx   axi4s_in,
    axi4s_intf.tx   axi4s_out
 );
@@ -34,6 +35,8 @@ module axi4s_pkt_discard_ovfl
    localparam int MAX_PKT_WRDS = $ceil($itor(MAX_PKT_LEN) / $itor(DATA_BYTE_WID));
    localparam int FIFO_DEPTH   = MAX_PKT_WRDS * 3;  // depth supports 3 max pkts.
    localparam int ADDR_WID     = $clog2(FIFO_DEPTH);
+
+   logic                 sop_in;
 
    // error detection signals
    logic [TUSER_WID-1:0] tuser_in;
@@ -58,7 +61,7 @@ module axi4s_pkt_discard_ovfl
 
    // _axis4s_in signal assignments.
    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID)) 
-              _axi4s_in (.aclk(axi4s_in.aclk), .aresetn(axi4s_in.aresetn));
+              _axi4s_in (.aclk(axi4s_in.aclk));
 
    assign _axi4s_in.tvalid  = axi4s_in.tvalid;
    assign _axi4s_in.tdata   = axi4s_in.tdata;
@@ -70,6 +73,15 @@ module axi4s_pkt_discard_ovfl
 
    assign axi4s_in.tready = _axi4s_in.tready && !(discard || ovfl);
 
+   // track sop
+   initial sop_in = 1'b1;
+   always @(posedge axi4s_in.aclk) begin
+       if (srst) sop_in <= 1'b1;
+       else begin
+           if (axi4s_in.tvalid && axi4s_in.tready && axi4s_in.tlast) sop_in <= 1'b1;
+           else if (axi4s_in.tvalid && axi4s_in.tready)              sop_in <= 1'b0;
+       end
+   end
 
    // ---- error detection logic ----
    assign tuser_in = axi4s_in.tuser;
@@ -78,7 +90,7 @@ module axi4s_pkt_discard_ovfl
 
    // ---- ovfl discard logic ----
    always @(posedge axi4s_in.aclk)
-      if (!axi4s_in.aresetn) begin
+      if (srst) begin
          sop_ptr <= 0;
          discard <= 0;
       end else begin
@@ -95,7 +107,7 @@ module axi4s_pkt_discard_ovfl
    assign wr_ptr_nxt = wr_ptr + 1;
 
    always @(posedge axi4s_in.aclk)
-      if (!axi4s_in.aresetn) wr_ptr <= '0;   
+      if (srst) wr_ptr <= '0;   
       else if (axi4s_in.tvalid) begin
 	 // restore sop pointer when tlast is asserted and a discard is in progress or a pkt error is detected.
 	 // otherwise increment pointer for each valid transfer.
@@ -108,7 +120,7 @@ module axi4s_pkt_discard_ovfl
    assign almost_full = fill_level > (FIFO_DEPTH-MAX_PKT_WRDS);
 
    // assert fifo_overflow if almost_full is asserted when new packet arrives i.e. tvalid && sop.
-   assign ovfl = almost_full && axi4s_in.tvalid && axi4s_in.sop;
+   assign ovfl = almost_full && axi4s_in.tvalid && sop_in;
 
 
 
@@ -118,6 +130,7 @@ module axi4s_pkt_discard_ovfl
    axi4s_pkt_buffer #(
       .ADDR_WID (ADDR_WID)
    ) axi4s_pkt_buffer_0 (
+      .srst,
       .axi4s_in    (_axi4s_in),
       .axi4s_out   (axi4s_out),
       .rd_req      (rd_req),
@@ -133,8 +146,8 @@ module axi4s_pkt_discard_ovfl
    assign rd_req  = axi4s_out.tready && !empty && !tx_pending;
 
    always @(posedge axi4s_out.aclk)
-      if (!axi4s_out.aresetn)  rd_ptr <= 0;
-      else if (rd_req)         rd_ptr <= rd_ptr + 1;
+      if (srst)        rd_ptr <= 0;
+      else if (rd_req) rd_ptr <= rd_ptr + 1;
 
    // assert tx_pending if rd_ptr reaches sop_ptr.
    // defers transfer until sop is overwritten on tlast, and the full packet is buffered.

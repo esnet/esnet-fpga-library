@@ -7,6 +7,7 @@
 module axi4s_mux #(
    parameter int   N = 2    // number of ingress axi4s interfaces.
  ) (
+   input logic      srst,
    axi4s_intf.rx    axi4s_in[N],
    axi4s_intf.tx    axi4s_out
 );
@@ -19,10 +20,8 @@ module axi4s_mux #(
    localparam int N_POW2 = 2**SEL_WID;
 
    logic aclk;
-   logic aresetn;
 
    assign aclk = axi4s_out.aclk;
-   assign aresetn = axi4s_out.aresetn;
 
    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID)) axi4s_in_p[N] (.*);
 
@@ -59,7 +58,7 @@ module axi4s_mux #(
    // Convert between array of signals and array of interfaces
    generate
        for (genvar g_if = 0; g_if < N; g_if++) begin : g__if
-           axi4s_pipe #(.STAGES(1)) in_pipe (.from_tx(axi4s_in[g_if]), .to_rx(axi4s_in_p[g_if]));
+           axi4s_pipe #(.STAGES(1)) in_pipe (.srst, .from_tx(axi4s_in[g_if]), .to_rx(axi4s_in_p[g_if]));
 
            assign  tvalid[g_if] = axi4s_in_p[g_if].tvalid;
            assign   tdata[g_if] = axi4s_in_p[g_if].tdata;
@@ -106,7 +105,7 @@ module axi4s_mux #(
    // arbitrate between axi4s ingress interfaces (work-conserving round-robin mode).
    arb_rr #(.MODE(arb_pkg::WCRR), .N(N)) arb_rr_0 (
     .clk   (  axi4s_out.aclk ),
-    .srst  ( ~axi4s_out.aresetn ),
+    .srst,
     .en    (  1'b1 ),
     .req   (  axi4s_in_req ),
     .grant (  axi4s_in_grant ),

@@ -33,12 +33,12 @@ module axi4s_mux_demux_unit_test;
     logic clk;
     logic srst;
 
-    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID)) from_tx [N] (.aclk(clk), .aresetn(!srst));
-    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID)) __axis_int  (.aclk(clk), .aresetn(!srst));
-    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID)) to_rx   [N] (.aclk(clk), .aresetn(!srst));
+    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID)) from_tx [N] (.aclk(clk));
+    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID)) __axis_int  (.aclk(clk));
+    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID)) to_rx   [N] (.aclk(clk));
 
-    axi4s_mux #(.N(N))        DUT_mux (.axi4s_in(from_tx), .axi4s_out(__axis_int));
-    axi4s_intf_demux #(.N(N)) DUT_demux (.from_tx(__axis_int), .to_rx, .sel(__axis_int.tdest));
+    axi4s_mux #(.N(N))        DUT_mux (.srst, .axi4s_in(from_tx), .axi4s_out(__axis_int));
+    axi4s_intf_demux #(.N(N)) DUT_demux (.srst, .from_tx(__axis_int), .to_rx, .sel(__axis_int.tdest));
 
     //===================================
     // Testbench

@@ -13,7 +13,9 @@ module axi4s_fifo_core
 
 ) (
     axi4s_intf.rx from_tx,
-    axi4s_intf.tx to_rx
+    input logic   from_tx_srst,
+    axi4s_intf.tx to_rx,
+    input logic   to_rx_srst
 );
 
     //----------------------------------------------
@@ -89,7 +91,7 @@ module axi4s_fifo_core
         .RD_OPT_MODE ( FIFO_OPT_MODE )
     ) i_fifo_core    (
         .wr_clk      ( from_tx.aclk ),
-        .wr_srst     ( !from_tx.aresetn ),
+        .wr_srst     ( from_tx_srst ),
         .wr_rdy      ( from_tx.tready ),
         .wr          ( from_tx.tvalid ),
         .wr_data     ( axi4s_in_data ),
@@ -97,7 +99,7 @@ module axi4s_fifo_core
         .wr_full     ( ),
         .wr_oflow    ( ),
         .rd_clk      ( to_rx.aclk ),
-        .rd_srst     ( !to_rx.aresetn ),
+        .rd_srst     ( to_rx_srst ),
         .rd          ( to_rx.tready ),
         .rd_ack      ( to_rx.tvalid ),
         .rd_data     ( axi4s_out_data ),

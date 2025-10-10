@@ -27,7 +27,7 @@ module axi4s_split_join
 );
    import axi4s_pkg::*;
 
-   logic        reset, resetn, srstn;
+   logic        reset;
    logic        enable;
    logic [15:0] hdr_length_p;
 
@@ -62,77 +62,77 @@ module axi4s_split_join
    end
 
    axi4s_intf #( .DATA_BYTE_WID(DATA_BYTE_WID),
-                 .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_EXT_WID) ) axi4s_in_p (.aclk(clk), .aresetn(srstn));
+                 .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_EXT_WID) ) axi4s_in_p (.aclk(clk));
 
    axi4s_intf #( .DATA_BYTE_WID(DATA_BYTE_WID),
-                 .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_INT_WID) ) __axi4s_in_p (.aclk(clk), .aresetn(srstn));
+                 .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_INT_WID) ) __axi4s_in_p (.aclk(clk));
 
    axi4s_intf #( .DATA_BYTE_WID(DATA_BYTE_WID),
-                 .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_EXT_WID) ) axi4s_out_p (.aclk(clk), .aresetn(srstn));
+                 .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_EXT_WID) ) axi4s_out_p (.aclk(clk));
 
    axi4s_intf #( .DATA_BYTE_WID(DATA_BYTE_WID),
-                 .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_INT_WID) ) axi4s_hdr_in_p (.aclk(clk), .aresetn(srstn));
+                 .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_INT_WID) ) axi4s_hdr_in_p (.aclk(clk));
 
    axi4s_intf #( .DATA_BYTE_WID(DATA_BYTE_WID),
-                 .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_INT_WID) ) __axi4s_hdr_in_p (.aclk(clk), .aresetn(srstn));
+                 .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_INT_WID) ) __axi4s_hdr_in_p (.aclk(clk));
 
    axi4s_intf #( .DATA_BYTE_WID(DATA_BYTE_WID),
-                 .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_INT_WID) ) axi4s_hdr_out_p (.aclk(clk), .aresetn(srstn));
+                 .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_INT_WID) ) axi4s_hdr_out_p (.aclk(clk));
 
    axi4s_intf #( .DATA_BYTE_WID(DATA_BYTE_WID),
-                 .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_INT_WID) ) axi4s_to_pyld_fifo (.aclk(clk), .aresetn(resetn));
+                 .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_INT_WID) ) axi4s_to_pyld_fifo (.aclk(clk));
 
    axi4s_intf #( .DATA_BYTE_WID(DATA_BYTE_WID),
-                 .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_INT_WID) ) axi4s_to_pyld_fifo_p (.aclk(clk), .aresetn(resetn));
+                 .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_INT_WID) ) axi4s_to_pyld_fifo_p (.aclk(clk));
 
    axi4s_intf #( .DATA_BYTE_WID(DATA_BYTE_WID),
-                 .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_INT_WID) ) axi4s_from_pyld_fifo (.aclk(clk), .aresetn(resetn));
+                 .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_INT_WID) ) axi4s_from_pyld_fifo (.aclk(clk));
 
    axi4s_intf #( .DATA_BYTE_WID(DATA_BYTE_WID),
-                 .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_INT_WID) ) axi4s_from_pyld_fifo_p (.aclk(clk), .aresetn(resetn));
+                 .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_INT_WID) ) axi4s_from_pyld_fifo_p (.aclk(clk));
 
    axi4s_intf #( .DATA_BYTE_WID(DATA_BYTE_WID),
-                 .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_EXT_WID) ) axi4s_to_split (.aclk(clk), .aresetn(resetn));
+                 .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_EXT_WID) ) axi4s_to_split (.aclk(clk));
 
    axi4s_intf #( .DATA_BYTE_WID(DATA_BYTE_WID),
-                 .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_INT_WID) ) __axi4s_to_split (.aclk(clk), .aresetn(resetn));
+                 .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_INT_WID) ) __axi4s_to_split (.aclk(clk));
 
    axi4s_intf #( .DATA_BYTE_WID(DATA_BYTE_WID),
-                 .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_INT_WID) ) axi4s_from_split (.aclk(clk), .aresetn(resetn));
+                 .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_INT_WID) ) axi4s_from_split (.aclk(clk));
 
    axi4s_intf #( .DATA_BYTE_WID(DATA_BYTE_WID),
-                 .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_EXT_WID) ) axi4s_to_join_mux (.aclk(clk), .aresetn(resetn));
+                 .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_EXT_WID) ) axi4s_to_join_mux (.aclk(clk));
 
    axi4s_intf #( .DATA_BYTE_WID(DATA_BYTE_WID),
-                 .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_INT_WID) ) _axi4s_to_join_mux (.aclk(clk), .aresetn(resetn));
+                 .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_INT_WID) ) _axi4s_to_join_mux (.aclk(clk));
 
    axi4s_intf #( .DATA_BYTE_WID(DATA_BYTE_WID),
-                 .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_INT_WID) ) _axi4s_from_join_mux (.aclk(clk), .aresetn(srstn));
+                 .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_INT_WID) ) _axi4s_from_join_mux (.aclk(clk));
 
    generate
       if (IN_PIPE) begin : g__in_pipe
-         axi4s_full_pipe in_pipe_0 (.from_tx(axi4s_in), .to_rx(axi4s_in_p));
+         axi4s_full_pipe in_pipe_0 (.srst, .from_tx(axi4s_in), .to_rx(axi4s_in_p));
       end : g__in_pipe
       else begin : g__no_in_pipe
          axi4s_intf_connector in_intf_connector_0  (.from_tx(axi4s_in), .to_rx(axi4s_in_p));
       end : g__no_in_pipe
 
       if (OUT_PIPE) begin : g__out_pipe
-         axi4s_full_pipe out_pipe_0 (.from_tx(axi4s_out_p), .to_rx(axi4s_out));
+         axi4s_full_pipe out_pipe_0 (.srst, .from_tx(axi4s_out_p), .to_rx(axi4s_out));
       end : g__out_pipe
       else begin : g__no_out_pipe
          axi4s_intf_connector out_intf_connector_0 (.from_tx(axi4s_out_p), .to_rx(axi4s_out));
       end : g__no_out_pipe
 
       if (HDR_IN_PIPE) begin : g__hdr_in_pipe
-         axi4s_full_pipe hdr_in_pipe_0 (.from_tx(axi4s_hdr_in), .to_rx(axi4s_hdr_in_p));
+         axi4s_full_pipe hdr_in_pipe_0 (.srst, .from_tx(axi4s_hdr_in), .to_rx(axi4s_hdr_in_p));
       end : g__hdr_in_pipe
       else begin : g__no_hdr_in_pipe
          axi4s_intf_connector hdr_in_intf_connector_0  (.from_tx(axi4s_hdr_in), .to_rx(axi4s_hdr_in_p));
       end : g__no_hdr_in_pipe
 
       if (HDR_OUT_PIPE) begin : g__hdr_out_pipe
-         axi4s_full_pipe hdr_out_pipe_0 (.from_tx(axi4s_hdr_out_p), .to_rx(axi4s_hdr_out));
+         axi4s_full_pipe hdr_out_pipe_0 (.srst, .from_tx(axi4s_hdr_out_p), .to_rx(axi4s_hdr_out));
       end : g__hdr_out_pipe
       else begin : g__no_hdr_out_pipe
          axi4s_intf_connector hdr_out_intf_connector_0 (.from_tx(axi4s_hdr_out_p), .to_rx(axi4s_hdr_out));
@@ -161,6 +161,7 @@ module axi4s_split_join
    axi4s_intf_bypass_mux #(
       .PIPE_STAGES(1)
     ) bypass_split_mux (
+      .srst,
       .from_tx    (__axi4s_in_p),
       .to_block   (__axi4s_to_split),
       .from_block (axi4s_from_split),
@@ -174,8 +175,6 @@ module axi4s_split_join
    end
 
    always @(posedge clk) reset <= srst || !enable;
-   assign resetn = !reset;
-   assign srstn  = !srst;
 
    // condition input metadata for splitter
    tuser_int_t __axi4s_to_split_tuser;
@@ -254,7 +253,7 @@ module axi4s_split_join
 
 
    // packet fifo instantiation, plus ingress and egress pipeline stages.
-   axi4s_full_pipe to_pyld_fifo_pipe_0 (.from_tx(axi4s_to_pyld_fifo_p), .to_rx(axi4s_to_pyld_fifo));
+   axi4s_full_pipe to_pyld_fifo_pipe_0 (.srst(reset), .from_tx(axi4s_to_pyld_fifo_p), .to_rx(axi4s_to_pyld_fifo));
 
    axi4s_pkt_fifo_sync #(
        .FIFO_DEPTH(FIFO_DEPTH),
@@ -270,7 +269,7 @@ module axi4s_split_join
        .oflow          ()
     );
 
-   axi4s_full_pipe from_pyld_fifo_pipe_0 (.from_tx(axi4s_from_pyld_fifo), .to_rx(axi4s_from_pyld_fifo_p));
+   axi4s_full_pipe from_pyld_fifo_pipe_0 (.srst(reset), .from_tx(axi4s_from_pyld_fifo), .to_rx(axi4s_from_pyld_fifo_p));
 
 
    // payload joiner instantiation.
@@ -306,6 +305,7 @@ module axi4s_split_join
    axi4s_intf_bypass_mux #(
       .PIPE_STAGES(1)
     ) bypass_join_mux (
+      .srst,
       .from_tx    (axi4s_hdr_in_p),
       .to_block   (__axi4s_hdr_in_p),
       .from_block (_axi4s_to_join_mux),

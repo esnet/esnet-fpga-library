@@ -1,5 +1,6 @@
 module axi4s_shaper
 ( 
+  input logic         srst,
   axi4s_intf.rx       rx_axis,
   axi4s_intf.tx       tx_axis,
   input logic[15:0]   div_count,
@@ -22,7 +23,7 @@ module axi4s_shaper
    assign rx_axis.tready =  tx_axis.tready & bus_ready;
 
    always @(posedge rx_axis.aclk) begin
-      if (!rx_axis.aresetn) begin
+      if (srst) begin
 	 div_counter <= 1;
 	 burst_counter <= 0;
 	 bus_ready <= 1;

@@ -6,7 +6,7 @@ module axi4s_from_packet_adapter #(
     parameter int TDEST_WID = 1,
     parameter int TUSER_WID = 1
 ) (
-    input logic srst = 1'b0,
+    input logic srst,
     // Packet data interface
     packet_intf.rx packet_if,
     // AXI-S data interface
@@ -40,7 +40,7 @@ module axi4s_from_packet_adapter #(
     endfunction
 
     // Interfaces
-    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID)) __axis_if (.aclk(axis_if.aclk), .aresetn(axis_if.aresetn));
+    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID)) __axis_if (.aclk(axis_if.aclk));
 
     // Logic
     assign packet_if.rdy = __axis_if.tready;
@@ -48,8 +48,8 @@ module axi4s_from_packet_adapter #(
     // Pipeline input interface for MTY to TKEEP calculation
     initial __axis_if.tvalid = 1'b0;
     always @(posedge __axis_if.aclk) begin
-        if (!__axis_if.aresetn) __axis_if.tvalid <= 1'b0;
-        else                    __axis_if.tvalid <= packet_if.vld && packet_if.rdy;
+        if (srst) __axis_if.tvalid <= 1'b0;
+        else      __axis_if.tvalid <= packet_if.vld && packet_if.rdy;
     end
 
     always_ff @(posedge __axis_if.aclk) begin

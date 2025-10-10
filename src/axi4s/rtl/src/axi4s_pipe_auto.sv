@@ -6,7 +6,7 @@
 // stages, which can be flexibly allocated by the tool between forward
 // and reverse directions.
 module axi4s_pipe_auto (
-    input logic    srst = 1'b0,
+    input logic    srst,
     axi4s_intf.rx  from_tx,
     axi4s_intf.tx  to_rx
 );

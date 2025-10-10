@@ -10,9 +10,19 @@ module axi4s_fifo_sync
     parameter fifo_pkg::opt_mode_t FIFO_OPT_MODE = fifo_pkg::OPT_MODE_TIMING
 
 ) (
+    input logic   srst,
     axi4s_intf.rx from_tx,
     axi4s_intf.tx to_rx
 );
+    //----------------------------------------------
+    // Resets
+    //----------------------------------------------
+    logic from_tx_srst;
+    logic to_rx_srst;
+
+    assign from_tx_srst = srst;
+    assign to_rx_srst = srst;
+
     //----------------------------------------------
     // AXI-S FIFO instance
     //----------------------------------------------

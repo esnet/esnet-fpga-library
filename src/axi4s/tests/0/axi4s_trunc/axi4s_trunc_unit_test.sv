@@ -19,8 +19,6 @@ module axi4s_trunc_unit_test;
     logic clk;
     logic srst;
 
-    logic rstn;
-
     `SVUNIT_CLK_GEN(clk, 10ns);
 
     localparam DATA_BYTE_WID = 64;
@@ -30,14 +28,12 @@ module axi4s_trunc_unit_test;
     axi4s_monitor #(.DATA_BYTE_WID(DATA_BYTE_WID)) axis_monitor;
 
     // local axi4s interface instantiations
-    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID)) axi4s_in (.aclk(clk), .aresetn(rstn));
-    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID)) axi4s_out(.aclk(clk), .aresetn(rstn));
+    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID)) axi4s_in (.aclk(clk));
+    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID)) axi4s_out(.aclk(clk));
 
     // axi4s_split_join instantiation
     int length;
     axi4s_trunc #(.OUT_PIPE(0)) DUT (.*);
-
-    assign srst = !rstn;
 
     // monitor for tdata==0 when tkeep==0
     always @(negedge axi4s_out.aclk)  if (axi4s_out.tvalid && axi4s_out.tready)
@@ -46,7 +42,7 @@ module axi4s_trunc_unit_test;
                         $sformatf("FAIL!!! tkeep=0 but packet bytes NOT zeroed at byte_idx: 0x%0h (d:%0d)", i, i) )
 
     // monitor for zeroed axi4s signals when tvalid==0
-    always @(negedge axi4s_out.aclk)  if (axi4s_out.aresetn && !axi4s_out.tvalid) begin
+    always @(negedge axi4s_out.aclk)  if (!srst && !axi4s_out.tvalid) begin
        for (int i=0; i<DATA_BYTE_WID; i++) `FAIL_IF_LOG(|axi4s_out.tdata[i], "FAILED");
        `FAIL_IF_LOG( ((|axi4s_out.tkeep) || (axi4s_out.tlast) ||
                       (|axi4s_out.tid) || (|axi4s_out.tdest) || (|axi4s_out.tuser) ),
@@ -82,14 +78,14 @@ module axi4s_trunc_unit_test;
        // Flush packets from pipeline
        axis_monitor.flush();
 
-       rstn <= 0;
+       srst <= 1;
        @(posedge clk);
 
        // Put AXI-S interfaces into quiescent state
        axis_driver.idle();
        axis_monitor.idle();
 
-       rstn <= 1;
+       srst <= 0;
        @(posedge clk);
 
        repeat(100) @(posedge clk);

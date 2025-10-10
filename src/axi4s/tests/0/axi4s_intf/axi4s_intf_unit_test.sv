@@ -52,9 +52,9 @@ module axi4s_intf_unit_test #(
     logic aclk_in;
     logic aclk_out;
     logic aclk_out_gen;
-    logic aresetn;
-    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID)) from_tx (.aclk(aclk_in),  .aresetn);
-    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID)) to_rx   (.aclk(aclk_out), .aresetn);
+    logic srst;
+    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID)) from_tx (.aclk(aclk_in));
+    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID)) to_rx   (.aclk(aclk_out));
 
     axi4l_intf  axil_to_probe ();
     axi4l_intf  axil_to_ovfl  ();
@@ -80,25 +80,26 @@ module axi4s_intf_unit_test #(
          6: axi4s_fifo_sync  #(.DEPTH(8192)) DUT (.*);
 
          7: begin
-                axi4s_fifo_async #(.DEPTH(  32)) DUT (.*);
+                axi4s_fifo_async #(.DEPTH(  32)) DUT (.from_tx_srst(srst), .to_rx_srst(srst), .*);
                 assign ASYNC = 1;
                `SVUNIT_CLK_GEN(aclk_out_gen, 1.0ns);  // slow to fast
             end
 
          8: begin
-                axi4s_fifo_async #(.DEPTH( 512)) DUT (.*);
+                axi4s_fifo_async #(.DEPTH( 512)) DUT (.from_tx_srst(srst), .to_rx_srst(srst), .*);
                 assign ASYNC = 1;
                `SVUNIT_CLK_GEN(aclk_out_gen, 1.5ns);
             end
 
          9: begin
-                axi4s_fifo_async #(.DEPTH(8192)) DUT (.*);
+                axi4s_fifo_async #(.DEPTH(8192)) DUT (.from_tx_srst(srst), .to_rx_srst(srst), .*);
                 assign ASYNC = 1;
                `SVUNIT_CLK_GEN(aclk_out_gen, 2.0ns);  // fast to slow
             end
 
          10: begin
-                axi4s_pkt_fifo_async DUT ( .axi4s_in(from_tx), .axi4s_out(to_rx),
+                axi4s_pkt_fifo_async DUT ( 
+                                           .axi4s_in(from_tx), .axi4s_in_srst(srst), .axi4s_out(to_rx), .axi4s_out_srst(srst),
                                            .flow_ctl_thresh('0), .flow_ctl(),
                                            .axil_to_probe(axil_to_probe), .axil_to_ovfl(axil_to_ovfl), .axil_if(axil_if) );
                 assign ASYNC = 1;
@@ -109,7 +110,7 @@ module axi4s_intf_unit_test #(
                 assign tvalid_check = 1;
 
                 axi4s_pkt_fifo_async #(.TX_THRESHOLD(512)) DUT (
-                                           .axi4s_in(from_tx), .axi4s_out(to_rx),
+                                           .axi4s_in(from_tx), .axi4s_in_srst(srst), .axi4s_out(to_rx), .axi4s_out_srst(srst),
                                            .flow_ctl_thresh('0), .flow_ctl(),
                                            .axil_to_probe(axil_to_probe), .axil_to_ovfl(axil_to_ovfl), .axil_if(axil_if) );
                 assign ASYNC = 1;
@@ -117,7 +118,7 @@ module axi4s_intf_unit_test #(
             end
 
          12: begin
-                axi4s_pkt_fifo_sync DUT ( .srst(reset_if.reset), .axi4s_in(from_tx), .axi4s_out(to_rx),
+                axi4s_pkt_fifo_sync DUT ( .srst, .axi4s_in(from_tx), .axi4s_out(to_rx),
                                           .axil_to_probe(axil_to_probe), .axil_to_ovfl(axil_to_ovfl), .axil_if(axil_if),
                                           .oflow() );
             end
@@ -127,7 +128,7 @@ module axi4s_intf_unit_test #(
                 bit err; META_T meta, packet_if_meta;
                 TID_T tid; TDEST_T tdest; TUSER_T tuser;
 
-                packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_WID(META_WID)) packet_if (.clk(from_tx.aclk), .srst(!from_tx.aresetn));
+                packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_WID(META_WID)) packet_if (.clk(from_tx.aclk));
 
                 assign err = 1'b0;
                 assign meta.tid = from_tx.tid;
@@ -145,24 +146,24 @@ module axi4s_intf_unit_test #(
         16 : axi4s_pipe_slr DUT (.*);
         17 : axi4s_pipe_slr #(.PRE_PIPE_STAGES(1), .POST_PIPE_STAGES(1)) DUT (.*);
         18 : begin
-            axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID)) __axis_if (.aclk(aclk_in), .aresetn);
-            axi4s_pipe_slr #(.PRE_PIPE_STAGES(1), .POST_PIPE_STAGES(1)) DUT1 (.from_tx, .to_rx ( __axis_if ));
-            axi4s_pipe_slr #(.PRE_PIPE_STAGES(1), .POST_PIPE_STAGES(1)) DUT2 (.from_tx ( __axis_if ),  .to_rx);
+            axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID)) __axis_if (.aclk(aclk_in));
+            axi4s_pipe_slr #(.PRE_PIPE_STAGES(1), .POST_PIPE_STAGES(1)) DUT1 (.srst, .from_tx, .to_rx ( __axis_if ));
+            axi4s_pipe_slr #(.PRE_PIPE_STAGES(1), .POST_PIPE_STAGES(1)) DUT2 (.srst, .from_tx ( __axis_if ),  .to_rx);
         end
         19 : begin
-            axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID)) __axis_if (.aclk(aclk_in), .aresetn);
-            axi4s_pipe_slr #(.PRE_PIPE_STAGES(1), .POST_PIPE_STAGES(1)) DUT1 (.from_tx, .to_rx ( __axis_if ));
-            axi4s_pipe #(.STAGES(1)) DUT2 (.from_tx ( __axis_if ), .to_rx);
+            axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID)) __axis_if (.aclk(aclk_in));
+            axi4s_pipe_slr #(.PRE_PIPE_STAGES(1), .POST_PIPE_STAGES(1)) DUT1 (.srst, .from_tx, .to_rx ( __axis_if ));
+            axi4s_pipe #(.STAGES(1)) DUT2 (.srst, .from_tx ( __axis_if ), .to_rx);
         end
         20 : begin
-            axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID)) __axis_if (.aclk(aclk_in), .aresetn);
-            axi4s_pipe #(.STAGES(1)) DUT1 (.from_tx, .to_rx ( __axis_if ));
-            axi4s_pipe_slr #(.PRE_PIPE_STAGES(1), .POST_PIPE_STAGES(1)) DUT2 (.from_tx ( __axis_if ), .to_rx);
+            axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID)) __axis_if (.aclk(aclk_in));
+            axi4s_pipe #(.STAGES(1)) DUT1 (.srst, .from_tx, .to_rx ( __axis_if ));
+            axi4s_pipe_slr #(.PRE_PIPE_STAGES(1), .POST_PIPE_STAGES(1)) DUT2 (.srst, .from_tx ( __axis_if ), .to_rx);
         end
         21 : begin
-            axi4s_intf #(.DATA_BYTE_WID(4*DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID)) __axis_if (.aclk(aclk_in), .aresetn);
-            axi4s_width_converter #() DUT1 (.from_tx, .to_rx (__axis_if ));
-            axi4s_width_converter #() DUT2 (.from_tx (__axis_if ), .to_rx);
+            axi4s_intf #(.DATA_BYTE_WID(4*DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID)) __axis_if (.aclk(aclk_in));
+            axi4s_width_converter #() DUT1 (.srst, .from_tx, .to_rx (__axis_if ));
+            axi4s_width_converter #() DUT2 (.srst, .from_tx (__axis_if ), .to_rx);
         end
       endcase
    endgenerate
@@ -184,7 +185,7 @@ module axi4s_intf_unit_test #(
 
     // Reset
     std_reset_intf reset_if (.clk(from_tx.aclk));
-    assign aresetn = !reset_if.reset;
+    assign srst = reset_if.reset;
     assign reset_if.ready = !reset_if.reset;
 
     // Assign clock (333MHz)
@@ -196,19 +197,29 @@ module axi4s_intf_unit_test #(
     end
 
     // Checking logic
+    logic rx_sop;
     logic pkt_pending, pkt_pending_ff;
 
+    initial rx_sop = 1'b1;
     always @(posedge to_rx.aclk) begin
-        if (!to_rx.aresetn)                          pkt_pending_ff <=  0;
-        else if (to_rx.tvalid && to_rx.tready) pkt_pending_ff <=  pkt_pending_ff ? !to_rx.tlast : to_rx.sop;
+        if (srst) rx_sop <= 1'b1;
+        else begin
+            if (to_rx.tvalid && to_rx.tready && to_rx.tlast) rx_sop <= 1'b1;
+            else if (to_rx.tvalid && to_rx.tready)           rx_sop <= 1'b0;
+        end
     end
 
-    assign pkt_pending = pkt_pending_ff || (to_rx.tvalid && to_rx.tready && to_rx.sop);
+    always @(posedge to_rx.aclk) begin
+        if (srst)                              pkt_pending_ff <=  0;
+        else if (to_rx.tvalid && to_rx.tready) pkt_pending_ff <=  pkt_pending_ff ? !to_rx.tlast : rx_sop;
+    end
+
+    assign pkt_pending = pkt_pending_ff || (to_rx.tvalid && to_rx.tready && rx_sop);
 
     logic tvalid_fail;
     always @(posedge to_rx.aclk) begin
-        if (!to_rx.aresetn) tvalid_fail <= 0;
-        else if (tvalid_check)    tvalid_fail <= tvalid_fail || (pkt_pending && to_rx.tready && !to_rx.tvalid);
+        if (srst)              tvalid_fail <= 0;
+        else if (tvalid_check) tvalid_fail <= tvalid_fail || (pkt_pending && to_rx.tready && !to_rx.tvalid);
     end
 
     //===================================

@@ -12,7 +12,9 @@ module axi4s_pkt_fifo_async #(
    parameter bit   IGNORE_TREADY = 0,
    parameter bit   DROP_ERRORED = 0   // when 1, drop 'errored' packets, where error status is carried in lsb of axi4s_in.TUSER
 ) (
+   input logic     axi4s_in_srst,
    axi4s_intf.rx   axi4s_in,
+   input logic     axi4s_out_srst,
    axi4s_intf.tx   axi4s_out,
 
    input  logic [15:0] flow_ctl_thresh,
@@ -41,15 +43,15 @@ module axi4s_pkt_fifo_async #(
 
    axi4s_intf  #(.DATA_BYTE_WID(DATA_BYTE_WID),
                  .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID))
-                 axi4s_in_p (.aclk(axi4s_in.aclk), .aresetn(axi4s_in.aresetn));
+                 axi4s_in_p (.aclk(axi4s_in.aclk));
 
    axi4s_intf  #(.DATA_BYTE_WID(DATA_BYTE_WID),
                  .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID))
-                 __axi4s_in (.aclk(axi4s_in.aclk), .aresetn(axi4s_in.aresetn));
+                 __axi4s_in (.aclk(axi4s_in.aclk));
 
    axi4s_intf  #(.DATA_BYTE_WID(DATA_BYTE_WID),
                  .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID))
-                 axi4s_to_fifo (.aclk(axi4s_in.aclk), .aresetn(axi4s_in.aresetn));
+                 axi4s_to_fifo (.aclk(axi4s_in.aclk));
 
    localparam CNT_WIDTH = $clog2(FIFO_DEPTH);
 
@@ -79,6 +81,8 @@ module axi4s_pkt_fifo_async #(
    logic                pkt_empty;
    logic                pkt_ready;
 
+   logic                sop_out;
+
    localparam DATA_WIDTH = $size(wr_data);
    localparam PKT_DISCARD_DEPTH = $ceil($itor(MAX_PKT_LEN) / $itor(DATA_BYTE_WID)) * 3; // axi4s_pkt_discard_ovfl buffers 3 max pkts.
    localparam FIFO_ASYNC_DEPTH = FIFO_DEPTH;
@@ -88,7 +92,7 @@ module axi4s_pkt_fifo_async #(
    // --- axi4s_pkt_discard_ovfl instantiation (if IGNORE_TREADY mode is enabled) ---
    generate
       if (IGNORE_TREADY) begin : g__pkt_discard_ovfl
-         axi4s_intf_pipe axi4s_in_pipe (.from_tx(axi4s_in), .to_rx(axi4s_in_p));
+         axi4s_intf_pipe axi4s_in_pipe (.srst (axi4s_in_srst), .from_tx(axi4s_in), .to_rx(axi4s_in_p));
 
          // connector drives axi4s_in.tready to 1'b1 when in IGNORE_TREADY mode.
          axi4s_intf_connector #(.IGNORE_TREADY(1)) axi4s_in_connector (
@@ -110,6 +114,7 @@ module axi4s_pkt_fifo_async #(
              .MAX_PKT_LEN  (MAX_PKT_LEN),
              .DROP_ERRORED (DROP_ERRORED)
          ) axi4s_pkt_discard_ovfl_0 (
+             .srst      (axi4s_in_srst),
              .axi4s_in  (__axi4s_in),
              .axi4s_out (axi4s_to_fifo)
          );
@@ -160,7 +165,7 @@ module axi4s_pkt_fifo_async #(
       .FWFT      (1)
    ) fifo_async_0 (
       .wr_clk    ( axi4s_to_fifo.aclk ),
-      .wr_srst   (~axi4s_to_fifo.aresetn ),
+      .wr_srst   ( axi4s_in_srst ),
       .wr_rdy    ( wr_rdy ),
       .wr        ( wr ),
       .wr_data   ( wr_data ),
@@ -169,7 +174,7 @@ module axi4s_pkt_fifo_async #(
       .wr_oflow  ( oflow ),
 
       .rd_clk    ( axi4s_out.aclk ),
-      .rd_srst   (~axi4s_out.aresetn ),
+      .rd_srst   ( axi4s_out_srst ),
       .rd        ( rd ),
       .rd_ack    ( ),
       .rd_data   ( rd_data ),
@@ -187,17 +192,17 @@ module axi4s_pkt_fifo_async #(
        .FWFT     ( 1 )
    ) fifo_async__pkt_ctxt (
        .wr_clk   ( axi4s_to_fifo.aclk ),
-       .wr_srst  ( ~axi4s_to_fifo.aresetn ),
+       .wr_srst  ( axi4s_in_srst ),
        .wr_rdy   ( ),
-       .wr       (  axi4s_to_fifo.tvalid && axi4s_to_fifo.tready && axi4s_to_fifo.tlast ),
-       .wr_data  (  1'b1 ),
+       .wr       ( axi4s_to_fifo.tvalid && axi4s_to_fifo.tready && axi4s_to_fifo.tlast ),
+       .wr_data  ( 1'b1 ),
        .wr_count ( ),
        .wr_full  ( ),
 
        .wr_oflow ( ),
-       .rd_clk   (  axi4s_out.aclk ),
-       .rd_srst  ( ~axi4s_out.aresetn ),
-       .rd       (  axi4s_out.tvalid && axi4s_out.tready && axi4s_out.tlast ),
+       .rd_clk   ( axi4s_out.aclk ),
+       .rd_srst  ( axi4s_out_srst ),
+       .rd       ( axi4s_out.tvalid && axi4s_out.tready && axi4s_out.tlast ),
        .rd_ack   ( ),
        .rd_data  ( ),
        .rd_count ( ),
@@ -223,8 +228,18 @@ module axi4s_pkt_fifo_async #(
        end : g__tx_threshold
    endgenerate
 
+   // --- axi4s output sop tracking
+   initial sop_out = 1'b1;
+   always @(posedge axi4s_out.aclk) begin
+       if (axi4s_out_srst) sop_out <= 1'b1;
+       else begin
+           if (axi4s_out.tvalid && axi4s_out.tready && axi4s_out.tlast) sop_out <= 1'b1;
+           else if (axi4s_out.tvalid && axi4s_out.tready)               sop_out <= 1'b0;
+       end
+   end
+
    // --- axi4s output signaling ---
-   assign axi4s_out.tvalid = ~empty && (~axi4s_out.sop || pkt_ready);
+   assign axi4s_out.tvalid = ~empty && (~sop_out || pkt_ready);
 
    assign axi4s_out.tuser  = rd_data.tuser;
    assign axi4s_out.tlast  = rd_data.tlast;

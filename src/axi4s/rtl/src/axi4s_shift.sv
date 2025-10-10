@@ -22,7 +22,7 @@ module axi4s_shift
    localparam int TUSER_WID     = axi4s_in.TUSER_WID;
 
    axi4s_intf #( .DATA_BYTE_WID(DATA_BYTE_WID),
-                 .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID) ) axi4s_shift (.aclk(axi4s_in.aclk), .aresetn(axi4s_in.aresetn));
+                 .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID) ) axi4s_shift (.aclk(axi4s_in.aclk));
 
    logic [DATA_BYTE_WID-1:0][7:0] tdata, _tdata;
    logic [DATA_BYTE_WID-1:0]      tkeep, _tkeep;

@@ -8,19 +8,31 @@ module axi4s_pkt_discard_err
 #(
    parameter axi4s_tuser_mode_t TUSER_MODE = USER
 ) (
+   input logic             srst,
    axi4s_intf.rx           axi4s_in_if,
    axi4s_intf.tx           axi4s_out_if,
    axi4l_intf.peripheral   axi4l_if
 );
 
+   logic sop_in;
    logic err_sop, err_pkt;
 
+   // track sop
+   initial sop_in = 1'b1;
+   always @(posedge axi4s_in_if.aclk) begin
+       if (srst) sop_in <= 1'b1;
+       else begin
+           if (axi4s_in_if.tvalid && axi4s_in_if.tready && axi4s_in_if.tlast) sop_in <= 1'b1;
+           else if (axi4s_in_if.tvalid && axi4s_in_if.tready)                 sop_in <= 1'b0;
+       end
+   end
+
    // assert err_sop if first axi4s transaction has error flag set.
-   assign err_sop = axi4s_in_if.tvalid && axi4s_in_if.tready && axi4s_in_if.sop &&
+   assign err_sop = axi4s_in_if.tvalid && axi4s_in_if.tready && sop_in &&
                    (TUSER_MODE == PKT_ERROR) && axi4s_in_if.tuser;
 
    always @(posedge axi4s_in_if.aclk)
-      if (~axi4s_in_if.aresetn) err_pkt <= 0;
+      if (srst) err_pkt <= 0;
       else 
          // if err_pkt is asserted, deassert err_pkt at end of inbound packet.
          // else assert err_pkt when inbound packet has error flag set (and if not tlast).
@@ -43,9 +55,7 @@ module axi4s_pkt_discard_err
 
 
    // error counter logic
-   axi4s_intf  #( 
-      .DATA_BYTE_WID (axi4s_in_if.DATA_BYTE_WID)
-   ) __axi4s_in_if (.aclk(axi4s_in_if.aclk), .aresetn(axi4s_in_if.aresetn));
+   axi4s_intf  #(.DATA_BYTE_WID (axi4s_in_if.DATA_BYTE_WID)) __axi4s_in_if (.aclk(axi4s_in_if.aclk));
 
    // __axis4s_in_if assignments. ensure tuser is high for full packet if error is detected on sop.
    assign __axi4s_in_if.tready  = axi4s_in_if.tready;
