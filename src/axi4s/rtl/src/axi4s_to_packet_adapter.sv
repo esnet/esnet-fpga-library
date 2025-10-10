@@ -4,6 +4,7 @@
 module axi4s_to_packet_adapter #(
     parameter int META_WID = 1
 ) (
+    input logic                srst = 1'b0,
     // AXI-S data interface
     axi4s_intf.rx              axis_if,
     // Packet data interface
@@ -34,7 +35,7 @@ module axi4s_to_packet_adapter #(
     endfunction
 
     // Interfaces
-    packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_WID(META_WID)) __packet_if (.clk(packet_if.clk), .srst(packet_if.srst));
+    packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_WID(META_WID)) __packet_if (.clk(packet_if.clk));
 
     // Signals
     logic  __vld;
@@ -68,6 +69,7 @@ module axi4s_to_packet_adapter #(
 
     // Skid buffer to accommodate interface pipelining
     packet_skid_buffer #(.SKID (1)) i_packet_skid_buffer (
+        .srst,
         .from_tx ( __packet_if ),
         .to_rx   ( packet_if ),
         .oflow   ( )

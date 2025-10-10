@@ -3,6 +3,7 @@
     parameter int  PRE_PIPE_STAGES = 0,  // Input (pre-crossing) pipe stages, in addition to SLR-crossing stage
     parameter int  POST_PIPE_STAGES = 0  // Output (post-crossing) pipe stages, in addition to SLR-crossing stage
 ) (
+    input logic    srst = 1'b0,
     axi4s_intf.rx  from_tx,
     axi4s_intf.tx  to_rx
 );
@@ -35,26 +36,18 @@
 
     // Signals
     logic clk;
-    logic srst;
 
     assign clk = from_tx.aclk;
-    assign srst = !from_tx.aresetn;
 
-    bus_intf #(.DATA_WID(PAYLOAD_WID)) bus_if__from_tx (.clk, .srst);
-    bus_intf #(.DATA_WID(PAYLOAD_WID)) bus_if__to_rx   (.clk, .srst);
+    bus_intf #(.DATA_WID(PAYLOAD_WID)) bus_if__from_tx (.clk);
+    bus_intf #(.DATA_WID(PAYLOAD_WID)) bus_if__to_rx   (.clk);
 
     axi4s_to_bus_adapter i_axi4s_to_bus_adapter (
         .axi4s_if_from_tx ( from_tx ),
         .bus_if_to_rx     ( bus_if__from_tx )
     );
 
-    generate
-        begin : g__fwd
-            bus_pipe_slr #(
-                .PRE_PIPE_STAGES(PRE_PIPE_STAGES), .POST_PIPE_STAGES(POST_PIPE_STAGES)
-            ) i_bus_pipe_slr ( .from_tx ( bus_if__from_tx ), .to_rx ( bus_if__to_rx ));
-        end : g__fwd
-    endgenerate
+    bus_pipe_slr #(.PRE_PIPE_STAGES(PRE_PIPE_STAGES), .POST_PIPE_STAGES(POST_PIPE_STAGES)) i_bus_pipe_slr (.srst, .from_tx (bus_if__from_tx), .to_rx (bus_if__to_rx));
 
     axi4s_from_bus_adapter i_axi4s_from_bus_adapter (
         .bus_if_from_tx ( bus_if__to_rx ),

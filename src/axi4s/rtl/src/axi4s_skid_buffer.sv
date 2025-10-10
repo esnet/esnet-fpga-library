@@ -17,6 +17,7 @@ module axi4s_skid_buffer #(
     parameter int SKID = 1  // Number of cycles that can be received on
                             // from_tx *after* deassertion of tready
 ) (
+    input logic   srst = 1'b0,
     axi4s_intf.rx from_tx,
     axi4s_intf.tx to_rx,
     output logic  oflow     // An overflow of the skid buffer is possible
@@ -69,7 +70,7 @@ module axi4s_skid_buffer #(
         .PIPELINE_DEPTH  ( SKID )
     ) i_fifo_prefetch (
         .clk      ( from_tx.aclk ),
-        .srst     ( !from_tx.aresetn ),
+        .srst,
         .wr       ( from_tx.tvalid ),
         .wr_rdy   ( from_tx.tready ),
         .wr_data  ( axi4s_in_data ),

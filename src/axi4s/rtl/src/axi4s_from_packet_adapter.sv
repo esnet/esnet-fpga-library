@@ -6,6 +6,7 @@ module axi4s_from_packet_adapter #(
     parameter int TDEST_WID = 1,
     parameter int TUSER_WID = 1
 ) (
+    input logic srst = 1'b0,
     // Packet data interface
     packet_intf.rx packet_if,
     // AXI-S data interface
@@ -62,6 +63,7 @@ module axi4s_from_packet_adapter #(
 
     // Skid buffer to accommodate interface pipelining
     axi4s_skid_buffer #(.SKID (1)) i_axi4s_skid_buffer (
+        .srst,
         .from_tx ( __axis_if ),
         .to_rx   ( axis_if ),
         .oflow   ( )
