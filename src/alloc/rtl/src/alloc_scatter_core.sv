@@ -12,7 +12,7 @@ module alloc_scatter_core #(
 ) (
     // Clock/reset
     input logic            clk,
-    input logic            srst = 1'b0,
+    input logic            srst,
 
     // Control
     input  logic           en,
@@ -112,6 +112,7 @@ module alloc_scatter_core #(
             logic               __alloc_ptr_valid;
             logic [PTR_WID-1:0] __alloc_ptr;
             logic               __req_q_rd;
+            logic               __scatter_if_sof;
             req_ctxt_t          __req_ctxt_in;
             req_ctxt_t          __req_ctxt_nxt;
             logic               __req_ctxt_nxt_valid;
@@ -142,8 +143,18 @@ module alloc_scatter_core #(
             assign scatter_if[g_ctxt].rdy = __alloc_ptr_valid;
             assign scatter_if[g_ctxt].ptr = __alloc_ptr;
 
+            // Track SOF
+            initial __scatter_if_sof = 1'b1;
+            always @(posedge clk) begin
+                if (srst) __scatter_if_sof <= 1'b1;
+                else begin
+                    if (scatter_if[g_ctxt].vld && scatter_if[g_ctxt].ack && scatter_if[g_ctxt].eof) __scatter_if_sof <= 1'b1;
+                    else if (scatter_if[g_ctxt].vld && scatter_if[g_ctxt].ack)                      __scatter_if_sof <= 1'b0;
+                end
+            end
+
             // Request queue
-            assign __req_ctxt_in.sof  = scatter_if[g_ctxt].sof;
+            assign __req_ctxt_in.sof  = __scatter_if_sof;
             assign __req_ctxt_in.ptr  = scatter_if[g_ctxt].nxt_ptr;
             assign __req_ctxt_in.eof  = scatter_if[g_ctxt].eof;
             assign __req_ctxt_in.size = scatter_if[g_ctxt].size;

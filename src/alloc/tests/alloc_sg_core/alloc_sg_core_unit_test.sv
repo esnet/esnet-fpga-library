@@ -46,8 +46,8 @@ module alloc_sg_core_unit_test #(
     PTR_T        frame_ptr;
     FRAME_SIZE_T frame_size;
 
-    alloc_intf #(.BUFFER_SIZE(BUFFER_SIZE), .PTR_WID(PTR_WID), .META_WID(META_WID)) scatter_if [CONTEXTS] (.clk, .srst);
-    alloc_intf #(.BUFFER_SIZE(BUFFER_SIZE), .PTR_WID(PTR_WID), .META_WID(META_WID)) gather_if  [CONTEXTS] (.clk, .srst);
+    alloc_intf #(.BUFFER_SIZE(BUFFER_SIZE), .PTR_WID(PTR_WID), .META_WID(META_WID)) scatter_if [CONTEXTS] (.clk);
+    alloc_intf #(.BUFFER_SIZE(BUFFER_SIZE), .PTR_WID(PTR_WID), .META_WID(META_WID)) gather_if  [CONTEXTS] (.clk);
 
     logic   recycle_req;
     logic   recycle_rdy;

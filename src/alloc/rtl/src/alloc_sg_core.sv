@@ -19,7 +19,7 @@ module alloc_sg_core #(
 ) (
     // Clock/reset
     input logic                clk,
-    input logic                srst = 1'b0,
+    input logic                srst,
 
     // Control
     input  logic               en,
