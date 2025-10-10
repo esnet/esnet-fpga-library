@@ -57,9 +57,9 @@ module packet_gather_wrapper #(
 
     localparam int NUM_BUFFERS = 2**PTR_WID;
 
-    packet_intf #(DATA_BYTE_WID, META_WID) packet_if  (.clk, .srst);
-    alloc_intf #(BUFFER_SIZE, PTR_WID, META_WID) gather_if (.clk, .srst);
-    packet_descriptor_intf #(PTR_WID, META_WID, MAX_PKT_SIZE) descriptor_if (.clk, .srst);
+    packet_intf #(DATA_BYTE_WID, META_WID) packet_if  (.clk);
+    alloc_intf #(BUFFER_SIZE, PTR_WID, META_WID) gather_if (.clk);
+    packet_descriptor_intf #(PTR_WID, META_WID, MAX_PKT_SIZE) descriptor_if (.clk);
     packet_event_intf event_if (.clk);
     mem_rd_intf #(ADDR_WID, DATA_WID) mem_rd_if (.clk);
 

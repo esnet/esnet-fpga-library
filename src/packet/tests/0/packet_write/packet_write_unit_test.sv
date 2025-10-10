@@ -37,13 +37,13 @@ module packet_write_unit_test #(
     logic clk;
     logic srst;
 
-    packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_WID(META_WID)) packet_if (.clk, .srst);
+    packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_WID(META_WID)) packet_if (.clk);
 
-    packet_descriptor_intf #(.ADDR_WID(ADDR_WID), .META_WID(META_WID)) nxt_descriptor_if (.clk, .srst);
-    packet_descriptor_intf #(.ADDR_WID(ADDR_WID), .META_WID(META_WID)) descriptor_if (.clk, .srst);
+    packet_descriptor_intf #(.ADDR_WID(ADDR_WID), .META_WID(META_WID)) nxt_descriptor_if (.clk);
+    packet_descriptor_intf #(.ADDR_WID(ADDR_WID), .META_WID(META_WID)) descriptor_if (.clk);
     packet_event_intf event_if (.clk(clk));
 
-    mem_wr_intf #(.ADDR_WID(ADDR_WID), .DATA_WID(DATA_WID)) mem_wr_if (.clk(clk));
+    mem_wr_intf #(.ADDR_WID(ADDR_WID), .DATA_WID(DATA_WID)) mem_wr_if (.clk);
     logic mem_init_done;
 
     packet_write     #(

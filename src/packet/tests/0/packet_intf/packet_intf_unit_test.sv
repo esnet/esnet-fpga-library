@@ -25,23 +25,23 @@ module packet_intf_unit_test #(
     logic clk;
     logic srst;
 
-    packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_WID(META_WID)) from_tx (.clk, .srst);
-    packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_WID(META_WID)) to_rx   (.clk, .srst);
+    packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_WID(META_WID)) from_tx (.clk);
+    packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_WID(META_WID)) to_rx   (.clk);
 
 
     generate
         case (DUT_SELECT)
             "packet_intf_connector": packet_intf_connector DUT (.*);
-            "packet_fifo": packet_fifo #(.DEPTH (2048)) DUT (.packet_in_if(from_tx), .packet_out_if(to_rx));
+            "packet_fifo": packet_fifo #(.DEPTH (2048)) DUT (.srst_in (srst), .packet_in_if(from_tx), .srst_out (srst), .packet_out_if(to_rx));
             "packet_pipe_1st": packet_pipe #(.STAGES(1)) DUT (.*);
             "packet_pipe_4st": packet_pipe #(.STAGES(4)) DUT (.*);
             "packet_pipe_auto": packet_pipe_auto DUT (.*);
             "packet_pipe_slr": packet_pipe_slr DUT (.*);
             "packet_pipe_slr_p1_p1": packet_pipe_slr #(.PRE_PIPE_STAGES(1), .POST_PIPE_STAGES(1)) DUT (.*);
             "packet_width_converter": begin : g__packet_width_converter
-                packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID*8), .META_WID(META_WID)) __packet_if (.clk, .srst);
-                packet_width_converter DUT1 (.from_tx, .to_rx(__packet_if));
-                packet_width_converter DUT2 (.from_tx(__packet_if), .to_rx);
+                packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID*8), .META_WID(META_WID)) __packet_if (.clk);
+                packet_width_converter DUT1 (.srst, .from_tx, .to_rx(__packet_if));
+                packet_width_converter DUT2 (.srst, .from_tx(__packet_if), .to_rx);
             end : g__packet_width_converter
         endcase
     endgenerate

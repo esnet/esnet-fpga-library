@@ -26,8 +26,11 @@ module packet_descriptor_intf_unit_test #(
     logic clk;
     logic srst;
 
-    packet_descriptor_intf #(.ADDR_WID(ADDR_WID), .META_WID(META_WID)) from_tx (.clk, .srst);
-    packet_descriptor_intf #(.ADDR_WID(ADDR_WID), .META_WID(META_WID)) to_rx   (.clk, .srst);
+    logic from_tx_srst;
+    logic to_rx_srst;
+
+    packet_descriptor_intf #(.ADDR_WID(ADDR_WID), .META_WID(META_WID)) from_tx (.clk);
+    packet_descriptor_intf #(.ADDR_WID(ADDR_WID), .META_WID(META_WID)) to_rx   (.clk);
 
     generate
       case (DUT_SELECT)
@@ -58,6 +61,9 @@ module packet_descriptor_intf_unit_test #(
     assign reset_if.ready = !reset_if.reset;
 
     assign srst = reset_if.reset;
+
+    assign from_tx_srst = srst;
+    assign to_rx_srst = srst;
 
     // Assign clock (333MHz)
     `SVUNIT_CLK_GEN(clk, 1.5ns);

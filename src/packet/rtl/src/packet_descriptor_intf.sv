@@ -3,8 +3,7 @@ interface packet_descriptor_intf #(
     parameter int META_WID = 1,
     parameter int MAX_PKT_SIZE = 16383
 ) (
-    input logic clk,
-    input logic srst = 1'b0
+    input logic clk
 );
     // Parameters
     localparam int SIZE_WID = $clog2(MAX_PKT_SIZE+1);
@@ -20,7 +19,6 @@ interface packet_descriptor_intf #(
     // Modports
     modport tx(
         input  clk,
-        input  srst,
         output vld,
         input  rdy,
         output addr,
@@ -31,7 +29,6 @@ interface packet_descriptor_intf #(
 
     modport rx(
         input  clk,
-        input  srst,
         input  vld,
         output rdy,
         input  addr,

@@ -26,8 +26,8 @@ module packet_fifo_sync_wrapper #(
     output logic [META_WID-1:0]  packet_out_meta
 );
 
-    packet_intf #(DATA_BYTE_WID, META_WID) packet_in_if  (.clk, .srst);
-    packet_intf #(DATA_BYTE_WID, META_WID) packet_out_if (.clk, .srst);
+    packet_intf #(DATA_BYTE_WID, META_WID) packet_in_if  (.clk);
+    packet_intf #(DATA_BYTE_WID, META_WID) packet_out_if (.clk);
 
     assign packet_in_if.vld = packet_in_vld;
     assign packet_in_if.eop = packet_in_eop;
@@ -49,6 +49,8 @@ module packet_fifo_sync_wrapper #(
         .ASYNC   ( 0 ),
         .DEPTH   ( DEPTH )
     ) i_packet_fifo (
+        .srst_in  ( srst ),
+        .srst_out ( srst ),
         .*
     );
 

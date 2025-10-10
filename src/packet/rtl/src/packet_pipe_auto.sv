@@ -6,6 +6,7 @@
 // stages, which can be flexibly allocated by the tool between forward
 // and reverse directions.
 module packet_pipe_auto (
+    input logic     srst,
     packet_intf.rx  from_tx,
     packet_intf.tx  to_rx
 );
@@ -33,24 +34,18 @@ module packet_pipe_auto (
 
     // Signals
     logic clk;
-    logic srst;
 
     assign clk = from_tx.clk;
-    assign srst = from_tx.srst;
 
-    bus_intf #(.DATA_WID(PAYLOAD_WID)) bus_if__from_tx (.clk, .srst);
-    bus_intf #(.DATA_WID(PAYLOAD_WID)) bus_if__to_rx   (.clk, .srst);
+    bus_intf #(.DATA_WID(PAYLOAD_WID)) bus_if__from_tx (.clk);
+    bus_intf #(.DATA_WID(PAYLOAD_WID)) bus_if__to_rx   (.clk);
 
     packet_to_bus_adapter i_packet_to_bus_adapter (
         .packet_if_from_tx ( from_tx ),
         .bus_if_to_rx      ( bus_if__from_tx )
     );
 
-    generate
-        begin : g__fwd
-            bus_pipe_auto i_bus_pipe_auto ( .from_tx ( bus_if__from_tx ), .to_rx ( bus_if__to_rx ));
-        end : g__fwd
-    endgenerate
+    bus_pipe_auto i_bus_pipe_auto (.srst, .from_tx (bus_if__from_tx), .to_rx (bus_if__to_rx));
 
     packet_from_bus_adapter i_packet_from_bus_adapter (
         .bus_if_from_tx  ( bus_if__to_rx ),

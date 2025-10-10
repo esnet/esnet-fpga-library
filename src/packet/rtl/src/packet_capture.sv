@@ -114,8 +114,8 @@ module packet_capture #(
     mem_wr_intf #(.ADDR_WID(PACKET_MEM_ADDR_WID), .DATA_WID(DATA_WID)) mem_wr_if (.clk);
     mem_rd_intf #(.ADDR_WID(PACKET_MEM_ADDR_WID), .DATA_WID(DATA_WID)) mem_rd_if__unused (.clk);
 
-    packet_descriptor_intf #(.ADDR_WID (PACKET_MEM_ADDR_WID), .META_WID(META_WID), .MAX_PKT_SIZE(MAX_PKT_SIZE)) nxt_descriptor_if (.clk, .srst);
-    packet_descriptor_intf #(.ADDR_WID (PACKET_MEM_ADDR_WID), .META_WID(META_WID), .MAX_PKT_SIZE(MAX_PKT_SIZE)) descriptor_if (.clk, .srst);
+    packet_descriptor_intf #(.ADDR_WID (PACKET_MEM_ADDR_WID), .META_WID(META_WID), .MAX_PKT_SIZE(MAX_PKT_SIZE)) nxt_descriptor_if (.clk);
+    packet_descriptor_intf #(.ADDR_WID (PACKET_MEM_ADDR_WID), .META_WID(META_WID), .MAX_PKT_SIZE(MAX_PKT_SIZE)) descriptor_if (.clk);
 
     packet_event_intf event_if (.clk);
     // ----------------------------------------

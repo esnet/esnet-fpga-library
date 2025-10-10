@@ -3,6 +3,7 @@
 module packet_pipe #(
     parameter int  STAGES = 1 // Pipeline stages, inserted in both forward (valid) and reverse (ready) directions
 ) (
+    input logic     srst,
     packet_intf.rx  from_tx,
     packet_intf.tx  to_rx
 );
@@ -30,24 +31,18 @@ module packet_pipe #(
 
     // Signals
     logic clk;
-    logic srst;
 
     assign clk = from_tx.clk;
-    assign srst = from_tx.srst;
 
-    bus_intf #(.DATA_WID(PAYLOAD_WID)) bus_if__from_tx (.clk, .srst);
-    bus_intf #(.DATA_WID(PAYLOAD_WID)) bus_if__to_rx   (.clk, .srst);
+    bus_intf #(.DATA_WID(PAYLOAD_WID)) bus_if__from_tx (.clk);
+    bus_intf #(.DATA_WID(PAYLOAD_WID)) bus_if__to_rx   (.clk);
 
     packet_to_bus_adapter i_packet_to_bus_adapter (
         .packet_if_from_tx ( from_tx ),
         .bus_if_to_rx      ( bus_if__from_tx )
     );
 
-    generate
-        begin : g__fwd
-            bus_pipe #(.STAGES(STAGES)) i_bus_pipe ( .from_tx ( bus_if__from_tx ), .to_rx ( bus_if__to_rx ));
-        end : g__fwd
-    endgenerate
+    bus_pipe #(.STAGES(STAGES)) i_bus_pipe (.srst, .from_tx (bus_if__from_tx), .to_rx (bus_if__to_rx));
 
     packet_from_bus_adapter i_packet_from_bus_adapter (
         .bus_if_from_tx  ( bus_if__to_rx ),

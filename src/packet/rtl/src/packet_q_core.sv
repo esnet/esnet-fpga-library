@@ -78,14 +78,14 @@ module packet_q_core
     // -----------------------------
     // Interfaces
     // -----------------------------
-    alloc_intf #(.BUFFER_SIZE(BUFFER_SIZE), .PTR_WID(PTR_WID), .META_WID(META_WID)) scatter_if [NUM_INPUT_IFS]  (.clk, .srst);
-    alloc_intf #(.BUFFER_SIZE(BUFFER_SIZE), .PTR_WID(PTR_WID), .META_WID(META_WID)) gather_if  [NUM_OUTPUT_IFS] (.clk, .srst);
+    alloc_intf #(.BUFFER_SIZE(BUFFER_SIZE), .PTR_WID(PTR_WID), .META_WID(META_WID)) scatter_if [NUM_INPUT_IFS]  (.clk);
+    alloc_intf #(.BUFFER_SIZE(BUFFER_SIZE), .PTR_WID(PTR_WID), .META_WID(META_WID)) gather_if  [NUM_OUTPUT_IFS] (.clk);
 
-    packet_intf #(.DATA_BYTE_WID(MEM_WR_DATA_BYTE_WID), .META_WID(META_WID)) packet_to_q_if   [NUM_INPUT_IFS]  (.clk, .srst);
-    packet_intf #(.DATA_BYTE_WID(MEM_RD_DATA_BYTE_WID), .META_WID(META_WID)) packet_from_q_if [NUM_OUTPUT_IFS] (.clk, .srst);
+    packet_intf #(.DATA_BYTE_WID(MEM_WR_DATA_BYTE_WID), .META_WID(META_WID)) packet_to_q_if   [NUM_INPUT_IFS]  (.clk);
+    packet_intf #(.DATA_BYTE_WID(MEM_RD_DATA_BYTE_WID), .META_WID(META_WID)) packet_from_q_if [NUM_OUTPUT_IFS] (.clk);
 
-    packet_descriptor_intf #(.ADDR_WID(PTR_WID), .META_WID(META_WID), .MAX_PKT_SIZE(MAX_PKT_SIZE)) desc_to_q_if   [NUM_INPUT_IFS]  (.clk, .srst);
-    packet_descriptor_intf #(.ADDR_WID(PTR_WID), .META_WID(META_WID), .MAX_PKT_SIZE(MAX_PKT_SIZE)) desc_from_q_if [NUM_OUTPUT_IFS] (.clk, .srst);
+    packet_descriptor_intf #(.ADDR_WID(PTR_WID), .META_WID(META_WID), .MAX_PKT_SIZE(MAX_PKT_SIZE)) desc_to_q_if   [NUM_INPUT_IFS]  (.clk);
+    packet_descriptor_intf #(.ADDR_WID(PTR_WID), .META_WID(META_WID), .MAX_PKT_SIZE(MAX_PKT_SIZE)) desc_from_q_if [NUM_OUTPUT_IFS] (.clk);
 
     packet_event_intf event_in_if  [NUM_INPUT_IFS]  (.clk);
     packet_event_intf event_out_if [NUM_OUTPUT_IFS] (.clk);

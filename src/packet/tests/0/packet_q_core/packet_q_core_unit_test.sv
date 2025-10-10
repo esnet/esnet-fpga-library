@@ -57,20 +57,20 @@ module packet_q_core_unit_test #(
 
     logic init_done;
 
-    packet_intf #(.DATA_BYTE_WID(DATA_IN_BYTE_WID), .META_WID(META_WID)) packet_in_if [NUM_INPUT_IFS]   (.clk, .srst);
+    packet_intf #(.DATA_BYTE_WID(DATA_IN_BYTE_WID), .META_WID(META_WID)) packet_in_if [NUM_INPUT_IFS]   (.clk);
 
     mem_wr_intf #(.DATA_WID(MEM_DATA_WID), .ADDR_WID(PTR_WID))  desc_mem_wr_if (.clk);
     mem_wr_intf #(.DATA_WID(DATA_IN_WID),  .ADDR_WID(ADDR_WID)) mem_wr_if [NUM_INPUT_IFS] (.clk);
     mem_wr_intf #(.DATA_WID(MEM_DATA_WID), .ADDR_WID(ADDR_WID)) __mem_wr_if [NUM_MEM_DATA_IFS] (.clk);
 
-    packet_descriptor_intf #(.ADDR_WID(PTR_WID), .META_WID(META_WID), .MAX_PKT_SIZE(MAX_PKT_SIZE)) desc_in_if  [NUM_INPUT_IFS] (.clk, .srst);
-    packet_descriptor_intf #(.ADDR_WID(PTR_WID), .META_WID(META_WID), .MAX_PKT_SIZE(MAX_PKT_SIZE)) desc_out_if [NUM_OUTPUT_IFS] (.clk, .srst);
+    packet_descriptor_intf #(.ADDR_WID(PTR_WID), .META_WID(META_WID), .MAX_PKT_SIZE(MAX_PKT_SIZE)) desc_in_if  [NUM_INPUT_IFS] (.clk);
+    packet_descriptor_intf #(.ADDR_WID(PTR_WID), .META_WID(META_WID), .MAX_PKT_SIZE(MAX_PKT_SIZE)) desc_out_if [NUM_OUTPUT_IFS] (.clk);
 
     mem_rd_intf #(.DATA_WID(MEM_DATA_WID), .ADDR_WID(PTR_WID))  desc_mem_rd_if (.clk);
     mem_rd_intf #(.DATA_WID(DATA_OUT_WID), .ADDR_WID(ADDR_WID)) mem_rd_if [NUM_INPUT_IFS] (.clk);
     mem_rd_intf #(.DATA_WID(MEM_DATA_WID), .ADDR_WID(ADDR_WID)) __mem_rd_if [NUM_MEM_DATA_IFS] (.clk);
 
-    packet_intf #(.DATA_BYTE_WID(DATA_OUT_BYTE_WID), .META_WID(META_WID)) packet_out_if [NUM_OUTPUT_IFS] (.clk, .srst);
+    packet_intf #(.DATA_BYTE_WID(DATA_OUT_BYTE_WID), .META_WID(META_WID)) packet_out_if [NUM_OUTPUT_IFS] (.clk);
 
     logic mem_init_done;
 
@@ -151,8 +151,10 @@ module packet_q_core_unit_test #(
     generate
         for (genvar g_if = 0; g_if < NUM_INPUT_IFS; g_if++) begin : g__if
             packet_descriptor_fifo i_packet_descriptor_fifo (
-                .from_tx ( desc_in_if[g_if] ),
-                .to_rx   ( desc_out_if[g_if] )
+                .from_tx      ( desc_in_if[g_if] ),
+                .from_tx_srst ( srst ),
+                .to_rx        ( desc_out_if[g_if] ),
+                .to_rx_srst   ( srst )
             );
         end : g__if
     endgenerate
