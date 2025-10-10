@@ -6,6 +6,7 @@
 module bus_pipe #(
     parameter int  STAGES = 1 // Pipeline stages, inserted in both forward (valid) and reverse (ready) directions
 ) (
+    input logic   srst,
     bus_intf.rx   from_tx,
     bus_intf.tx   to_rx
 );
@@ -21,14 +22,12 @@ module bus_pipe #(
 
     // Clock/reset
     logic clk;
-    logic srst;
 
     assign clk = from_tx.clk;
-    assign srst = from_tx.srst;
 
     // Interfaces
-    bus_intf #(.DATA_WID(DATA_WID)) bus_if__tx (.clk, .srst);
-    bus_intf #(.DATA_WID(DATA_WID)) bus_if__rx (.clk, .srst);
+    bus_intf #(.DATA_WID(DATA_WID)) bus_if__tx (.clk);
+    bus_intf #(.DATA_WID(DATA_WID)) bus_if__rx (.clk);
 
     // Pipeline transmitter
     bus_pipe_tx i_bus_pipe_tx (
@@ -48,6 +47,7 @@ module bus_pipe #(
     bus_pipe_rx #(
         .TOTAL_SLACK ( TOTAL_SLACK )
     ) i_bus_pipe_rx (
+        .srst,
         .from_tx ( bus_if__rx ),
         .to_rx
     );

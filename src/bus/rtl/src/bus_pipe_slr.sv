@@ -10,6 +10,7 @@
     parameter int  PRE_PIPE_STAGES = 0,  // Input (pre-crossing) pipe stages, in addition to SLR-crossing stage
     parameter int  POST_PIPE_STAGES = 0  // Output (post-crossing) pipe stages, in addition to SLR-crossing stage
 ) (
+    input logic   srst,
     bus_intf.rx   from_tx,
     bus_intf.tx   to_rx
 );
@@ -26,17 +27,15 @@
 
     // Clock/reset
     logic clk;
-    logic srst;
 
     assign clk = from_tx.clk;
-    assign srst = from_tx.srst;
 
     // Interfaces
-    bus_intf #(.DATA_WID(DATA_WID)) bus_if__tx   (.clk, .srst);
-    bus_intf #(.DATA_WID(DATA_WID)) bus_if__tx_p (.clk, .srst);
-    bus_intf #(.DATA_WID(DATA_WID)) bus_if__sll  (.clk, .srst);
-    bus_intf #(.DATA_WID(DATA_WID)) bus_if__rx_p (.clk, .srst);
-    bus_intf #(.DATA_WID(DATA_WID)) bus_if__rx   (.clk, .srst);
+    bus_intf #(.DATA_WID(DATA_WID)) bus_if__tx   (.clk);
+    bus_intf #(.DATA_WID(DATA_WID)) bus_if__tx_p (.clk);
+    bus_intf #(.DATA_WID(DATA_WID)) bus_if__sll  (.clk);
+    bus_intf #(.DATA_WID(DATA_WID)) bus_if__rx_p (.clk);
+    bus_intf #(.DATA_WID(DATA_WID)) bus_if__rx   (.clk);
 
     // Pipeline transmitter
     bus_pipe_tx i_bus_pipe_tx (
@@ -76,6 +75,7 @@
     bus_pipe_rx #(
         .TOTAL_SLACK ( TOTAL_SLACK )
     ) i_bus_pipe_rx (
+        .srst,
         .from_tx ( bus_if__rx ),
         .to_rx
     );

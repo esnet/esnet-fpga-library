@@ -7,6 +7,7 @@
 //  signaling directions).
 //
 (* autopipeline_module = "true" *) module bus_pipe_auto (
+    input logic   srst,
     bus_intf.rx   from_tx,
     bus_intf.tx   to_rx
 );
@@ -20,14 +21,12 @@
 
     // Clock/reset
     logic clk;
-    logic srst;
 
     assign clk = from_tx.clk;
-    assign srst = from_tx.srst;
 
     // Interfaces
-    bus_intf #(.DATA_WID(DATA_WID)) bus_if__tx (.clk, .srst);
-    bus_intf #(.DATA_WID(DATA_WID)) bus_if__rx (.clk, .srst);
+    bus_intf #(.DATA_WID(DATA_WID)) bus_if__tx (.clk);
+    bus_intf #(.DATA_WID(DATA_WID)) bus_if__rx (.clk);
 
     // Signals
     (* autopipeline_group = "fwd", autopipeline_limit=12, autopipeline_include = "rev" *) logic valid;
@@ -61,6 +60,7 @@
     bus_pipe_rx #(
         .TOTAL_SLACK ( 16 )
     ) i_bus_pipe_rx (
+        .srst,
         .from_tx ( bus_if__rx ),
         .to_rx
     );

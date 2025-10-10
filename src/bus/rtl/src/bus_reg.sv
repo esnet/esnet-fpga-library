@@ -21,7 +21,6 @@ module bus_reg #(
 
     // Signals
     logic clk;
-    logic srst;
 
     (* shreg_extract = "no" *) logic                valid [STAGES+1];
     (* shreg_extract = "no" *) logic [DATA_WID-1:0] data  [STAGES+1];

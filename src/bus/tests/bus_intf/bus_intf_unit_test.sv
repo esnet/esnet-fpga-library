@@ -28,8 +28,8 @@ module bus_intf_unit_test #(
     logic   clk;
     logic   srst;
     
-    bus_intf #(DATA_WID) from_tx (.clk, .srst);
-    bus_intf #(DATA_WID) to_rx (.clk, .srst);
+    bus_intf #(DATA_WID) from_tx (.clk);
+    bus_intf #(DATA_WID) to_rx (.clk);
 
     generate
         case (COMPONENT_NAME)
@@ -50,9 +50,9 @@ module bus_intf_unit_test #(
             end : g__bus_pipe_slr
 
             "bus_pipe_slr_b2b" : begin : g__bus_pipe_slr_b2b
-                bus_intf #(DATA_WID) __bus_if (.clk, .srst);
-                bus_pipe_slr #(0, 1, 1) DUT1 (.from_tx, .to_rx (__bus_if));
-                bus_pipe_slr #(0, 1, 1) DUT2 (.from_tx (__bus_if), .to_rx);
+                bus_intf #(DATA_WID) __bus_if (.clk);
+                bus_pipe_slr #(0, 1, 1) DUT1 (.srst, .from_tx, .to_rx (__bus_if));
+                bus_pipe_slr #(0, 1, 1) DUT2 (.srst, .from_tx (__bus_if), .to_rx);
             end : g__bus_pipe_slr_b2b
 
             "bus_pipe_auto" : begin : g__bus_pipe_auto
@@ -61,17 +61,17 @@ module bus_intf_unit_test #(
 
             "bus_width_converter_le": begin : g__bus_width_converter_le
                 localparam int __DATA_WID = DATA_WID*2;
-                bus_intf #(__DATA_WID) __bus_if (.clk, .srst);
-                bus_width_converter #(.BIGENDIAN(0)) DUT1 (.from_tx, .to_rx (__bus_if));
-                bus_width_converter #(.BIGENDIAN(0)) DUT2 (.from_tx (__bus_if), .to_rx);
+                bus_intf #(__DATA_WID) __bus_if (.clk);
+                bus_width_converter #(.BIGENDIAN(0)) DUT1 (.srst, .from_tx, .to_rx (__bus_if));
+                bus_width_converter #(.BIGENDIAN(0)) DUT2 (.srst, .from_tx (__bus_if), .to_rx);
                 initial skip_single_item_tc = 1'b1;
             end : g__bus_width_converter_le
 
             "bus_width_converter_be": begin : g__bus_width_converter_be
                 localparam int __DATA_WID = DATA_WID*2;
-                bus_intf #(__DATA_WID) __bus_if (.clk, .srst);
-                bus_width_converter #(.BIGENDIAN(1)) DUT1 (.from_tx, .to_rx (__bus_if));
-                bus_width_converter #(.BIGENDIAN(1)) DUT2 (.from_tx (__bus_if), .to_rx);
+                bus_intf #(__DATA_WID) __bus_if (.clk);
+                bus_width_converter #(.BIGENDIAN(1)) DUT1 (.srst, .from_tx, .to_rx (__bus_if));
+                bus_width_converter #(.BIGENDIAN(1)) DUT2 (.srst, .from_tx (__bus_if), .to_rx);
                 initial skip_single_item_tc = 1'b1;
             end : g__bus_width_converter_be
         endcase

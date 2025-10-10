@@ -7,6 +7,7 @@
 module bus_width_converter #(
     parameter bit BIGENDIAN = 1 // Pack/(unpack) first word into/(out of) MSbs of larger interface
 ) (
+    input logic   srst,
     bus_intf.rx   from_tx,
     bus_intf.tx   to_rx
 );
@@ -38,7 +39,7 @@ module bus_width_converter #(
 
             initial valid = '0;
             always @(posedge from_tx.clk) begin
-                if (from_tx.srst) valid <= '0;
+                if (srst) valid <= '0;
                 else begin
                     if (to_rx.valid && to_rx.ready) valid <= '0;
                     else if (from_tx.valid && from_tx.ready) valid <= (valid << 1);
@@ -68,7 +69,7 @@ module bus_width_converter #(
 
             initial valid = '0;
             always @(posedge from_tx.clk) begin
-                if (from_tx.srst) valid <= '0;
+                if (srst) valid <= '0;
                 else begin
                     if (from_tx.valid && from_tx.ready) valid <= '1;
                     else if (to_rx.valid && to_rx.ready) valid <= valid >> 1;

@@ -11,6 +11,7 @@ module bus_pipe_rx #(
                                     // in forward (valid) path as well as those inserted in reverse
                                     // (ready) path
 ) (
+    input logic   srst,
     bus_intf.rx   from_tx,
     bus_intf.tx   to_rx
 );
@@ -29,7 +30,7 @@ module bus_pipe_rx #(
         .PIPELINE_DEPTH ( TOTAL_SLACK )
     ) i_fifo_prefetch (
         .clk     ( from_tx.clk ),
-        .srst    ( from_tx.srst ),
+        .srst,
         .wr      ( from_tx.valid ),
         .wr_rdy  ( from_tx.ready ),
         .wr_data ( from_tx.data ),

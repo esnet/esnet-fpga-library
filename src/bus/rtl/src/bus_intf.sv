@@ -1,8 +1,7 @@
 interface bus_intf #(
     parameter int DATA_WID = 1
 ) (
-    input logic clk,
-    input logic srst = 1'b0
+    input logic clk
 );
 
     // Parameter validation
@@ -18,7 +17,6 @@ interface bus_intf #(
     // Modports
     modport tx (
         input  clk,
-        input  srst,
         output valid,
         input  ready,
         output data
@@ -26,7 +24,6 @@ interface bus_intf #(
 
     modport rx (
         input  clk,
-        input  srst,
         input  valid,
         output ready,
         input  data
