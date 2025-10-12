@@ -132,6 +132,16 @@ module packet_width_converter #(
         end : g__downsize
     endgenerate
 
+    // Track SOP
+    packet_sop i_packet_sop (
+        .clk (from_tx.clk),
+        .srst,
+        .vld (from_tx.vld),
+        .rdy (from_tx.rdy),
+        .eop (from_tx.eop),
+        .sop
+    );
+
     // Handle metadata (common to upsize/downsize operations)
     always_ff @(posedge from_tx.clk) begin
         if (from_tx.vld && from_tx.rdy) begin
@@ -141,17 +151,7 @@ module packet_width_converter #(
             end else meta <= from_tx.meta;
         end
     end
-
-    // Track SOP
-    initial sop = 1'b1;
-    always @(posedge from_tx.clk) begin
-        if (srst) sop <= 1'b1;
-        else begin
-            if (from_tx.vld && from_tx.rdy && from_tx.eop) sop <= 1'b1;
-            else if (from_tx.vld && from_tx.rdy)           sop <= 1'b0;
-        end
-    end
-
+    
     assign to_rx.err  = err;
     assign to_rx.meta = meta;
 

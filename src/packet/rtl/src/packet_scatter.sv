@@ -267,14 +267,15 @@ module packet_scatter #(
         end
     end
 
-    initial pkt_sop = 1'b1;
-    always @(posedge clk) begin
-        if (srst) pkt_sop <= 1'b1;
-        else begin
-            if (packet_if.vld && packet_if.rdy && packet_if.eop) pkt_sop <= 1'b1;
-            else if (packet_if.vld && packet_if.rdy)             pkt_sop <= 1'b0;
-        end
-    end
+    // Track SOP
+    packet_sop i_packet_sop (
+        .clk,
+        .srst,
+        .vld (packet_if.vld),
+        .rdy (packet_if.rdy),
+        .eop (packet_if.eop),
+        .sop (pkt_sop)
+    );
 
     // Latch buffer pointer
     always_ff @(posedge clk) buffer_ptr_r <= buffer_ptr;
