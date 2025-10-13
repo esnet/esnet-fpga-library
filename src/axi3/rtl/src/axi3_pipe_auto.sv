@@ -88,16 +88,16 @@ module axi3_pipe_auto (
     assign srst = !from_controller.aresetn;
 
     // Bus interfaces (one for each of the AXI3 channels)
-    bus_intf #(.DATA_WID(AX_PAYLOAD_WID)) aw_bus_if__from_controller (.clk, .srst);
-    bus_intf #(.DATA_WID(W_PAYLOAD_WID))  w_bus_if__from_controller  (.clk, .srst);
-    bus_intf #(.DATA_WID(B_PAYLOAD_WID))  b_bus_if__from_controller  (.clk, .srst);
-    bus_intf #(.DATA_WID(AX_PAYLOAD_WID)) ar_bus_if__from_controller (.clk, .srst);
-    bus_intf #(.DATA_WID(R_PAYLOAD_WID))  r_bus_if__from_controller  (.clk, .srst);
-    bus_intf #(.DATA_WID(AX_PAYLOAD_WID)) aw_bus_if__to_peripheral   (.clk, .srst);
-    bus_intf #(.DATA_WID(W_PAYLOAD_WID))  w_bus_if__to_peripheral    (.clk, .srst);
-    bus_intf #(.DATA_WID(B_PAYLOAD_WID))  b_bus_if__to_peripheral    (.clk, .srst);
-    bus_intf #(.DATA_WID(AX_PAYLOAD_WID)) ar_bus_if__to_peripheral   (.clk, .srst);
-    bus_intf #(.DATA_WID(R_PAYLOAD_WID))  r_bus_if__to_peripheral    (.clk, .srst);
+    bus_intf #(.DATA_WID(AX_PAYLOAD_WID)) aw_bus_if__from_controller (.clk);
+    bus_intf #(.DATA_WID(W_PAYLOAD_WID))  w_bus_if__from_controller  (.clk);
+    bus_intf #(.DATA_WID(B_PAYLOAD_WID))  b_bus_if__from_controller  (.clk);
+    bus_intf #(.DATA_WID(AX_PAYLOAD_WID)) ar_bus_if__from_controller (.clk);
+    bus_intf #(.DATA_WID(R_PAYLOAD_WID))  r_bus_if__from_controller  (.clk);
+    bus_intf #(.DATA_WID(AX_PAYLOAD_WID)) aw_bus_if__to_peripheral   (.clk);
+    bus_intf #(.DATA_WID(W_PAYLOAD_WID))  w_bus_if__to_peripheral    (.clk);
+    bus_intf #(.DATA_WID(B_PAYLOAD_WID))  b_bus_if__to_peripheral    (.clk);
+    bus_intf #(.DATA_WID(AX_PAYLOAD_WID)) ar_bus_if__to_peripheral   (.clk);
+    bus_intf #(.DATA_WID(R_PAYLOAD_WID))  r_bus_if__to_peripheral    (.clk);
 
     axi3_to_bus_adapter i_axi3_to_bus_adapter (
         .axi3_if   ( from_controller ),
@@ -110,13 +110,13 @@ module axi3_pipe_auto (
 
     generate
         begin : g__fwd
-            bus_pipe_auto i_bus_pipe_auto__aw ( .from_tx ( aw_bus_if__from_controller ), .to_rx ( aw_bus_if__to_peripheral ));
-            bus_pipe_auto i_bus_pipe_auto__w  ( .from_tx ( w_bus_if__from_controller ),  .to_rx ( w_bus_if__to_peripheral ));
-            bus_pipe_auto i_bus_pipe_auto__ar ( .from_tx ( ar_bus_if__from_controller ), .to_rx ( ar_bus_if__to_peripheral ));
+            bus_pipe_auto i_bus_pipe_auto__aw (.srst, .from_tx (aw_bus_if__from_controller), .to_rx (aw_bus_if__to_peripheral));
+            bus_pipe_auto i_bus_pipe_auto__w  (.srst, .from_tx (w_bus_if__from_controller),  .to_rx (w_bus_if__to_peripheral));
+            bus_pipe_auto i_bus_pipe_auto__ar (.srst, .from_tx (ar_bus_if__from_controller), .to_rx (ar_bus_if__to_peripheral));
         end : g__fwd
         begin : g__rev
-            bus_pipe_auto i_bus_pipe_auto__b  ( .from_tx ( b_bus_if__to_peripheral ),  .to_rx ( b_bus_if__from_controller ));
-            bus_pipe_auto i_bus_pipe_auto__r  ( .from_tx ( r_bus_if__to_peripheral ),  .to_rx ( r_bus_if__from_controller ));
+            bus_pipe_auto i_bus_pipe_auto__b  (.srst, .from_tx (b_bus_if__to_peripheral), .to_rx (b_bus_if__from_controller));
+            bus_pipe_auto i_bus_pipe_auto__r  (.srst, .from_tx (r_bus_if__to_peripheral), .to_rx (r_bus_if__from_controller));
         end : g__rev
     endgenerate
 
