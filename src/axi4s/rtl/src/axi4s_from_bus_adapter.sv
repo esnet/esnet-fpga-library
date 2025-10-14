@@ -1,5 +1,10 @@
 // AXI4-S from bus interface adapter
-module axi4s_from_bus_adapter (
+module axi4s_from_bus_adapter #(
+    parameter int DATA_BYTE_WID = 1,
+    parameter int TID_WID = 1,
+    parameter int TDEST_WID = 1,
+    parameter int TUSER_WID = 1
+) (
     // Generic bus interface (from transmitter)
     bus_intf.rx    bus_if_from_tx,
 
@@ -7,12 +12,8 @@ module axi4s_from_bus_adapter (
     axi4s_intf.tx  axi4s_if_to_rx
 );
     // Parameters
-    localparam int DATA_BYTE_WID = axi4s_if_to_rx.DATA_BYTE_WID;
     localparam int TDATA_WID = DATA_BYTE_WID*8;
     localparam int TKEEP_WID = DATA_BYTE_WID;
-    localparam int TID_WID   = axi4s_if_to_rx.TID_WID;
-    localparam int TDEST_WID = axi4s_if_to_rx.TDEST_WID;
-    localparam int TUSER_WID = axi4s_if_to_rx.TUSER_WID;
 
     // Payload struct (opaque to underlying bus_intf infrastructure)
     typedef struct packed {

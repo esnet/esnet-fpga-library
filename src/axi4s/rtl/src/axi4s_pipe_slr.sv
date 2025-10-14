@@ -42,14 +42,14 @@
     bus_intf #(.DATA_WID(PAYLOAD_WID)) bus_if__from_tx (.clk);
     bus_intf #(.DATA_WID(PAYLOAD_WID)) bus_if__to_rx   (.clk);
 
-    axi4s_to_bus_adapter i_axi4s_to_bus_adapter (
+    axi4s_to_bus_adapter#(DATA_BYTE_WID, TID_WID, TDEST_WID, TUSER_WID) i_axi4s_to_bus_adapter (
         .axi4s_if_from_tx ( from_tx ),
         .bus_if_to_rx     ( bus_if__from_tx )
     );
 
     bus_pipe_slr #(.PRE_PIPE_STAGES(PRE_PIPE_STAGES), .POST_PIPE_STAGES(POST_PIPE_STAGES)) i_bus_pipe_slr (.srst, .from_tx (bus_if__from_tx), .to_rx (bus_if__to_rx));
 
-    axi4s_from_bus_adapter i_axi4s_from_bus_adapter (
+    axi4s_from_bus_adapter#(DATA_BYTE_WID, TID_WID, TDEST_WID, TUSER_WID) i_axi4s_from_bus_adapter (
         .bus_if_from_tx ( bus_if__to_rx ),
         .axi4s_if_to_rx ( to_rx )
     );

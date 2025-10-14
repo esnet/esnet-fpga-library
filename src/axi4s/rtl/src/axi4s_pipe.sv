@@ -1,7 +1,7 @@
 // AXI4-S pipeline
 // Pipelines AXI4-S interface, in both directions (valid + ready) 
 module axi4s_pipe #(
-    parameter int  STAGES = 1 // Pipeline stages, inserted in both forward (valid) and reverse (ready) directions
+    parameter int STAGES = 1 // Pipeline stages, inserted in both forward (valid) and reverse (ready) directions
 ) (
     input logic    srst,
     axi4s_intf.rx  from_tx,
@@ -42,14 +42,14 @@ module axi4s_pipe #(
     bus_intf #(.DATA_WID(PAYLOAD_WID)) bus_if__from_tx (.clk);
     bus_intf #(.DATA_WID(PAYLOAD_WID)) bus_if__to_rx   (.clk);
 
-    axi4s_to_bus_adapter i_axi4s_to_bus_adapter (
+    axi4s_to_bus_adapter#(DATA_BYTE_WID, TID_WID, TDEST_WID, TUSER_WID) i_axi4s_to_bus_adapter (
         .axi4s_if_from_tx ( from_tx ),
         .bus_if_to_rx     ( bus_if__from_tx )
     );
 
     bus_pipe #(.STAGES(STAGES)) i_bus_pipe (.srst, .from_tx (bus_if__from_tx), .to_rx (bus_if__to_rx));
 
-    axi4s_from_bus_adapter i_axi4s_from_bus_adapter (
+    axi4s_from_bus_adapter#(DATA_BYTE_WID, TID_WID, TDEST_WID, TUSER_WID) i_axi4s_from_bus_adapter (
         .bus_if_from_tx ( bus_if__to_rx ),
         .axi4s_if_to_rx ( to_rx )
     );
