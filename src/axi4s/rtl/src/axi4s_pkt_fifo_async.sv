@@ -101,11 +101,13 @@ module axi4s_pkt_fifo_async #(
          );
 
          axi4s_probe axi4s_probe (
+            .srst      (axi4s_in_srst),
             .axi4l_if  (axil_to_probe),
             .axi4s_if  (__axi4s_in)
          );
 
          axi4s_probe #( .MODE(OVFL) ) axi4s_ovfl (
+            .srst      (axi4s_in_srst),
             .axi4l_if  (axil_to_ovfl),
             .axi4s_if  (__axi4s_in)
          );
@@ -130,6 +132,7 @@ module axi4s_pkt_fifo_async #(
          );
 
          axi4s_probe axi4s_probe (
+            .srst      (axi4s_in_srst),
             .axi4l_if  (axil_to_probe),
             .axi4s_if  (axi4s_to_fifo)
          );

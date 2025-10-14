@@ -69,6 +69,7 @@ module axi4s_pkt_discard_err
 
    // instantiate error counters
    axi4s_probe #( .MODE(ERRORS) ) axi4s_errors (
+      .srst,
       .axi4l_if  (axi4l_if),
       .axi4s_if  (__axi4s_in_if)
    );

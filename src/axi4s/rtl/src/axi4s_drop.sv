@@ -65,6 +65,7 @@ module axi4s_drop
    assign __axi4s_in.tuser   = axi4s_in.tuser;
 
    axi4s_probe axi4s_drop_count (
+      .srst,
       .axi4l_if  (axil_if),
       .axi4s_if  (__axi4s_in)
    );

@@ -5,6 +5,7 @@ module axi4s_probe
    parameter axi4s_probe_mode_t MODE = GOOD,
    parameter axi4s_tuser_mode_t TUSER_MODE = USER
 )  (
+   input logic             srst,
    axi4s_intf.prb          axi4s_if, 
    axi4l_intf.peripheral   axi4l_if
 );
@@ -18,6 +19,13 @@ module axi4s_probe
       for (int i=0; i<DATA_BYTE_WID; i++) count = count + tkeep[i];
       return count;
    endfunction
+
+   (* dont_touch = "true" *) logic __srst;
+   initial __srst = 1'b1;
+   always @(posedge axi4s_if.aclk) begin
+       if (srst) __srst <= 1'b1;
+       else      __srst <= 1'b0;
+   end
 
 
   // axil interface cdc synchronizer
@@ -101,7 +109,7 @@ module axi4s_probe
    end
    always @(posedge axi4s_if.aclk) 
       begin
-         pkt_cnt_incr    <= incr_en && axi4s_if_tlast_p;
+         pkt_cnt_incr    <= incr_en ? axi4s_if_tlast_p : 1'b0;
          pkt_cnt_incr_p  <= pkt_cnt_incr;
 
          byte_cnt_incr <= incr_en ? count_ones(axi4s_if_tkeep_p) : '0;
@@ -113,9 +121,6 @@ module axi4s_probe
 
          disable_update_p <= disable_update;
 
-         if (byte_cnt_int_val) byte_cnt_int <= {8'd0, byte_cnt_incr};  // reset intermediate byte cnt at end of pkt.
-         else                  byte_cnt_int <= (byte_cnt_int + {8'd0, byte_cnt_incr});
-
          if (disable_update_p)      pkt_cnt <= pkt_cnt_base;
          else                       pkt_cnt <= pkt_cnt_base + {49'd0, pkt_cnt_incr_p};
 
@@ -123,7 +128,17 @@ module axi4s_probe
          else if (byte_cnt_int_val) byte_cnt <= byte_cnt_base + {40'd0, byte_cnt_int};
          else                       byte_cnt <= byte_cnt_base;
 
-       end 
+       end
+
+   // accumulate packet byte count
+   initial byte_cnt_int = '0;
+   always @(posedge axi4s_if.aclk) begin
+      if (__srst)              byte_cnt_int <= '0;
+      else begin
+         if (byte_cnt_int_val) byte_cnt_int <= {8'd0, byte_cnt_incr};  // reset intermediate byte cnt at end of pkt.
+         else                  byte_cnt_int <= (byte_cnt_int + {8'd0, byte_cnt_incr});
+      end
+   end
 
    // register read interface connections
    assign reg_if.pkt_count_upper_nxt  =  {14'd0,  pkt_cnt[49:32] };
