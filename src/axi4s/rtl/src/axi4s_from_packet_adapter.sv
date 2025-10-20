@@ -42,14 +42,17 @@ module axi4s_from_packet_adapter #(
     // Interfaces
     axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID)) __axis_if (.aclk(axis_if.aclk));
 
-    // Logic
-    assign packet_if.rdy = __axis_if.tready;
-
     // Pipeline input interface for MTY to TKEEP calculation
     initial __axis_if.tvalid = 1'b0;
     always @(posedge __axis_if.aclk) begin
         if (srst) __axis_if.tvalid <= 1'b0;
         else      __axis_if.tvalid <= packet_if.vld && packet_if.rdy;
+    end
+
+    initial packet_if.rdy = 1'b0;
+    always @(posedge __axis_if.aclk) begin
+        if (srst) packet_if.rdy <= 1'b0;
+        else      packet_if.rdy <= __axis_if.tready;
     end
 
     always_ff @(posedge __axis_if.aclk) begin
@@ -62,7 +65,7 @@ module axi4s_from_packet_adapter #(
     end
 
     // Skid buffer to accommodate interface pipelining
-    axi4s_skid_buffer #(.SKID (1)) i_axi4s_skid_buffer (
+    axi4s_skid_buffer #(.SKID (2)) i_axi4s_skid_buffer (
         .srst,
         .from_tx ( __axis_if ),
         .to_rx   ( axis_if ),

@@ -433,7 +433,7 @@ module axi4s_join #(
    axi4s_intf_2to1_mux join_mux (.from_tx_0(joined), .from_tx_1(b2b_hdr), .to_rx(joined_mux), .mux_sel(stall_pipe));
 
    // joined output pipe stage.
-   axi4s_full_pipe join_pipe (
+   axi4s_pipe join_pipe (
       .srst    (reset),
       .from_tx (joined_mux),
       .to_rx   (joined_pipe)
