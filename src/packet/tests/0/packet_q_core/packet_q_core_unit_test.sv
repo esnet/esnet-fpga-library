@@ -93,6 +93,7 @@ module packet_q_core_unit_test #(
     axi3_mem_bfm #(
         .CHANNELS ( NUM_MEM_CHANNELS)
     ) i_axi3_mem_bfm (
+        .srst,
         .axi3_if
     );
 

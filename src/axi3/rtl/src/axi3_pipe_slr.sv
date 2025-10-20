@@ -3,6 +3,9 @@
     parameter int PRE_PIPE_STAGES = 0,  // Input (pre-crossing) pipe stages, in addition to SLR-crossing stage
     parameter int POST_PIPE_STAGES = 0  // Output (post-crossing) pipe stages, in addition to SLR-crossing stage
 ) (
+    // Reset
+    input logic srst,
+
     // AXI3 interface (from controller)
     axi3_intf.peripheral  from_controller,
 
@@ -79,10 +82,7 @@
 
     // Signals
     logic clk;
-    logic srst;
-
     assign clk = from_controller.aclk;
-    assign srst = !from_controller.aresetn;
 
     // Bus interfaces (one for each of the AXI3 channels)
     bus_intf #(.DATA_WID(AX_PAYLOAD_WID)) aw_bus_if__from_controller (.clk);

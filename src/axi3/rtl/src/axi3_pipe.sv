@@ -4,6 +4,9 @@
 module axi3_pipe #(
     parameter int  STAGES = 1       // Pipeline stages, inserted in both forward (valid) and reverse (ready) directions
 ) (
+    // Reset
+    input logic srst,
+
     // AXI3 interface (from controller)
     axi3_intf.peripheral  from_controller,
 
@@ -80,10 +83,7 @@ module axi3_pipe #(
 
     // Signals
     logic clk;
-    logic srst;
-
     assign clk = from_controller.aclk;
-    assign srst = !from_controller.aresetn;
 
     // Bus interfaces (one for each of the AXI3 channels)
     bus_intf #(.DATA_WID(AX_PAYLOAD_WID)) aw_bus_if__from_controller (.clk);
