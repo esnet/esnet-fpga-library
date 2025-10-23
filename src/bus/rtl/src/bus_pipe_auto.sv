@@ -21,7 +21,6 @@
 
     // Clock/reset
     logic clk;
-
     assign clk = from_tx.clk;
 
     // Interfaces
@@ -30,7 +29,7 @@
 
     // Signals
     (* autopipeline_group = "fwd", autopipeline_limit=12, autopipeline_include = "rev" *) logic valid;
-    (* autopipeline_group = "rev" *) logic ready;
+    (* autopipeline_group = "rev" *)                                                      logic ready;
     (* autopipeline_group = "fwd", autopipeline_limit=12, autopipeline_include = "rev" *) logic [DATA_WID-1:0] data;
 
     // Pipeline transmitter
@@ -45,16 +44,24 @@
         ready <= bus_if__rx.ready;
     end
 
-    // Auto-pipelined nets must have fanout == 1
     initial valid = 1'b0;
     always @(posedge clk) begin
         valid <= bus_if__tx.valid;
         data  <= bus_if__tx.data;
     end
 
-    assign bus_if__rx.valid = valid;
-    assign bus_if__rx.data = data;
-    assign bus_if__tx.ready = ready;
+    // Auto-pipelined nets must have fanout == 1
+    initial bus_if__rx.valid = 1'b0;
+    always @(posedge clk) begin
+        bus_if__rx.valid <= valid;
+    end
+
+    always_ff @(posedge clk) bus_if__rx.data <= data;
+
+    initial bus_if__tx.ready = 1'b0;
+    always @(posedge clk) begin
+        bus_if__tx.ready <= ready;
+    end
 
     // Pipeline receiver
     bus_pipe_rx #(
