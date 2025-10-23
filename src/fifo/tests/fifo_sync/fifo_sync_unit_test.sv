@@ -75,8 +75,8 @@ module fifo_sync_unit_test #(
 
     std_reset_intf reset_if (.clk);
 
-    bus_intf #(DATA_WID) wr_if (.clk, .srst);
-    bus_intf #(DATA_WID) rd_if (.clk, .srst);
+    bus_intf #(DATA_WID) wr_if (.clk);
+    bus_intf #(DATA_WID) rd_if (.clk);
 
     // Assign reset interface
     assign srst = reset_if.reset;
