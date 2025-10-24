@@ -60,4 +60,5 @@ synth:
       junit:
         - .out/**/$COMPONENT/build/**/*.summary.xml
   needs:
+  timeout: 2h
 
