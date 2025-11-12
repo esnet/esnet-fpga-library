@@ -23,15 +23,10 @@ waves ?= OFF
 #   (see $SCRIPTS_ROOT/Makefiles/templates/dependencies.mk for details)
 # ----------------------------------------------------
 SUBCOMPONENTS = \
-    packet.pkg \
-    packet.rtl \
     mem.rtl \
-	mem.infra.rtl \
-    axi4l.rtl \
-    axi4l.verif \
-    axi3.rtl \
-    axi3.verif \
-    packet.verif
+    mem.infra.rtl \
+    std.rtl \
+    std.verif
 
 EXT_LIBS =
 

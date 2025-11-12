@@ -108,12 +108,12 @@ module mem_ram_sdp
             // - drive write interface directly
             //   (pass interfaces along unmodified)
             mem_wr_intf_connector i_mem_wr_intf_connector (
-                .mem_wr_if_from_controller ( mem_wr_if ),
-                .mem_wr_if_to_peripheral   ( __mem_wr_if )
+                .from_controller ( mem_wr_if ),
+                .to_peripheral   ( __mem_wr_if )
             );
             mem_rd_intf_connector i_mem_rd_intf_connector (
-                .mem_rd_if_from_controller ( mem_rd_if ),
-                .mem_rd_if_to_peripheral   ( __mem_rd_if )
+                .from_controller ( mem_rd_if ),
+                .to_peripheral   ( __mem_rd_if )
             );
         end : g__no_reset_fsm
     endgenerate
