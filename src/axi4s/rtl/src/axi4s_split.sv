@@ -48,30 +48,29 @@ module axi4s_split #(
    logic [PTR_LEN-1:0] wr_ptr; // wr pointer for pkt buffer addressing, or pkt_id.   
    logic [PTR_LEN-1:0] pid;    // wr_ptr of hdr_out sop.
 
-   logic reset, resetn;
+   logic reset;
    tuser_t axi4s_to_copy_tuser;
    tuser_t _axi4s_hdr_out_p_tuser;
    tuser_t axi4s_hdr_out_p_tuser;
+   logic   _axi4s_hdr_out_p_sop;
 
    // internal axi4s interfaces.
    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID),
-                .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_OUT_WID)) axi4s_to_copy (.aclk(clk), .aresetn(resetn));
+                .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_OUT_WID)) axi4s_to_copy (.aclk(clk));
 
    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID),
-                .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_OUT_WID)) axi4s_to_trunc (.aclk(clk), .aresetn(resetn));
+                .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_OUT_WID)) axi4s_to_trunc (.aclk(clk));
 
    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID),
-                .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_OUT_WID)) _axi4s_hdr_out_p (.aclk(clk), .aresetn(resetn));
+                .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_OUT_WID)) _axi4s_hdr_out_p (.aclk(clk));
 
    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID),
-                .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_OUT_WID)) axi4s_hdr_out_p (.aclk(clk), .aresetn(resetn));
+                .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_OUT_WID)) axi4s_hdr_out_p (.aclk(clk));
 
    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID),
-                .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_OUT_WID)) axi4s_out_p (.aclk(clk), .aresetn(resetn));
+                .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_OUT_WID)) axi4s_out_p (.aclk(clk));
 
    always @(posedge clk) reset <= srst || !enable;
-   assign resetn = !reset;
-
 
    // wr_ptr logic
    always @(posedge clk)
@@ -113,7 +112,17 @@ module axi4s_split #(
    );
    assign _axi4s_hdr_out_p_tuser = _axi4s_hdr_out_p.tuser;
 
-   always @(posedge clk) pid <= (_axi4s_hdr_out_p.tvalid && _axi4s_hdr_out_p.sop) ? _axi4s_hdr_out_p_tuser.pid : pid;
+   // track sop
+   initial _axi4s_hdr_out_p_sop = 1'b1;
+   always @(posedge clk) begin
+       if (reset) _axi4s_hdr_out_p_sop <= 1'b1;
+       else begin
+           if (_axi4s_hdr_out_p.tvalid && _axi4s_hdr_out_p.tready && _axi4s_hdr_out_p.tlast) _axi4s_hdr_out_p_sop <= 1'b1;
+           else if (_axi4s_hdr_out_p.tvalid && _axi4s_hdr_out_p.tready)                      _axi4s_hdr_out_p_sop <= 1'b0;
+       end
+   end
+
+   always @(posedge clk) pid <= (_axi4s_hdr_out_p.tvalid && _axi4s_hdr_out_p_sop) ? _axi4s_hdr_out_p_tuser.pid : pid;
 
    // axi4s_hdr_out_p interface signalling. assigns pid (sop wr_ptr) to hdr pkt.
    assign axi4s_hdr_out_p.tvalid           = _axi4s_hdr_out_p.tvalid;
@@ -125,14 +134,14 @@ module axi4s_split #(
 
    always_comb begin
        axi4s_hdr_out_p_tuser = _axi4s_hdr_out_p_tuser;
-       axi4s_hdr_out_p_tuser.pid        = (_axi4s_hdr_out_p.tvalid && _axi4s_hdr_out_p.sop) ? _axi4s_hdr_out_p_tuser.pid : {'0, pid};
+       axi4s_hdr_out_p_tuser.pid        = (_axi4s_hdr_out_p.tvalid && _axi4s_hdr_out_p_sop) ? _axi4s_hdr_out_p_tuser.pid : {'0, pid};
        axi4s_hdr_out_p_tuser.hdr_tlast  = '0;
        axi4s_hdr_out_p.tuser            = axi4s_hdr_out_p_tuser;
    end
 
    assign _axi4s_hdr_out_p.tready         = axi4s_hdr_out_p.tready;
 
-   axi4s_intf_pipe axi4s_hdr_out_pipe (.from_tx(axi4s_hdr_out_p), .to_rx(axi4s_hdr_out));
-   axi4s_intf_pipe axi4s_out_pipe     (.from_tx(axi4s_out_p),     .to_rx(axi4s_out));
+   axi4s_intf_pipe axi4s_hdr_out_pipe (.srst (reset), .from_tx(axi4s_hdr_out_p), .to_rx(axi4s_hdr_out));
+   axi4s_intf_pipe axi4s_out_pipe     (.srst (reset), .from_tx(axi4s_out_p),     .to_rx(axi4s_out));
 
 endmodule // axi4s_split

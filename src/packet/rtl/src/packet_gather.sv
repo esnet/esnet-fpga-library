@@ -93,7 +93,6 @@ module packet_gather #(
 
     typedef struct packed {
         logic [PTR_WID-1:0]  ptr;
-        logic                sof;
         logic                eof;
         logic [SIZE_WID-1:0] size;
         logic [META_WID-1:0] meta;
@@ -184,7 +183,6 @@ module packet_gather #(
     always_ff @(posedge clk) begin
         if (gather_if.vld && gather_if.ack) begin
             buffer_ctxt.ptr  <= gather_if.nxt_ptr;
-            buffer_ctxt.sof  <= gather_if.sof;
             buffer_ctxt.eof  <= gather_if.eof;
             buffer_ctxt.size <= gather_if.size;
             buffer_ctxt.err  <= gather_if.err;

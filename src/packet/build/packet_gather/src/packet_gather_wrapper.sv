@@ -32,7 +32,6 @@ module packet_gather_wrapper #(
     input  logic [SIZE_WID-1:0]  gather_size,
     input  logic [META_WID-1:0]  gather_meta,
     input  logic                 gather_err,
-    input  logic                 gather_sof,
 
     input  logic                 descriptor_vld,
     output logic                 descriptor_rdy,
@@ -58,9 +57,9 @@ module packet_gather_wrapper #(
 
     localparam int NUM_BUFFERS = 2**PTR_WID;
 
-    packet_intf #(DATA_BYTE_WID, META_WID) packet_if  (.clk, .srst);
-    alloc_intf #(BUFFER_SIZE, PTR_WID, META_WID) gather_if (.clk, .srst);
-    packet_descriptor_intf #(PTR_WID, META_WID, MAX_PKT_SIZE) descriptor_if (.clk, .srst);
+    packet_intf #(DATA_BYTE_WID, META_WID) packet_if  (.clk);
+    alloc_intf #(BUFFER_SIZE, PTR_WID, META_WID) gather_if (.clk);
+    packet_descriptor_intf #(PTR_WID, META_WID, MAX_PKT_SIZE) descriptor_if (.clk);
     packet_event_intf event_if (.clk);
     mem_rd_intf #(ADDR_WID, DATA_WID) mem_rd_if (.clk);
 
@@ -79,7 +78,6 @@ module packet_gather_wrapper #(
     assign gather_if.size = gather_size;
     assign gather_if.meta = gather_meta;
     assign gather_if.err = gather_err;
-    assign gather_if.sof = gather_sof;
     assign gather_req = gather_if.req;
     assign gather_ptr = gather_if.ptr;
     assign gather_ack = gather_if.ack;

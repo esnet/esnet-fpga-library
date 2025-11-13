@@ -13,6 +13,8 @@ module axi4s_pkt_buffer
    parameter int ADDR_WID = 10,  // DEPTH = 2^^ADDR_WID = 2^^10 = 1024
    parameter bit SIM__FAST_INIT = 1  // Fast memory init to optimize sim time
 )  (
+   input logic               srst,
+
    axi4s_intf.rx             axi4s_in,
    axi4s_intf.tx             axi4s_out,
 
@@ -81,7 +83,7 @@ module axi4s_pkt_buffer
          logic [ADDR_WID:0] __wr_ptr_p [WR_PIPELINE_STAGES]; // ptr pipelined as per memory.
 	 
          always @(posedge axi4s_in.aclk)
-            if (!axi4s_in.aresetn) __wr_ptr_p <= '{WR_PIPELINE_STAGES{'0}};
+            if (srst) __wr_ptr_p <= '{WR_PIPELINE_STAGES{'0}};
             else begin
                __wr_ptr_p[0] <= wr_ptr;
                for (int i = 1; i < WR_PIPELINE_STAGES; i++) __wr_ptr_p[i] <= __wr_ptr_p[i-1];
@@ -106,7 +108,7 @@ module axi4s_pkt_buffer
    assign wr_data.tkeep = axi4s_in.tkeep;
    assign wr_data.tdata = axi4s_in.tdata;
 
-   assign mem_wr_if.rst  = ~axi4s_in.aresetn;
+   assign mem_wr_if.rst  = srst;
    assign mem_wr_if.en   = 1'b1;
    assign mem_wr_if.req  = axi4s_in.tready && axi4s_in.tvalid;
    assign mem_wr_if.addr = wr_ptr[ADDR_WID-1:0];
@@ -120,7 +122,7 @@ module axi4s_pkt_buffer
       .mem_rd_if ( mem_rd_if )
    );
 
-   assign mem_rd_if.rst  = ~axi4s_in.aresetn;
+   assign mem_rd_if.rst  = srst;
    assign mem_rd_if.req  = rd_req;
    assign mem_rd_if.addr = rd_ptr[ADDR_WID-1:0];
 
@@ -130,7 +132,7 @@ module axi4s_pkt_buffer
 
    // ---- read request pipeline logic ----
    always @(posedge axi4s_in.aclk)
-      if (!axi4s_in.aresetn) begin
+      if (srst) begin
          rd_req_p <= '{RD_PIPELINE_STAGES+1{'0}};
       end else begin
          rd_req_p[0] <= mem_rd_if.req;

@@ -5,14 +5,13 @@ module bus_pipe_slr_wrapper
     input  logic        valid_in,
     input  logic [31:0] data_in,
     output logic        ready_in,
-    output logic        srst_out,
     output logic        valid_out,
     output logic [31:0] data_out,
     input  logic        ready_out
 );
 
-    bus_intf #(.DATA_WID(32)) from_tx (.clk, .srst);
-    bus_intf #(.DATA_WID(32)) to_rx   (.clk, .srst);
+    bus_intf #(.DATA_WID(32)) from_tx (.clk);
+    bus_intf #(.DATA_WID(32)) to_rx   (.clk);
 
     assign from_tx.valid = valid_in;
     assign from_tx.data  = data_in;

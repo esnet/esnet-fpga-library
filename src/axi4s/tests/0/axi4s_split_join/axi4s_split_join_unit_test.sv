@@ -51,11 +51,11 @@ module axi4s_split_join_unit_test
     logic clk;
     logic srst;
 
-    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID($bits(TID_T)), .TDEST_WID($bits(TDEST_T)), .TUSER_WID($bits(TUSER_T))) axi4s_in  (.aclk(clk), .aresetn(!srst));
-    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID($bits(TID_T)), .TDEST_WID($bits(TDEST_T)), .TUSER_WID($bits(TUSER_T))) axi4s_out  (.aclk(clk), .aresetn(!srst));
+    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID($bits(TID_T)), .TDEST_WID($bits(TDEST_T)), .TUSER_WID($bits(TUSER_T))) axi4s_in  (.aclk(clk));
+    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID($bits(TID_T)), .TDEST_WID($bits(TDEST_T)), .TUSER_WID($bits(TUSER_T))) axi4s_out  (.aclk(clk));
 
-    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TUSER_WID($bits(tuser_int_t))) axi4s_hdr_in(.aclk(clk), .aresetn(!srst));
-    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TUSER_WID($bits(tuser_int_t))) axi4s_hdr_out(.aclk(clk), .aresetn(!srst));
+    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TUSER_WID($bits(tuser_int_t))) axi4s_hdr_in(.aclk(clk));
+    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TUSER_WID($bits(tuser_int_t))) axi4s_hdr_out(.aclk(clk));
 
     axi4l_intf axil_if ();
 
@@ -445,18 +445,29 @@ module axi4s_hdr_proc
    localparam int TDEST_WID = axi4s_in.TDEST_WID;
    localparam int TUSER_WID = axi4s_in.TUSER_WID;
 
+   logic sop;
+
    // local axi4s interface instantiations
-   axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID)) axi4s_to_prefix(.aclk(axi4s_in.aclk), .aresetn(axi4s_in.aresetn));
-   axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID)) axi4s_to_trunc(.aclk(axi4s_in.aclk), .aresetn(axi4s_in.aresetn));
-   axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID)) axi4s_to_fifo(.aclk(axi4s_in.aclk), .aresetn(axi4s_in.aresetn));
+   axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID)) axi4s_to_prefix(.aclk(axi4s_in.aclk));
+   axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID)) axi4s_to_trunc(.aclk(axi4s_in.aclk));
+   axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID)) axi4s_to_fifo(.aclk(axi4s_in.aclk));
 
 
    assign axi4s_in.tready = axi4s_to_prefix.tready;
 
+   initial sop = 1'b1;
+   always @(posedge clk) begin
+      if (srst) sop <= 1'b1;
+      else begin
+          if (axi4s_in.tvalid && axi4s_in.tready && axi4s_in.tlast) sop <= 1'b1;
+          else if (axi4s_in.tvalid && axi4s_in.tready)              sop <= 1'b0;
+      end
+   end
+
    // drop header logic
    logic  drop_pkt;
    always @(*) begin
-      drop_pkt = axi4s_in.sop && drop_hdr.size() != 0;
+      drop_pkt = sop && drop_hdr.size() != 0;
       for (int i = 0; i < DATA_BYTE_WID; i++) drop_pkt = drop_pkt && axi4s_in.tdata[i] == drop_hdr[i]; 
    end
 
@@ -480,6 +491,7 @@ module axi4s_hdr_proc
 
    // axi4s_prefix instance.
    axi4s_prefix #() axi4s_prefix_0 ( 
+      .srst,
       .axi4s_in   (axi4s_to_prefix),
       .axi4s_out  (axi4s_to_trunc),
       .prefix     (prefix)
@@ -509,7 +521,7 @@ module axi4s_hdr_proc
    axi4s_pkt_fifo_sync #(
       .FIFO_DEPTH(128)
    ) fifo_0 (
-      .srst           (),
+      .srst,
       .axi4s_in       (axi4s_to_fifo),
       .axi4s_out      (axi4s_out),
       .axil_to_probe  (axil_to_probe),
@@ -529,6 +541,7 @@ endmodule
 module axi4s_prefix
    import axi4s_pkg::*;
 ( 
+   input logic         srst,
    axi4s_intf.rx       axi4s_in,
    axi4s_intf.tx       axi4s_out,
 
@@ -540,10 +553,11 @@ module axi4s_prefix
    localparam int TDEST_WID     = axi4s_in.TDEST_WID;
    localparam int TUSER_WID     = axi4s_in.TUSER_WID;
 
-   axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID)) axi4s_pipe (.aclk(axi4s_in.aclk), .aresetn(axi4s_in.aresetn));
+   axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID)) axi4s_pipe (.aclk(axi4s_in.aclk));
 
    // axi4s pipe stage.
    axi4s_intf_pipe axi4s_in_pipe (
+      .srst,
       .from_tx (axi4s_in),
       .to_rx   (axi4s_pipe)
    );
@@ -559,7 +573,7 @@ module axi4s_prefix
 
    // output word index logic
    always @(posedge axi4s_out.aclk)
-      if (!axi4s_out.aresetn)       index <= '0;
+      if (srst)                     index <= '0;
       else if (axi4s_out.tvalid && axi4s_out.tready) 
          if (add_prefix)            index <= index + 1;
          else if (axi4s_out.tlast)  index <= '0;

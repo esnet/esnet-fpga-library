@@ -41,13 +41,13 @@ module packet_enqueue_unit_test #(
     logic clk;
     logic srst;
 
-    packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_WID(META_WID)) packet_if (.clk, .srst);
+    packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_WID(META_WID)) packet_if (.clk);
 
     PTR_T head_ptr;
     PTR_T tail_ptr;
 
-    packet_descriptor_intf #(.ADDR_WID(ADDR_WID), .META_WID(META_WID)) wr_descriptor_if [NUM_CONTEXTS] (.clk, .srst);
-    packet_descriptor_intf #(.ADDR_WID(ADDR_WID), .META_WID(META_WID)) rd_descriptor_if [NUM_CONTEXTS] (.clk, .srst);
+    packet_descriptor_intf #(.ADDR_WID(ADDR_WID), .META_WID(META_WID)) wr_descriptor_if [NUM_CONTEXTS] (.clk);
+    packet_descriptor_intf #(.ADDR_WID(ADDR_WID), .META_WID(META_WID)) rd_descriptor_if [NUM_CONTEXTS] (.clk);
 
     packet_event_intf event_if (.clk(clk));
 

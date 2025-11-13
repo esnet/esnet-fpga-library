@@ -5,6 +5,7 @@ module axi4s_probe
    parameter axi4s_probe_mode_t MODE = GOOD,
    parameter axi4s_tuser_mode_t TUSER_MODE = USER
 )  (
+   input logic             srst,
    axi4s_intf.prb          axi4s_if, 
    axi4l_intf.peripheral   axi4l_if
 );
@@ -18,6 +19,13 @@ module axi4s_probe
       for (int i=0; i<DATA_BYTE_WID; i++) count = count + tkeep[i];
       return count;
    endfunction
+
+   (* dont_touch = "true" *) logic __srst;
+   initial __srst = 1'b1;
+   always @(posedge axi4s_if.aclk) begin
+       if (srst) __srst <= 1'b1;
+       else      __srst <= 1'b0;
+   end
 
 
   // axil interface cdc synchronizer
@@ -53,15 +61,17 @@ module axi4s_probe
    logic  pkt_error;
    always @(posedge axi4s_if.aclk) pkt_error <= (TUSER_MODE == PKT_ERROR) && axi4s_if.tuser;
 
+   logic                     axi4s_if_tvalid_p;
+   logic                     axi4s_if_tready_p;
    logic [DATA_BYTE_WID-1:0] axi4s_if_tkeep_p;
    logic                     axi4s_if_tlast_p;
-   always @(posedge axi4s_if.aclk) begin
+   always_ff @(posedge axi4s_if.aclk) begin
+       axi4s_if_tvalid_p <= axi4s_if.tvalid;
+       axi4s_if_tready_p <= axi4s_if.tready;
        axi4s_if_tkeep_p <= axi4s_if.tkeep;
        axi4s_if_tlast_p <= axi4s_if.tlast;
     end
    
-   logic        srst;
-
    logic        pkt_cnt_incr;
    logic        pkt_cnt_incr_p;
 
@@ -80,32 +90,26 @@ module axi4s_probe
 
    logic        clear_evt;
 
-   assign clear_evt = reg_if.probe_control_wr_evt && (reg_if.probe_control.clear == '1);  // CLR_ON_WR_EVT
+   assign clear_evt = !axi4l_to_regif__axi4s_aclk.aresetn || (reg_if.probe_control_wr_evt && (reg_if.probe_control.clear == '1));  // CLR_ON_WR_EVT
 
    assign byte_cnt_base = clear_evt ? '0 : byte_cnt;
    assign  pkt_cnt_base = clear_evt ? '0 :  pkt_cnt;
 
    assign byte_cnt_int_val = pkt_cnt_incr_p;
 
-   util_reset_buffer i_util_reset_buffer (
-       .clk       ( axi4s_if.aclk ),
-       .srst_in   ( !axi4s_if.aresetn ),
-       .srst_out  ( srst )
-   );
-
+   initial begin
+       pkt_cnt_incr = 1'b0;
+       pkt_cnt_incr_p = 1'b0;
+       byte_cnt_incr = '0;
+       disable_update = 1'b0;
+       disable_update_p = 1'b0;
+       byte_cnt_int = '0;
+       pkt_cnt = '0;
+       byte_cnt = '0;
+   end
    always @(posedge axi4s_if.aclk) 
-      if (srst) begin
-         pkt_cnt_incr     <= 0;
-         pkt_cnt_incr_p   <= 0;
-         byte_cnt_incr    <= 0;
-         disable_update   <= 0;
-         disable_update_p <= 0;
-         byte_cnt_int     <= 0;
-         pkt_cnt          <= 0;
-         byte_cnt         <= 0;
-
-      end else begin
-         pkt_cnt_incr    <= incr_en && axi4s_if_tlast_p;
+      begin
+         pkt_cnt_incr    <= incr_en ? axi4s_if_tlast_p : 1'b0;
          pkt_cnt_incr_p  <= pkt_cnt_incr;
 
          byte_cnt_incr <= incr_en ? count_ones(axi4s_if_tkeep_p) : '0;
@@ -117,9 +121,6 @@ module axi4s_probe
 
          disable_update_p <= disable_update;
 
-         if (byte_cnt_int_val) byte_cnt_int <= {8'd0, byte_cnt_incr};  // reset intermediate byte cnt at end of pkt.
-         else                  byte_cnt_int <= (byte_cnt_int + {8'd0, byte_cnt_incr});
-
          if (disable_update_p)      pkt_cnt <= pkt_cnt_base;
          else                       pkt_cnt <= pkt_cnt_base + {49'd0, pkt_cnt_incr_p};
 
@@ -127,7 +128,17 @@ module axi4s_probe
          else if (byte_cnt_int_val) byte_cnt <= byte_cnt_base + {40'd0, byte_cnt_int};
          else                       byte_cnt <= byte_cnt_base;
 
-       end 
+       end
+
+   // accumulate packet byte count
+   initial byte_cnt_int = '0;
+   always @(posedge axi4s_if.aclk) begin
+      if (__srst)              byte_cnt_int <= '0;
+      else begin
+         if (byte_cnt_int_val) byte_cnt_int <= {8'd0, byte_cnt_incr};  // reset intermediate byte cnt at end of pkt.
+         else                  byte_cnt_int <= (byte_cnt_int + {8'd0, byte_cnt_incr});
+      end
+   end
 
    // register read interface connections
    assign reg_if.pkt_count_upper_nxt  =  {14'd0,  pkt_cnt[49:32] };
@@ -151,24 +162,20 @@ module axi4s_probe
 
    // Control signal monitoring
    assign reg_if.monitor_nxt_v = 1'b1;
-   assign reg_if.monitor_nxt.aresetn = axi4s_if.aresetn;
-   assign reg_if.monitor_nxt.tvalid  = axi4s_if.tvalid;
-   assign reg_if.monitor_nxt.tready  = axi4s_if.tready;
-   assign reg_if.monitor_nxt.tlast   = axi4s_if.tlast;
+   assign reg_if.monitor_nxt.tvalid  = axi4s_if_tvalid_p;
+   assign reg_if.monitor_nxt.tready  = axi4s_if_tready_p;
+   assign reg_if.monitor_nxt.tlast   = axi4s_if_tlast_p;
 
    // Control signal activity tracking
    struct packed {logic tvalid; logic tready; logic tlast;} activity;
 
-   always @(posedge axi4s_if.aclk) begin
-       if (srst) activity <= '0;
-       else begin
-           if (reg_if.activity_rd_evt) activity <= '0;
-           else begin
-              activity.tvalid <= activity.tvalid || axi4s_if.tvalid;
-              activity.tready <= activity.tready || axi4s_if.tready;
-              activity.tlast  <= activity.tlast  || axi4s_if.tlast;
-           end
-       end
+   always_comb begin
+      if (reg_if.activity_rd_evt) activity = '0;
+      else begin
+          activity.tvalid = reg_if.activity.tvalid || axi4s_if_tvalid_p;
+          activity.tready = reg_if.activity.tready || axi4s_if_tready_p;
+          activity.tlast  = reg_if.activity.tlast  || axi4s_if_tlast_p;
+      end
    end
    assign reg_if.activity_nxt_v = 1'b1;
    assign reg_if.activity_nxt.tvalid = activity.tvalid;

@@ -58,16 +58,16 @@
     assign srst = !from_controller.aresetn;
 
     // Bus interfaces (one for each of the AXI4-L channels)
-    bus_intf #(.DATA_WID(AX_PAYLOAD_WID)) aw_bus_if__from_controller (.clk, .srst);
-    bus_intf #(.DATA_WID(AX_PAYLOAD_WID)) aw_bus_if__to_peripheral   (.clk, .srst);
-    bus_intf #(.DATA_WID(W_PAYLOAD_WID))  w_bus_if__from_controller  (.clk, .srst);
-    bus_intf #(.DATA_WID(W_PAYLOAD_WID))  w_bus_if__to_peripheral    (.clk, .srst);
-    bus_intf #(.DATA_WID(B_PAYLOAD_WID))  b_bus_if__from_controller  (.clk, .srst);
-    bus_intf #(.DATA_WID(B_PAYLOAD_WID))  b_bus_if__to_peripheral    (.clk, .srst);
-    bus_intf #(.DATA_WID(AX_PAYLOAD_WID)) ar_bus_if__from_controller (.clk, .srst);
-    bus_intf #(.DATA_WID(AX_PAYLOAD_WID)) ar_bus_if__to_peripheral   (.clk, .srst);
-    bus_intf #(.DATA_WID(R_PAYLOAD_WID))  r_bus_if__from_controller  (.clk, .srst);
-    bus_intf #(.DATA_WID(R_PAYLOAD_WID))  r_bus_if__to_peripheral    (.clk, .srst);
+    bus_intf #(.DATA_WID(AX_PAYLOAD_WID)) aw_bus_if__from_controller (.clk);
+    bus_intf #(.DATA_WID(AX_PAYLOAD_WID)) aw_bus_if__to_peripheral   (.clk);
+    bus_intf #(.DATA_WID(W_PAYLOAD_WID))  w_bus_if__from_controller  (.clk);
+    bus_intf #(.DATA_WID(W_PAYLOAD_WID))  w_bus_if__to_peripheral    (.clk);
+    bus_intf #(.DATA_WID(B_PAYLOAD_WID))  b_bus_if__from_controller  (.clk);
+    bus_intf #(.DATA_WID(B_PAYLOAD_WID))  b_bus_if__to_peripheral    (.clk);
+    bus_intf #(.DATA_WID(AX_PAYLOAD_WID)) ar_bus_if__from_controller (.clk);
+    bus_intf #(.DATA_WID(AX_PAYLOAD_WID)) ar_bus_if__to_peripheral   (.clk);
+    bus_intf #(.DATA_WID(R_PAYLOAD_WID))  r_bus_if__from_controller  (.clk);
+    bus_intf #(.DATA_WID(R_PAYLOAD_WID))  r_bus_if__to_peripheral    (.clk);
 
     axi4l_to_bus_adapter i_axi4l_to_bus_adapter (
         .axi4l_if  ( from_controller ),
@@ -80,17 +80,18 @@
 
     generate
         begin : g__fwd
-            bus_pipe_slr #(.PRE_PIPE_STAGES(PRE_PIPE_STAGES), .POST_PIPE_STAGES(POST_PIPE_STAGES)) i_bus_pipe_slr__aw ( .from_tx ( aw_bus_if__from_controller ), .to_rx ( aw_bus_if__to_peripheral ));
-            bus_pipe_slr #(.PRE_PIPE_STAGES(PRE_PIPE_STAGES), .POST_PIPE_STAGES(POST_PIPE_STAGES)) i_bus_pipe_slr__w  ( .from_tx ( w_bus_if__from_controller ),  .to_rx ( w_bus_if__to_peripheral ));
-            bus_pipe_slr #(.PRE_PIPE_STAGES(PRE_PIPE_STAGES), .POST_PIPE_STAGES(POST_PIPE_STAGES)) i_bus_pipe_slr__ar ( .from_tx ( ar_bus_if__from_controller ), .to_rx ( ar_bus_if__to_peripheral ));
+            bus_pipe_slr #(.PRE_PIPE_STAGES(PRE_PIPE_STAGES), .POST_PIPE_STAGES(POST_PIPE_STAGES)) i_bus_pipe_slr__aw (.srst, .from_tx (aw_bus_if__from_controller), .to_rx (aw_bus_if__to_peripheral));
+            bus_pipe_slr #(.PRE_PIPE_STAGES(PRE_PIPE_STAGES), .POST_PIPE_STAGES(POST_PIPE_STAGES)) i_bus_pipe_slr__w  (.srst, .from_tx (w_bus_if__from_controller),  .to_rx (w_bus_if__to_peripheral));
+            bus_pipe_slr #(.PRE_PIPE_STAGES(PRE_PIPE_STAGES), .POST_PIPE_STAGES(POST_PIPE_STAGES)) i_bus_pipe_slr__ar (.srst, .from_tx (ar_bus_if__from_controller), .to_rx (ar_bus_if__to_peripheral));
         end : g__fwd
         begin : g__rev
-            bus_pipe_slr #(.PRE_PIPE_STAGES(PRE_PIPE_STAGES), .POST_PIPE_STAGES(POST_PIPE_STAGES)) i_bus_pipe_slr__b  ( .from_tx ( b_bus_if__to_peripheral ),  .to_rx ( b_bus_if__from_controller ));
-            bus_pipe_slr #(.PRE_PIPE_STAGES(PRE_PIPE_STAGES), .POST_PIPE_STAGES(POST_PIPE_STAGES)) i_bus_pipe_slr__r  ( .from_tx ( r_bus_if__to_peripheral ),  .to_rx ( r_bus_if__from_controller ));
+            bus_pipe_slr #(.PRE_PIPE_STAGES(PRE_PIPE_STAGES), .POST_PIPE_STAGES(POST_PIPE_STAGES)) i_bus_pipe_slr__b  (.srst, .from_tx (b_bus_if__to_peripheral), .to_rx (b_bus_if__from_controller));
+            bus_pipe_slr #(.PRE_PIPE_STAGES(PRE_PIPE_STAGES), .POST_PIPE_STAGES(POST_PIPE_STAGES)) i_bus_pipe_slr__r  (.srst, .from_tx (r_bus_if__to_peripheral), .to_rx (r_bus_if__from_controller));
         end : g__rev
     endgenerate
 
     axi4l_from_bus_adapter i_axi4l_from_bus_adapter (
+        .aresetn   ( from_controller.aresetn ),
         .aw_bus_if ( aw_bus_if__to_peripheral ),
         .w_bus_if  ( w_bus_if__to_peripheral ),
         .b_bus_if  ( b_bus_if__to_peripheral ),

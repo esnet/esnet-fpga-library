@@ -16,7 +16,10 @@ module axi4s_sync
 #(
    parameter axi4s_sync_mode_t MODE = SOP,
    parameter int PTR_LEN = 16 // wordlength of wr_ptr (for buffer context, or pkt_id).
-) ( 
+) (
+   input  logic     clk,
+   input  logic     srst,
+
    axi4s_intf.rx    axi4s_in0,  axi4s_in1,
    axi4s_intf.tx    axi4s_out0, axi4s_out1,
 
@@ -55,15 +58,36 @@ module axi4s_sync
        std_pkg::param_check_gt(TUSER_WID, SYNC_META_WID, "axi4s_in0.TUSER_WID");
    end
 
+   logic  axi4s_in0_sop, axi4s_in1_sop;
+
    sync_meta_t sync_meta_in0, sync_meta_in1;
 
    logic  sync_sop, match, mismatch;
    logic  sync, sync0, sync1;
 
+   // Track SOP
+   initial axi4s_in0_sop = 1'b1;
+   always @(posedge clk) begin
+       if (srst) axi4s_in0_sop <= 1'b1;
+       else begin
+           if (axi4s_in0.tvalid && axi4s_in0.tready && axi4s_in0.tlast) axi4s_in0_sop <= 1'b1;
+           else if (axi4s_in0.tvalid && axi4s_in0.tready)               axi4s_in0_sop <= 1'b0;
+       end
+   end
+   initial axi4s_in1_sop = 1'b1;
+   always @(posedge clk) begin
+       if (srst) axi4s_in1_sop <= 1'b1;
+       else begin
+           if (axi4s_in1.tvalid && axi4s_in1.tready && axi4s_in1.tlast) axi4s_in1_sop <= 1'b1;
+           else if (axi4s_in1.tvalid && axi4s_in1.tready)               axi4s_in1_sop <= 1'b0;
+       end
+   end
+
+
    assign sync_meta_in0 = axi4s_in0.tuser[SYNC_META_WID-1:0];
    assign sync_meta_in1 = axi4s_in1.tuser[SYNC_META_WID-1:0];
 
-   assign sync_sop = axi4s_in0.sop && axi4s_in0.tvalid && axi4s_in1.sop && axi4s_in1.tvalid;
+   assign sync_sop = axi4s_in0_sop && axi4s_in0.tvalid && axi4s_in1_sop && axi4s_in1.tvalid;
    assign match = (sync_meta_in0.pid == sync_meta_in1.pid);
    assign mismatch = !match;
 
@@ -74,8 +98,8 @@ module axi4s_sync
         SOP : begin
           // synchronize sop words and validate wr pointers (pkt id).
           sync  = sync_sop && match;
-          sync0 = (sync && axi4s_out1.tready) || !axi4s_in0.sop;
-          sync1 = (sync && axi4s_out0.tready) || !axi4s_in1.sop;
+          sync0 = (sync && axi4s_out1.tready) || !axi4s_in0_sop;
+          sync1 = (sync && axi4s_out0.tready) || !axi4s_in1_sop;
         end
 
         HDR_TLAST : begin

@@ -13,11 +13,13 @@ module packet_fifo_core
  ) (
 
     // Packet input (synchronous to packet_in_if.clk)
+    input  logic                srst_in,
     packet_intf.rx              packet_in_if,
     packet_event_intf.publisher event_in_if,
     mem_wr_intf.controller      mem_wr_if,
     
     // Packet output (synchronous to packet_out_if.clk)
+    input  logic                srst_out,
     packet_intf.tx              packet_out_if,
     packet_event_intf.publisher event_out_if,
     mem_rd_intf.controller      mem_rd_if,
@@ -54,10 +56,10 @@ module packet_fifo_core
         end : g__cut_through
         else begin : g__store_and_forward
             // (Local) interfaces
-            packet_descriptor_intf #(.ADDR_WID(ADDR_WID), .META_WID(META_WID), .MAX_PKT_SIZE(MAX_PKT_SIZE)) wr_descriptor_if__in_clk  [1] (.clk(packet_in_if.clk),  .srst(packet_in_if.srst));
-            packet_descriptor_intf #(.ADDR_WID(ADDR_WID), .META_WID(META_WID), .MAX_PKT_SIZE(MAX_PKT_SIZE)) wr_descriptor_if__out_clk [1] (.clk(packet_out_if.clk), .srst(packet_out_if.srst));
-            packet_descriptor_intf #(.ADDR_WID(ADDR_WID), .META_WID(META_WID), .MAX_PKT_SIZE(MAX_PKT_SIZE)) rd_descriptor_if__in_clk  [1] (.clk(packet_in_if.clk),  .srst(packet_in_if.srst));
-            packet_descriptor_intf #(.ADDR_WID(ADDR_WID), .META_WID(META_WID), .MAX_PKT_SIZE(MAX_PKT_SIZE)) rd_descriptor_if__out_clk [1] (.clk(packet_out_if.clk), .srst(packet_out_if.srst));
+            packet_descriptor_intf #(.ADDR_WID(ADDR_WID), .META_WID(META_WID), .MAX_PKT_SIZE(MAX_PKT_SIZE)) wr_descriptor_if__in_clk  [1] (.clk(packet_in_if.clk));
+            packet_descriptor_intf #(.ADDR_WID(ADDR_WID), .META_WID(META_WID), .MAX_PKT_SIZE(MAX_PKT_SIZE)) wr_descriptor_if__out_clk [1] (.clk(packet_out_if.clk));
+            packet_descriptor_intf #(.ADDR_WID(ADDR_WID), .META_WID(META_WID), .MAX_PKT_SIZE(MAX_PKT_SIZE)) rd_descriptor_if__in_clk  [1] (.clk(packet_in_if.clk));
+            packet_descriptor_intf #(.ADDR_WID(ADDR_WID), .META_WID(META_WID), .MAX_PKT_SIZE(MAX_PKT_SIZE)) rd_descriptor_if__out_clk [1] (.clk(packet_out_if.clk));
 
             // Enqueue FSM
             packet_enqueue       #(
@@ -67,7 +69,7 @@ module packet_fifo_core
                 .MAX_PKT_SIZE     ( MAX_PKT_SIZE )
             ) i_packet_enqueue    (
                 .clk              ( packet_in_if.clk ),
-                .srst             ( packet_in_if.srst ),
+                .srst             ( srst_in ),
                 .packet_if        ( packet_in_if ),
                 .wr_descriptor_if ( wr_descriptor_if__in_clk ),
                 .rd_descriptor_if ( rd_descriptor_if__in_clk ),
@@ -87,7 +89,9 @@ module packet_fifo_core
                 .ASYNC         ( ASYNC )
             ) i_packet_descriptor_fifo (
                 .from_tx       ( wr_descriptor_if__in_clk [0] ),
-                .to_rx         ( wr_descriptor_if__out_clk[0] )
+                .from_tx_srst  ( srst_in ),
+                .to_rx         ( wr_descriptor_if__out_clk[0] ),
+                .to_rx_srst    ( srst_out )
             );
             if (ASYNC) begin : g__async
                 // -- Reverse (out to in)
@@ -96,7 +100,9 @@ module packet_fifo_core
                     .ASYNC         ( 1 )
                 ) i_packet_descriptor_fifo (
                     .from_tx       ( rd_descriptor_if__out_clk[0] ),
-                    .to_rx         ( rd_descriptor_if__in_clk [0] )
+                    .from_tx_srst  ( srst_out ),
+                    .to_rx         ( rd_descriptor_if__in_clk [0] ),
+                    .to_rx_srst    ( srst_in )
                 );
             end : g__async
             else begin : g__sync
@@ -112,7 +118,7 @@ module packet_fifo_core
                 .MAX_RD_LATENCY   ( MAX_RD_LATENCY )
             ) i_packet_read       (
                 .clk              ( packet_out_if.clk ),
-                .srst             ( packet_out_if.srst ),
+                .srst             ( srst_out ),
                 .packet_if        ( packet_out_if ),
                 .wr_descriptor_if ( wr_descriptor_if__out_clk ),
                 .rd_descriptor_if ( rd_descriptor_if__out_clk ),

@@ -12,7 +12,10 @@ module packet_fifo
     // Simulation-only
     parameter bit  SIM__RAM_MODEL = 0
  ) (
+    input  logic    srst_in,
     packet_intf.rx  packet_in_if,
+
+    input  logic    srst_out,
     packet_intf.tx  packet_out_if
 );
 

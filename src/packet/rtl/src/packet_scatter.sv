@@ -104,6 +104,7 @@ module packet_scatter #(
     state_t      state;
     state_t      nxt_state;
 
+    logic        pkt_sop;
     logic        pkt_eop;
     logic        pkt_oflow;
 
@@ -261,10 +262,20 @@ module packet_scatter #(
     initial pkt_words = 0;
     always @(posedge clk) begin
         if (packet_if.vld && packet_if.rdy) begin
-            if (packet_if.sop) pkt_words <= 1;
+            if (pkt_sop) pkt_words <= 1;
             else if (pkt_words <= MAX_PKT_WORDS) pkt_words <= pkt_words + 1;
         end
     end
+
+    // Track SOP
+    packet_sop i_packet_sop (
+        .clk,
+        .srst,
+        .vld (packet_if.vld),
+        .rdy (packet_if.rdy),
+        .eop (packet_if.eop),
+        .sop (pkt_sop)
+    );
 
     // Latch buffer pointer
     always_ff @(posedge clk) buffer_ptr_r <= buffer_ptr;

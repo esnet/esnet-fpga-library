@@ -45,10 +45,10 @@ module axi4s_pkt_fifo_sync #(
    localparam int TUSER_WID     = axi4s_in.TUSER_WID;
 
    axi4s_intf  #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID))
-                 __axi4s_in (.aclk(axi4s_in.aclk), .aresetn(axi4s_in.aresetn));
+                 __axi4s_in (.aclk(axi4s_in.aclk));
 
    axi4s_intf  #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID))
-                 axi4s_to_fifo (.aclk(axi4s_in.aclk), .aresetn(axi4s_in.aresetn));
+                 axi4s_to_fifo (.aclk(axi4s_in.aclk));
 
    localparam CNT_WIDTH = $clog2(FIFO_DEPTH+1);
 
@@ -88,11 +88,13 @@ module axi4s_pkt_fifo_sync #(
          );
 
          axi4s_probe axi4s_probe (
+            .srst,
             .axi4l_if  (axil_to_probe),
             .axi4s_if  (__axi4s_in)
          );
 
          axi4s_probe #( .MODE(OVFL) ) axi4s_ovfl (
+            .srst,
             .axi4l_if  (axil_to_ovfl),
             .axi4s_if  (__axi4s_in)
          );
@@ -101,6 +103,7 @@ module axi4s_pkt_fifo_sync #(
              .MAX_PKT_LEN   (MAX_PKT_LEN),
              .DROP_ERRORED  (DROP_ERRORED)
          ) axi4s_pkt_discard_ovfl_0 (
+             .srst,
              .axi4s_in  (__axi4s_in),
              .axi4s_out (axi4s_to_fifo)
          );
@@ -116,6 +119,7 @@ module axi4s_pkt_fifo_sync #(
          );
 
          axi4s_probe axi4s_probe (
+            .srst,
             .axi4l_if  (axil_to_probe),
             .axi4s_if  (axi4s_to_fifo)
          );
@@ -123,7 +127,19 @@ module axi4s_pkt_fifo_sync #(
          axi4l_intf_peripheral_term axi4l_to_ovfl_peripheral_term (.axi4l_if(axil_to_ovfl));
 
          if (NO_INTRA_PKT_GAP) begin : g__no_intra_pkt_gap
-            assign axi4s_to_fifo.tready = !(almost_full && axi4s_to_fifo.sop);
+            logic sop;
+
+            // track sop
+            initial sop = 1'b1;
+            always @(posedge axi4s_in.aclk) begin
+                if (srst) sop <= 1'b1;
+                else begin
+                    if (axi4s_to_fifo.tvalid && axi4s_to_fifo.tready && axi4s_to_fifo.tlast) sop <= 1'b1;
+                    else if (axi4s_to_fifo.tvalid && axi4s_to_fifo.tready)                   sop <= 1'b0;
+                end
+            end
+
+            assign axi4s_to_fifo.tready = !(almost_full && sop);
             assign wr = axi4s_to_fifo.tvalid && axi4s_to_fifo.tready;
          end : g__no_intra_pkt_gap
 
@@ -156,7 +172,7 @@ module axi4s_pkt_fifo_sync #(
       .FWFT      (1)
    ) fifo_sync_0 (
       .clk       ( axi4s_to_fifo.aclk ),
-      .srst      (~axi4s_to_fifo.aresetn || srst),
+      .srst,
       .wr_rdy    ( ),
       .wr        ( wr ),
       .wr_data   ( wr_data ),
@@ -179,12 +195,12 @@ module axi4s_pkt_fifo_sync #(
          logic [CNT_WIDTH-1:0] wr_tlast_count, rd_tlast_count, tlast_count;
 
          always @(posedge axi4s_to_fifo.aclk) begin
-            if (!axi4s_to_fifo.aresetn)   wr_tlast_count <= '0;
+            if (srst)                     wr_tlast_count <= '0;
             else if (wr && wr_data.tlast) wr_tlast_count <= wr_tlast_count + 1;
          end
 
          always @(posedge axi4s_out.aclk) begin
-            if (!axi4s_out.aresetn) rd_tlast_count <= '0;
+            if (srst)                                                         rd_tlast_count <= '0;
             else if (axi4s_out.tvalid && axi4s_out.tready && axi4s_out.tlast) rd_tlast_count <= rd_tlast_count + 1;
          end
 

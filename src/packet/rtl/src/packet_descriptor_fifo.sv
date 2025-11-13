@@ -3,7 +3,10 @@ module packet_descriptor_fifo #(
     parameter bit ASYNC = 0
 ) (
     packet_descriptor_intf.rx from_tx,
-    packet_descriptor_intf.tx to_rx
+    input logic               from_tx_srst,
+
+    packet_descriptor_intf.tx to_rx,
+    input logic               to_rx_srst
 );
     // -----------------------------
     // Parameters
@@ -59,7 +62,7 @@ module packet_descriptor_fifo #(
         .FWFT     ( 1 )
     ) i_fifo_core  (
         .wr_clk    ( from_tx.clk ),
-        .wr_srst   ( from_tx.srst ),
+        .wr_srst   ( from_tx_srst ),
         .wr_rdy    ( from_tx.rdy ),
         .wr        ( from_tx.vld ),
         .wr_data   ( desc_in ),
@@ -67,7 +70,7 @@ module packet_descriptor_fifo #(
         .wr_full   ( ),
         .wr_oflow  ( ),
         .rd_clk    ( to_rx.clk ),
-        .rd_srst   ( to_rx.srst ),
+        .rd_srst   ( to_rx_srst ),
         .rd        ( to_rx.rdy ),
         .rd_ack    ( to_rx.vld ),
         .rd_data   ( desc_out ),

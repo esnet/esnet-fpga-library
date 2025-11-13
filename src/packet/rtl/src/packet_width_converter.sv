@@ -8,6 +8,7 @@ module packet_width_converter #(
     parameter bit LATCH_METADATA_ON_SOP = 0 // When set, latch metadata (meta signal) only on SOP, ignore for all subsequent cycles
                                             // Default behaviour is to latch metadata on EOP
 ) (
+    input logic      srst,
     packet_intf.rx   from_tx,
     packet_intf.tx   to_rx
 );
@@ -35,6 +36,7 @@ module packet_width_converter #(
         std_pkg::param_check(to_rx.META_WID, from_tx.META_WID, "Metadata width must be the same on input and output interfaces.");
     end
 
+    logic                sop;
     logic                eop;
     logic [META_WID-1:0] meta;
     logic                err;
@@ -53,7 +55,7 @@ module packet_width_converter #(
             // Pack (narrow) input words into (wide) output interface, starting from left (i.e, big-endian, network byte order)
             initial pack_state = '0;
             always @(posedge from_tx.clk) begin
-                if (from_tx.srst) pack_state <= '0;
+                if (srst) pack_state <= '0;
                 else begin
                     if (to_rx.vld && to_rx.rdy) begin
                         if (from_tx.vld && from_tx.rdy) pack_state <= 1;
@@ -96,7 +98,7 @@ module packet_width_converter #(
             // Unpack (narrow) words to output interface from (wide) input interface, starting from left (i.e, big-endian, network byte order)
             initial valid = '0;
             always @(posedge from_tx.clk) begin
-                if (from_tx.srst) valid <= '0;
+                if (srst) valid <= '0;
                 else begin
                     if (from_tx.vld && from_tx.rdy) begin
                         for (int i = 0; i < CONVERT_RATIO; i++) begin
@@ -130,16 +132,26 @@ module packet_width_converter #(
         end : g__downsize
     endgenerate
 
+    // Track SOP
+    packet_sop i_packet_sop (
+        .clk (from_tx.clk),
+        .srst,
+        .vld (from_tx.vld),
+        .rdy (from_tx.rdy),
+        .eop (from_tx.eop),
+        .sop
+    );
+
     // Handle metadata (common to upsize/downsize operations)
     always_ff @(posedge from_tx.clk) begin
         if (from_tx.vld && from_tx.rdy) begin
             err  <= from_tx.err;
             if (LATCH_METADATA_ON_SOP) begin
-                if (from_tx.sop) meta <= from_tx.meta;
+                if (sop) meta <= from_tx.meta;
             end else meta <= from_tx.meta;
         end
     end
-
+    
     assign to_rx.err  = err;
     assign to_rx.meta = meta;
 

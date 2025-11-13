@@ -8,6 +8,7 @@ module axi4s_width_converter #(
     parameter bit LATCH_METADATA_ON_SOP = 0 // When set, latch metadata (tid/tdest/tuser signals) only on SOP, ignore for all subsequent cycles
                                             // Default behaviour is to latch metadata on EOP
 ) (
+    input logic     srst,
     axi4s_intf.rx   from_tx,
     axi4s_intf.tx   to_rx
 );
@@ -40,6 +41,7 @@ module axi4s_width_converter #(
     logic [TID_WID-1:0]   tid;
     logic [TDEST_WID-1:0] tdest;
     logic [TUSER_WID-1:0] tuser;
+    logic                 sop;
 
     generate
         if (CONVERSION_TYPE == UPSIZE) begin : g__upsize
@@ -55,7 +57,7 @@ module axi4s_width_converter #(
             // Pack (narrow) input words into (wide) output interface, starting from left (i.e, little-endian, AXI-S byte order)
             initial pack_state = '0;
             always @(posedge from_tx.aclk) begin
-                if (!from_tx.aresetn) pack_state <= '0;
+                if (srst) pack_state <= '0;
                 else begin
                     if (to_rx.tvalid && to_rx.tready) begin
                         if (from_tx.tvalid && from_tx.tready) pack_state <= 1;
@@ -100,7 +102,7 @@ module axi4s_width_converter #(
             // Unpack (narrow) words to output interface from (wide) input interface, starting from right (i.e, little-endian, AXI-S byte order)
             initial valid = '0;
             always @(posedge from_tx.aclk) begin
-                if (!from_tx.aresetn) valid <= '0;
+                if (srst) valid <= '0;
                 else begin
                     if (from_tx.tvalid && from_tx.tready) begin
                         for (int i = 0; i < CONVERT_RATIO; i++) begin
@@ -134,12 +136,22 @@ module axi4s_width_converter #(
 
         end : g__downsize
     endgenerate
+    
+    // Track SOP
+    initial sop = 1'b1;
+    always @(posedge from_tx.aclk) begin
+        if (srst) sop <= 1'b1;
+        else begin
+            if (from_tx.tvalid && from_tx.tready && from_tx.tlast) sop <= 1'b1;
+            else if (from_tx.tvalid && from_tx.tready)             sop <= 1'b0;
+        end
+    end
 
     // Handle metadata (common to upsize/downsize operations)
     always_ff @(posedge from_tx.aclk) begin
         if (from_tx.tvalid && from_tx.tready) begin
             if (LATCH_METADATA_ON_SOP) begin
-                if (from_tx.sop) begin
+                if (sop) begin
                     tid <= from_tx.tid;
                     tdest <= from_tx.tdest;
                     tuser <= from_tx.tuser;

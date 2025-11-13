@@ -3,8 +3,7 @@ interface alloc_intf #(
     parameter int PTR_WID = 1,
     parameter int META_WID = 1
 ) (
-    input logic clk,
-    input logic srst = 1'b0
+    input logic clk
 );
 
     // Parameters
@@ -21,13 +20,10 @@ interface alloc_intf #(
     logic [SIZE_WID-1:0]  size;
     logic [META_WID-1:0]  meta;
     logic                 err;
-    
-    logic                 sof;
 
     // Modports
     modport store_tx(
         input  clk,
-        input  srst,
         output req,
         input  rdy,
         input  ptr,
@@ -37,13 +33,11 @@ interface alloc_intf #(
         output eof,
         output size,
         output meta,
-        output err,
-        input  sof
+        output err
     );
 
     modport store_rx(
         input  clk,
-        input  srst,
         input  req,
         output rdy,
         output ptr,
@@ -53,13 +47,11 @@ interface alloc_intf #(
         input  eof,
         input  size,
         input  meta,
-        input  err,
-        input  sof
+        input  err
     );
 
     modport load_tx(
         input  clk,
-        input  srst,
         output req,
         input  rdy,
         output ptr,
@@ -69,13 +61,11 @@ interface alloc_intf #(
         input  eof,
         input  size,
         input  meta,
-        input  err,
-        input  sof
+        input  err
     );
 
     modport load_rx(
         input  clk,
-        input  srst,
         input  req,
         output rdy,
         input  ptr,
@@ -85,17 +75,8 @@ interface alloc_intf #(
         output eof,
         output size,
         output meta,
-        output err,
-        input  sof
+        output err
     );
-
-    // Track SOF
-    initial sof = 1'b1;
-    always @(posedge clk) begin
-        if (srst) sof <= 1'b1;
-        else if (vld && ack && eof) sof <= 1'b1;
-        else if (vld && ack) sof <= 1'b0;
-    end
 
     clocking cb_store @(posedge clk);
         output req, vld, nxt_ptr, eof, size, meta, err;

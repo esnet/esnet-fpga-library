@@ -2,8 +2,7 @@ interface packet_intf #(
     parameter int DATA_BYTE_WID = 1,
     parameter int META_WID = 1
 ) (
-    input logic clk,
-    input logic srst = 1'b0
+    input logic clk
 );
     initial begin
         std_pkg::param_check_gt(DATA_BYTE_WID, 1, "DATA_BYTE_WID");
@@ -26,16 +25,12 @@ interface packet_intf #(
     logic                          err;
     logic [META_WID-1:0]           meta;
 
-    logic  sop;
-
     // Modports
     modport tx(
         input  clk,
-        input  srst,
         output vld,
         input  rdy,
         output data,
-        input  sop,
         output eop,
         output mty,
         output err,
@@ -44,26 +39,14 @@ interface packet_intf #(
 
     modport rx(
         input  clk,
-        input  srst,
         input  vld,
         output rdy,
         input  data,
-        input  sop,
         input  eop,
         input  mty,
         input  err,
         input  meta
     );
-
-    // Track SOP
-    initial sop = 1'b1;
-    always @(posedge clk) begin
-        if (srst) sop <= 1'b1;
-        else begin
-            if (vld && rdy && eop) sop <= 1'b1;
-            else if (vld && rdy)   sop <= 1'b0;
-        end
-    end
 
     clocking cb_tx @(posedge clk);
         output vld, data, eop, mty, err, meta;

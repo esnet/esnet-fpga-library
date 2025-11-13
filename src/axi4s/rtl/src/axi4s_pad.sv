@@ -6,6 +6,7 @@
 module axi4s_pad
    import axi4s_pkg::*;
 (
+   input logic   srst,
    axi4s_intf.rx axi4s_in,
    axi4s_intf.tx axi4s_out
 );
@@ -13,6 +14,7 @@ module axi4s_pad
    localparam int DATA_BYTE_WID = axi4s_in.DATA_BYTE_WID;
 
    // signals
+   logic sop;
    logic short_pkt;
    logic [DATA_BYTE_WID-1:0][7:0] pad_tdata;
 
@@ -26,7 +28,17 @@ module axi4s_pad
       return tkeep_out;
    endfunction
 
-   assign short_pkt = axi4s_in.tvalid && axi4s_in.sop && axi4s_in.tlast;
+   // track sop
+   initial sop = 1'b1;
+   always @(posedge axi4s_in.aclk) begin
+       if (srst) sop <= 1'b1;
+       else begin
+           if (axi4s_in.tvalid && axi4s_in.tready && axi4s_in.tlast) sop <= 1'b1;
+           else if (axi4s_in.tvalid && axi4s_in.tready)              sop <= 1'b0;
+       end
+   end
+
+   assign short_pkt = axi4s_in.tvalid && sop && axi4s_in.tlast;
 
    always_comb for (int i=0; i<DATA_BYTE_WID; i++) pad_tdata[i] = axi4s_in.tkeep[i] ? axi4s_in.tdata[i] : 8'h00; 
 

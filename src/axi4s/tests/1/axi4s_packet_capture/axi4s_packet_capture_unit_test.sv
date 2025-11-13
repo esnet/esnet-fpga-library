@@ -37,7 +37,7 @@ module axi4s_packet_capture_unit_test;
     logic en;
 
     axi4l_intf axil_if ();
-    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID)) axis_if (.aclk(clk), .aresetn(!srst));
+    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID)) axis_if (.aclk(clk));
 
     axi4s_packet_capture #(.PACKET_MEM_SIZE(PACKET_MEM_SIZE)) DUT (.*);
 

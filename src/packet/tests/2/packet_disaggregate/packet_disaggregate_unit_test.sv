@@ -27,10 +27,11 @@ module packet_disaggregate_unit_test;
     // DUT
     //===================================
     logic clk;
-    logic srst;
+    logic srst_in;
+    logic srst_out;
 
-    packet_intf #(.DATA_BYTE_WID(DATA_IN_BYTE_WID),  .META_WID(META_WID))  packet_in_if (.clk, .srst);
-    packet_intf #(.DATA_BYTE_WID(DATA_OUT_BYTE_WID), .META_WID(META_WID)) packet_out_if [NUM_OUTPUTS] (.clk, .srst);
+    packet_intf #(.DATA_BYTE_WID(DATA_IN_BYTE_WID),  .META_WID(META_WID))  packet_in_if (.clk);
+    packet_intf #(.DATA_BYTE_WID(DATA_OUT_BYTE_WID), .META_WID(META_WID)) packet_out_if [NUM_OUTPUTS] (.clk);
 
     packet_event_intf event_in_if  (.clk);
     packet_event_intf event_out_if [NUM_OUTPUTS] (.clk);
@@ -67,9 +68,10 @@ module packet_disaggregate_unit_test;
     std_verif_pkg::event_scoreboard#(PACKET_T) scoreboard;
 
     // Reset
-    std_reset_intf reset_if (.clk(clk));
-    assign srst = reset_if.reset;
-    assign reset_if.ready = !srst;
+    std_reset_intf reset_if (.clk);
+    assign srst_in = reset_if.reset;
+    assign srst_out = reset_if.reset;
+    assign reset_if.ready = !srst_in;
 
     // Assign clock (333MHz)
     `SVUNIT_CLK_GEN(clk, 1.5ns);

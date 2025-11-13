@@ -3,6 +3,8 @@ module axi3_mem_bfm #(
     parameter bit GLOBAL_ADDRESSING = 1'b0,
     parameter bit DEBUG = 1'b0
 ) (
+    input logic srst,
+
     axi3_intf.peripheral axi3_if [CHANNELS]
 );
 
@@ -74,7 +76,7 @@ module axi3_mem_bfm #(
 
             // Latch write address/id
             always @(posedge axi3_if[g_if].aclk) begin
-                if (!axi3_if[g_if].aresetn) begin
+                if (srst) begin
                     aw_ctxt_q.delete();
                 end else begin
                     if (axi3_if[g_if].awvalid && axi3_if[g_if].awready) begin
@@ -89,7 +91,7 @@ module axi3_mem_bfm #(
 
             // Latch write data
             always @(posedge axi3_if[g_if].aclk) begin
-                if (!axi3_if[g_if].aresetn) begin
+                if (srst) begin
                     wdata_q.delete();
                 end else begin
                     if (axi3_if[g_if].wvalid && axi3_if[g_if].wready) begin
@@ -102,7 +104,7 @@ module axi3_mem_bfm #(
             // Track write progress
             initial wip = 1'b0;
             always @(posedge axi3_if[g_if].aclk) begin
-                if (!axi3_if[g_if].aresetn) begin
+                if (srst) begin
                     wip <= 1'b0;
                 end else if (wvalid && wlast) begin
                     wip <= 1'b0;
@@ -117,7 +119,7 @@ module axi3_mem_bfm #(
                 wip = 1'b0;
             end
             always @(posedge axi3_if[g_if].aclk) begin
-                if (!axi3_if[g_if].aresetn) begin
+                if (srst) begin
                     wvalid <= 1'b0;
                 end else  if (wip) begin
                     if (wlast) begin
@@ -172,7 +174,7 @@ module axi3_mem_bfm #(
  
             // Latch read address/id
             always @(posedge axi3_if[g_if].aclk) begin
-                if (!axi3_if[g_if].aresetn) begin
+                if (srst) begin
                     ar_ctxt_q.delete();
                 end else begin
                     if (axi3_if[g_if].arvalid && axi3_if[g_if].arready) begin
@@ -185,7 +187,7 @@ module axi3_mem_bfm #(
             // Perform read
             initial arvalid = 1'b0;
             always @(posedge axi3_if[g_if].aclk) begin
-                if (!axi3_if[g_if].aresetn) begin
+                if (srst) begin
                     arvalid <= 1'b0;
                 end else if (ar_ctxt_q.size() > 0) begin
                     arvalid <= 1'b1;
@@ -196,7 +198,7 @@ module axi3_mem_bfm #(
             end
 
             always @(posedge axi3_if[g_if].aclk) begin
-                if (!axi3_if[g_if].aresetn) begin
+                if (srst) begin
                     rdata_q.delete();
                 end else begin
                     if (arvalid) begin
@@ -216,7 +218,7 @@ module axi3_mem_bfm #(
             // Process read results
             initial rvalid = 1'b0;
             always @(posedge axi3_if[g_if].aclk) begin
-                if (!axi3_if[g_if].aresetn) begin
+                if (srst) begin
                     rvalid <= 1'b0;
                 end else if (rdata_q.size() > 0 && axi3_if[g_if].rready) begin
                     rvalid <= 1'b1;

@@ -38,7 +38,7 @@ module axi4s_packet_playback #(
     localparam int META_WID = $bits(meta_t);
 
     // Interfaces
-    packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_WID(META_WID)) packet_if (.clk, .srst);
+    packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_WID(META_WID)) packet_if (.clk);
 
     // Signals
     logic [TID_WID-1:0]   tid;

@@ -20,6 +20,7 @@ module packet_skid_buffer
     parameter int SKID = 1  // Number of cycles that can be received on
                             // from_tx interface *after* deassertion of rdy
 ) (
+    input  logic    srst,
     packet_intf.rx  from_tx,
     packet_intf.tx  to_rx,
     output logic    oflow   // An overflow of the skid buffer is possible
@@ -60,13 +61,13 @@ module packet_skid_buffer
 
     // Pipeline skid buffer
     // (catch SKID cycles of data already in flight after
-    //  deassertion axi4s_in.tready)
+    //  deasserting from_tx.rdy)
     fifo_prefetch #(
         .DATA_WID       ( $bits(fifo_data_t) ),
         .PIPELINE_DEPTH ( SKID )
     ) i_fifo_prefetch (
         .clk      ( from_tx.clk ),
-        .srst     ( from_tx.srst ),
+        .srst,
         .wr       ( from_tx.vld ),
         .wr_rdy   ( from_tx.rdy ),
         .wr_data  ( from_tx_data ),

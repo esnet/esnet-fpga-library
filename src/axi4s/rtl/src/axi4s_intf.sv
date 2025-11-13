@@ -4,8 +4,7 @@ interface axi4s_intf #(
     parameter int TDEST_WID = 1,
     parameter int TUSER_WID = 1
 ) (
-    input logic aclk,
-    input logic aresetn = 1'b1
+    input logic aclk
 );
     // Parameter validation
     initial begin
@@ -25,13 +24,9 @@ interface axi4s_intf #(
     logic [TDEST_WID-1:0]          tdest;
     logic [TUSER_WID-1:0]          tuser;
 
-    // Status
-    logic                          sop;
-
     // Modports
     modport tx (
         input  aclk,
-        input  aresetn,
         output tvalid,
         input  tready,
         output tdata,
@@ -39,14 +34,11 @@ interface axi4s_intf #(
         output tlast,
         output tid,
         output tdest,
-        output tuser,
-        // Status
-        input  sop
+        output tuser
     );
 
     modport rx (
         input  aclk,
-        input  aresetn,
         input  tvalid,
         output tready,
         input  tdata,
@@ -54,14 +46,11 @@ interface axi4s_intf #(
         input  tlast,
         input  tid,
         input  tdest,
-        input  tuser,
-        // Status
-        input  sop
+        input  tuser
     );
 
     modport prb (
         input  aclk,
-        input  aresetn,
         input  tvalid,
         input  tready,
         input  tdata,
@@ -69,9 +58,7 @@ interface axi4s_intf #(
         input  tlast,
         input  tid,
         input  tdest,
-        input  tuser,
-        // Status
-        input  sop
+        input  tuser
     );
 
     clocking cb_tx @(posedge aclk);
@@ -198,16 +185,6 @@ interface axi4s_intf #(
         join
         _timeout = __timeout;
     endtask
-
-    // Synthesize SOP
-    initial sop = 1;
-    always @(posedge aclk) begin
-        if (!aresetn) sop <= 1'b1;
-        else begin
-            if (tvalid && tready && tlast)  sop <= 1'b1;
-            else if (tvalid && tready)      sop <= 1'b0;
-        end
-    end
 
 endinterface : axi4s_intf
 
@@ -341,6 +318,7 @@ module axi4s_intf_pipe
 #(
     parameter axi4s_pipe_mode_t MODE = PULL
 ) (
+    input logic   srst,
     axi4s_intf.rx from_tx,
     axi4s_intf.tx to_rx
 );
@@ -357,7 +335,7 @@ module axi4s_intf_pipe
     // TVALID buffer
     initial to_rx.tvalid = 1'b0;
     always @(posedge from_tx.aclk) begin
-        if (!from_tx.aresetn)                      to_rx.tvalid <= 1'b0;
+        if (srst)                                  to_rx.tvalid <= 1'b0;
         else if (from_tx.tvalid && from_tx.tready) to_rx.tvalid <= 1'b1;
         else if (to_rx.tready)                     to_rx.tvalid <= 1'b0;
     end
@@ -365,7 +343,7 @@ module axi4s_intf_pipe
     // TREADY
     initial ready = 1'b1;
     always @(posedge from_tx.aclk) begin
-        if (!from_tx.aresetn)    ready <= 1'b1;
+        if (srst)                ready <= 1'b1;
         else if (from_tx.tvalid) ready <= 1'b0;
         else if (to_rx.tready)   ready <= 1'b1;
     end
@@ -388,6 +366,7 @@ endmodule : axi4s_intf_pipe
 
 // axi4-stream tready pipeline helper module
 module axi4s_tready_pipe (
+    input logic   srst,
     axi4s_intf.rx from_tx,
     axi4s_intf.tx to_rx
 );
@@ -410,13 +389,12 @@ module axi4s_tready_pipe (
     logic  fwft;
     logic  sample_enable;
 
-    axi4s_intf  #( .DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID) )
-                from_tx_p (.aclk (from_tx.aclk), .aresetn(from_tx.aresetn));
+    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID)) from_tx_p (.aclk (from_tx.aclk));
 
     logic to_rx_tready_p = 0;
     always @(posedge from_tx.aclk) begin
-        if (!from_tx.aresetn)  to_rx_tready_p <= 1'b0;
-        else                   to_rx_tready_p <= to_rx.tready;
+        if (srst) to_rx_tready_p <= 1'b0;
+        else      to_rx_tready_p <= to_rx.tready;
     end
 
     assign fwft = from_tx.tvalid && !from_tx_p.tvalid && !to_rx_tready_p;
@@ -432,7 +410,7 @@ module axi4s_tready_pipe (
 
     // sample data flops, and deassert tvalid when flopped data is transferred.
     always_ff @(posedge from_tx.aclk) begin
-        if (!from_tx.aresetn)                      from_tx_p.tvalid <= '0;
+        if (srst)                                  from_tx_p.tvalid <= '0;
         else if (to_rx.tready && from_tx_p.tvalid) from_tx_p.tvalid <= '0;
         else if (sample_enable)                    from_tx_p.tvalid <= from_tx.tvalid;
 
@@ -478,6 +456,7 @@ module axi4s_full_pipe
 #(
     parameter axi4s_pipe_mode_t MODE = PULL
 ) (
+    input logic   srst,
     axi4s_intf.rx from_tx,
     axi4s_intf.tx to_rx
 );
@@ -494,12 +473,11 @@ module axi4s_full_pipe
         std_pkg::param_check(from_tx.TUSER_WID,     to_rx.TUSER_WID,     "TUSER_WID");
     end
 
-    axi4s_intf  #( .DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID) )
-                from_tx_p (.aclk(from_tx.aclk), .aresetn(from_tx.aresetn));
+    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID)) from_tx_p (.aclk(from_tx.aclk));
 
-    axi4s_intf_pipe #(.MODE(MODE))  axi4s_intf_pipe_0   (.from_tx, .to_rx(from_tx_p));
+    axi4s_intf_pipe #(.MODE(MODE))  axi4s_intf_pipe_0   (.srst, .from_tx, .to_rx(from_tx_p));
 
-    axi4s_tready_pipe axi4s_tready_pipe_0 (.from_tx(from_tx_p), .to_rx);
+    axi4s_tready_pipe axi4s_tready_pipe_0 (.srst, .from_tx(from_tx_p), .to_rx);
 
 endmodule : axi4s_full_pipe
 
@@ -620,6 +598,7 @@ module axi4s_intf_demux #(
     // Derived parameters (don't override)
     parameter int SEL_WID = N > 1 ? $clog2(N) : 1
 ) (
+    input logic                srst,
     axi4s_intf.rx              from_tx,
     axi4s_intf.tx              to_rx [N],
     input logic [SEL_WID-1:0]  sel
@@ -640,7 +619,7 @@ module axi4s_intf_demux #(
         std_pkg::param_check(from_tx.TUSER_WID,     to_rx[0].TUSER_WID,     "to_rx[0].TUSER_WID");
     end
 
-    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID)) to_rx_p[N] (.aclk(from_tx.aclk), .aresetn(from_tx.aresetn));
+    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID)) to_rx_p[N] (.aclk(from_tx.aclk));
 
     logic tready[N_POW2];
 
@@ -660,7 +639,7 @@ module axi4s_intf_demux #(
             assign to_rx_p[g_if].tdest   = from_tx.tdest;
             assign to_rx_p[g_if].tuser   = from_tx.tuser;
 
-            axi4s_pipe #(.STAGES(1)) out_pipe (.from_tx(to_rx_p[g_if]), .to_rx(to_rx[g_if]));
+            axi4s_pipe #(.STAGES(1)) out_pipe (.srst, .from_tx(to_rx_p[g_if]), .to_rx(to_rx[g_if]));
         end : g__if
         // Specify 'out-of-range' values
         for (genvar g_if = N; g_if < N_POW2; g_if++) begin : g__if_out_of_range
@@ -719,6 +698,7 @@ endmodule
 module axi4s_intf_bypass_mux #(
     parameter int PIPE_STAGES = 1
 ) (
+    input logic   srst,
     axi4s_intf.rx from_tx,
     axi4s_intf.tx to_block,
     axi4s_intf.rx from_block,
@@ -748,11 +728,8 @@ module axi4s_intf_bypass_mux #(
     end
 
     // interface instantiations
-    axi4s_intf  #( .DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID) )
-                __from_tx (.aclk(from_tx.aclk), .aresetn(from_tx.aresetn));
-
-    axi4s_intf  #( .DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID) )
-                from_pipe (.aclk(from_tx.aclk), .aresetn(from_tx.aresetn));
+    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID)) __from_tx (.aclk(from_tx.aclk));
+    axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID)) from_pipe (.aclk(from_tx.aclk));
 
     // __from_tx assignments
     assign __from_tx.tvalid  = bypass ? from_tx.tvalid  : 1'b0;
@@ -778,15 +755,15 @@ module axi4s_intf_bypass_mux #(
     // pipeline instantation
     generate
        if (PIPE_STAGES > 0) begin : g__bypass_pipe
-          axi4s_intf  #( .DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID) )
-                          axi4s_bypass_pipe [PIPE_STAGES] (.aclk(from_tx.aclk), .aresetn(from_tx.aresetn));
+          axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID) )
+                axi4s_bypass_pipe [PIPE_STAGES] (.aclk(from_tx.aclk));
 
           axi4s_intf_pipe axi4s_intf_pipe_0
-                (.from_tx(__from_tx), .to_rx(axi4s_bypass_pipe[0]));
+                (.srst, .from_tx(__from_tx), .to_rx(axi4s_bypass_pipe[0]));
 
           for (genvar i = 1; i < PIPE_STAGES; i++) begin: g__stage
              axi4s_intf_pipe axi4s_intf_pipe
-                (.from_tx(axi4s_bypass_pipe[i-1]), .to_rx(axi4s_bypass_pipe[i]));
+                (.srst, .from_tx(axi4s_bypass_pipe[i-1]), .to_rx(axi4s_bypass_pipe[i]));
           end : g__stage
 
           axi4s_intf_connector axi4s_intf_connector_out
@@ -810,6 +787,7 @@ endmodule
 
 // axi4s advance tlast module (used to eliminate all-zeros tlast transactions that result from packet joining).
 module axi4s_adv_tlast (
+    input logic   srst,
     axi4s_intf.rx from_tx,
     axi4s_intf.tx to_rx
 );
@@ -829,9 +807,9 @@ module axi4s_adv_tlast (
     localparam int TUSER_WID     = from_tx.TUSER_WID;
 
     axi4s_intf  #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID))
-                from_tx_p (.aclk(from_tx.aclk), .aresetn(from_tx.aresetn));
+                from_tx_p (.aclk(from_tx.aclk));
 
-    axi4s_intf_pipe axi4s_intf_pipe_0 (.from_tx(from_tx), .to_rx(from_tx_p));
+    axi4s_intf_pipe axi4s_intf_pipe_0 (.srst, .from_tx, .to_rx(from_tx_p));
 
     logic  adv_tlast;
     assign adv_tlast = from_tx.tready && from_tx.tvalid && from_tx.tlast &&
@@ -839,7 +817,7 @@ module axi4s_adv_tlast (
 
     logic skip;
     always @(posedge from_tx.aclk) begin
-        if (!from_tx.aresetn) skip <= 0;
+        if (srst)           skip <= 0;
         else if (skip == 0) skip <= adv_tlast;
         else if (from_tx_p.tready && from_tx_p.tvalid) skip <= 0;  // skip == 1
     end

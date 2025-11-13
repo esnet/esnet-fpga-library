@@ -32,8 +32,8 @@ module axi4s_trunc
        std_pkg::param_check(axi4s_out.TUSER_WID,     TUSER_WID,     "axi4s_out.TUSER_WID");
    end
 
-   axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID)) axi4s_in_p (.aclk(axi4s_in.aclk), .aresetn(axi4s_in.aresetn));
-   axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID)) axi4s_out_p (.aclk(axi4s_out.aclk), .aresetn(axi4s_out.aresetn));
+   axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID)) axi4s_in_p (.aclk(axi4s_in.aclk));
+   axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID)) axi4s_out_p (.aclk(axi4s_out.aclk));
 
 
    // count_ones function 
@@ -67,9 +67,21 @@ module axi4s_trunc
 
    generate
       if (IN_PIPE) begin : g__in_pipe
-         axi4s_intf_pipe in_pipe_0 (.from_tx(axi4s_in), .to_rx(axi4s_in_p));
+         logic sop;
+         axi4s_intf_pipe in_pipe_0 (.srst, .from_tx(axi4s_in), .to_rx(axi4s_in_p));
+
+         // track sop
+         initial sop = 1'b1;
+         always @(posedge axi4s_in.aclk) begin
+             if (srst) sop <= 1'b1;
+             else begin
+                 if (axi4s_in.tvalid && axi4s_in.tready && axi4s_in.tlast) sop <= 1'b1;
+                 else if (axi4s_in.tvalid && axi4s_in.tready)              sop <= 1'b0;
+             end
+         end
+
          initial length_p = 0;
-         always @(posedge clk) length_p <= (axi4s_in.tready && axi4s_in.tvalid && axi4s_in.sop) ? length : length_p;
+         always @(posedge clk) length_p <= (axi4s_in.tready && axi4s_in.tvalid && sop) ? length : length_p;
       end : g__in_pipe
       else begin : g__no_in_pipe
          axi4s_intf_connector out_intf_connector_0 (.from_tx(axi4s_in), .to_rx(axi4s_in_p));
@@ -108,7 +120,7 @@ module axi4s_trunc
 
    generate
       if (OUT_PIPE) begin : g__out_pipe
-         axi4s_intf_pipe out_intf_pipe_0 (.from_tx(axi4s_out_p), .to_rx(axi4s_out));
+         axi4s_intf_pipe out_intf_pipe_0 (.srst, .from_tx(axi4s_out_p), .to_rx(axi4s_out));
       end : g__out_pipe
       else begin : g__no_out_pipe
          axi4s_intf_connector out_intf_connector_0 (.from_tx(axi4s_out_p), .to_rx(axi4s_out));

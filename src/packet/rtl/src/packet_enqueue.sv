@@ -102,9 +102,9 @@ module packet_enqueue
     // -----------------------------
     // Interfaces
     // -----------------------------
-    packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_WID(META_INT_WID)) __packet_if (.clk, .srst);
-    packet_descriptor_intf #(.ADDR_WID(ADDR_WID), .META_WID(META_WID), .MAX_PKT_SIZE(MAX_PKT_SIZE)) nxt_descriptor_if (.clk, .srst);
-    packet_descriptor_intf #(.ADDR_WID(ADDR_WID), .META_WID(META_INT_WID), .MAX_PKT_SIZE(MAX_PKT_SIZE)) __wr_descriptor_if (.clk, .srst);
+    packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_WID(META_INT_WID)) __packet_if (.clk);
+    packet_descriptor_intf #(.ADDR_WID(ADDR_WID), .META_WID(META_WID), .MAX_PKT_SIZE(MAX_PKT_SIZE)) nxt_descriptor_if (.clk);
+    packet_descriptor_intf #(.ADDR_WID(ADDR_WID), .META_WID(META_INT_WID), .MAX_PKT_SIZE(MAX_PKT_SIZE)) __wr_descriptor_if (.clk);
 
     // -----------------------------
     // Signals
@@ -196,8 +196,8 @@ module packet_enqueue
                     .DATA_WID ( CTXT_WID ),
                     .DEPTH    ( 16 )
                 ) i_fifo_small_ctxt__mux (
-                    .clk     ( clk ),
-                    .srst    ( srst ),
+                    .clk,
+                    .srst,
                     .wr_rdy  ( ctxt_list_append_rdy ),
                     .wr      ( ctxt_list_append_req ),
                     .wr_data ( ctxt_list_append_data ),

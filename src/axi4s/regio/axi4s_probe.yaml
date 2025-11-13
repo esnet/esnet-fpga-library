@@ -46,8 +46,6 @@ regs:
     desc: monitors state of axi4s control signals
     access: ro
     fields:
-        - name: aresetn
-          width: 1
         - name: tvalid
           width: 1
         - name: tready

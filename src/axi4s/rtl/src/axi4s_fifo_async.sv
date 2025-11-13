@@ -9,7 +9,9 @@ module axi4s_fifo_async
     parameter int DEPTH = 32
 ) (
     axi4s_intf.rx from_tx,
-    axi4s_intf.tx to_rx
+    input logic   from_tx_srst,
+    axi4s_intf.tx to_rx,
+    input logic   to_rx_srst
 );
     //----------------------------------------------
     // AXI-S FIFO instance

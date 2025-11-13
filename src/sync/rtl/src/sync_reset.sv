@@ -15,9 +15,6 @@ module sync_reset #(
     input  logic  clk_out,
     output logic  rst_out // (async assert, sync deassert)
 );
-    // Parameters
-    localparam int STAGES = sync_pkg::RETIMING_STAGES;
-
     // Signals
     logic __rst_n_in;
     (* DONT_TOUCH = "TRUE" *) logic __sync_ff_rst_in_n;

@@ -6,6 +6,7 @@
 module bus_pipe #(
     parameter int  STAGES = 1 // Pipeline stages, inserted in both forward (valid) and reverse (ready) directions
 ) (
+    input logic   srst,
     bus_intf.rx   from_tx,
     bus_intf.tx   to_rx
 );
@@ -21,43 +22,34 @@ module bus_pipe #(
 
     // Clock/reset
     logic clk;
-    logic srst;
 
     assign clk = from_tx.clk;
-    assign srst = from_tx.srst;
 
     // Interfaces
-    bus_intf #(.DATA_WID(DATA_WID)) bus_if__tx (.clk, .srst);
-    bus_intf #(.DATA_WID(DATA_WID)) bus_if__rx (.clk, .srst);
+    bus_intf #(.DATA_WID(DATA_WID)) bus_if__tx (.clk);
+    bus_intf #(.DATA_WID(DATA_WID)) bus_if__rx (.clk);
 
-    // Evaluate valid <-> ready handshake at input
-    assign bus_if__tx.valid = from_tx.valid && bus_if__tx.ready;
-    assign bus_if__tx.data = from_tx.data;
-    assign from_tx.ready = bus_if__tx.ready;
+    // Pipeline transmitter
+    bus_pipe_tx i_bus_pipe_tx (
+        .from_tx,
+        .to_rx   ( bus_if__tx )
+    );
 
     // Add pipeline stages as specified
-    bus_reg_multi    #(
-        .STAGES       ( STAGES )
-    ) i_bus_reg_multi (
+    bus_reg     #(
+        .STAGES  ( STAGES )
+    ) i_bus_reg  (
         .from_tx ( bus_if__tx ),
         .to_rx   ( bus_if__rx )
     );
-    
-    // Implement Rx FIFO to accommodate specified slack
-    // in valid <-> ready handshake protocol
-    fifo_prefetch #(
-        .DATA_WID  ( DATA_WID ),
-        .PIPELINE_DEPTH ( TOTAL_SLACK )
-    ) i_fifo_prefetch (
-        .clk,
+
+    // Pipeline receiver
+    bus_pipe_rx #(
+        .TOTAL_SLACK ( TOTAL_SLACK )
+    ) i_bus_pipe_rx (
         .srst,
-        .wr      ( bus_if__rx.valid ),
-        .wr_rdy  ( bus_if__rx.ready ),
-        .wr_data ( bus_if__rx.data ),
-        .oflow   ( ),
-        .rd      ( to_rx.ready ),
-        .rd_vld  ( to_rx.valid ),
-        .rd_data ( to_rx.data )
+        .from_tx ( bus_if__rx ),
+        .to_rx
     );
 
 endmodule : bus_pipe

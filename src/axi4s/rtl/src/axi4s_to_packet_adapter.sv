@@ -4,6 +4,7 @@
 module axi4s_to_packet_adapter #(
     parameter int META_WID = 1
 ) (
+    input logic                srst,
     // AXI-S data interface
     axi4s_intf.rx              axis_if,
     // Packet data interface
@@ -34,40 +35,32 @@ module axi4s_to_packet_adapter #(
     endfunction
 
     // Interfaces
-    packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_WID(META_WID)) __packet_if (.clk(packet_if.clk), .srst(packet_if.srst));
-
-    // Signals
-    logic  __vld;
-    logic [0:DATA_BYTE_WID-1][7:0] __data;
-    logic                __eop;
-    logic [MTY_WID-1:0]  __mty;
-    logic                __err;
-    logic [META_WID-1:0] __meta;
-
-    // Logic
-    assign axis_if.tready = __packet_if.rdy;
+    packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_WID(META_WID)) __packet_if (.clk(packet_if.clk));
 
     // Pipeline input interface for TKEEP to MTY calculation
-    initial __vld = 1'b0;
-    always @(posedge axis_if.aclk) __vld <= axis_if.tvalid && axis_if.tready;
-
-    always_ff @(posedge __packet_if.clk) begin
-        __data <= {<<8{axis_if.tdata}};
-        __eop  <= axis_if.tlast;
-        __mty  <= axis_if.tlast ? tkeep_to_mty(axis_if.tkeep) : 0;
-        __err  <= err;
-        __meta <= meta;
+    initial __packet_if.vld = 1'b0;
+    always @(posedge axis_if.aclk) begin
+        if (srst) __packet_if.vld <= 1'b0;
+        else      __packet_if.vld <= axis_if.tvalid && axis_if.tready;
     end
 
-    assign __packet_if.vld  = __vld;
-    assign __packet_if.data = __data;
-    assign __packet_if.eop  = __eop;
-    assign __packet_if.mty  = __mty;
-    assign __packet_if.err  = __err;
-    assign __packet_if.meta = __meta;
+    initial axis_if.tready = 1'b0;
+    always @(posedge axis_if.aclk) begin
+        if (srst) axis_if.tready <= 1'b0;
+        else      axis_if.tready <= __packet_if.rdy;
+    end
+
+    always_ff @(posedge __packet_if.clk) begin
+        __packet_if.data <= {<<8{axis_if.tdata}};
+        __packet_if.eop  <= axis_if.tlast;
+        __packet_if.mty  <= axis_if.tlast ? tkeep_to_mty(axis_if.tkeep) : 0;
+        __packet_if.err  <= err;
+        __packet_if.meta <= meta;
+    end
 
     // Skid buffer to accommodate interface pipelining
-    packet_skid_buffer #(.SKID (1)) i_packet_skid_buffer (
+    packet_skid_buffer #(.SKID (2)) i_packet_skid_buffer (
+        .srst,
         .from_tx ( __packet_if ),
         .to_rx   ( packet_if ),
         .oflow   ( )

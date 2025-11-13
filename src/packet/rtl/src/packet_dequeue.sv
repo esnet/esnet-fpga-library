@@ -109,8 +109,8 @@ module packet_dequeue
     // -----------------------------
     // Interfaces
     // -----------------------------
-    packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_WID(META_INT_WID)) __packet_if (.clk, .srst);
-    packet_descriptor_intf #(.ADDR_WID(ADDR_WID), .META_WID(META_INT_WID), .MAX_PKT_SIZE(MAX_PKT_SIZE)) __wr_descriptor_if (.clk, .srst);
+    packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_WID(META_INT_WID)) __packet_if (.clk);
+    packet_descriptor_intf #(.ADDR_WID(ADDR_WID), .META_WID(META_INT_WID), .MAX_PKT_SIZE(MAX_PKT_SIZE)) __wr_descriptor_if (.clk);
 
     // Per-context logic/mapping
     for (genvar g_ctxt = 0; g_ctxt < NUM_CONTEXTS; g_ctxt++) begin : g__ctxt
@@ -162,8 +162,8 @@ module packet_dequeue
                     .DATA_WID ( CTXT_WID ),
                     .DEPTH    ( 16 )
                 ) i_fifo_small_ctxt__mux (
-                    .clk     ( clk ),
-                    .srst    ( srst ),
+                    .clk,
+                    .srst,
                     .wr_rdy  ( ctxt_list_append_rdy ),
                     .wr      ( ctxt_list_append_req ),
                     .wr_data ( ctxt_list_append_data ),
@@ -176,18 +176,10 @@ module packet_dequeue
             end : g__mux_list
         end : g__multi_ctxt
         else begin : g__single_ctxt
+            // No need to maintain actual list...
             assign __ctxt = 0;
             assign __ctxt_valid = 1'b1;
-            if (MUX_MODE == MUX_MODE_SEL) begin : g__mux_sel
-                // Nothing to do
-            end : g__mux_sel
-            else if (MUX_MODE == MUX_MODE_RR) begin : g__mux_rr
-                // Nothing to do
-            end : g__mux_rr
-            else if (MUX_MODE == MUX_MODE_LIST) begin : g__mux_list
-                // No need to maintain actual list...
-                assign ctxt_list_append_rdy = 1'b1;
-            end : g__mux_list
+            assign ctxt_list_append_rdy = 1'b1;
         end : g__single_ctxt
     endgenerate
 

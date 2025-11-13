@@ -3,8 +3,7 @@ interface packet_descriptor_intf #(
     parameter int META_WID = 1,
     parameter int MAX_PKT_SIZE = 16383
 ) (
-    input logic clk,
-    input logic srst = 1'b0
+    input logic clk
 );
     // Parameters
     localparam int SIZE_WID = $clog2(MAX_PKT_SIZE+1);
@@ -20,7 +19,6 @@ interface packet_descriptor_intf #(
     // Modports
     modport tx(
         input  clk,
-        input  srst,
         output vld,
         input  rdy,
         output addr,
@@ -31,7 +29,6 @@ interface packet_descriptor_intf #(
 
     modport rx(
         input  clk,
-        input  srst,
         input  vld,
         output rdy,
         input  addr,
@@ -150,3 +147,64 @@ module packet_descriptor_intf_connector (
     assign from_tx.rdy = to_rx.rdy;
 
 endmodule : packet_descriptor_intf_connector
+
+// Packet descriptor delay pipe
+module packet_descriptor_intf_delay #(
+    parameter int STAGES = 1
+) (
+    packet_descriptor_intf.rx from_tx,
+    packet_descriptor_intf.tx to_rx
+);
+    // Parameters
+    localparam int ADDR_WID     = from_tx.ADDR_WID;
+    localparam int META_WID     = from_tx.META_WID;
+    localparam int MAX_PKT_SIZE = from_tx.MAX_PKT_SIZE;
+    localparam int SIZE_WID     = $clog2(MAX_PKT_SIZE+1);
+
+    // Parameter check
+    initial begin
+        std_pkg::param_check(to_rx.ADDR_WID, ADDR_WID, "to_rx.ADDR_WID");
+        std_pkg::param_check(to_rx.META_WID, META_WID, "to_rx.META_WID");
+        std_pkg::param_check_gt(to_rx.MAX_PKT_SIZE, MAX_PKT_SIZE, "to_rx.MAX_PKT_SIZE");
+        std_pkg::param_check_gt(STAGES, 1, "to_rx.MAX_PKT_SIZE");
+    end
+
+    typedef struct packed {
+        logic[ADDR_WID-1:0] addr;
+        logic[SIZE_WID-1:0] size;
+        logic[META_WID-1:0] meta;
+        logic               err;
+    } desc_t;
+
+    logic  desc_vld  [STAGES];
+    desc_t desc_pipe [STAGES];
+
+    // Connect signals (tx -> rx) through delay pipeline
+    initial desc_vld = '{STAGES{1'b0}};
+    always @(posedge from_tx.clk) begin
+        if (to_rx.rdy) begin
+            for (int i = 1; i < STAGES; i++) desc_vld[i] <= desc_vld[i-1];
+            desc_vld[0] <= from_tx.vld;
+        end
+    end
+
+    always_ff @(posedge from_tx.clk) begin
+        if (to_rx.rdy) begin
+            for (int i = 1; i < STAGES; i++) desc_pipe[i] <= desc_pipe[i-1];
+            desc_pipe[0].addr <= from_tx.addr;
+            desc_pipe[0].size <= from_tx.size;
+            desc_pipe[0].meta <= from_tx.meta;
+            desc_pipe[0].err  <= from_tx.err;
+        end
+    end
+
+    assign to_rx.vld  = desc_vld[STAGES-1];
+    assign to_rx.addr = desc_pipe[STAGES-1].addr;
+    assign to_rx.size = desc_pipe[STAGES-1].size;
+    assign to_rx.err  = desc_pipe[STAGES-1].err;
+    assign to_rx.meta = desc_pipe[STAGES-1].meta;
+
+    // Connect signals (rx -> tx)
+    assign from_tx.rdy = to_rx.rdy;
+
+endmodule : packet_descriptor_intf_delay

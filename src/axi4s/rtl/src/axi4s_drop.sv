@@ -25,8 +25,8 @@ module axi4s_drop
    localparam int TDEST_WID     = axi4s_in.TDEST_WID;
    localparam int TUSER_WID     = axi4s_in.TUSER_WID;
 
-   axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID)) __axi4s_in  (.aclk(axi4s_in.aclk), .aresetn(axi4s_in.aresetn));
-   axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID)) axi4s_out_p (.aclk(axi4s_in.aclk), .aresetn(axi4s_in.aresetn));
+   axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID)) __axi4s_in  (.aclk(axi4s_in.aclk));
+   axi4s_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .TID_WID(TID_WID), .TDEST_WID(TDEST_WID), .TUSER_WID(TUSER_WID)) axi4s_out_p (.aclk(axi4s_in.aclk));
 
    logic drop_pkt_latch, drop;
 
@@ -49,7 +49,7 @@ module axi4s_drop
    assign axi4s_out_p.tdest   = axi4s_in.tdest;
    assign axi4s_out_p.tuser   = axi4s_in.tuser;
 
-   axi4s_intf_pipe #(.MODE(OUT_PIPE_MODE)) out_pipe_0 (.from_tx(axi4s_out_p), .to_rx(axi4s_out));
+   axi4s_intf_pipe #(.MODE(OUT_PIPE_MODE)) out_pipe_0 (.srst, .from_tx(axi4s_out_p), .to_rx(axi4s_out));
 
 
    // axi4s drop counter instantiation and signalling.
@@ -65,6 +65,7 @@ module axi4s_drop
    assign __axi4s_in.tuser   = axi4s_in.tuser;
 
    axi4s_probe axi4s_drop_count (
+      .srst,
       .axi4l_if  (axil_if),
       .axi4s_if  (__axi4s_in)
    );

@@ -77,11 +77,11 @@ module alloc_axil_core #(
     // ----------------------------------
     // Control
     // ----------------------------------
-    util_reset_buffer i_util_reset_buffer (
-        .clk,
-        .srst_in   ( srst || reg_if.control.reset ),
-        .srst_out  ( ctrl_reset )
-    );
+    initial ctrl_reset = 1'b1;
+    always @(posedge clk) begin
+        if (srst || reg_if.control.reset) ctrl_reset <= 1'b1;
+        else ctrl_reset <= 1'b0;
+    end
 
     always_ff @(posedge clk) ctrl_en <= en && reg_if.control.enable;
 
@@ -138,11 +138,11 @@ module alloc_axil_core #(
 
     // Debug Counters (32-bit, non-saturating)
     // -- function-level reset
-    util_reset_buffer i_util_reset_buffer__dbg_cnt (
-        .clk,
-        .srst_in   ( srst || reg_if.control.reset || reg_if.dbg_control.clear_counts ),
-        .srst_out  ( dbg_cnt_reset )
-    );
+    initial dbg_cnt_reset = 1'b1;
+    always @(posedge clk) begin
+        if ( srst || reg_if.control.reset || reg_if.dbg_control.clear_counts ) dbg_cnt_reset <= 1'b1;
+        else dbg_cnt_reset <= 1'b0;
+    end
 
     always_comb begin
         // Default is no update

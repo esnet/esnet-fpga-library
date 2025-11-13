@@ -4,6 +4,9 @@
 module axi3_pipe #(
     parameter int  STAGES = 1       // Pipeline stages, inserted in both forward (valid) and reverse (ready) directions
 ) (
+    // Reset
+    input logic srst,
+
     // AXI3 interface (from controller)
     axi3_intf.peripheral  from_controller,
 
@@ -80,22 +83,19 @@ module axi3_pipe #(
 
     // Signals
     logic clk;
-    logic srst;
-
     assign clk = from_controller.aclk;
-    assign srst = !from_controller.aresetn;
 
     // Bus interfaces (one for each of the AXI3 channels)
-    bus_intf #(.DATA_WID(AX_PAYLOAD_WID)) aw_bus_if__from_controller (.clk, .srst);
-    bus_intf #(.DATA_WID(W_PAYLOAD_WID))  w_bus_if__from_controller  (.clk, .srst);
-    bus_intf #(.DATA_WID(B_PAYLOAD_WID))  b_bus_if__from_controller  (.clk, .srst);
-    bus_intf #(.DATA_WID(AX_PAYLOAD_WID)) ar_bus_if__from_controller (.clk, .srst);
-    bus_intf #(.DATA_WID(R_PAYLOAD_WID))  r_bus_if__from_controller  (.clk, .srst);
-    bus_intf #(.DATA_WID(AX_PAYLOAD_WID)) aw_bus_if__to_peripheral   (.clk, .srst);
-    bus_intf #(.DATA_WID(W_PAYLOAD_WID))  w_bus_if__to_peripheral    (.clk, .srst);
-    bus_intf #(.DATA_WID(B_PAYLOAD_WID))  b_bus_if__to_peripheral    (.clk, .srst);
-    bus_intf #(.DATA_WID(AX_PAYLOAD_WID)) ar_bus_if__to_peripheral   (.clk, .srst);
-    bus_intf #(.DATA_WID(R_PAYLOAD_WID))  r_bus_if__to_peripheral    (.clk, .srst);
+    bus_intf #(.DATA_WID(AX_PAYLOAD_WID)) aw_bus_if__from_controller (.clk);
+    bus_intf #(.DATA_WID(W_PAYLOAD_WID))  w_bus_if__from_controller  (.clk);
+    bus_intf #(.DATA_WID(B_PAYLOAD_WID))  b_bus_if__from_controller  (.clk);
+    bus_intf #(.DATA_WID(AX_PAYLOAD_WID)) ar_bus_if__from_controller (.clk);
+    bus_intf #(.DATA_WID(R_PAYLOAD_WID))  r_bus_if__from_controller  (.clk);
+    bus_intf #(.DATA_WID(AX_PAYLOAD_WID)) aw_bus_if__to_peripheral   (.clk);
+    bus_intf #(.DATA_WID(W_PAYLOAD_WID))  w_bus_if__to_peripheral    (.clk);
+    bus_intf #(.DATA_WID(B_PAYLOAD_WID))  b_bus_if__to_peripheral    (.clk);
+    bus_intf #(.DATA_WID(AX_PAYLOAD_WID)) ar_bus_if__to_peripheral   (.clk);
+    bus_intf #(.DATA_WID(R_PAYLOAD_WID))  r_bus_if__to_peripheral    (.clk);
 
     axi3_to_bus_adapter i_axi3_to_bus_adapter (
         .axi3_if   ( from_controller ),
@@ -108,13 +108,13 @@ module axi3_pipe #(
 
     generate
         begin : g__fwd
-            bus_pipe #(.STAGES(STAGES)) i_bus_pipe__aw ( .from_tx ( aw_bus_if__from_controller ), .to_rx ( aw_bus_if__to_peripheral ));
-            bus_pipe #(.STAGES(STAGES)) i_bus_pipe__w  ( .from_tx ( w_bus_if__from_controller ),  .to_rx ( w_bus_if__to_peripheral ));
-            bus_pipe #(.STAGES(STAGES)) i_bus_pipe__ar ( .from_tx ( ar_bus_if__from_controller ), .to_rx ( ar_bus_if__to_peripheral ));
+            bus_pipe #(.STAGES(STAGES)) i_bus_pipe__aw (.srst, .from_tx (aw_bus_if__from_controller), .to_rx (aw_bus_if__to_peripheral));
+            bus_pipe #(.STAGES(STAGES)) i_bus_pipe__w  (.srst, .from_tx (w_bus_if__from_controller),  .to_rx (w_bus_if__to_peripheral));
+            bus_pipe #(.STAGES(STAGES)) i_bus_pipe__ar (.srst, .from_tx (ar_bus_if__from_controller), .to_rx (ar_bus_if__to_peripheral));
         end : g__fwd
         begin : g__rev
-            bus_pipe #(.STAGES(STAGES)) i_bus_pipe__b  ( .from_tx ( b_bus_if__to_peripheral ), .to_rx ( b_bus_if__from_controller ));
-            bus_pipe #(.STAGES(STAGES)) i_bus_pipe__r  ( .from_tx ( r_bus_if__to_peripheral ), .to_rx ( r_bus_if__from_controller ));
+            bus_pipe #(.STAGES(STAGES)) i_bus_pipe__b  (.srst, .from_tx (b_bus_if__to_peripheral), .to_rx (b_bus_if__from_controller));
+            bus_pipe #(.STAGES(STAGES)) i_bus_pipe__r  (.srst, .from_tx (r_bus_if__to_peripheral), .to_rx (r_bus_if__from_controller));
         end : g__rev
     endgenerate
 

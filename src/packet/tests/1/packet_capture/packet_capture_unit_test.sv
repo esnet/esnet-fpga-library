@@ -30,7 +30,7 @@ module packet_capture_unit_test;
     logic en;
 
     axi4l_intf axil_if ();
-    packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_WID(META_WID)) packet_if (.clk, .srst);
+    packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_WID(META_WID)) packet_if (.clk);
 
     packet_capture #(
         .PACKET_MEM_SIZE( PACKET_MEM_SIZE ),

@@ -7,8 +7,7 @@ interface axi3_intf
     parameter int USER_WID = 1
 ) (
     // Clock/reset
-    input logic aclk,
-    input logic aresetn = 1'b1
+    input logic aclk
 );
 
     // Parameter validation
@@ -75,8 +74,6 @@ interface axi3_intf
     modport controller (
         // Clock
         input  aclk,
-        // Reset
-        input  aresetn,
         // Write address
         output awid,
         output awaddr,
@@ -132,8 +129,6 @@ interface axi3_intf
     modport peripheral (
         // Clock
         input  aclk,
-        // Reset
-        input  aresetn,
         // Write address
         input  awid,
         input  awaddr,
@@ -458,10 +453,12 @@ module axi3_intf_to_signals
     parameter int DATA_BYTE_WID = 8,
     parameter int ADDR_WID = 32,
     parameter int ID_WID = 1,
-    parameter int USER_WID = 1
+    parameter int USER_WID = 1,
+    parameter bit RESET_BUFFER = 1'b1
 ) (
      // Interface (from controller)
     axi3_intf.peripheral                  axi3_if,
+    input  logic                          srst,
  
     // Signals (to peripheral)
     // -- Clock/reset
@@ -528,7 +525,19 @@ module axi3_intf_to_signals
 
     // Clock/reset
     assign aclk = axi3_if.aclk;
-    assign aresetn = axi3_if.aresetn;
+
+    generate
+        if (RESET_BUFFER) begin : g__reset_buffer
+            initial aresetn = 1'b0;
+            always @(posedge axi3_if.aclk) begin
+                if (srst) aresetn <= 1'b0;
+                else      aresetn <= 1'b1;
+            end
+        end : g__reset_buffer
+        else begin : g__reset_direct
+            assign aresetn = !srst;
+        end : g__reset_direct
+    endgenerate
 
     // Write address
     assign awid = axi3_if.awid;
