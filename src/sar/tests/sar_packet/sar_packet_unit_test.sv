@@ -25,7 +25,7 @@ module sar_packet_unit_test;
     localparam int OFFSET_WID = $clog2(MAX_FRAME_SIZE);
     localparam int FRAME_SIZE_WID = $clog2(MAX_FRAME_SIZE + 1);
     localparam int PKT_SIZE_WID = $clog2(MAX_PKT_SIZE+1);
-    localparam int ADDR_WID = $clog2(NUM_FRAME_BUFFERS * MAX_FRAME_SIZE);
+    localparam int ADDR_WID = $clog2(NUM_FRAME_BUFFERS * MAX_FRAME_SIZE / DATA_BYTE_WID);
 
     typedef packet#(META_T) PACKET_T;
 
@@ -44,7 +44,7 @@ module sar_packet_unit_test;
     logic [BUF_ID_WID-1:0] packet_buf_id_in;
     logic [OFFSET_WID-1:0] packet_offset_in;
     logic                  packet_last_in;
-    packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID),  .META_WID(META_WID)) packet_in_if (.clk, .srst);
+    packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID),  .META_WID(META_WID)) packet_in_if (.clk);
 
     axi4l_intf axil_if__reassembly ();
     axi4l_intf axil_if__segmentation ();
@@ -60,7 +60,7 @@ module sar_packet_unit_test;
     logic [OFFSET_WID-1:0]   packet_offset_out;
     logic [PKT_SIZE_WID-1:0] packet_size_out;
     logic                    packet_last_out;
-    packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID),  .META_WID(META_WID)) packet_out_if (.clk, .srst);
+    packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID),  .META_WID(META_WID)) packet_out_if (.clk);
 
     mem_wr_intf #(.DATA_WID(DATA_BYTE_WID*8), .ADDR_WID(ADDR_WID)) mem_wr_if (.clk);
     mem_rd_intf #(.DATA_WID(DATA_BYTE_WID*8), .ADDR_WID(ADDR_WID)) mem_rd_if (.clk);

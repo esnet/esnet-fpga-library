@@ -41,8 +41,8 @@ module sar_packet_segmentation #(
     // -------------------------------------------------
     // Parameters
     // -------------------------------------------------
-    localparam int ADDR_WID = $clog2(NUM_FRAME_BUFFERS*MAX_FRAME_SIZE);
     localparam int DATA_BYTE_WID = packet_if.DATA_BYTE_WID;
+    localparam int ADDR_WID = $clog2(NUM_FRAME_BUFFERS*MAX_FRAME_SIZE/DATA_BYTE_WID);
 
     // -------------------------------------------------
     // Typedefs
@@ -58,7 +58,7 @@ module sar_packet_segmentation #(
     // -------------------------------------------------
     // Interfaces
     // -------------------------------------------------
-    packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_WID(PACKET_META_WID)) __packet_if (.clk, .srst);
+    packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_WID(PACKET_META_WID)) __packet_if (.clk);
     packet_descriptor_intf #(.ADDR_WID(ADDR_WID), .META_WID(PACKET_META_WID), .MAX_PKT_SIZE(MAX_PKT_SIZE)) rd_descriptor (.clk);
 
     packet_event_intf event_if (.clk);

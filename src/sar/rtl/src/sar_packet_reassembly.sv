@@ -45,8 +45,8 @@ module sar_packet_reassembly #(
     // -------------------------------------------------
     // Parameters
     // -------------------------------------------------
-    localparam int ADDR_WID = $clog2(NUM_FRAME_BUFFERS*MAX_FRAME_SIZE);
     localparam int DATA_BYTE_WID = packet_if.DATA_BYTE_WID;
+    localparam int ADDR_WID = $clog2(NUM_FRAME_BUFFERS*MAX_FRAME_SIZE/DATA_BYTE_WID);
 
     // -------------------------------------------------
     // Typedefs
@@ -61,10 +61,10 @@ module sar_packet_reassembly #(
     // -------------------------------------------------
     // Interfaces
     // -------------------------------------------------
-    packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_WID(PACKET_META_WID)) __packet_if (.clk, .srst);
+    packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_WID(PACKET_META_WID)) __packet_if (.clk);
 
-    packet_descriptor_intf #(.ADDR_WID(ADDR_WID), .META_WID(1), .MAX_PKT_SIZE(MAX_PKT_SIZE)) nxt_descriptor (.clk, .srst);
-    packet_descriptor_intf #(.ADDR_WID(ADDR_WID), .META_WID(PACKET_META_WID), .MAX_PKT_SIZE(MAX_PKT_SIZE)) wr_descriptor (.clk, .srst);
+    packet_descriptor_intf #(.ADDR_WID(ADDR_WID), .META_WID(1), .MAX_PKT_SIZE(MAX_PKT_SIZE)) nxt_descriptor (.clk);
+    packet_descriptor_intf #(.ADDR_WID(ADDR_WID), .META_WID(PACKET_META_WID), .MAX_PKT_SIZE(MAX_PKT_SIZE)) wr_descriptor (.clk);
 
     packet_event_intf event_if (.clk);
 
