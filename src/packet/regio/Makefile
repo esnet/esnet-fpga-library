@@ -12,7 +12,8 @@ include $(COMPONENT_ROOT)/config.mk
 # -----------------------------------------------
 REG_BLOCK_YAML = \
     packet_playback.yaml \
-    packet_capture.yaml
+    packet_capture.yaml \
+    packet_counters.yaml
 
 REG_DECODER_YAML = \
     packet_playback_decoder.yaml \

@@ -1,9 +1,13 @@
 module sar_reassembly_state #(
-    parameter int BUF_ID_WID       = 1, // Width (in bits) of reassembly buffer (context) pointer
-    parameter int OFFSET_WID       = 1, // Width (in bits) of byte offset describing location of segment within frame
-    parameter int SEGMENT_LEN_WID  = 1, // Width (in bits) of byte length of current segment 
-    parameter int FRAGMENT_PTR_WID = 1, // Width (in bits) of coalesce record pointer
-    parameter int TIMER_WID        = 1  // Width (in bits) of frame expiry timer
+    parameter int NUM_FRAME_BUFFERS = 1,
+    parameter int MAX_FRAME_SIZE    = 1,
+    parameter int TIMER_WID         = 1, // Width (in bits) of frame expiry timer
+    parameter int MAX_FRAGMENTS     = 1, // Number of disjoint (post-coalescing) fragments supported at any given time (across all buffers)
+    // Derived parameters (don't override)
+    parameter int BUF_ID_WID      = $clog2(NUM_FRAME_BUFFERS),  // Width (in bits) of reassembly buffer (context) pointer
+    parameter int OFFSET_WID      = $clog2(MAX_FRAME_SIZE),     // Width (in bits) of byte offset describing location of segment within frame
+    parameter int FRAME_SIZE_WID  = $clog2(MAX_FRAME_SIZE+1),   // Width (in bits) of byte length of frame
+    parameter int FRAGMENT_PTR_WID = $clog2(MAX_FRAGMENTS)      // Width (in bits) of coalesce record pointer
 )(
     // Clock/reset
     input  logic                        clk,
@@ -32,7 +36,7 @@ module sar_reassembly_state #(
     input  logic                        frame_ready,
     output logic                        frame_valid,
     output logic [BUF_ID_WID-1:0]       frame_buf_id,
-    output logic [OFFSET_WID-1:0]       frame_len,
+    output logic [FRAME_SIZE_WID-1:0]   frame_len,
 
     // Fragment pointer deallocation interface
     input  logic                        frag_ptr_dealloc_rdy,
@@ -341,7 +345,6 @@ module sar_reassembly_state #(
         q_expired__rd = 1'b0;
         q_merged__rd = 1'b0;
         ctrl_if.req = 1'b0;
-        ctrl_if.ctxt = UPDATE_CTXT_CONTROL;
         frag_ptr_dealloc_req = 1'b0;
         frame_valid = 1'b0;
         case (fsm_state)
@@ -383,7 +386,6 @@ module sar_reassembly_state #(
             end
             DELETE_STATE_REQ : begin
                 ctrl_if.req = 1'b1;
-                ctrl_if.ctxt = UPDATE_CTXT_REAP;
                 if (ctrl_if.rdy) nxt_fsm_state = DELETE_STATE_PENDING;
             end
             DELETE_STATE_PENDING : begin

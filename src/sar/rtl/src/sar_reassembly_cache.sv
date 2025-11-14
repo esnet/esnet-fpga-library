@@ -1,9 +1,14 @@
 module sar_reassembly_cache #(
-    parameter int BUF_ID_WID       = 1, // Width (in bits) of reassembly buffer (context) pointer
-    parameter int OFFSET_WID       = 1, // Width (in bits) of byte offset describing location of segment within frame
-    parameter int SEGMENT_LEN_WID  = 1, // Width (in bits) of byte length of current segment
-    parameter int FRAGMENT_PTR_WID = 1, // Width (in bits) of coalesced fragment pointer
-    parameter int BURST_SIZE       = 8,
+    parameter int NUM_FRAME_BUFFERS = 1,
+    parameter int MAX_FRAME_SIZE    = 1,
+    parameter int MAX_SEGMENT_SIZE  = 1,
+    parameter int MAX_FRAGMENTS     = 1, // Number of disjoint (post-coalescing) fragments supported at any given time (across all buffers)
+    parameter int BURST_SIZE        = 8,
+    // Derived parameters (don't override)
+    parameter int BUF_ID_WID       = $clog2(NUM_FRAME_BUFFERS), // Width (in bits) of reassembly buffer (context) pointer
+    parameter int OFFSET_WID       = $clog2(MAX_FRAME_SIZE),    // Width (in bits) of byte offset describing location of segment within frame
+    parameter int SEGMENT_LEN_WID  = $clog2(MAX_SEGMENT_SIZE+1),// Width (in bits) of byte length of current segment
+    parameter int FRAGMENT_PTR_WID = $clog2(MAX_FRAGMENTS),     // Width (in bits) of coalesced fragment pointer
     // Simulation-only
     parameter bit  SIM__FAST_INIT  = 1 // Optimize sim time by performing fast memory init
 )(
@@ -56,8 +61,6 @@ module sar_reassembly_cache #(
     // Parameters
     // -------------------------------------------------
     localparam int NUM_RD_TRANSACTIONS = 16;
-
-    localparam int MAX_FRAGMENTS = 2**FRAGMENT_PTR_WID;
 
     // -------------------------------------------------
     // Typedefs
@@ -491,13 +494,13 @@ module sar_reassembly_cache #(
             if (!delete_q__append__empty) begin
                 update_if__append.req = 1'b1;
                 update_if__append.valid = 1'b0;
-                update_if__append.key = delete_q__append__rd_data;
+                update_if__append_key = delete_q__append__rd_data;
                 delete_q__append__rd = 1'b1;
             end
             if (!delete_q__prepend__empty) begin
                 update_if__prepend.req = 1'b1;
                 update_if__prepend.valid = 1'b0;
-                update_if__prepend.key = delete_q__prepend__rd_data;
+                update_if__prepend_key = delete_q__prepend__rd_data;
                 delete_q__prepend__rd = 1'b1;
             end
         end

@@ -14,12 +14,15 @@ REG_BLOCK_YAML = \
     sar_reassembly_cache.yaml \
     sar_reassembly_state_check.yaml \
     sar_reassembly.yaml \
+    sar_segmentation.yaml
 
 REG_DECODER_YAML = \
     sar_reassembly_htable_decoder.yaml \
     sar_reassembly_cache_decoder.yaml \
     sar_reassembly_state_decoder.yaml \
-    sar_reassembly_decoder.yaml
+    sar_reassembly_decoder.yaml \
+    sar_packet_reassembly_decoder.yaml \
+    sar_packet_segmentation_decoder.yaml
 
 # ----------------------------------------------------
 # Options

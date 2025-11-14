@@ -26,8 +26,10 @@ SUBCOMPONENTS = \
     sar.rtl \
     sar.verif \
     std.verif \
+    mem.rtl \
     axi4l.rtl \
     axi4l.verif \
+    packet.verif \
     state.regio.verif
 
 EXT_LIBS =

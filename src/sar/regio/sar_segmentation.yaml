@@ -1,0 +1,53 @@
+name: sar_segmentation
+info: |
+  This register block controls the segmentation component.
+
+regs:
+  - default:
+      width  : 32
+      access : ro
+      init   : 0
+
+  - name: info
+    access: ro
+    fields:
+        - name: num_buffers
+          desc: Number of simultaneous frame buffers supported.
+          width: 16
+        - name: max_segment_len
+          desc: Maximum segment length supported.
+          width: 16
+
+  - name: info_frame
+    access: ro
+    fields:
+        - name: max_size
+          desc: Maximum frame size supported.
+          width: 32
+
+  - name: control
+    access: rw
+    fields:
+        - name:  reset
+          desc:  (soft) block reset
+          width: 1
+          init:  0
+
+  - name: status
+    access: ro
+    fields:
+        - name:  reset_mon
+          desc:  block reset monitor
+          width: 1
+        - name:  ready_mon
+          desc:  block ready monitor
+          width: 1
+
+  - name: _config
+    access: rw
+    fields:
+        - name: seg_len
+          desc: segment length (in bytes)
+          width: 16
+          init: 512
+

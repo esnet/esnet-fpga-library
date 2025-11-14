@@ -16,9 +16,13 @@ module sar_reassembly_cache_unit_test;
     //===================================
     // Parameters
     //===================================
-    localparam int  BUF_ID_WID      = 1;
-    localparam int  OFFSET_WID      = 32;
-    localparam int  SEGMENT_LEN_WID = 14;
+    localparam int  NUM_FRAME_BUFFERS = 2;
+    localparam int  MAX_FRAME_SIZE    = 2**20;
+    localparam int  MAX_SEGMENT_SIZE  = 16384;
+
+    localparam int  BUF_ID_WID      = $clog2(NUM_FRAME_BUFFERS);
+    localparam int  OFFSET_WID      = $clog2(MAX_FRAME_SIZE);
+    localparam int  SEGMENT_LEN_WID = $clog2(MAX_SEGMENT_SIZE+1);
     localparam int  MAX_FRAGMENTS   = 1024;
 
     localparam int  FRAGMENT_PTR_WID = $clog2(MAX_FRAGMENTS);
@@ -76,12 +80,12 @@ module sar_reassembly_cache_unit_test;
     
     // Instantiation
     sar_reassembly_cache #(
-        .BUF_ID_WID       ( BUF_ID_WID ),
-        .OFFSET_WID       ( OFFSET_WID ),
-        .SEGMENT_LEN_WID  ( SEGMENT_LEN_WID ),
-        .FRAGMENT_PTR_WID ( FRAGMENT_PTR_WID ),
-        .BURST_SIZE       ( BURST_SIZE ),
-        .SIM__FAST_INIT ( 1 )
+        .NUM_FRAME_BUFFERS ( NUM_FRAME_BUFFERS ),
+        .MAX_FRAME_SIZE    ( MAX_FRAME_SIZE ),
+        .MAX_SEGMENT_SIZE  ( MAX_SEGMENT_SIZE ),
+        .MAX_FRAGMENTS     ( MAX_FRAGMENTS ),
+        .BURST_SIZE        ( BURST_SIZE ),
+        .SIM__FAST_INIT    ( 1 )
     ) DUT (.*);
 
     //===================================

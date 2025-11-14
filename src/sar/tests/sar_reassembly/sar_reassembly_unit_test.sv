@@ -15,9 +15,14 @@ module sar_reassembly_unit_test;
     //===================================
     // Parameters
     //===================================
-    localparam int  BUF_ID_WID      = 1;
-    localparam int  OFFSET_WID      = 32;
-    localparam int  SEGMENT_LEN_WID = 14;
+    localparam int  NUM_FRAME_BUFFERS = 2;
+    localparam int  MAX_FRAME_SIZE    = 2**20;
+    localparam int  MAX_SEGMENT_SIZE  = 16384;
+
+    localparam int  BUF_ID_WID      = $clog2(NUM_FRAME_BUFFERS);
+    localparam int  OFFSET_WID      = $clog2(MAX_FRAME_SIZE);
+    localparam int  FRAME_SIZE_WID  = $clog2(MAX_FRAME_SIZE+1);
+    localparam int  SEGMENT_LEN_WID = $clog2(MAX_SEGMENT_SIZE+1);
     localparam int  TIMER_WID       = 16;
     localparam int  MAX_FRAGMENTS   = 8192;
 
@@ -25,6 +30,7 @@ module sar_reassembly_unit_test;
 
     localparam type BUF_ID_T       = logic[BUF_ID_WID-1:0];       // (Type) Reassembly buffer (context) pointer
     localparam type OFFSET_T       = logic[OFFSET_WID-1:0];       // (Type) Offset in bytes describing location of segment within frame
+    localparam type FRAME_SIZE_T   = logic[FRAME_SIZE_WID-1:0];   // (Type) Byte length of frame
     localparam type SEGMENT_LEN_T  = logic[SEGMENT_LEN_WID-1:0];  // (Type) Length in bytes of current segment 
     localparam type FRAGMENT_PTR_T = logic[FRAGMENT_PTR_WID-1:0]; // (Type) Coalesced fragment record pointer
     localparam type TIMER_T        = logic[TIMER_WID-1:0];        // (Type) Frame expiry timer
@@ -58,13 +64,13 @@ module sar_reassembly_unit_test;
     axi4l_intf    axil_if ();
 
     // Instantiation
-    sar_reassembly      #(
-        .BUF_ID_WID      ( BUF_ID_WID  ),
-        .OFFSET_WID      ( OFFSET_WID ),
-        .SEGMENT_LEN_WID ( SEGMENT_LEN_WID ),
-        .TIMER_WID       ( TIMER_WID ),
-        .MAX_FRAGMENTS   ( MAX_FRAGMENTS ),
-        .BURST_SIZE      ( BURST_SIZE )
+    sar_reassembly        #(
+        .NUM_FRAME_BUFFERS ( NUM_FRAME_BUFFERS ),
+        .MAX_FRAME_SIZE    ( MAX_FRAME_SIZE ),
+        .MAX_SEGMENT_SIZE  ( MAX_SEGMENT_SIZE ),
+        .TIMER_WID         ( TIMER_WID ),
+        .MAX_FRAGMENTS     ( MAX_FRAGMENTS ),
+        .BURST_SIZE        ( BURST_SIZE )
     ) DUT (.*);
 
     //===================================

@@ -31,6 +31,7 @@ SUBCOMPONENTS = \
     db.rtl \
     htable.rtl \
     state.rtl \
+    packet.rtl \
     alloc.axil.rtl
 
 EXT_LIBS =

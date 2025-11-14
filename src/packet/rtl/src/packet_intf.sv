@@ -191,3 +191,30 @@ module packet_intf_rx_sink (
 );
     assign from_tx.rdy = 1'b1;
 endmodule : packet_intf_rx_sink
+
+// Set packet metadata
+module packet_intf_set_meta #(
+    parameter int META_WID = 1
+) (
+    packet_intf.rx from_tx,
+    packet_intf.tx to_rx,
+    input logic [META_WID-1:0] meta
+);
+    // Parameter check
+    initial begin
+        std_pkg::param_check(to_rx.DATA_BYTE_WID, from_tx.DATA_BYTE_WID, "to_rx.DATA_BYTE_WID");
+        std_pkg::param_check(to_rx.META_WID, META_WID, "to_rx.META_WID");
+    end
+
+    // Connect signals (tx -> rx)
+    assign to_rx.vld   = from_tx.vld;
+    assign to_rx.data  = from_tx.data;
+    assign to_rx.eop   = from_tx.eop;
+    assign to_rx.mty   = from_tx.mty;
+    assign to_rx.err   = from_tx.err;
+    assign to_rx.meta  = meta;
+
+    // Connect signals (rx -> tx)
+    assign from_tx.rdy = to_rx.rdy;
+
+endmodule : packet_intf_set_meta
