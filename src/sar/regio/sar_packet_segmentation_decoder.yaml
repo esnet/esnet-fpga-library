@@ -13,6 +13,6 @@ interfaces:
     address: 0x0000
     name: packets
   - block: *segmentation
-    width: 14
-    address: 0x4000
+    width: 12
+    address: 0x1000
     name: segmentation
