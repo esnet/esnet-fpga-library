@@ -3,14 +3,15 @@
 // (Failsafe) timeout
 `define SVUNIT_TIMEOUT 1s
 
-module alloc_sg_core_unit_test #(
+module alloc_axil_sg_core_unit_test #(
     parameter int PTR_WID = 8,
     parameter bit RAM_MODEL = 0
 );
     import svunit_pkg::svunit_testcase;
+    import alloc_verif_pkg::*;
 
     // Synthesize testcase name from parameters
-    string name = $sformatf("alloc_sg_core_%0db_ut", PTR_WID);
+    string name = $sformatf("alloc_axil_sg_core_%0db_ut", PTR_WID);
 
     svunit_testcase svunit_ut;
 
@@ -24,6 +25,8 @@ module alloc_sg_core_unit_test #(
     localparam type FRAME_SIZE_T = logic[$clog2(MAX_FRAME_SIZE+1)-1:0];
     localparam type META_T = logic;
     localparam int  CONTEXTS = 1;
+    localparam int  Q_DEPTH = 8;
+    localparam int  PREALLOC_DEPTH = CONTEXTS * (Q_DEPTH + 2);
 
     localparam int  META_WID = $bits(META_T);
 
@@ -58,14 +61,17 @@ module alloc_sg_core_unit_test #(
     mem_rd_intf #(.ADDR_WID(PTR_WID), .DATA_WID(DESC_WID)) desc_mem_rd_if (.clk);
     logic                                                  desc_mem_init_done;
 
-    alloc_mon_intf mon_if (.clk);
+    axi4l_intf axil_if ();
 
-    alloc_sg_core        #(
+    alloc_axil_sg_core        #(
         .SCATTER_CONTEXTS ( CONTEXTS ),
         .GATHER_CONTEXTS  ( CONTEXTS ),
         .PTR_WID          ( PTR_WID ),
         .BUFFER_SIZE      ( BUFFER_SIZE ),
-        .MAX_FRAME_SIZE   ( MAX_FRAME_SIZE )
+        .MAX_FRAME_SIZE   ( MAX_FRAME_SIZE ),
+        .META_WID         ( META_WID ),
+        .STORE_Q_DEPTH    ( Q_DEPTH ),
+        .LOAD_Q_DEPTH     ( Q_DEPTH )
     ) DUT (.*);
 
     mem_ram_sdp #(
@@ -81,21 +87,37 @@ module alloc_sg_core_unit_test #(
     //===================================
     // Testbench
     //===================================
-    // Assign clock (100MHz)
-    `SVUNIT_CLK_GEN(clk, 5ns);
+    // Assign clock (330MHz)
+    `SVUNIT_CLK_GEN(clk, 1.67ns);
+
+    // Assign AXI-L clock (100MHz);
+    `SVUNIT_CLK_GEN(axil_if.aclk, 5ns); 
 
     std_reset_intf reset_if (.clk(clk));
+
+    axi4l_verif_pkg::axi4l_reg_agent axil_reg_agent;
+    alloc_reg_agent reg_agent;
 
     // Assign reset interface
     assign srst = reset_if.reset;
     assign reset_if.ready = init_done;
     assign en = init_done;
 
+    initial axil_if.aresetn = 1'b0;
+    always @(posedge axil_if.aclk or posedge srst) axil_if.aresetn <= !srst;
+
     //===================================
     // Build
     //===================================
     function void build();
         svunit_ut = new(name);
+
+        // AXI-L agent
+        axil_reg_agent = new();
+        axil_reg_agent.axil_vif = axil_if;
+
+        // Reg agent
+        reg_agent = new("alloc_reg_agent", axil_reg_agent, 0);
 
     endfunction
 
@@ -104,11 +126,20 @@ module alloc_sg_core_unit_test #(
     // Setup for running the Unit Tests
     //===================================
     task setup();
+        int cnt;
+
         svunit_ut.setup();
+
+        reset();
 
         recycle_req = 1'b0;
 
-        reset();
+        // Wait for allocator queues to fill
+        // (makes stats accounting easier later)
+        do begin
+            reg_agent.get_active_cnt(cnt);
+        end while (cnt < PREALLOC_DEPTH);
+
     endtask
 
 
@@ -162,6 +193,7 @@ module alloc_sg_core_unit_test #(
             logic  __err;
             SIZE_T exp_size, got_size;
             META_T exp_meta, got_meta;
+            int    cnt;
 
             void'(std::randomize(exp_size));
             void'(std::randomize(exp_meta));
@@ -176,6 +208,19 @@ module alloc_sg_core_unit_test #(
             `FAIL_UNLESS_EQUAL(frame_ptr, __ptr);
             `FAIL_UNLESS_EQUAL(frame_size, exp_size);
 
+            repeat(10) @(posedge clk);
+
+            reg_agent.get_active_cnt(cnt);
+            `FAIL_UNLESS_EQUAL(cnt, PREALLOC_DEPTH + 1);
+            reg_agent.get_alloc_cnt(cnt);
+            `FAIL_UNLESS_EQUAL(cnt, PREALLOC_DEPTH + 1);
+            reg_agent.get_alloc_err_cnt(cnt);
+            `FAIL_UNLESS_EQUAL(cnt, 0);
+            reg_agent.get_dealloc_cnt(cnt);
+            `FAIL_UNLESS_EQUAL(cnt, 0);
+            reg_agent.get_dealloc_err_cnt(cnt);
+            `FAIL_UNLESS_EQUAL(cnt, 0);
+
             load_req(0, __ptr);
             load(0, __nxt_ptr, __eof, got_size, got_meta, __err);
 
@@ -183,6 +228,17 @@ module alloc_sg_core_unit_test #(
             `FAIL_UNLESS(__eof);
             `FAIL_UNLESS_EQUAL(got_size, exp_size);
             `FAIL_UNLESS_EQUAL(got_meta, exp_meta);
+
+            reg_agent.get_active_cnt(cnt);
+            `FAIL_UNLESS_EQUAL(cnt, PREALLOC_DEPTH);
+            reg_agent.get_alloc_cnt(cnt);
+            `FAIL_UNLESS_EQUAL(cnt, PREALLOC_DEPTH + 1);
+            reg_agent.get_alloc_err_cnt(cnt);
+            `FAIL_UNLESS_EQUAL(cnt, 0);
+            reg_agent.get_dealloc_cnt(cnt);
+            `FAIL_UNLESS_EQUAL(cnt, 1);
+            reg_agent.get_dealloc_err_cnt(cnt);
+            `FAIL_UNLESS_EQUAL(cnt, 0);
 
         `SVTEST_END
 
@@ -206,6 +262,8 @@ module alloc_sg_core_unit_test #(
             FRAME_SIZE_T exp_frame_size;
             META_T exp_meta, got_meta;
             PTR_T  __desc_chain [*];
+            automatic int buffers = 0;
+            int    cnt;
 
             // Randomize frame details
             void'(std::randomize(exp_meta));
@@ -225,11 +283,25 @@ module alloc_sg_core_unit_test #(
                 store_req(0, __ptr);
                 store(0, __ptr, .eof(__eof), .size(__size), .meta(exp_meta), .err(1'b0));
                 `INFO($sformatf("Stored %0d bytes at 0x%x (eof: %b, meta: 0x%x, err: %b)", __eof ? __size : BUFFER_SIZE, __ptr, __eof, exp_meta, 1'b0));
+                buffers++;
             end
 
             wait(frame_valid[0]);
             `FAIL_UNLESS_EQUAL(frame_ptr, 0);
             `FAIL_UNLESS_EQUAL(frame_size, exp_frame_size);
+
+            repeat(100) @(posedge clk);
+
+            reg_agent.get_active_cnt(cnt);
+            `FAIL_UNLESS_EQUAL(cnt, PREALLOC_DEPTH + buffers);
+            reg_agent.get_alloc_cnt(cnt);
+            `FAIL_UNLESS_EQUAL(cnt, PREALLOC_DEPTH + buffers);
+            reg_agent.get_alloc_err_cnt(cnt);
+            `FAIL_UNLESS_EQUAL(cnt, 0);
+            reg_agent.get_dealloc_cnt(cnt);
+            `FAIL_UNLESS_EQUAL(cnt, 0);
+            reg_agent.get_dealloc_err_cnt(cnt);
+            `FAIL_UNLESS_EQUAL(cnt, 0);
 
             __ptr = frame_ptr;
             __frame_size = 0;
@@ -245,15 +317,30 @@ module alloc_sg_core_unit_test #(
 
             `FAIL_UNLESS_EQUAL(__frame_size, exp_frame_size);
 
+            repeat(100) @(posedge clk);
+
+            reg_agent.get_active_cnt(cnt);
+            `FAIL_UNLESS_EQUAL(cnt, PREALLOC_DEPTH);
+            reg_agent.get_alloc_cnt(cnt);
+            `FAIL_UNLESS_EQUAL(cnt, PREALLOC_DEPTH + buffers);
+            reg_agent.get_alloc_err_cnt(cnt);
+            `FAIL_UNLESS_EQUAL(cnt, 0);
+            reg_agent.get_dealloc_cnt(cnt);
+            `FAIL_UNLESS_EQUAL(cnt, buffers);
+            reg_agent.get_dealloc_err_cnt(cnt);
+            `FAIL_UNLESS_EQUAL(cnt, 0);
+
         `SVTEST_END
 
     `SVUNIT_TESTS_END
 
     task store_req(input int ctxt, output PTR_T ptr);
+        `INFO("Store setup req");
         scatter_if[0].store_req(ptr);
     endtask
 
     task store(input int ctxt, input PTR_T ptr, input logic eof=1'b0, input SIZE_T size=0, input META_T meta=0, input logic err=1'b0);
+        `INFO("Store req");
         scatter_if[0].store(ptr, eof, size, meta, err);
     endtask
 
@@ -275,15 +362,15 @@ module alloc_sg_core_unit_test #(
         repeat(cycles) @(posedge clk);
     endtask
 
-endmodule : alloc_sg_core_unit_test
+endmodule : alloc_axil_sg_core_unit_test
 
 // 'Boilerplate' unit test wrapper code
 //  Builds unit test for a specific configuration in a way
 //  that maintains SVUnit compatibility
-`define ALLOC_SG_CORE_UNIT_TEST(PTR_WID,RAM_MODEL)\
+`define ALLOC_AXIL_SG_CORE_UNIT_TEST(PTR_WID,RAM_MODEL)\
   import svunit_pkg::svunit_testcase;\
   svunit_testcase svunit_ut;\
-  alloc_sg_core_unit_test#(PTR_WID,RAM_MODEL) test();\
+  alloc_axil_sg_core_unit_test#(PTR_WID,RAM_MODEL) test();\
   function void build();\
     test.build();\
     svunit_ut = test.svunit_ut;\
@@ -296,23 +383,23 @@ endmodule : alloc_sg_core_unit_test
   endtask
 
 // (Distributed RAM) 8-bit pointer allocator
-module alloc_sg_core_8b_unit_test;
-`ALLOC_SG_CORE_UNIT_TEST(8,0);
+module alloc_axil_sg_core_8b_unit_test;
+`ALLOC_AXIL_SG_CORE_UNIT_TEST(8,0);
 endmodule
 
 // (Block RAM) 4096-entry, 12-bit pointer allocator
-module alloc_sg_core_12b_unit_test;
-`ALLOC_SG_CORE_UNIT_TEST(12,0);
+module alloc_axil_sg_core_12b_unit_test;
+`ALLOC_AXIL_SG_CORE_UNIT_TEST(12,0);
 endmodule
 
 // (Block RAM) 65536-entry, 16-bit pointer allocator
-module alloc_sg_core_16b_unit_test;
-`ALLOC_SG_CORE_UNIT_TEST(16,1);
+module alloc_axil_sg_core_16b_unit_test;
+`ALLOC_AXIL_SG_CORE_UNIT_TEST(16,1);
 endmodule
 
 // (Ultra RAM) 262144-entry, 18-bit pointer allocator
-module alloc_sg_core_18b_unit_test;
-`ALLOC_SG_CORE_UNIT_TEST(18,1);
+module alloc_axil_sg_core_18b_unit_test;
+`ALLOC_AXIL_SG_CORE_UNIT_TEST(18,1);
 endmodule
 
 

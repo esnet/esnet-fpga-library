@@ -87,6 +87,8 @@ module packet_q_core
     packet_event_intf event_in_if  [NUM_INPUT_IFS]  (.clk);
     packet_event_intf event_out_if [NUM_OUTPUT_IFS] (.clk);
 
+    alloc_mon_intf alloc_mon_if__unused (.clk);
+
     // -----------------------------
     // Signals
     // -----------------------------
@@ -139,7 +141,8 @@ module packet_q_core
         .frame_valid,
         .frame_error,
         .frame_ptr,
-        .frame_size
+        .frame_size,
+        .mon_if ( alloc_mon_if__unused )
     );
 
     // Currently there is no method for flushing packets other than dequeuing them...

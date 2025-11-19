@@ -49,7 +49,10 @@ module alloc_sg_core #(
     output logic                      frame_valid [SCATTER_CONTEXTS],
     output logic                      frame_error,
     output logic [PTR_WID-1:0]        frame_ptr,
-    output logic [FRAME_SIZE_WID-1:0] frame_size
+    output logic [FRAME_SIZE_WID-1:0] frame_size,
+
+    // Allocator monitor
+    alloc_mon_intf.tx         mon_if
 );
 
     // -----------------------------
@@ -122,7 +125,7 @@ module alloc_sg_core #(
         .dealloc_req,
         .dealloc_rdy,
         .dealloc_ptr,
-        .mon_if      ( alloc_mon_if__unused )
+        .mon_if
     );
 
     // -----------------------------
@@ -144,14 +147,35 @@ module alloc_sg_core #(
     // Gather core
     // -----------------------------
     alloc_gather_core  #(
-        .CONTEXTS       ( GATHER_CONTEXTS ),
+        .CONTEXTS       ( GATHER_CONTEXTS + 1),
         .PTR_WID        ( PTR_WID ),
         .BUFFER_SIZE    ( BUFFER_SIZE ),
         .META_WID       ( META_WID ),
         .Q_DEPTH        ( STORE_Q_DEPTH ),
         .SIM__FAST_INIT ( SIM__FAST_INIT )
     ) i_alloc_gather_core (
+        .gather_if      ( __gather_if ),
         .*
     );
+
+    // Most of the gather interfaces are driven from external controllers...
+    generate
+        for (genvar i = 0; i < GATHER_CONTEXTS; i++) begin : g__ctxt
+            alloc_intf_load_connector i_alloc_intf_load_connector (
+                .from_tx ( gather_if[i] ),
+                .to_rx   ( __gather_if[i] )
+            );
+        end : g__ctxt
+    endgenerate
+
+    // ... but the last one is used as the 'recycle' interface
+    //
+    //   'gather' transactions on this interface just follow the linked
+    //   list of descriptors and deallocate the buffers referenced
+    assign __gather_if[GATHER_CONTEXTS].req = recycle_req;
+    assign recycle_rdy = __gather_if[GATHER_CONTEXTS].rdy;
+    assign __gather_if[GATHER_CONTEXTS].ptr = recycle_ptr;
+    assign __gather_if[GATHER_CONTEXTS].ack = 1'b1;
+    assign recycle_ack = __gather_if[GATHER_CONTEXTS].vld && __gather_if[GATHER_CONTEXTS].eof;
 
 endmodule : alloc_sg_core
