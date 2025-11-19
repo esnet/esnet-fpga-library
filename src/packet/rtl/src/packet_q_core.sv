@@ -96,6 +96,7 @@ module packet_q_core
     logic               recycle_req;
     logic               recycle_rdy;
     logic [PTR_WID-1:0] recycle_ptr;
+    logic               recycle_ack;
 
     // -- Frame completion
     logic                    frame_valid [NUM_INPUT_IFS];
@@ -131,6 +132,7 @@ module packet_q_core
         .recycle_req,
         .recycle_rdy,
         .recycle_ptr,
+        .recycle_ack,
         .desc_mem_wr_if,
         .desc_mem_rd_if,
         .desc_mem_init_done ( mem_init_done ),
@@ -139,6 +141,9 @@ module packet_q_core
         .frame_ptr,
         .frame_size
     );
+
+    // Currently there is no method for flushing packets other than dequeuing them...
+    assign recycle_req = 1'b0;
 
     generate
         // Memory write controller

@@ -52,6 +52,7 @@ module alloc_sg_core_unit_test #(
     logic   recycle_req;
     logic   recycle_rdy;
     PTR_T   recycle_ptr;
+    logic   recycle_ack;
 
     mem_wr_intf #(.ADDR_WID(PTR_WID), .DATA_WID(DESC_WID)) desc_mem_wr_if (.clk);
     mem_rd_intf #(.ADDR_WID(PTR_WID), .DATA_WID(DESC_WID)) desc_mem_rd_if (.clk);
@@ -102,6 +103,8 @@ module alloc_sg_core_unit_test #(
     //===================================
     task setup();
         svunit_ut.setup();
+
+        recycle_req = 1'b0;
 
         reset();
     endtask

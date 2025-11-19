@@ -8,18 +8,23 @@ module alloc_gather_core #(
     parameter bit  SIM__FAST_INIT = 1 // Optimize sim time by performing fast memory init
 ) (
     // Clock/reset
-    input logic            clk,
-    input logic            srst,
+    input logic                clk,
+    input logic                srst,
 
     // Control
-    input  logic           en,
+    input  logic               en,
 
     // Gather interface
-    alloc_intf.load_rx     gather_if [CONTEXTS],
+    alloc_intf.load_rx         gather_if [CONTEXTS],
+
+    // Pointer deallocation interface
+    output logic               dealloc_req,
+    input  logic               dealloc_rdy,
+    output logic [PTR_WID-1:0] dealloc_ptr,
 
     // Descriptor read interface
-    mem_rd_intf.controller desc_mem_rd_if,
-    input  logic           desc_mem_init_done
+    mem_rd_intf.controller     desc_mem_rd_if,
+    input  logic               desc_mem_init_done
 );
 
     // -----------------------------
@@ -27,7 +32,6 @@ module alloc_gather_core #(
     // -----------------------------
     localparam int  SIZE_WID = $clog2(BUFFER_SIZE);
     localparam int  CTXT_SEL_WID = $clog2(CONTEXTS);
-    localparam type CTXT_SEL_T = logic [CTXT_SEL_WID-1:0];
     localparam type DESC_T = alloc_pkg::alloc#(BUFFER_SIZE, PTR_WID, META_WID)::desc_t;
 
     // -----------------------------
@@ -46,8 +50,8 @@ module alloc_gather_core #(
     } req_ctxt_t;
 
     typedef struct packed {
-        req_ctxt_t req;
-        CTXT_SEL_T ctxt_id;
+        req_ctxt_t               req;
+        logic [CTXT_SEL_WID-1:0] ctxt_id;
     } rd_ctxt_t;
 
     typedef struct packed {
@@ -64,8 +68,8 @@ module alloc_gather_core #(
     logic [CONTEXTS-1:0] req;
     req_ctxt_t req_ctxt  [CONTEXTS];
 
-    CTXT_SEL_T           ctxt_sel;
-    logic [CONTEXTS-1:0] ctxt_sel_vec;
+    logic [CTXT_SEL_WID-1:0] ctxt_sel;
+    logic [CONTEXTS-1:0]     ctxt_sel_vec;
 
     state_t state;
     state_t nxt_state;
@@ -240,5 +244,25 @@ module alloc_gather_core #(
     assign mem_rd_rdy = desc_mem_rd_if.rdy;
     assign desc_mem_rd_if.addr = rd_ctxt_in.req.ptr;
     assign _desc = desc_mem_rd_if.data;
+
+
+    // -----------------------------
+    // Deallocate pointers after use
+    // -----------------------------
+    fifo_small_ctxt #(
+        .DATA_WID ( PTR_WID ),
+        .DEPTH    ( 8 )
+    ) i_fifo_small_ctxt__dealloc (
+        .clk,
+        .srst,
+        .wr_rdy  (),
+        .wr      ( desc_mem_rd_if.ack ),
+        .wr_data ( rd_ctxt_out.req.ptr ),
+        .rd      ( dealloc_rdy ),
+        .rd_vld  ( dealloc_req ),
+        .rd_data ( dealloc_ptr ),
+        .oflow   ( ),
+        .uflow   ( )
+    );
 
 endmodule : alloc_gather_core

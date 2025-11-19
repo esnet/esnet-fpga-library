@@ -6,11 +6,9 @@ module alloc_sg_core #(
     parameter int  MAX_FRAME_SIZE = 16384,
     parameter int  META_WID = 1,
     parameter int  STORE_Q_DEPTH = 64,
-    parameter bit  STORE_Q_FC = 1'b1, // Can flow control store interface
+    parameter bit  STORE_FC = 1'b1, // Can flow control store interface
     parameter int  LOAD_Q_DEPTH = 32,
-    parameter bit  LOAD_FC = 1'b1,    // Can flow control dealloc interface,
-    parameter int  RECYCLE_Q_DEPTH = 32,
-    parameter bit  RECYCLE_FC = 1'b1,
+    parameter bit  LOAD_FC = 1'b1,    // Can flow control dealloc interface
     // Derived parameters (don't override)
     parameter int  FRAME_SIZE_WID = $clog2(MAX_FRAME_SIZE+1),
     // Simulation-only
@@ -40,6 +38,7 @@ module alloc_sg_core #(
     input  logic               recycle_req,
     output logic               recycle_rdy,
     input  logic [PTR_WID-1:0] recycle_ptr,
+    output logic               recycle_ack,
 
     // Descriptor memory interface
     mem_wr_intf.controller     desc_mem_wr_if,
@@ -92,7 +91,7 @@ module alloc_sg_core #(
     // -----------------------------
     // Interfaces
     // -----------------------------
-    alloc_mon_intf alloc_mon_if__unused (.clk);
+    alloc_intf #(.BUFFER_SIZE(BUFFER_SIZE), .PTR_WID(PTR_WID), .META_WID(META_WID)) __gather_if [GATHER_CONTEXTS+1] (.clk);
 
     // -----------------------------
     // Status
@@ -103,7 +102,11 @@ module alloc_sg_core #(
     // Buffer pointer allocator (bit-vector allocator, on-chip)
     // -----------------------------
     alloc_bv  #(
-        .PTR_WID ( PTR_WID ),
+        .PTR_WID         ( PTR_WID ),
+        .ALLOC_Q_DEPTH   ( STORE_Q_DEPTH ),
+        .ALLOC_FC        ( STORE_FC ),
+        .DEALLOC_Q_DEPTH ( LOAD_Q_DEPTH ),
+        .DEALLOC_FC      ( LOAD_FC ),
         .SIM__FAST_INIT ( SIM__FAST_INIT ),
         .SIM__RAM_MODEL ( SIM__RAM_MODEL )
     ) i_alloc_bv__ptr (
@@ -116,9 +119,9 @@ module alloc_sg_core #(
         .alloc_req,
         .alloc_rdy,
         .alloc_ptr,
-        .dealloc_req ( dealloc_req ),
-        .dealloc_rdy ( dealloc_rdy ),
-        .dealloc_ptr ( dealloc_ptr ),
+        .dealloc_req,
+        .dealloc_rdy,
+        .dealloc_ptr,
         .mon_if      ( alloc_mon_if__unused )
     );
 
