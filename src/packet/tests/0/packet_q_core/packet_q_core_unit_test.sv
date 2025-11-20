@@ -72,6 +72,8 @@ module packet_q_core_unit_test #(
 
     packet_intf #(.DATA_BYTE_WID(DATA_OUT_BYTE_WID), .META_WID(META_WID)) packet_out_if [NUM_OUTPUT_IFS] (.clk);
 
+    axi4l_intf axil_if ();
+
     logic mem_init_done;
 
     packet_q_core      #(
@@ -177,10 +179,16 @@ module packet_q_core_unit_test #(
     // Reset
     std_reset_intf reset_if (.clk(clk));
     assign srst = reset_if.reset;
+    assign axil_if.aresetn = !reset_if.reset;
     assign reset_if.ready = !srst;
 
     // Assign clock (333MHz)
     `SVUNIT_CLK_GEN(clk, 1.5ns);
+
+    // Assign AXI-L clock (125MHz)
+    `SVUNIT_CLK_GEN(axil_if.aclk, 4ns);
+
+    axi4l_intf_controller_term i_axi4l_intf_controller_term (.axi4l_if (axil_if ));
 
     //===================================
     // Build

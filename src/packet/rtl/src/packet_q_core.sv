@@ -35,7 +35,9 @@ module packet_q_core
     mem_rd_intf.controller      desc_mem_rd_if,
     mem_rd_intf.controller      mem_rd_if [NUM_OUTPUT_IFS],
 
-    input logic                 mem_init_done
+    input logic                 mem_init_done,
+
+    axi4l_intf.peripheral       axil_if
 );
 
     // -----------------------------
@@ -87,8 +89,6 @@ module packet_q_core
     packet_event_intf event_in_if  [NUM_INPUT_IFS]  (.clk);
     packet_event_intf event_out_if [NUM_OUTPUT_IFS] (.clk);
 
-    alloc_mon_intf alloc_mon_if__unused (.clk);
-
     // -----------------------------
     // Signals
     // -----------------------------
@@ -114,7 +114,7 @@ module packet_q_core
     // -----------------------------
     // Scatter-gather controller
     // -----------------------------
-    alloc_sg_core #(
+    alloc_axil_sg_core #(
         .SCATTER_CONTEXTS ( NUM_INPUT_IFS ),
         .GATHER_CONTEXTS  ( NUM_OUTPUT_IFS ),
         .PTR_WID          ( PTR_WID ),
@@ -123,12 +123,11 @@ module packet_q_core
         .META_WID         ( META_WID ),
         .SIM__FAST_INIT   ( SIM__FAST_INIT ),
         .SIM__RAM_MODEL   ( SIM__RAM_MODEL )
-    ) i_alloc_sg_core (
+    ) i_alloc_axil_sg_core (
         .clk,
         .srst,
         .en ( 1'b1 ),
         .init_done ( init_done__alloc_sg ),
-        .BUFFERS   ( 0 ), // No limit, i.e. BUFFERS = 2**PTR_WID
         .scatter_if,
         .gather_if,
         .recycle_req,
@@ -142,7 +141,7 @@ module packet_q_core
         .frame_error,
         .frame_ptr,
         .frame_size,
-        .mon_if ( alloc_mon_if__unused )
+        .axil_if
     );
 
     // Currently there is no method for flushing packets other than dequeuing them...
