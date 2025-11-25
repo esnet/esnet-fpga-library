@@ -143,6 +143,8 @@ module mem_proxy
     state_t    state;
     state_t    nxt_state;
 
+    logic      wr_rd_n;
+
     logic      done;
     logic      error;
     logic      timeout;
@@ -152,9 +154,10 @@ module mem_proxy
     logic                   inc_timer;
 
     logic [BURST_LEN_WID-1:0] burst_len;
-    logic [BURST_LEN_WID-1:0] word;
     logic                     reset_word;
     logic                     inc_word;
+    logic [BURST_LEN_WID-1:0] req_word;
+    logic [BURST_LEN_WID-1:0] ack_word;
 
     // -----------------------------
     // Local interfaces
@@ -326,28 +329,28 @@ module mem_proxy
             READ_REQ : begin
                 inc_timer = 1'b1;
                 mem_rd_req = 1'b1;
-                if (mem_if.rdy) nxt_state = READ_PENDING;
+                if (mem_if.rdy) begin
+                    inc_word = 1'b1;
+                    if (req_word == burst_len-1) nxt_state = READ_PENDING;
+                end else if (timer == TIMEOUT_CYCLES) nxt_state = TIMEOUT;
             end
             READ_PENDING : begin
                 inc_timer = 1'b1;
-                if (mem_if.rd_ack) begin
-                    inc_word = 1'b1;
-                    if (word < burst_len-1) nxt_state = READ_REQ;
-                    else                    nxt_state = DONE;
-                end else if (timer == TIMEOUT_CYCLES) nxt_state = TIMEOUT;
+                if (ack_word == burst_len) nxt_state = DONE;
+                else if (timer == TIMEOUT_CYCLES) nxt_state = TIMEOUT;
             end
             WRITE_REQ : begin
                 inc_timer = 1'b1;
                 mem_wr_req = 1'b1;
-                if (mem_if.rdy) nxt_state = WRITE_PENDING;
+                if (mem_if.rdy) begin
+                    inc_word = 1'b1;
+                    if (req_word == burst_len-1) nxt_state = WRITE_PENDING;
+                end else if (timer == TIMEOUT_CYCLES) nxt_state = TIMEOUT;
             end
             WRITE_PENDING : begin
                 inc_timer = 1'b1;
-                if (mem_if.wr_ack) begin
-                    inc_word = 1'b1;
-                    if (word < burst_len-1) nxt_state = WRITE_REQ;
-                    else                    nxt_state = DONE;
-                end else if (timer == TIMEOUT_CYCLES) nxt_state = TIMEOUT;
+                if (ack_word == burst_len) nxt_state = DONE;
+                else if (timer == TIMEOUT_CYCLES) nxt_state = TIMEOUT;
             end
             CLEAR_REQ : begin
                 inc_timer = 1'b1;
@@ -376,11 +379,25 @@ module mem_proxy
         endcase
     end
 
-    // Burst word count
-    initial word = '0;
+    // Latch operation (write/read)
+    always_ff @(posedge clk) begin
+        if (state == WRITE_REQ) wr_rd_n <= 1'b1;
+        else if (state == READ_REQ) wr_rd_n <= 1'b0;
+    end
+
+    // Burst word count (requests)
+    initial req_word = '0;
     always @(posedge clk) begin
-        if (reset_word) word <= '0;
-        else if (inc_word) word <= word + 1;
+        if (reset_word) req_word <= '0;
+        else if (inc_word) req_word <= req_word + 1;
+    end
+
+    // Burst word count (acks)
+    initial ack_word = '0;
+    always @(posedge clk) begin
+        if (reset_word) ack_word <= '0;
+        else if ( wr_rd_n && mem_if.wr_ack) ack_word <= ack_word + 1;
+        else if (!wr_rd_n && mem_if.rd_ack) ack_word <= ack_word + 1;
     end
 
     // Timer
@@ -392,8 +409,8 @@ module mem_proxy
 
     // Drive write interface
     always_comb begin
-        mem_addr = addr + word;
-        mem_wr_data = wr_data[word];
+        mem_addr = addr + req_word;
+        mem_wr_data = wr_data[req_word];
     end
 
     assign mem_if.rst = mem_init;
@@ -404,7 +421,7 @@ module mem_proxy
 
     // Read response
     // -- Latch each word in burst
-    always @(posedge clk) if (mem_if.rd_ack) rd_data[word] <= mem_if.rd_data;
+    always @(posedge clk) if (mem_if.rd_ack) rd_data[ack_word] <= mem_if.rd_data;
     // -- Unpack read data to registers
     generate
         for (genvar g_reg = 0; g_reg < DATA_REGS; g_reg++) begin : g__rd_data_reg
