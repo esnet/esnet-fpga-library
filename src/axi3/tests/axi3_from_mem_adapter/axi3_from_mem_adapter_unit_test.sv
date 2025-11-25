@@ -66,6 +66,7 @@ module axi3_from_mem_adapter_unit_test;
     );
 
     axi3_pipe_slr i_axi3_pipe_slr (
+        .srst,
         .from_controller (__axi3_if),
         .to_peripheral   (axi3_if[ACTIVE_CHANNEL])
     );
@@ -294,6 +295,35 @@ module axi3_from_mem_adapter_unit_test;
                         $sformatf("Read data mismatch at byte %0d for value stored at 0x%0x. Exp: 0x%0x, Got: 0x%0x.", i, addr, exp_data[addr][i], got_data[i])
                     );
                 end
+            end
+        `SVTEST_END
+
+        //===================================
+        // Test:
+        //   write_burst
+        //
+        // Desc:
+        //   Write a burst of data.
+        //===================================
+        `SVTEST(write_burst)
+            localparam int BURST_SIZE = 1024;
+            byte exp_data [BURST_SIZE];
+            byte got_data [];
+            MEM_ADDR_T addr;
+            // Randomize access
+            void'(std::randomize(addr));
+            void'(std::randomize(exp_data));
+            // Write burst of random data
+            agent.write(addr, exp_data, error, timeout);
+            // Read and check
+            agent.read(addr, BURST_SIZE, got_data, error, timeout);
+            `FAIL_IF(error);
+            `FAIL_IF(timeout);
+            foreach (got_data[i]) begin
+                `FAIL_UNLESS_LOG(
+                    got_data[i] === exp_data[i],
+                    $sformatf("Read data mismatch at byte %0d for value stored at 0x%0x. Exp: 0x%0x, Got: 0x%0x.", i, addr, exp_data[i], got_data[i])
+                );
             end
         `SVTEST_END
 
