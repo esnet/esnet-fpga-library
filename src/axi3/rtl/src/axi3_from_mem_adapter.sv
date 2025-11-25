@@ -79,14 +79,22 @@ module axi3_from_mem_adapter
     logic                     wr_burst_sop;
     logic [BURST_LEN_WID-1:0] axi3_if_awlen;
 
-    logic                      rd_pending;
-    logic                      rd_timeout;
+    state_t                   rd_state;
+    state_t                   nxt_rd_state;
+
+    logic                     rd_burst_reset;
+    logic                     rd_burst_inc;
+    logic                     rd_burst_done;
+    logic [WORD_ADDR_WID-1:0] rd_burst_addr;
+    logic [WORD_ADDR_WID-1:0] rd_burst_addr_nxt;
+    logic [BURST_LEN_WID-1:0] rd_burst_len;
+    burst_ctxt_t              rd_burst_ctxt_in;
+    burst_ctxt_t              rd_burst_ctxt_out;
 
     // Initialization
     // -----------------------------
     // TODO: add init (i.e. auto-clear block)
     assign init_done = 1'b1;
-
 
     // Accumulate write bursts
     // -----------------------------
@@ -226,23 +234,81 @@ module axi3_from_mem_adapter
     assign mem_wr_if.ack = axi3_if.wvalid && axi3_if.wready;
     assign axi3_if.bready = 1'b1;
 
-    // Read address
+    // Accumulate read bursts
     // -----------------------------
-    initial axi3_if.arvalid = 1'b0;
+    // Burst FSM
+    initial rd_state = RESET;
     always @(posedge clk) begin
-        if (srst) axi3_if.arvalid <= 1'b0;
-        else begin
-            if (mem_rd_if.req && mem_rd_if.rdy) axi3_if.arvalid <= 1'b1;
-            else if (axi3_if.arready || rd_timeout) axi3_if.arvalid <= 1'b0;
+        if (srst) rd_state <= RESET;
+        else      rd_state <= nxt_rd_state;
+    end
+
+    always_comb begin
+        nxt_rd_state = rd_state;
+        rd_burst_reset = 1'b0;
+        rd_burst_inc = 1'b0;
+        rd_burst_done = 1'b0;
+        case (rd_state)
+            RESET : begin
+                nxt_rd_state = BURST_START;
+            end
+            BURST_START : begin
+                rd_burst_reset = 1'b1;
+                if (mem_rd_if.req && mem_rd_if.rdy) nxt_rd_state = BURST;
+            end
+            BURST : begin
+                if (mem_rd_if.req && mem_rd_if.rdy) begin
+                    if (mem_rd_if.addr == rd_burst_addr_nxt && rd_burst_len < MAX_BURST_LEN-1) rd_burst_inc = 1'b1;
+                    else rd_burst_done = 1'b1;
+                end else begin
+                    rd_burst_done = 1'b1;
+                    nxt_rd_state = BURST_START;
+                end
+            end
+            default : begin
+                nxt_rd_state = RESET;
+            end
+        endcase
+    end
+
+    always_ff @(posedge clk) begin
+        if (rd_burst_reset || rd_burst_done) begin
+            rd_burst_len <= '0;
+            rd_burst_addr <= mem_rd_if.addr;
+            rd_burst_addr_nxt <= mem_rd_if.addr + 1;
+        end else if (rd_burst_inc) begin
+            rd_burst_len <= rd_burst_len + 1;
+            rd_burst_addr_nxt <= rd_burst_addr_nxt + 1;
         end
     end
 
-    always_ff @(posedge clk) if (mem_rd_if.req && mem_rd_if.rdy) axi3_if.araddr <= BASE_ADDR + (mem_rd_if.addr << BYTE_SEL_WID);
+    assign rd_burst_ctxt_in.addr = rd_burst_addr;
+    assign rd_burst_ctxt_in.len = rd_burst_len;
+
+    fifo_ctxt #(
+        .DATA_WID ( $bits(burst_ctxt_t) ),
+        .DEPTH    ( 2*MAX_BURST_LEN )
+    ) i_fifo_ctxt__rd_burst (
+        .clk,
+        .srst,
+        .wr       ( rd_burst_done ),
+        .wr_rdy   ( mem_rd_if.rdy ),
+        .wr_data  ( rd_burst_ctxt_in ),
+        .rd       ( axi3_if.arready ),
+        .rd_vld   ( axi3_if.arvalid ),
+        .rd_data  ( rd_burst_ctxt_out ),
+        .oflow    ( ),
+        .uflow    ( )
+    );
+
+    // Read address
+    // -----------------------------
+    assign axi3_if.araddr = BASE_ADDR + (rd_burst_ctxt_out.addr << BYTE_SEL_WID);
   
     // Read metadata
     // -----------------------------
     assign axi3_if.arid = '0;
-    assign axi3_if.arlen = 0; // Burst length == 1; TODO: support Burst length > 1
+    assign axi3_if.arlen = rd_burst_ctxt_out.len;
     assign axi3_if.arsize = SIZE;
     assign axi3_if.arburst.encoded = BURST_INCR;
     assign axi3_if.arlock.encoded= LOCK_NORMAL;
@@ -252,77 +318,11 @@ module axi3_from_mem_adapter
     assign axi3_if.arregion = '0;
     assign axi3_if.aruser = '0;
 
-    // Read  state
-    // -------------
-    initial rd_pending = 1'b0;
-    always @(posedge clk) begin
-        if (srst) rd_pending <= 1'b0;
-        else begin
-            if (mem_rd_if.req && mem_rd_if.rdy) rd_pending <= 1'b1;
-            else if (mem_rd_if.ack) rd_pending <= 1'b0;
-        end
-    end
-
-    assign mem_rd_if.rdy = !rd_pending;
-
-    // Read timeout
-    // -----------------------------
-    generate
-        if (RD_TIMEOUT > 0) begin : g__rd_timeout
-            // (Local) parameters
-            localparam int RD_TIMER_WID = $clog2(RD_TIMEOUT);
-            // (Local) signals
-            logic [RD_TIMER_WID-1:0] rd_timer;
-
-            initial rd_timer = 0;
-            always @(posedge clk) begin
-                if (srst) rd_timer <= 0;
-                else begin
-                    if (rd_pending) rd_timer <= rd_timer + 1;
-                    else            rd_timer <= 0;
-                end
-            end
-            assign rd_timeout = (rd_timer == RD_TIMEOUT-1);
-        end : g__rd_timeout
-        else begin : g__no_rd_timeout
-            assign rd_timeout = 1'b0;
-        end : g__no_rd_timeout
-    endgenerate 
-
-    // Read response
-    // --------------------
-    initial axi3_if.rready = 1'b0;
-    always @(posedge clk) begin
-        if (srst)                                 axi3_if.rready <= 1'b0;
-        else begin
-            if (mem_rd_if.req && mem_rd_if.rdy)   axi3_if.rready <= 1'b1;
-            else if (rd_pending) begin
-                if (axi3_if.rvalid || rd_timeout) axi3_if.rready <= 1'b0;
-            end else if (axi3_if.rvalid)          axi3_if.rready <= 1'b1;
-            else                                  axi3_if.rready <= 1'b0;
-        end
-    end
-
-    initial begin
-        mem_rd_if.ack = 1'b0;
-    end
-    always @(posedge clk) begin
-        if (srst) begin
-            mem_rd_if.ack <= 1'b0;
-        end else begin
-            if (rd_timeout) begin
-                mem_rd_if.ack <= 1'b1;
-            end else if (axi3_if.rvalid && axi3_if.rready) begin
-                mem_rd_if.ack <= 1'b1;
-            end else begin
-                mem_rd_if.ack <= 1'b0;
-            end
-        end
-    end
-
     always_ff @(posedge clk) begin
-        if (rd_timeout) mem_rd_if.data <= '0;
-        else if (axi3_if.rvalid && axi3_if.rready) mem_rd_if.data <= axi3_if.rdata;
+        mem_rd_if.ack <= axi3_if.rvalid && axi3_if.rready;
+        mem_rd_if.data <= axi3_if.rdata;
     end
+
+    assign axi3_if.rready = 1'b1;
 
 endmodule : axi3_from_mem_adapter
