@@ -23,7 +23,7 @@ module axi3_mem_bfm #(
     typedef logic [DATA_BYTE_WID-1:0][7:0] data_t;
     typedef logic [DATA_BYTE_WID-1:0]      strb_t;
     typedef logic [AXI_ID_WID-1:0] id_t;
-    typedef struct packed {id_t id; addr_t addr;} addr_ctxt_t;
+    typedef struct packed {id_t id; addr_t addr; logic [3:0] len; axburst_t burst;} addr_ctxt_t;
     typedef struct packed {id_t id; data_t data; strb_t strb; logic last;} wdata_ctxt_t;
     typedef struct packed {id_t id; data_t data; logic last;} rdata_ctxt_t;
 
@@ -40,6 +40,8 @@ module axi3_mem_bfm #(
             addr_t       awaddr;
             __addr_t     __awaddr; // Word address
             id_t         awid;
+            logic [3:0]  awlen;
+            axburst_t    awburst;
 
             wdata_ctxt_t wdata_q[$];
             data_t       wdata;
@@ -55,6 +57,8 @@ module axi3_mem_bfm #(
             __addr_t     __araddr; // Word address
             id_t         arid;
             logic        arvalid;
+            logic [3:0]  arlen;
+            axburst_t    arburst;
 
             rdata_ctxt_t rdata_q[$];
             data_t       rdata;
@@ -81,7 +85,7 @@ module axi3_mem_bfm #(
                 end else begin
                     if (axi3_if[g_if].awvalid && axi3_if[g_if].awready) begin
                         if (DEBUG) $display("[Ch%0d] Push 0x%0x (ID 0x%0x) onto write address queue.", g_if, axi3_if_awaddr, axi3_if[g_if].awid);
-                        aw_ctxt_q.push_back({axi3_if[g_if].awid, axi3_if_awaddr});
+                        aw_ctxt_q.push_back({axi3_if[g_if].awid, axi3_if_awaddr, axi3_if[g_if].awlen, axi3_if[g_if].awburst});
                     end
                 end
             end
@@ -100,7 +104,7 @@ module axi3_mem_bfm #(
                     end
                 end
             end
-
+/*
             // Track write progress
             initial wip = 1'b0;
             always @(posedge axi3_if[g_if].aclk) begin
@@ -108,11 +112,11 @@ module axi3_mem_bfm #(
                     wip <= 1'b0;
                 end else if (wvalid && wlast) begin
                     wip <= 1'b0;
-                end else if (wvalid) begin
+                end else if (aw_ctxt_q.size() > 0 && wdata_q.size() > 0) begin
                     wip <= 1'b1;
                 end
             end
-
+*/
             // Perform write
             initial begin
                 wvalid = 1'b0;
@@ -121,17 +125,20 @@ module axi3_mem_bfm #(
             always @(posedge axi3_if[g_if].aclk) begin
                 if (srst) begin
                     wvalid <= 1'b0;
-                end else  if (wip) begin
+                    wip <= 1'b0;
+                end else if (wip) begin
                     if (wlast) begin
-                        if (aw_ctxt_q.size() > 0 && wdata_q.size() > 0) begin
-                            wvalid <= 1'b1;
-                            {awid, awaddr} <= aw_ctxt_q.pop_front();
-                            {wid, wdata, wstrb, wlast} <= wdata_q.pop_front();
-                        end else begin
-                            wvalid <= 1'b0;
-                            wip <= 1'b0;
+                        if (wvalid) begin
+                            if (aw_ctxt_q.size() > 0 && wdata_q.size() > 0) begin
+                                {awid, awaddr, awlen, awburst} <= aw_ctxt_q.pop_front();
+                                {wid, wdata, wstrb, wlast} <= wdata_q.pop_front();
+                            end else begin
+                                wip <= 1'b0;
+                                wvalid <= 1'b0;
+                            end
                         end
                     end else if (wdata_q.size() > 0) begin
+                        if (awburst.encoded == BURST_INCR) awaddr <= awaddr + DATA_BYTE_WID;
                         wvalid <= 1'b1;
                         {wid, wdata, wstrb, wlast} <= wdata_q.pop_front();
                     end else begin
@@ -140,11 +147,9 @@ module axi3_mem_bfm #(
                 end else if (aw_ctxt_q.size() > 0 && wdata_q.size() > 0) begin
                     wvalid <= 1'b1;
                     wip <= 1'b1;
-                    {awid, awaddr} <= aw_ctxt_q.pop_front();
+                    {awid, awaddr, awlen, awburst} <= aw_ctxt_q.pop_front();
                     {wid, wdata, wstrb, wlast} <= wdata_q.pop_front();
-                end else begin
-                    wvalid <= 1'b0;
-                end
+                end else wvalid <= 1'b0;
             end
 
             always_comb begin
@@ -178,8 +183,15 @@ module axi3_mem_bfm #(
                     ar_ctxt_q.delete();
                 end else begin
                     if (axi3_if[g_if].arvalid && axi3_if[g_if].arready) begin
-                        if (DEBUG) $display("Push 0x%x (ID 0x%0x) onto read address queue.", axi3_if_araddr, axi3_if[g_if].arid);
-                        ar_ctxt_q.push_back({axi3_if[g_if].arid, axi3_if_araddr});
+                        automatic logic [3:0] __len = axi3_if[g_if].arlen;
+                        automatic addr_t __addr = axi3_if_araddr;
+                        if (DEBUG) $display("Push ADDR: 0x%x, LEN: %0d (ID 0x%0x) onto read address queue.", __addr, __len, axi3_if[g_if].arid);
+                        ar_ctxt_q.push_back({axi3_if[g_if].arid, __addr, __len, axi3_if[g_if].arburst});
+                        while (__len > 0) begin
+                            __addr = __addr + DATA_BYTE_WID;
+                            __len = __len - 1;
+                            ar_ctxt_q.push_back({axi3_if[g_if].arid, __addr, __len, axi3_if[g_if].arburst});
+                        end
                     end
                 end
             end
@@ -191,7 +203,7 @@ module axi3_mem_bfm #(
                     arvalid <= 1'b0;
                 end else if (ar_ctxt_q.size() > 0) begin
                     arvalid <= 1'b1;
-                    {arid, araddr} <= ar_ctxt_q.pop_front();
+                    {arid, araddr, arlen, arburst} <= ar_ctxt_q.pop_front();
                 end else begin
                     arvalid <= 1'b0;
                 end
@@ -205,11 +217,11 @@ module axi3_mem_bfm #(
                         __araddr = araddr >> BYTE_SEL_WID;
                         if (araddr[BYTE_SEL_WID-1:0] != '0) $display("WARNING: Misaligned READ on Ch%0d, ID %0d: ADDR: 0x%x", g_if, arid, araddr);
                         if (__ram.exists(__araddr)) begin
-                            rdata_q.push_back({arid, __ram[__araddr], 1'b0});
+                            rdata_q.push_back({arid, __ram[__araddr], (arlen == 0)});
                             if (DEBUG) $display("READ on Ch%0d, ID %0d: ADDR: 0x%x, DATA: 0x%x, LAST: 0", g_if, arid, araddr, __ram[__araddr]);
                         end else begin
-                            rdata_q.push_back({arid, 256'b0, 1'b0});
-                            if (DEBUG) $display("READ unitialized address on Ch%0d, ID %0d: ADDR: 0x%x, LAST: 0", g_if, arid, araddr);
+                            rdata_q.push_back({arid, 256'b0, (arlen == 0)});
+                            if (DEBUG) $display("READ unitialized address on Ch%0d, ID %0d: ADDR: 0x%x, LAST: %b", g_if, arid, araddr, (arlen == 0));
                         end
                     end
                 end
