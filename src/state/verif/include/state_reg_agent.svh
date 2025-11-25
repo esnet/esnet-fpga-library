@@ -18,7 +18,7 @@ class state_reg_agent#(type ID_T = bit, type STATE_T = bit) extends state_reg_bl
     //===================================
     function new(
             input string name="state_reg_agent",
-            const ref reg_verif_pkg::reg_agent reg_agent,
+            reg_verif_pkg::reg_agent reg_agent,
             input int BASE_OFFSET=0
     );
         super.new(name, BASE_OFFSET);

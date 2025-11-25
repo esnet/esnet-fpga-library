@@ -18,10 +18,10 @@ class packet_component_env #(
     // Constructor
     function new(
             input string name="packet_component_env",
-            const ref packet_driver#(META_T) driver,
-            const ref packet_monitor#(META_T) monitor,
-            const ref std_verif_pkg::model#(packet#(META_T)) model,
-            const ref std_verif_pkg::scoreboard#(packet#(META_T)) scoreboard
+            packet_driver#(META_T) driver,
+            packet_monitor#(META_T) monitor,
+            std_verif_pkg::model#(packet#(META_T)) model,
+            std_verif_pkg::scoreboard#(packet#(META_T)) scoreboard
         );
         super.new(name);
         this.driver = driver;

@@ -19,7 +19,7 @@ class sar_reassembly_htable_reg_agent#(type BUF_ID_T = bit, type OFFSET_T = bit,
     function new(
             input string name="sar_reassembly_htable_reg_agent",
             input int MAX_FRAGMENTS,
-            const ref reg_verif_pkg::reg_agent reg_agent,
+            reg_verif_pkg::reg_agent reg_agent,
             input int BASE_OFFSET=0
     );
         super.new(name, BASE_OFFSET);

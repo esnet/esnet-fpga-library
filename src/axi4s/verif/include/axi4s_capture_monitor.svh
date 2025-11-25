@@ -22,7 +22,7 @@ class axi4s_capture_monitor #(
     //===================================
     function new(input string name="axi4s_capture_monitor",
                  input int mem_size=16384,
-                 const ref reg_verif_pkg::reg_agent reg_agent,
+                 reg_verif_pkg::reg_agent reg_agent,
                  input int BASE_OFFSET=0
         );
         super.new(name);

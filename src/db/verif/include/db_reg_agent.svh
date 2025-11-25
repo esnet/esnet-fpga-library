@@ -29,7 +29,7 @@ class db_reg_agent #(
     function new(
             input string name="db_reg_agent",
             input int _size,
-            const ref reg_verif_pkg::reg_agent reg_agent,
+            reg_verif_pkg::reg_agent reg_agent,
             input int BASE_OFFSET=0
         );
         super.new(name, _size);
