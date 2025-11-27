@@ -10,6 +10,7 @@ module packet_q_core
     parameter int  NUM_BUFFERS = 1,
     parameter int  BUFFER_SIZE = 2048,
     parameter int  MAX_RD_LATENCY = 8,
+    parameter int  MAX_BURST_LEN = 1,
     // Simulation-only
     parameter bit  SIM__FAST_INIT = 1,
     parameter bit  SIM__RAM_MODEL = 1
@@ -82,9 +83,6 @@ module packet_q_core
     // -----------------------------
     alloc_intf #(.BUFFER_SIZE(BUFFER_SIZE), .PTR_WID(PTR_WID), .META_WID(META_WID)) scatter_if [NUM_INPUT_IFS]  (.clk);
     alloc_intf #(.BUFFER_SIZE(BUFFER_SIZE), .PTR_WID(PTR_WID), .META_WID(META_WID)) gather_if  [NUM_OUTPUT_IFS] (.clk);
-
-    packet_intf #(.DATA_BYTE_WID(MEM_WR_DATA_BYTE_WID), .META_WID(META_WID)) packet_to_q_if   [NUM_INPUT_IFS]  (.clk);
-    packet_intf #(.DATA_BYTE_WID(MEM_RD_DATA_BYTE_WID), .META_WID(META_WID)) packet_from_q_if [NUM_OUTPUT_IFS] (.clk);
 
     packet_event_intf event_in_if  [NUM_INPUT_IFS]  (.clk);
     packet_event_intf event_out_if [NUM_OUTPUT_IFS] (.clk);
@@ -180,7 +178,8 @@ module packet_q_core
                 .MAX_PKT_SIZE   ( MAX_PKT_SIZE ),
                 .NUM_BUFFERS    ( NUM_BUFFERS ),
                 .BUFFER_SIZE    ( BUFFER_SIZE  ),
-                .MAX_RD_LATENCY ( MAX_RD_LATENCY )
+                .MAX_RD_LATENCY ( MAX_RD_LATENCY ),
+                .MAX_BURST_LEN  ( MAX_BURST_LEN )
             ) i_packet_gather   (
                 .clk,
                 .srst,

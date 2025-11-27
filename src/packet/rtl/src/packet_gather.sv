@@ -13,8 +13,8 @@ module packet_gather #(
     parameter int MAX_PKT_SIZE = 16384,
     parameter int NUM_BUFFERS = 1,
     parameter int BUFFER_SIZE = 1,
-    parameter int MAX_RD_LATENCY = 8
-
+    parameter int MAX_RD_LATENCY = 8,
+    parameter int MAX_BURST_LEN = 1
 ) (
     // Clock/Reset
     input  logic                clk,
@@ -60,6 +60,8 @@ module packet_gather #(
 
     localparam int  META_WID = packet_if.META_WID;
     localparam int  SIZE_WID = BUFFER_SIZE > 1 ? $clog2(BUFFER_SIZE) : 1;
+
+    localparam int  PREFETCH_DEPTH = MAX_RD_LATENCY + MAX_BURST_LEN;
 
     // -----------------------------
     // Parameter checking
@@ -238,7 +240,7 @@ module packet_gather #(
     // -----------------------------
     always_ff @(posedge clk) begin
         if (gather_if.vld && gather_if.ack) words <= 0;
-        else if (buffer_rd)                   words <= words + 1;
+        else if (buffer_rd)                 words <= words + 1;
     end
 
     always_comb begin
@@ -267,7 +269,7 @@ module packet_gather #(
 
     fifo_small_ctxt #(
         .DATA_WID ( $bits(rd_ctxt_t) ),
-        .DEPTH    ( MAX_RD_LATENCY )
+        .DEPTH    ( PREFETCH_DEPTH )
     ) i_fifo_small_ctxt (
         .clk,
         .srst,
@@ -333,7 +335,7 @@ module packet_gather #(
             // Prefetch buffer (data)
             fifo_prefetch #(
                 .DATA_WID        ( $bits(prefetch_data_t) ),
-                .PIPELINE_DEPTH  ( MAX_RD_LATENCY)
+                .PIPELINE_DEPTH  ( PREFETCH_DEPTH )
             ) i_fifo_prefetch__data (
                 .clk,
                 .srst,

@@ -82,6 +82,8 @@ module packet_q_core_unit_test #(
         .MAX_PKT_SIZE   ( MAX_PKT_SIZE ),
         .NUM_BUFFERS    ( NUM_BUFFERS ),
         .BUFFER_SIZE    ( BUFFER_SIZE ),
+        .MAX_RD_LATENCY ( 48 ),
+        .MAX_BURST_LEN  ( 16 ),
         .SIM__FAST_INIT ( 0 ),
         .SIM__RAM_MODEL ( 0 )
     ) DUT (.*);
