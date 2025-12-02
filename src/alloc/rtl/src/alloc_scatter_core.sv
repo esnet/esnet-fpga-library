@@ -122,7 +122,9 @@ module alloc_scatter_core #(
             // Pre-fetch pointers to available buffers into per-context queues
             fifo_ctxt    #(
                 .DATA_WID ( PTR_WID ),
-                .DEPTH    ( Q_DEPTH )
+                .DEPTH    ( Q_DEPTH ),
+                .REPORT_OFLOW ( 0 )    // Overflows expected during normal operation
+                                       // (new pointers available but no room left in context queue)
             ) i_fifo_ctxt__alloc_q (
                 .clk,
                 .srst,

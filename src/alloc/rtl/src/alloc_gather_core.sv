@@ -136,7 +136,8 @@ module alloc_gather_core #(
 
             fifo_ctxt #(
                 .DATA_WID ( $bits(buffer_ctxt_t) ),
-                .DEPTH    ( Q_DEPTH )
+                .DEPTH    ( Q_DEPTH ),
+                .REPORT_OFLOW ( 1 )
             ) i_fifo_ctxt (
                 .clk,
                 .srst,
@@ -222,7 +223,9 @@ module alloc_gather_core #(
 
     fifo_small_ctxt #(
         .DATA_WID ( $bits(rd_ctxt_t) ),
-        .DEPTH    ( CONTEXTS )
+        .DEPTH    ( CONTEXTS ),
+        .REPORT_OFLOW ( 1 ),
+        .REPORT_UFLOW ( 1 )
     ) i_fifo_small_ctxt__rd_ctxt (
         .clk,
         .srst,
@@ -251,7 +254,8 @@ module alloc_gather_core #(
     // -----------------------------
     fifo_small_ctxt #(
         .DATA_WID ( PTR_WID ),
-        .DEPTH    ( 8 )
+        .DEPTH    ( 8 ),
+        .REPORT_OFLOW ( 1 )
     ) i_fifo_small_ctxt__dealloc (
         .clk,
         .srst,

@@ -280,7 +280,7 @@ module alloc_bv_unit_test #(
 
     task reset();
         bit timeout;
-        reset_if.pulse();
+        reset_if.pulse(8);
         reset_if.wait_ready(timeout, 0);
     endtask
 
