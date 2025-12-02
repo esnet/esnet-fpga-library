@@ -221,6 +221,9 @@ module packet_q_core_unit_test #(
     task setup();
         svunit_ut.setup();
 
+        monitor.set_stall_rate(0.0);
+        driver.set_stall_rate(0.0);
+
         // Start environment
         env.run();
     endtask
@@ -280,55 +283,6 @@ module packet_q_core_unit_test #(
             #10us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
         `SVTEST_END
 
-        `SVTEST(one_packet_tpause_2)
-            //env.monitor.set_tpause(2);
-            one_packet();
-            #10us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
-        `SVTEST_END
-
-        `SVTEST(one_packet_twait_2)
-            //env.driver.set_twait(2);
-            one_packet();
-            #10us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
-        `SVTEST_END
-
-        `SVTEST(one_packet_tpause_2_twait_2)
-            //env.monitor.set_tpause(2);
-            //env.driver.set_twait(2);
-            one_packet();
-            #10us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
-        `SVTEST_END
-
-        `SVTEST(one_jumbo_packet)
-            len = $urandom_range(2049, 9000);
-            one_packet(.len(len));
-            #10us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
-        `SVTEST_END
-
-        `SVTEST(packet_stream_good)
-            packet_stream();
-            #100us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
-        `SVTEST_END
-
-        `SVTEST(packet_stream_tpause_2)
-            //env.monitor.set_tpause(2);
-            packet_stream();
-            #100us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
-        `SVTEST_END
-
-        `SVTEST(packet_stream_twait_2)
-            //env.driver.set_twait(2);
-            packet_stream();
-            #100us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
-        `SVTEST_END
-
-        `SVTEST(packet_stream_tpause_2_twait_2)
-            //env.monitor.set_tpause(2);
-            //env.driver.set_twait(2);
-            packet_stream();
-            #100us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
-        `SVTEST_END
-
         `SVTEST(one_packet_bad)
             int bad_byte_idx;
             byte bad_byte_data;
@@ -350,6 +304,55 @@ module packet_q_core_unit_test #(
                 scoreboard.report(msg),
                 "Passed unexpectedly."
             );
+        `SVTEST_END
+
+        `SVTEST(one_packet_rx_stall)
+            monitor.set_stall_rate(0.5);
+            one_packet();
+            #10us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
+        `SVTEST_END
+
+        `SVTEST(one_packet_tx_stall)
+            driver.set_stall_rate(0.5);
+            one_packet();
+            #10us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
+        `SVTEST_END
+
+       `SVTEST(one_packet_tx_rx_stall)
+            monitor.set_stall_rate(0.5);
+            driver.set_stall_rate(0.5);
+            one_packet();
+            #10us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
+        `SVTEST_END
+
+        `SVTEST(one_jumbo_packet)
+            len = $urandom_range(2049, 9000);
+            one_packet(.len(len));
+            #10us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
+        `SVTEST_END
+
+        `SVTEST(packet_stream_no_stall)
+            packet_stream();
+            #100us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
+        `SVTEST_END
+
+        `SVTEST(packet_stream_rx_stall)
+            monitor.set_stall_rate(0.1);
+            packet_stream();
+            #100us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
+        `SVTEST_END
+
+        `SVTEST(packet_stream_tx_stall)
+            driver.set_stall_rate(0.1);
+            packet_stream();
+            #100us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
+        `SVTEST_END
+
+        `SVTEST(packet_stream_tx_rx_stall)
+            monitor.set_stall_rate(0.1);
+            driver.set_stall_rate(0.1);
+            packet_stream();
+            #100us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
         `SVTEST_END
 
         `SVTEST(finalize)
