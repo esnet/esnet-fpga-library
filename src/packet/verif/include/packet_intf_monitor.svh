@@ -52,9 +52,11 @@ class packet_intf_monitor #(
 
     // Evaluate stall
     function automatic bit stall();
-        int _stall_val = $ceil(this.__stall_rate * 32'hffffffff);
-        int _rand_val = $urandom();
-        return _rand_val < _stall_val;
+        int unsigned _stall_val = $ceil(this.__stall_rate * 32'hffffffff);
+        int unsigned _rand_val = $urandom();
+        if (this.__stall_rate >= 1.0) return 1;
+        else if (this.__stall_rate <= 0.0) return 0;
+        else return _rand_val < _stall_val;
     endfunction
 
     // Reset state
