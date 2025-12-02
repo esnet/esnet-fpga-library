@@ -7,6 +7,9 @@ module fifo_ctrl_fsm
     parameter bit UFLOW_PROT = 1,
     parameter opt_mode_t WR_OPT_MODE = OPT_MODE_TIMING,
     parameter opt_mode_t RD_OPT_MODE = OPT_MODE_TIMING,
+    // Simulation-only parameters
+    parameter bit REPORT_OFLOW = 0,
+    parameter bit REPORT_UFLOW = 0,
     // Derived parameters (don't override)
     parameter int PTR_WID = DEPTH > 1 ? $clog2(DEPTH) : 1,
     parameter int CNT_WID = $clog2(DEPTH+1)
@@ -58,6 +61,20 @@ module fifo_ctrl_fsm
     assign wr_ptr = _wr_ptr[PTR_WID-1:0];
     assign wr_oflow = wr && !wr_rdy;
 
+`ifndef SYNTHESIS
+    generate
+        if (REPORT_OFLOW) begin : g__report_oflow
+            always @(posedge wr_clk) begin
+                if (!wr_srst && wr_oflow) $display("[%0t] FIFO overflow in: %m", $time);
+            end
+        end : g__report_oflow
+        if (REPORT_UFLOW) begin : g__report_uflow
+            always @(posedge rd_clk) begin
+                if (!rd_srst && rd_uflow) $display("[%0t] FIFO underflow in: %m", $time);
+            end
+        end : g__report_uflow
+    endgenerate
+`endif
     // -----------------------------
     // Read-side logic
     // -----------------------------

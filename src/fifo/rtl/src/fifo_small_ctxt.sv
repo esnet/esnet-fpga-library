@@ -13,9 +13,12 @@
 //
 module fifo_small_ctxt #(
     parameter int DATA_WID = 1,
-    parameter int DEPTH = 4 // Intended for 'small' FIFOs
+    parameter int DEPTH = 4,  // Intended for 'small' FIFOs
                               // Targets distributed RAM; depends on FPGA arch
-                              // (typical max is 256, assuming LUT6 + F7/F8 Muxes)
+                              // (typical max is 256, assuming LUT6 + F7/F8 Muxes),
+    // Simulation-only parameters
+    parameter bit REPORT_OFLOW = 1,
+    parameter bit REPORT_UFLOW = 0
 ) (
     // Clock/reset
     input  logic                clk,
@@ -52,7 +55,9 @@ module fifo_small_ctxt #(
     // -----------------------------
     fifo_small     #(
         .DATA_WID   ( DATA_WID ),
-        .DEPTH      ( CTXT_DEPTH )
+        .DEPTH      ( CTXT_DEPTH ),
+        .REPORT_OFLOW ( REPORT_OFLOW ),
+        .REPORT_UFLOW ( REPORT_UFLOW )
     ) i_fifo_small (
         .clk,
         .srst,

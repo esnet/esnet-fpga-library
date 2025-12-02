@@ -9,6 +9,9 @@ module fifo_small #(
     parameter int DEPTH = 32, // Intended for 'small' FIFOs
                               // Targets distributed RAM; depends on FPGA arch
                               // (typical max is 256, assuming LUT6 + F7/F8 Muxes)
+    // Simulation-only parameters
+    parameter bit REPORT_OFLOW = 0,
+    parameter bit REPORT_UFLOW = 0,
     // Derived parameters (don't override)
     parameter int CNT_WID = $clog2(DEPTH + 1)
 ) (
@@ -62,7 +65,9 @@ module fifo_small #(
         .OFLOW_PROT ( 1 ),
         .UFLOW_PROT ( 1 ),
         .WR_OPT_MODE( fifo_pkg::OPT_MODE_LATENCY ),
-        .RD_OPT_MODE( fifo_pkg::OPT_MODE_LATENCY )
+        .RD_OPT_MODE( fifo_pkg::OPT_MODE_LATENCY ),
+        .REPORT_OFLOW ( REPORT_OFLOW ),
+        .REPORT_UFLOW ( REPORT_UFLOW )
     ) i_fifo_ctrl_fsm (
         .wr_clk   ( clk ),
         .wr_srst  ( srst ),

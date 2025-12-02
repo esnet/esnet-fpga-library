@@ -16,11 +16,14 @@
 //
 module fifo_small_prefetch #(
     parameter int DATA_WID = 1,
-    parameter int PIPELINE_DEPTH = 1 // Specify the depth of the prefetch pipeline;
+    parameter int PIPELINE_DEPTH = 1, // Specify the depth of the prefetch pipeline;
                                       // This represents the (minimum) number of writes
                                       // supported without overflow *after* deassertion of wr_rdy.
                                       // This implementation is intended for 'small' buffers,
                                       // typically <= 32
+    // Simulation-only parameters
+    parameter bit REPORT_OFLOW = 1,
+    parameter bit REPORT_UFLOW = 0
 ) (
     // Clock/reset
     input  logic                clk,
@@ -70,7 +73,9 @@ module fifo_small_prefetch #(
     // -----------------------------
     fifo_small     #(
         .DATA_WID   ( DATA_WID ),
-        .DEPTH      ( DEPTH )
+        .DEPTH      ( DEPTH ),
+        .REPORT_OFLOW ( REPORT_OFLOW ),
+        .REPORT_UFLOW ( REPORT_UFLOW )
     ) i_fifo_small  (
         .clk,
         .srst,
