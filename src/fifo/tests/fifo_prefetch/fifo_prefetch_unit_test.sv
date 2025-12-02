@@ -54,7 +54,9 @@ module fifo_prefetch_unit_test #(
         .DATA_WID       ( DATA_WID ),
         .PIPELINE_DEPTH ( PIPELINE_DEPTH ),
         .WR_OPT_MODE    ( WR_OPT_MODE ),
-        .RD_OPT_MODE    ( RD_OPT_MODE )
+        .RD_OPT_MODE    ( RD_OPT_MODE ),
+        .REPORT_OFLOW   ( 1 ),
+        .REPORT_UFLOW   ( 0 )
     ) DUT (.*);
 
     //===================================

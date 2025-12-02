@@ -66,7 +66,9 @@ module fifo_async_unit_test #(
     fifo_async   #(
         .DATA_WID ( DATA_WID ),
         .DEPTH    ( DEPTH ),
-        .FWFT     ( FWFT )
+        .FWFT     ( FWFT ),
+        .REPORT_OFLOW ( 1 ),
+        .REPORT_UFLOW ( 0 )
     ) DUT (.*);
 
     //===================================
@@ -277,6 +279,7 @@ module fifo_async_unit_test #(
             // driver in 'push' mode to allow overflow condition
             env.driver.set_tx_mode(bus_verif_pkg::TX_MODE_PUSH);
             exp_transaction = new("exp_transaction", __DEPTH);
+            `INFO("Expecting overflow here:");
             env.driver.send(exp_transaction);
 
             // Read back all FIFO entries and compare.
@@ -350,6 +353,7 @@ module fifo_async_unit_test #(
             // driver in 'push' mode to allow overflow condition
             env.driver.set_tx_mode(bus_verif_pkg::TX_MODE_PUSH);
             exp_transaction = new("exp_transaction", __DEPTH);
+            `INFO("Expecting overflow here:");
             env.driver.send(exp_transaction);
             @(cb_wr);
 

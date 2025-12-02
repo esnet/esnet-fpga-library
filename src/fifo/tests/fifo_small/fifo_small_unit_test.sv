@@ -53,7 +53,9 @@ module fifo_small_unit_test #(
 
     fifo_small   #(
         .DATA_WID ( DATA_WID ),
-        .DEPTH    ( DEPTH )
+        .DEPTH    ( DEPTH ),
+        .REPORT_OFLOW ( 1 ),
+        .REPORT_UFLOW ( 1 )
     ) DUT (.*);
 
     //===================================
