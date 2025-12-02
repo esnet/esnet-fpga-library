@@ -100,7 +100,8 @@ module axi3_from_mem_adapter
     // -----------------------------
     fifo_prefetch #(
         .DATA_WID        ( DATA_WID ),
-        .PIPELINE_DEPTH  ( MAX_BURST_LEN )
+        .PIPELINE_DEPTH  ( MAX_BURST_LEN ),
+        .REPORT_OFLOW    ( 0 )
     ) i_fifo_prefetch__wr_data (
         .clk,
         .srst,
@@ -164,7 +165,8 @@ module axi3_from_mem_adapter
 
     fifo_ctxt #(
         .DATA_WID ( $bits(burst_ctxt_t) ),
-        .DEPTH    ( 2*MAX_BURST_LEN )
+        .DEPTH    ( 2*MAX_BURST_LEN ),
+        .REPORT_OFLOW ( 1 )
     ) i_fifo_ctxt__wr_burst (
         .clk,
         .srst,
