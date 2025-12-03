@@ -197,6 +197,15 @@ module packet_intf_unit_test #(
             check(1, 10us);
         `SVTEST_END
 
+        `SVTEST(packet_size_walk)
+            monitor.set_stall_rate(0.1);
+            driver.set_stall_rate(0.1);
+            for (int i = 60; i <= 192; i++) begin
+                one_packet(i-60, i);
+            end
+            check(192-60+1, 100us);
+        `SVTEST_END
+
         `SVTEST(packet_stream_no_stall)
             packet_stream();
             check(NUM_PKTS, 100us);

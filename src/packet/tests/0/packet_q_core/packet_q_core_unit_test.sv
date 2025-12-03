@@ -280,7 +280,7 @@ module packet_q_core_unit_test #(
 
         `SVTEST(one_packet_good)
             one_packet();
-            #10us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
+            check(1, 10us);
         `SVTEST_END
 
         `SVTEST(one_packet_bad)
@@ -309,50 +309,70 @@ module packet_q_core_unit_test #(
         `SVTEST(one_packet_rx_stall)
             monitor.set_stall_rate(0.5);
             one_packet();
-            #10us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
+            check(1, 10us);
         `SVTEST_END
 
         `SVTEST(one_packet_tx_stall)
             driver.set_stall_rate(0.5);
             one_packet();
-            #10us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
+            check(1, 10us);
         `SVTEST_END
 
        `SVTEST(one_packet_tx_rx_stall)
             monitor.set_stall_rate(0.5);
             driver.set_stall_rate(0.5);
             one_packet();
-            #10us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
+            check(1, 10us);
         `SVTEST_END
 
         `SVTEST(one_jumbo_packet)
             len = $urandom_range(2049, 9000);
             one_packet(.len(len));
-            #10us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
+            check(1, 10us);
+        `SVTEST_END
+
+        `SVTEST(packet_size_walk)
+            int idx = 0;
+            int offset = $urandom() % 64;
+            monitor.set_stall_rate(0.1);
+            driver.set_stall_rate(0.1);
+            for (int len = 60; len <= 192; len++) begin
+                one_packet(idx, len);
+                idx++;
+            end
+            one_packet(idx, 256 + offset);
+            idx++;
+            one_packet(idx, 512 + offset);
+            idx++;
+            one_packet(idx, 1024 + offset);
+            idx++;
+            one_packet(idx, 1536 + offset);
+            idx++;
+            check(192-60+1+4, 100us);
         `SVTEST_END
 
         `SVTEST(packet_stream_no_stall)
             packet_stream();
-            #100us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
+            check(100, 100us);
         `SVTEST_END
 
         `SVTEST(packet_stream_rx_stall)
             monitor.set_stall_rate(0.1);
             packet_stream();
-            #100us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
+            check(100, 100us);
         `SVTEST_END
 
         `SVTEST(packet_stream_tx_stall)
             driver.set_stall_rate(0.1);
             packet_stream();
-            #100us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
+            check(100, 100us);
         `SVTEST_END
 
         `SVTEST(packet_stream_tx_rx_stall)
             monitor.set_stall_rate(0.1);
             driver.set_stall_rate(0.1);
             packet_stream();
-            #100us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
+            check(100, 100us);
         `SVTEST_END
 
         `SVTEST(finalize)
@@ -360,6 +380,28 @@ module packet_q_core_unit_test #(
         `SVTEST_END
 
     `SVUNIT_TESTS_END
+
+    task check(input int EXPECTED, input time TIMEOUT);
+        fork
+            begin
+                string msg;
+                #(TIMEOUT);
+                `FAIL_IF_LOG( env.scoreboard.report(msg) > 0, msg);
+                $display($sformatf("%d", env.scoreboard.got_processed()));
+                `FAIL_IF_LOG(1, "Timeout waiting for expected transactions.");
+            end
+            begin
+                string msg;
+                int processed;
+                do
+                    #100ns;
+                while ( env.scoreboard.got_processed() != EXPECTED );
+                `FAIL_IF_LOG( env.scoreboard.report(msg) > 0, msg);
+                `FAIL_UNLESS_EQUAL( env.scoreboard.got_matched(), EXPECTED);
+            end
+        join_any
+        disable fork;
+    endtask
 
 endmodule
 
