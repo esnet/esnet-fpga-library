@@ -82,6 +82,9 @@ module alloc_gather_core #(
     logic   mem_rd_req;
     logic   mem_rd_rdy;
 
+    logic   rd_ctxt_fifo_rdy;
+    logic   dealloc_fifo_rdy;
+
     DESC_T  _desc;
 
     initial req = '0;
@@ -187,7 +190,7 @@ module alloc_gather_core #(
             IDLE : begin
                 arb = 1'b1;
                 if (!en) nxt_state = DISABLED;
-                else if (|req) nxt_state = READ;
+                else if (|req && rd_ctxt_fifo_rdy && dealloc_fifo_rdy) nxt_state = READ;
             end
             READ : begin
                 mem_rd_req = 1'b1;
@@ -229,7 +232,7 @@ module alloc_gather_core #(
     ) i_fifo_small_ctxt__rd_ctxt (
         .clk,
         .srst,
-        .wr_rdy   ( ),
+        .wr_rdy   ( rd_ctxt_fifo_rdy ),
         .wr       ( mem_rd_req && mem_rd_rdy ),
         .wr_data  ( rd_ctxt_in ),
         .rd       ( desc_mem_rd_if.ack ),
@@ -254,12 +257,12 @@ module alloc_gather_core #(
     // -----------------------------
     fifo_small_ctxt #(
         .DATA_WID ( PTR_WID ),
-        .DEPTH    ( 8 ),
+        .DEPTH    ( 32 ),
         .REPORT_OFLOW ( 1 )
     ) i_fifo_small_ctxt__dealloc (
         .clk,
         .srst,
-        .wr_rdy  (),
+        .wr_rdy  ( dealloc_fifo_rdy ),
         .wr      ( desc_mem_rd_if.ack ),
         .wr_data ( rd_ctxt_out.req.ptr ),
         .rd      ( dealloc_rdy ),
