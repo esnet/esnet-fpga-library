@@ -31,7 +31,7 @@ module alloc_gather_core #(
     // Parameters
     // -----------------------------
     localparam int  SIZE_WID = $clog2(BUFFER_SIZE);
-    localparam int  CTXT_SEL_WID = $clog2(CONTEXTS);
+    localparam int  CTXT_SEL_WID = CONTEXTS > 1 ? $clog2(CONTEXTS) : 1;
     localparam type DESC_T = alloc_pkg::alloc#(BUFFER_SIZE, PTR_WID, META_WID)::desc_t;
 
     // -----------------------------
@@ -257,7 +257,7 @@ module alloc_gather_core #(
     // -----------------------------
     fifo_small_ctxt #(
         .DATA_WID ( PTR_WID ),
-        .DEPTH    ( 32 ),
+        .DEPTH    ( CONTEXTS ),
         .REPORT_OFLOW ( 1 )
     ) i_fifo_small_ctxt__dealloc (
         .clk,

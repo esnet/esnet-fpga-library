@@ -5,6 +5,7 @@
 
 module alloc_axil_bv_unit_test #(
     parameter int PTR_WID = 8,
+    parameter int NUM_SLICES = 1,
     parameter bit ALLOC_FC = 1'b0,
     parameter bit DEALLOC_FC = 1'b1
 );
@@ -12,7 +13,9 @@ module alloc_axil_bv_unit_test #(
     import alloc_verif_pkg::*;
 
     // Synthesize testcase name from parameters
-    string name = $sformatf("alloc_axil_bv_%0db_ut", PTR_WID);
+    string name;
+    if (NUM_SLICES > 1) assign name = $sformatf("alloc_axil_bv_%0db_%0ds_ut", PTR_WID, NUM_SLICES);
+    else                assign name = $sformatf("alloc_axil_bv_%0db_ut", PTR_WID);
 
     svunit_testcase svunit_ut;
 
@@ -46,6 +49,7 @@ module alloc_axil_bv_unit_test #(
         .PTR_WID        ( PTR_WID ),
         .ALLOC_FC       ( ALLOC_FC ),
         .DEALLOC_FC     ( DEALLOC_FC ),
+        .NUM_SLICES     ( NUM_SLICES ),
         .SIM__FAST_INIT ( 0 )
     ) DUT (.*);
 
@@ -184,7 +188,6 @@ module alloc_axil_bv_unit_test #(
             // Allow counters to update
             _wait(1);
 
-            `FAIL_UNLESS_EQUAL(__ptr, 0);
             reg_agent.get_active_cnt(cnt);
             `FAIL_UNLESS_EQUAL(cnt, 1);
             reg_agent.get_alloc_err_cnt(cnt);
@@ -201,7 +204,6 @@ module alloc_axil_bv_unit_test #(
             // Wait for dealloc operation to complete
             _wait(20);
 
-            `FAIL_UNLESS_EQUAL(__ptr, 0);
             reg_agent.get_active_cnt(cnt);
             `FAIL_UNLESS_EQUAL(cnt, 0);
             reg_agent.get_alloc_cnt(cnt);
@@ -230,11 +232,13 @@ module alloc_axil_bv_unit_test #(
         `SVTEST(alloc_dealloc_all)
             PTR_T __ptr;
             int cnt;
+            bit __allocated_ptr_list [PTR_T];
 
             // Allocate all pointers (expect sequential allocation)
             for (int i = 0; i < NUM_PTRS; i++) begin
                 alloc(__ptr);
-                `FAIL_UNLESS_EQUAL(__ptr, i);
+                `FAIL_IF_LOG(__allocated_ptr_list.exists(__ptr), $sformatf("Pointer (0x%0x) already allocated.", __ptr));
+                __allocated_ptr_list[__ptr] = 1'b1;
                 _wait($urandom % 20);
             end
             // Allow counters to update
@@ -451,10 +455,10 @@ endmodule : alloc_axil_bv_unit_test
 // 'Boilerplate' unit test wrapper code
 //  Builds unit test for a specific configuration in a way
 //  that maintains SVUnit compatibility
-`define ALLOC_AXIL_BV_UNIT_TEST(PTR_WID)\
+`define ALLOC_AXIL_BV_UNIT_TEST(PTR_WID,NUM_SLICES)\
   import svunit_pkg::svunit_testcase;\
   svunit_testcase svunit_ut;\
-  alloc_axil_bv_unit_test#(PTR_WID) test();\
+  alloc_axil_bv_unit_test#(PTR_WID,NUM_SLICES) test();\
   function void build();\
     test.build();\
     svunit_ut = test.svunit_ut;\
@@ -468,17 +472,27 @@ endmodule : alloc_axil_bv_unit_test
 
 // (Distributed RAM) 8-bit pointer allocator
 module alloc_axil_bv_8b_unit_test;
-`ALLOC_AXIL_BV_UNIT_TEST(8);
+`ALLOC_AXIL_BV_UNIT_TEST(8,1);
+endmodule
+
+// (Distributed RAM) 8-bit pointer allocator, 2 parallel slices
+module alloc_axil_bv_8b_2s_unit_test;
+`ALLOC_AXIL_BV_UNIT_TEST(8,2);
 endmodule
 
 // (Block RAM) 4096-entry, 12-bit pointer allocator
 module alloc_axil_bv_12b_unit_test;
-`ALLOC_AXIL_BV_UNIT_TEST(12);
+`ALLOC_AXIL_BV_UNIT_TEST(12,1);
+endmodule
+
+// (Block RAM) 4096-entry, 12-bit pointer allocator, 4 parallel slices
+module alloc_axil_bv_12b_4s_unit_test;
+`ALLOC_AXIL_BV_UNIT_TEST(12,4);
 endmodule
 
 // (Block RAM) 65536-entry, 16-bit pointer allocator
 module alloc_axil_bv_16b_unit_test;
-`ALLOC_AXIL_BV_UNIT_TEST(16);
+`ALLOC_AXIL_BV_UNIT_TEST(16,1);
 endmodule
 
 

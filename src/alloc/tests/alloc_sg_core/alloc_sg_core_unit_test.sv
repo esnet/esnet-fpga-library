@@ -5,12 +5,16 @@
 
 module alloc_sg_core_unit_test #(
     parameter int PTR_WID = 8,
-    parameter bit RAM_MODEL = 0
+    parameter bit RAM_MODEL = 0,
+    parameter int N_ALLOC = 1
 );
     import svunit_pkg::svunit_testcase;
 
     // Synthesize testcase name from parameters
-    string name = $sformatf("alloc_sg_core_%0db_ut", PTR_WID);
+    string name;
+    if (N_ALLOC > 1) assign name = $sformatf("alloc_sg_core_%0db_%0ds_ut", PTR_WID, N_ALLOC);
+    else             assign name = $sformatf("alloc_sg_core_%0db_ut", PTR_WID);
+
 
     svunit_testcase svunit_ut;
 
@@ -65,7 +69,8 @@ module alloc_sg_core_unit_test #(
         .GATHER_CONTEXTS  ( CONTEXTS ),
         .PTR_WID          ( PTR_WID ),
         .BUFFER_SIZE      ( BUFFER_SIZE ),
-        .MAX_FRAME_SIZE   ( MAX_FRAME_SIZE )
+        .MAX_FRAME_SIZE   ( MAX_FRAME_SIZE ),
+        .N_ALLOC          ( N_ALLOC )
     ) DUT (.*);
 
     mem_ram_sdp #(
@@ -169,8 +174,6 @@ module alloc_sg_core_unit_test #(
             store_req(0, __ptr);
             store(0, __ptr, .eof(1'b1), .size(exp_size), .meta(exp_meta), .err(1'b0));
 
-            `FAIL_UNLESS_EQUAL(__ptr, 0);
-
             wait(frame_valid[0]);
     
             `FAIL_UNLESS_EQUAL(frame_ptr, __ptr);
@@ -228,7 +231,6 @@ module alloc_sg_core_unit_test #(
             end
 
             wait(frame_valid[0]);
-            `FAIL_UNLESS_EQUAL(frame_ptr, 0);
             `FAIL_UNLESS_EQUAL(frame_size, exp_frame_size);
 
             __ptr = frame_ptr;
@@ -267,7 +269,7 @@ module alloc_sg_core_unit_test #(
 
     task reset();
         bit timeout;
-        reset_if.pulse();
+        reset_if.pulse(8);
         reset_if.wait_ready(timeout, 0);
     endtask
 
@@ -280,10 +282,10 @@ endmodule : alloc_sg_core_unit_test
 // 'Boilerplate' unit test wrapper code
 //  Builds unit test for a specific configuration in a way
 //  that maintains SVUnit compatibility
-`define ALLOC_SG_CORE_UNIT_TEST(PTR_WID,RAM_MODEL)\
+`define ALLOC_SG_CORE_UNIT_TEST(PTR_WID,RAM_MODEL,N_ALLOC)\
   import svunit_pkg::svunit_testcase;\
   svunit_testcase svunit_ut;\
-  alloc_sg_core_unit_test#(PTR_WID,RAM_MODEL) test();\
+  alloc_sg_core_unit_test#(PTR_WID,RAM_MODEL,N_ALLOC) test();\
   function void build();\
     test.build();\
     svunit_ut = test.svunit_ut;\
@@ -297,22 +299,27 @@ endmodule : alloc_sg_core_unit_test
 
 // (Distributed RAM) 8-bit pointer allocator
 module alloc_sg_core_8b_unit_test;
-`ALLOC_SG_CORE_UNIT_TEST(8,0);
+`ALLOC_SG_CORE_UNIT_TEST(8,0,1);
 endmodule
 
 // (Block RAM) 4096-entry, 12-bit pointer allocator
 module alloc_sg_core_12b_unit_test;
-`ALLOC_SG_CORE_UNIT_TEST(12,0);
+`ALLOC_SG_CORE_UNIT_TEST(12,0,1);
 endmodule
 
 // (Block RAM) 65536-entry, 16-bit pointer allocator
 module alloc_sg_core_16b_unit_test;
-`ALLOC_SG_CORE_UNIT_TEST(16,1);
+`ALLOC_SG_CORE_UNIT_TEST(16,1,1);
+endmodule
+
+// (Block RAM) 65536-entry, 16-bit pointer (2 slices) allocator
+module alloc_sg_core_16b_2s_unit_test;
+`ALLOC_SG_CORE_UNIT_TEST(16,1,2);
 endmodule
 
 // (Ultra RAM) 262144-entry, 18-bit pointer allocator
 module alloc_sg_core_18b_unit_test;
-`ALLOC_SG_CORE_UNIT_TEST(18,1);
+`ALLOC_SG_CORE_UNIT_TEST(18,1,1);
 endmodule
 
 

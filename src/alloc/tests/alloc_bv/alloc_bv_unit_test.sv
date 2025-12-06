@@ -5,13 +5,16 @@
 
 module alloc_bv_unit_test #(
     parameter int PTR_WID = 8,
+    parameter int NUM_SLICES = 1,
     parameter bit ALLOC_FC = 1'b0,
     parameter bit DEALLOC_FC = 1'b1
 );
     import svunit_pkg::svunit_testcase;
 
     // Synthesize testcase name from parameters
-    string name = $sformatf("alloc_bv_%0db_ut", PTR_WID);
+    string name;
+    if (NUM_SLICES > 1) assign name = $sformatf("alloc_bv_%0db_%0ds_ut", PTR_WID, NUM_SLICES);
+    else                assign name = $sformatf("alloc_bv_%0db_ut", PTR_WID);
 
     svunit_testcase svunit_ut;
 
@@ -49,6 +52,7 @@ module alloc_bv_unit_test #(
         .PTR_WID        ( PTR_WID ),
         .ALLOC_FC       ( ALLOC_FC ),
         .DEALLOC_FC     ( DEALLOC_FC ),
+        .NUM_SLICES     ( NUM_SLICES ),
         .SIM__FAST_INIT ( 0 )
     ) DUT (.*);
 
@@ -139,9 +143,6 @@ module alloc_bv_unit_test #(
             int cnt;
 
             alloc(__ptr);
-
-            `FAIL_UNLESS_EQUAL(__ptr, 0);
-
             dealloc(__ptr);
         `SVTEST_END
 
@@ -159,11 +160,13 @@ module alloc_bv_unit_test #(
         `SVTEST(alloc_dealloc_all)
             PTR_T __ptr;
             int cnt;
+            bit __allocated_ptr_list [PTR_T];
 
-            // Allocate all pointers (expect sequential allocation)
+            // Allocate all pointers (no expectation of sequential allocation)
             for (int i = 0; i < MAX_PTRS; i++) begin
                 alloc(__ptr);
-                `FAIL_UNLESS_EQUAL(__ptr, i);
+                `FAIL_IF_LOG(__allocated_ptr_list.exists(__ptr), $sformatf("Pointer (0x%0x) already allocated.", __ptr));
+                __allocated_ptr_list[__ptr] = 1'b1;
                 _wait($urandom % 20);
             end
             _wait(20);
@@ -171,9 +174,25 @@ module alloc_bv_unit_test #(
             `FAIL_IF(alloc_rdy == 1);
             
             // Deallocate all pointers
-            for (int i = 0; i < MAX_PTRS; i++) begin
-                dealloc(i);
-            end
+            fork
+                begin
+                    for (int i = 0; i < MAX_PTRS; i++) begin
+                        dealloc(i);
+                    end
+                end
+                begin
+                    wait(mon_if.dealloc_err);
+                    `FAIL_IF_LOG(
+                        mon_if.dealloc_err == 1,
+                        $sformatf(
+                            "Unexpected deallocation error for id[0x%x]",
+                            mon_if.ptr
+                        )
+                    );
+                end
+            join_any
+            disable fork;
+
         `SVTEST_END
 
         //===================================
@@ -231,7 +250,9 @@ module alloc_bv_unit_test #(
                 dealloc(__ptr[i]);
 
                 // Should trigger deallocation error
-                wait(mon_if.dealloc_err);
+                do
+                    @(posedge clk);
+                while (!mon_if.dealloc_err);
  
                 // Check that pointer corresponding to failed deallocation is reported correctly
                 `FAIL_UNLESS_LOG(
@@ -293,10 +314,10 @@ endmodule : alloc_bv_unit_test
 // 'Boilerplate' unit test wrapper code
 //  Builds unit test for a specific configuration in a way
 //  that maintains SVUnit compatibility
-`define ALLOC_BV_UNIT_TEST(PTR_WID)\
+`define ALLOC_BV_UNIT_TEST(PTR_WID,NUM_SLICES)\
   import svunit_pkg::svunit_testcase;\
   svunit_testcase svunit_ut;\
-  alloc_bv_unit_test#(PTR_WID) test();\
+  alloc_bv_unit_test#(PTR_WID,NUM_SLICES) test();\
   function void build();\
     test.build();\
     svunit_ut = test.svunit_ut;\
@@ -310,23 +331,39 @@ endmodule : alloc_bv_unit_test
 
 // (Distributed RAM) 8-bit pointer allocator
 module alloc_bv_8b_unit_test;
-`ALLOC_BV_UNIT_TEST(8);
+`ALLOC_BV_UNIT_TEST(8,1);
+endmodule
+
+// (Distributed RAM) 9-bit (2 slices) pointer allocator
+module alloc_bv_9b_2s_unit_test;
+`ALLOC_BV_UNIT_TEST(9,2);
 endmodule
 
 // (Block RAM) 4096-entry, 12-bit pointer allocator
 module alloc_bv_12b_unit_test;
-`ALLOC_BV_UNIT_TEST(12);
+`ALLOC_BV_UNIT_TEST(12,1);
+endmodule
+
+// (Block RAM) 4096-entry, 13-bit (2 slices) pointer allocator
+module alloc_bv_13b_2s_unit_test;
+`ALLOC_BV_UNIT_TEST(13,2);
 endmodule
 
 // (Block RAM) 65536-entry, 16-bit pointer allocator
 module alloc_bv_16b_unit_test;
-`ALLOC_BV_UNIT_TEST(16);
+`ALLOC_BV_UNIT_TEST(16,1);
 endmodule
 
 // (Ultra RAM) 262144-entry, 18-bit pointer allocator
 module alloc_bv_18b_unit_test;
-`ALLOC_BV_UNIT_TEST(18);
+`ALLOC_BV_UNIT_TEST(18,1);
 endmodule
+
+// (Ultra RAM) 262144-entry, 18-bit pointer allocator
+module alloc_bv_18b_2s_unit_test;
+`ALLOC_BV_UNIT_TEST(18,2);
+endmodule
+
 
 
 

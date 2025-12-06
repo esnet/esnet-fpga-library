@@ -11,6 +11,7 @@ module alloc_axil_sg_core #(
     parameter bit  STORE_FC = 1'b1, // Can flow control store interface
     parameter int  LOAD_Q_DEPTH = 32,
     parameter bit  LOAD_FC = 1'b1,    // Can flow control dealloc interface
+    parameter int  N_ALLOC = 1,
     // Derived parameters (don't override)
     parameter int  FRAME_SIZE_WID = $clog2(MAX_FRAME_SIZE+1),
     // Simulation-only
@@ -84,6 +85,7 @@ module alloc_axil_sg_core #(
         .STORE_FC         ( STORE_FC ),
         .LOAD_Q_DEPTH     ( LOAD_Q_DEPTH ),
         .LOAD_FC          ( LOAD_FC ),
+        .N_ALLOC          ( N_ALLOC ),
         .SIM__FAST_INIT   ( SIM__FAST_INIT ),
         .SIM__RAM_MODEL   ( SIM__RAM_MODEL )
     ) i_alloc_sg_core (

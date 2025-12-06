@@ -16,6 +16,9 @@ module alloc_axil_bv #(
                                          // behaviour of the deallocator
     parameter bit  DEALLOC_FC = 1'b1,    // Can flow control dealloc interface,
                                          // i.e. requester waits on dealloc_rdy
+    parameter int  NUM_SLICES = 1,       // (power of 2) Implements allocator as 1, 2, 4 etc independent slices
+                                         //              to improve allocation throughput
+
     // Simulation-only
     parameter bit  SIM__FAST_INIT = 1,    // Optimize sim time by performing fast memory init
     parameter bit  SIM__RAM_MODEL = 0
@@ -69,6 +72,7 @@ module alloc_axil_bv #(
         .ALLOC_FC        ( ALLOC_FC ),
         .DEALLOC_Q_DEPTH ( DEALLOC_Q_DEPTH ),
         .DEALLOC_FC      ( DEALLOC_FC ),
+        .NUM_SLICES      ( NUM_SLICES ),
         .SIM__FAST_INIT  ( SIM__FAST_INIT ),
         .SIM__RAM_MODEL  ( SIM__RAM_MODEL )
     ) i_alloc_bv (

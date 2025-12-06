@@ -41,7 +41,7 @@ module alloc_scatter_core #(
     // -----------------------------
     localparam int  SIZE_WID = $clog2(BUFFER_SIZE);
 
-    localparam int  CTXT_SEL_WID = $clog2(CONTEXTS);
+    localparam int  CTXT_SEL_WID = CONTEXTS > 1 ? $clog2(CONTEXTS) : 1;
     localparam type CTXT_SEL_T = logic [CTXT_SEL_WID-1:0];
 
     localparam type DESC_T = alloc_pkg::alloc#(BUFFER_SIZE, PTR_WID, META_WID)::desc_t;
@@ -122,7 +122,7 @@ module alloc_scatter_core #(
             // Pre-fetch pointers to available buffers into per-context queues
             fifo_ctxt    #(
                 .DATA_WID ( PTR_WID ),
-                .DEPTH    ( Q_DEPTH ),
+                .DEPTH    ( CONTEXTS ),
                 .REPORT_OFLOW ( 0 )    // Overflows expected during normal operation
                                        // (new pointers available but no room left in context queue)
             ) i_fifo_ctxt__alloc_q (

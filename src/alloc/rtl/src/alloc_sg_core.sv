@@ -8,7 +8,9 @@ module alloc_sg_core #(
     parameter int  STORE_Q_DEPTH = 64,
     parameter bit  STORE_FC = 1'b1, // Can flow control store interface
     parameter int  LOAD_Q_DEPTH = 32,
-    parameter bit  LOAD_FC = 1'b1,    // Can flow control dealloc interface
+    parameter bit  LOAD_FC = 1'b1,   // Can flow control dealloc interface
+    parameter int  N_ALLOC = 1,      // (powers of 2 only) Controls parallelism of allocator logic; can be
+                                             // used to increase allocation throughput. See alloc_bv for details.
     // Derived parameters (don't override)
     parameter int  FRAME_SIZE_WID = $clog2(MAX_FRAME_SIZE+1),
     // Simulation-only
@@ -110,6 +112,7 @@ module alloc_sg_core #(
         .ALLOC_FC        ( STORE_FC ),
         .DEALLOC_Q_DEPTH ( LOAD_Q_DEPTH ),
         .DEALLOC_FC      ( LOAD_FC ),
+        .NUM_SLICES      ( N_ALLOC ),
         .SIM__FAST_INIT ( SIM__FAST_INIT ),
         .SIM__RAM_MODEL ( SIM__RAM_MODEL )
     ) i_alloc_bv__ptr (
