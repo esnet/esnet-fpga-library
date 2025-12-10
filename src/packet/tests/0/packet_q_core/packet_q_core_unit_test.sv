@@ -84,6 +84,8 @@ module packet_q_core_unit_test #(
         .BUFFER_SIZE    ( BUFFER_SIZE ),
         .MAX_RD_LATENCY ( 48 ),
         .MAX_BURST_LEN  ( 16 ),
+        .N_ALLOC        ( 4 ),
+        .N_GATHER       ( 4 ),
         .SIM__FAST_INIT ( 0 ),
         .SIM__RAM_MODEL ( 0 )
     ) DUT (.*);
@@ -130,7 +132,8 @@ module packet_q_core_unit_test #(
     // Convert memory interfaces to AXI-3
     for (genvar g_if = 0; g_if < NUM_MEM_DATA_IFS; g_if++) begin : g_mem_if
         axi3_from_mem_adapter #(
-            .SIZE(axi3_pkg::SIZE_32BYTES)
+            .SIZE(axi3_pkg::SIZE_32BYTES),
+            .BURST_SUPPORT ( 1 )
         ) i_axi3_from_mem_adapter (
             .clk,
             .srst,
@@ -143,7 +146,8 @@ module packet_q_core_unit_test #(
     
     axi3_from_mem_adapter #(
         .SIZE(axi3_pkg::SIZE_32BYTES),
-        .BASE_ADDR ( PACKET_Q_CAPACITY )
+        .BASE_ADDR ( PACKET_Q_CAPACITY ),
+        .BURST_SUPPORT ( 0 )
     ) i_axi3_from_mem_adapter__desc (
         .clk,
         .srst,
@@ -155,7 +159,7 @@ module packet_q_core_unit_test #(
 
     generate
         for (genvar g_if = 0; g_if < NUM_INPUT_IFS; g_if++) begin : g__if
-            packet_descriptor_fifo i_packet_descriptor_fifo (
+            packet_descriptor_fifo #(.DEPTH(512)) i_packet_descriptor_fifo (
                 .from_tx      ( desc_in_if[g_if] ),
                 .from_tx_srst ( srst ),
                 .to_rx        ( desc_out_if[g_if] ),
