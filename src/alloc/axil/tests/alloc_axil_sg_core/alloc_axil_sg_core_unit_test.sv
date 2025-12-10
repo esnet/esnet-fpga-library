@@ -292,6 +292,7 @@ module alloc_axil_sg_core_unit_test #(
 
             wait(frame_valid[0]);
             `FAIL_UNLESS_EQUAL(frame_size, exp_frame_size);
+            __ptr = frame_ptr;
 
             repeat(100) @(posedge clk);
 
@@ -306,7 +307,6 @@ module alloc_axil_sg_core_unit_test #(
             reg_agent.get_dealloc_err_cnt(cnt);
             `FAIL_UNLESS_EQUAL(cnt, 0);
 
-            __ptr = frame_ptr;
             __frame_size = 0;
             __eof = 1'b0;
             load_req(0, __ptr);
