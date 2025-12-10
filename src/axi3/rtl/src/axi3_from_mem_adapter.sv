@@ -7,8 +7,9 @@ module axi3_from_mem_adapter
 #(
     parameter axsize_t SIZE = SIZE_64BYTES,
     parameter longint BASE_ADDR  = 0,
-    parameter int WR_TIMEOUT = 64, // Write timeout (in clock cycles); set to 0 to disable timeout
-    parameter int RD_TIMEOUT = 64  // Read timeout  (in clock cycles); set to 0 to disable timeout
+    parameter int WR_TIMEOUT = 64,  // Write timeout (in clock cycles); set to 0 to disable timeout
+    parameter int RD_TIMEOUT = 64,  // Read timeout  (in clock cycles); set to 0 to disable timeout
+    parameter bit BURST_SUPPORT = 0
 )(
     // Clock/reset
     input  logic               clk,
@@ -132,7 +133,10 @@ module axi3_from_mem_adapter
             end
             BURST_START : begin
                 wr_burst_reset = 1'b1;
-                if (mem_wr_if.req && mem_wr_if.en && mem_wr_if.rdy) nxt_wr_state = BURST;
+                if (mem_wr_if.req && mem_wr_if.en && mem_wr_if.rdy) begin
+                    if (BURST_SUPPORT) nxt_wr_state = BURST;
+                    else wr_burst_done = 1'b1;
+                end
             end
             BURST : begin
                 if (mem_wr_if.req && mem_wr_if.en && mem_wr_if.rdy) begin
@@ -160,8 +164,8 @@ module axi3_from_mem_adapter
         end
     end
 
-    assign wr_burst_ctxt_in.addr = wr_burst_addr;
-    assign wr_burst_ctxt_in.len = wr_burst_len;
+    assign wr_burst_ctxt_in.addr = BURST_SUPPORT ? wr_burst_addr : mem_wr_if.addr;
+    assign wr_burst_ctxt_in.len  = BURST_SUPPORT ? wr_burst_len  : '0;
 
     fifo_ctxt #(
         .DATA_WID ( $bits(burst_ctxt_t) ),
@@ -182,7 +186,7 @@ module axi3_from_mem_adapter
 
     // Write address
     // -----------------------------
-    assign axi3_if.awvalid = wr_burst_sop && wr_burst_ctxt_vld;
+    assign axi3_if.awvalid = wr_burst_sop && wr_burst_ctxt_vld && wr_data_valid;
     assign axi3_if.awaddr = BASE_ADDR + (wr_burst_ctxt_out.addr << BYTE_SEL_WID);
 
     // Write metadata
@@ -256,7 +260,10 @@ module axi3_from_mem_adapter
             end
             BURST_START : begin
                 rd_burst_reset = 1'b1;
-                if (mem_rd_if.req && mem_rd_if.rdy) nxt_rd_state = BURST;
+                if (mem_rd_if.req && mem_rd_if.rdy) begin
+                    if (BURST_SUPPORT) nxt_rd_state = BURST;
+                    else rd_burst_done = 1'b1;
+                end
             end
             BURST : begin
                 if (mem_rd_if.req && mem_rd_if.rdy) begin
@@ -284,8 +291,8 @@ module axi3_from_mem_adapter
         end
     end
 
-    assign rd_burst_ctxt_in.addr = rd_burst_addr;
-    assign rd_burst_ctxt_in.len = rd_burst_len;
+    assign rd_burst_ctxt_in.addr = BURST_SUPPORT ? rd_burst_addr : mem_rd_if.addr;
+    assign rd_burst_ctxt_in.len  = BURST_SUPPORT ? rd_burst_len  : '0;
 
     fifo_ctxt #(
         .DATA_WID ( $bits(burst_ctxt_t) ),
