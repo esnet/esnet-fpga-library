@@ -30,6 +30,8 @@ module packet_scatter #(
     // Packet completion interface
     packet_descriptor_intf.tx   descriptor_if,
 
+    input  logic                frame_valid,
+
     // Descriptor 'recycle' interface
     // output logic                recycle_req,
     // output logic [PTR_WID-1:0]  recycle_ptr,
@@ -66,6 +68,8 @@ module packet_scatter #(
     localparam int  META_WID = packet_if.META_WID;
     localparam int  SIZE_WID = BUFFER_SIZE > 1 ? $clog2(BUFFER_SIZE) : 1;
 
+    localparam int  PKT_SIZE_WID = $clog2(MAX_PKT_SIZE+1);
+
     // -----------------------------
     // Parameter checking
     // -----------------------------
@@ -96,6 +100,14 @@ module packet_scatter #(
         FLUSH = 4
     } state_t;
 
+    typedef struct packed {
+        logic                    pkt_good;
+        logic [PTR_WID-1:0]      ptr;
+        logic [PKT_SIZE_WID-1:0] size;
+        logic [META_WID-1:0]     meta;
+        logic                    err;
+    } pkt_desc_ctxt_t;
+
     // -----------------------------
     // Signals
     // -----------------------------
@@ -122,14 +134,21 @@ module packet_scatter #(
 
     logic        oflow;
 
-    logic [META_WID-1:0] meta;
-    logic [MTY_WID-1:0]  mty;
-    logic                err;
-    logic [SIZE_WID-1:0] pkt_size;
+    logic [META_WID-1:0]     meta;
+    logic [MTY_WID-1:0]      mty;
+    logic                    err;
+    logic [PKT_SIZE_WID-1:0] pkt_size;
 
     logic        pkt_done;
     status_t     pkt_status;
     logic        pkt_good;
+
+    logic            pkt_desc_ctxt_wr_rdy;
+    pkt_desc_ctxt_t  pkt_desc_ctxt_in;
+    logic            pkt_desc_ctxt_out_vld;
+    pkt_desc_ctxt_t  pkt_desc_ctxt_out;
+
+    logic        frame_valid_out;
 
     logic        packet_event;
     logic[31:0]  packet_event_size;
@@ -162,7 +181,7 @@ module packet_scatter #(
             end
             SOP: begin
                 buffer_rdy = scatter_if.rdy;
-                rdy = mem_wr_if.rdy && buffer_rdy && descriptor_if.rdy;
+                rdy = mem_wr_if.rdy && buffer_rdy && pkt_desc_ctxt_wr_rdy;
                 if (packet_if.vld && packet_if.rdy) begin
                     if (IGNORE_RDY && !rdy) begin
                         pkt_oflow = 1'b1;
@@ -333,12 +352,54 @@ module packet_scatter #(
     assign mem_wr_if.addr = (buffer_ptr * BUFFER_WORDS) + words;
     assign mem_wr_if.data = packet_if.data;
 
-    // Drive descriptor
-    assign descriptor_if.vld  = pkt_good;
-    assign descriptor_if.addr = pkt_ptr;
-    assign descriptor_if.size = pkt_size;
-    assign descriptor_if.meta = meta;
-    assign descriptor_if.err  = err;
+    // Descriptor output interface
+    // (descriptors are written to memory in a separate thread from the data.
+    //  Descriptor chain write completions are signaled on frame_valid input;
+    //  ensure that descriptor and data have been written before publishing
+    //  new packet descriptor)
+    fifo_small_ctxt #(
+        .DATA_WID ( 1 ),
+        .DEPTH    ( 8 ),
+        .REPORT_OFLOW ( 1 )
+    ) i_fifo_small_ctxt__frame_valid (
+        .clk,
+        .srst,
+        .wr      ( frame_valid ),
+        .wr_rdy  ( ),
+        .wr_data ( 1'b0 ),
+        .rd      ( pkt_desc_ctxt_out_vld && (descriptor_if.rdy || !pkt_desc_ctxt_out.pkt_good)),
+        .rd_vld  ( frame_valid_out ),
+        .rd_data ( ),
+        .oflow   ( ),
+        .uflow   ( )
+    );
+
+    assign pkt_desc_ctxt_in.pkt_good = pkt_good;
+    assign pkt_desc_ctxt_in.ptr  = pkt_ptr;
+    assign pkt_desc_ctxt_in.size = pkt_size;
+    assign pkt_desc_ctxt_in.meta = meta;
+    assign pkt_desc_ctxt_in.err  = err;
+
+    fifo_prefetch #(
+        .DATA_WID ( $bits(pkt_desc_ctxt_t) ),
+        .PIPELINE_DEPTH ( 2 ),
+        .REPORT_OFLOW ( 1 )
+    ) i_fifo_prefetch__descriptor_done (
+        .clk,
+        .srst,
+        .wr      ( pkt_done ),
+        .wr_rdy  ( pkt_desc_ctxt_wr_rdy ),
+        .wr_data ( pkt_desc_ctxt_in ),
+        .rd      ( frame_valid_out && (descriptor_if.rdy || !pkt_desc_ctxt_out.pkt_good)),
+        .rd_vld  ( pkt_desc_ctxt_out_vld ),
+        .rd_data ( pkt_desc_ctxt_out ),
+        .oflow   ( )
+    );
+    assign descriptor_if.vld  = pkt_desc_ctxt_out_vld && frame_valid_out && pkt_desc_ctxt_out.pkt_good;
+    assign descriptor_if.addr = pkt_desc_ctxt_out.ptr;
+    assign descriptor_if.size = pkt_desc_ctxt_out.size;
+    assign descriptor_if.meta = pkt_desc_ctxt_out.meta;
+    assign descriptor_if.err  = pkt_desc_ctxt_out.err;
 
     // Recycle descriptors for 'bad' packets
     assign recycle_req = pkt_done && !pkt_good;
