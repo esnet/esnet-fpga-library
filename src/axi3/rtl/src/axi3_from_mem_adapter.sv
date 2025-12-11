@@ -7,9 +7,9 @@ module axi3_from_mem_adapter
 #(
     parameter axsize_t SIZE = SIZE_64BYTES,
     parameter longint BASE_ADDR  = 0,
-    parameter int WR_TIMEOUT = 64,  // Write timeout (in clock cycles); set to 0 to disable timeout
-    parameter int RD_TIMEOUT = 64,  // Read timeout  (in clock cycles); set to 0 to disable timeout
-    parameter bit BURST_SUPPORT = 0
+    parameter bit BURST_SUPPORT = 0,
+    parameter int WR_ID = 0,
+    parameter bit RD_ID = 0
 )(
     // Clock/reset
     input  logic               clk,
@@ -35,7 +35,6 @@ module axi3_from_mem_adapter
 
     localparam int MAX_BURST_LEN = 16;
     localparam int BURST_LEN_WID = $clog2(MAX_BURST_LEN);
-    localparam int BURST_TIMEOUT = 8;
 
     // Parameter checking
     initial begin
@@ -191,7 +190,7 @@ module axi3_from_mem_adapter
 
     // Write metadata
     // -----------------------------
-    assign axi3_if.awid = '0;
+    assign axi3_if.awid = WR_ID;
     assign axi3_if.awsize = SIZE;
     assign axi3_if.awlen = wr_burst_ctxt_out.len;
     assign axi3_if.awburst.encoded = BURST_INCR;
@@ -232,7 +231,7 @@ module axi3_from_mem_adapter
     end
 
     // Tie off unused signals
-    assign axi3_if.wid = '0;
+    assign axi3_if.wid = WR_ID;
     assign axi3_if.wuser = '0;
 
     // Write response
@@ -316,7 +315,7 @@ module axi3_from_mem_adapter
   
     // Read metadata
     // -----------------------------
-    assign axi3_if.arid = '0;
+    assign axi3_if.arid = RD_ID;
     assign axi3_if.arlen = rd_burst_ctxt_out.len;
     assign axi3_if.arsize = SIZE;
     assign axi3_if.arburst.encoded = BURST_INCR;

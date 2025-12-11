@@ -97,7 +97,9 @@ module packet_q_core_unit_test #(
     localparam int AXI_ADDR_WID = $clog2(PACKET_Q_CAPACITY + NUM_BUFFERS);
     axi3_intf #(.DATA_BYTE_WID(MEM_DATA_BYTE_WID), .ADDR_WID(AXI_ADDR_WID)) axi3_if [NUM_MEM_CHANNELS] (.aclk(clk));
     axi3_mem_bfm #(
-        .CHANNELS ( NUM_MEM_CHANNELS)
+        .CHANNELS ( NUM_MEM_CHANNELS),
+        .WR_LATENCY ( 16 ),
+        .RD_LATENCY ( 48 )
     ) i_axi3_mem_bfm (
         .srst,
         .axi3_if
@@ -133,7 +135,9 @@ module packet_q_core_unit_test #(
     for (genvar g_if = 0; g_if < NUM_MEM_DATA_IFS; g_if++) begin : g_mem_if
         axi3_from_mem_adapter #(
             .SIZE(axi3_pkg::SIZE_32BYTES),
-            .BURST_SUPPORT ( 1 )
+            .BURST_SUPPORT ( 1 ),
+            .WR_ID ( 2*g_if ),
+            .RD_ID ( 2*g_if + 1)
         ) i_axi3_from_mem_adapter (
             .clk,
             .srst,
@@ -147,7 +151,9 @@ module packet_q_core_unit_test #(
     axi3_from_mem_adapter #(
         .SIZE(axi3_pkg::SIZE_32BYTES),
         .BASE_ADDR ( PACKET_Q_CAPACITY ),
-        .BURST_SUPPORT ( 0 )
+        .BURST_SUPPORT ( 0 ),
+        .WR_ID ( NUM_MEM_DATA_IFS * 2 ),
+        .RD_ID ( NUM_MEM_DATA_IFS * 2 )
     ) i_axi3_from_mem_adapter__desc (
         .clk,
         .srst,
