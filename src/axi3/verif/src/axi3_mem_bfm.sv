@@ -1,7 +1,9 @@
 module axi3_mem_bfm #(
     parameter int CHANNELS = 1,
     parameter bit GLOBAL_ADDRESSING = 1'b0,
-    parameter bit DEBUG = 1'b0
+    parameter bit DEBUG = 1'b0,
+    parameter int WR_LATENCY = 8,
+    parameter int RD_LATENCY = 8
 ) (
     input logic srst,
 
@@ -23,17 +25,22 @@ module axi3_mem_bfm #(
     typedef logic [DATA_BYTE_WID-1:0][7:0] data_t;
     typedef logic [DATA_BYTE_WID-1:0]      strb_t;
     typedef logic [AXI_ID_WID-1:0] id_t;
+    typedef logic [63:0] timestamp_t;
     typedef struct packed {id_t id; addr_t addr; logic [3:0] len; axburst_t burst;} addr_ctxt_t;
     typedef struct packed {id_t id; data_t data; strb_t strb; logic last;} wdata_ctxt_t;
-    typedef struct packed {id_t id; data_t data; logic last;} rdata_ctxt_t;
+    typedef struct packed {id_t id; timestamp_t timestamp;} b_ctxt_t;
+    typedef struct packed {id_t id; data_t data; logic last; timestamp_t timestamp;} rdata_ctxt_t;
 
     typedef logic [ADDR_WID-BYTE_SEL_WID-1:0] __addr_t; // Word address
 
     data_t __ram [__addr_t];
+    timestamp_t timestamp;
+
+    initial timestamp = 0;
+    always @(posedge axi3_if[0].aclk) timestamp <= timestamp + 1;
 
     generate
         for (genvar g_if = 0; g_if < CHANNELS; g_if++) begin : g__if
-
             // (Local) signals
             addr_ctxt_t  aw_ctxt_q[$];
             addr_t       axi3_if_awaddr;
@@ -51,6 +58,10 @@ module axi3_mem_bfm #(
             logic        wvalid;
             logic        wip;
 
+            b_ctxt_t     b_ctxt_q[$];
+            id_t         bid;
+            timestamp_t  btimestamp;
+
             addr_ctxt_t  ar_ctxt_q[$];
             addr_t       axi3_if_araddr;
             addr_t       araddr;
@@ -65,6 +76,7 @@ module axi3_mem_bfm #(
             id_t         rid;
             logic        rlast;
             logic        rvalid;
+            timestamp_t  rtimestamp;
 
             // Always ready for write address
             assign axi3_if[g_if].awready = 1'b1;
@@ -97,26 +109,16 @@ module axi3_mem_bfm #(
             always @(posedge axi3_if[g_if].aclk) begin
                 if (srst) begin
                     wdata_q.delete();
+                    b_ctxt_q.delete();
                 end else begin
                     if (axi3_if[g_if].wvalid && axi3_if[g_if].wready) begin
                         if (DEBUG) $display("[Ch%0d] Push 0x%0x (ID 0x%0x, LAST 0x%0x, STRB 0x%0x) onto write data queue.", g_if, axi3_if[g_if].wdata, axi3_if[g_if].wid, axi3_if[g_if].wlast, axi3_if[g_if].wstrb);
                         wdata_q.push_back({axi3_if[g_if].wid, axi3_if[g_if].wdata, axi3_if[g_if].wstrb, axi3_if[g_if].wlast});
+                        b_ctxt_q.push_back({axi3_if[g_if].wid, timestamp});
                     end
                 end
             end
-/*
-            // Track write progress
-            initial wip = 1'b0;
-            always @(posedge axi3_if[g_if].aclk) begin
-                if (srst) begin
-                    wip <= 1'b0;
-                end else if (wvalid && wlast) begin
-                    wip <= 1'b0;
-                end else if (aw_ctxt_q.size() > 0 && wdata_q.size() > 0) begin
-                    wip <= 1'b1;
-                end
-            end
-*/
+
             // Perform write
             initial begin
                 wvalid = 1'b0;
@@ -165,12 +167,17 @@ module axi3_mem_bfm #(
 
             // Perform write response
             always @(posedge axi3_if[g_if].aclk) begin
-                if (wvalid && wlast) begin
-                    axi3_if[g_if].bvalid <= 1'b1;
-                    axi3_if[g_if].bid <= awid;
-                    axi3_if[g_if].bresp <= axi3_pkg::RESP_OKAY;
-                end else begin
+                if (srst) begin
                     axi3_if[g_if].bvalid <= 1'b0;
+                end else begin
+                    if (b_ctxt_q.size() > 0 && axi3_if[g_if].bready && (timestamp > b_ctxt_q[0].timestamp + WR_LATENCY)) begin
+                        {bid, btimestamp} = b_ctxt_q.pop_front();
+                        axi3_if[g_if].bvalid <= 1'b1;
+                        axi3_if[g_if].bid <= bid;
+                        axi3_if[g_if].bresp <= axi3_pkg::RESP_OKAY;
+                    end else begin
+                        axi3_if[g_if].bvalid <= 1'b0;
+                    end
                 end
             end
 
@@ -217,10 +224,10 @@ module axi3_mem_bfm #(
                         __araddr = araddr >> BYTE_SEL_WID;
                         if (araddr[BYTE_SEL_WID-1:0] != '0) $display("WARNING: Misaligned READ on Ch%0d, ID %0d: ADDR: 0x%x", g_if, arid, araddr);
                         if (__ram.exists(__araddr)) begin
-                            rdata_q.push_back({arid, __ram[__araddr], (arlen == 0)});
+                            rdata_q.push_back({arid, __ram[__araddr], (arlen == 0), timestamp});
                             if (DEBUG) $display("READ on Ch%0d, ID %0d: ADDR: 0x%x, DATA: 0x%x, LAST: 0", g_if, arid, araddr, __ram[__araddr]);
                         end else begin
-                            rdata_q.push_back({arid, 256'b0, (arlen == 0)});
+                            rdata_q.push_back({arid, 256'b0, (arlen == 0), timestamp});
                             if (DEBUG) $display("READ unitialized address on Ch%0d, ID %0d: ADDR: 0x%x, LAST: %b", g_if, arid, araddr, (arlen == 0));
                         end
                     end
@@ -232,9 +239,9 @@ module axi3_mem_bfm #(
             always @(posedge axi3_if[g_if].aclk) begin
                 if (srst) begin
                     rvalid <= 1'b0;
-                end else if (rdata_q.size() > 0 && axi3_if[g_if].rready) begin
+                end else if (rdata_q.size() > 0 && axi3_if[g_if].rready && (timestamp > rdata_q[0].timestamp + RD_LATENCY)) begin
                     rvalid <= 1'b1;
-                    {rid, rdata, rlast} <= rdata_q.pop_front();
+                    {rid, rdata, rlast, rtimestamp} <= rdata_q.pop_front();
                 end else begin
                     rvalid <= 1'b0;
                 end
