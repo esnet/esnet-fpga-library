@@ -108,6 +108,11 @@ module packet_scatter #(
         logic                    err;
     } pkt_desc_ctxt_t;
 
+    typedef struct packed {
+        logic [ADDR_WID-1:0] addr;
+        logic [DATA_WID-1:0] data;
+    } wr_ctxt_t;
+
     // -----------------------------
     // Signals
     // -----------------------------
@@ -115,6 +120,10 @@ module packet_scatter #(
 
     state_t      state;
     state_t      nxt_state;
+
+    logic        wr_rdy;
+    wr_ctxt_t    wr_ctxt_in;
+    wr_ctxt_t    wr_ctxt_out;
 
     logic        pkt_sop;
     logic        pkt_eop;
@@ -180,8 +189,8 @@ module packet_scatter #(
                 if (mem_init_done) nxt_state = SOP;
             end
             SOP: begin
-                buffer_rdy = scatter_if.rdy;
-                rdy = mem_wr_if.rdy && buffer_rdy && pkt_desc_ctxt_wr_rdy;
+                buffer_rdy = scatter_if.rdy && pkt_desc_ctxt_wr_rdy;
+                rdy = wr_rdy && buffer_rdy;
                 if (packet_if.vld && packet_if.rdy) begin
                     if (IGNORE_RDY && !rdy) begin
                         pkt_oflow = 1'b1;
@@ -200,7 +209,7 @@ module packet_scatter #(
             end
             MOP: begin
                 buffer_rdy = words < BUFFER_WORDS;
-                rdy = mem_wr_if.rdy && buffer_rdy;
+                rdy = wr_rdy && buffer_rdy;
                 if (packet_if.vld && packet_if.rdy) begin
                     if (IGNORE_RDY && !rdy) begin
                         pkt_oflow = 1'b1;
@@ -225,7 +234,7 @@ module packet_scatter #(
             end
             MOP_NXT: begin
                 buffer_rdy = scatter_if.rdy;
-                rdy = mem_wr_if.rdy && buffer_rdy;
+                rdy = wr_rdy && buffer_rdy;
                 if (packet_if.vld && packet_if.rdy) begin
                     buffer_req = 1'b1;
                     if (IGNORE_RDY && !rdy) begin
@@ -345,23 +354,42 @@ module packet_scatter #(
     end
     assign pkt_good = pkt_done && ((pkt_status == STATUS_OK) || (!DROP_ERRORED && (pkt_status == STATUS_ERR)));
 
+    // Memory write request prefetch
+    assign wr_ctxt_in.addr = (buffer_ptr * BUFFER_WORDS) + words;
+    assign wr_ctxt_in.data = packet_if.data;
+
+    fifo_prefetch #(
+        .DATA_WID  ( $bits(wr_ctxt_t) ),
+        .PIPELINE_DEPTH ( 2 ),
+        .REPORT_OFLOW ( 1 )
+    ) i_fifo_prefetch (
+        .clk,
+        .srst,
+        .wr      ( packet_if.vld && buffer_rdy ),
+        .wr_rdy  ( wr_rdy ),
+        .wr_data ( wr_ctxt_in ),
+        .rd      ( mem_wr_if.rdy ),
+        .rd_vld  ( mem_wr_if.req ),
+        .rd_data ( wr_ctxt_out ),
+        .oflow   ( )
+    );
+
     // Drive memory write interface
     assign mem_wr_if.rst = 1'b0;
-    assign mem_wr_if.en = rdy;
-    assign mem_wr_if.req = packet_if.vld && buffer_rdy;
-    assign mem_wr_if.addr = (buffer_ptr * BUFFER_WORDS) + words;
-    assign mem_wr_if.data = packet_if.data;
+    assign mem_wr_if.en = 1'b1;
+    assign mem_wr_if.addr = wr_ctxt_out.addr;
+    assign mem_wr_if.data = wr_ctxt_out.data;
 
     // Descriptor output interface
     // (descriptors are written to memory in a separate thread from the data.
     //  Descriptor chain write completions are signaled on frame_valid input;
     //  ensure that descriptor and data have been written before publishing
     //  new packet descriptor)
-    fifo_small_ctxt #(
+    fifo_ctxt #(
         .DATA_WID ( 1 ),
         .DEPTH    ( 8 ),
         .REPORT_OFLOW ( 1 )
-    ) i_fifo_small_ctxt__frame_valid (
+    ) i_fifo_ctxt__frame_valid (
         .clk,
         .srst,
         .wr      ( frame_valid ),
