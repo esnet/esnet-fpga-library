@@ -3,15 +3,17 @@ module arb_rr
     import arb_pkg::*;
 #(
     parameter arb_rr_mode_t MODE = RR, // RR = Round-Robin, WCRR = Work-Conserving Round-Robin.
-    parameter int N = 2
+    parameter int N = 2,
+    // Derived parameters (don't override)
+    parameter int SEL_WID = N > 1 ? $clog2(N) : 1
 ) (
     input  logic clk,
     input  logic srst,
     input  logic en,
-    input  logic [N-1:0] req,         // per-input req
-    output logic [N-1:0] grant,       // one-hot grant
-    input  logic [N-1:0] ack,         // per-input ack (for multi-cycle grant support)
-    output logic [$clog2(N)-1:0] sel  // binary selector (not gated by enable)
+    input  logic [N-1:0] req,       // per-input req
+    output logic [N-1:0] grant,     // one-hot grant
+    input  logic [N-1:0] ack,       // per-input ack (for multi-cycle grant support)
+    output logic [SEL_WID-1:0] sel  // binary selector (not gated by enable)
 );
 
     // Typdefs
@@ -25,11 +27,11 @@ module arb_rr
     state_t state;
     state_t nxt_state;
 
-    logic [$clog2(N)-1:0] _idx;
+    logic [SEL_WID-1:0] _idx;
     logic reset_idx;
     logic inc_idx;
 
-    logic [$clog2(N)-1:0] sel_r;
+    logic [SEL_WID-1:0] sel_r;
     logic [N-1:0] grant_r;
 
 
