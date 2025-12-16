@@ -57,7 +57,7 @@ module fifo_prefetch
     // Parameter checking
     // -----------------------------
     initial begin
-        std_pkg::param_check_lt(MEM_DEPTH, 256, "DEPTH");
+        std_pkg::param_check_lt(PIPELINE_DEPTH, 256, "PIPELINE_DEPTH");
     end
 
     // -----------------------------
