@@ -45,6 +45,13 @@ module axi3_from_mem_adapter_unit_test;
     axi3_intf #(.DATA_BYTE_WID(DATA_BYTES), .ADDR_WID(AXI_ADDR_WID), .ID_WID(6)) axi3_if [NUM_CHANNELS] (.aclk(clk));
     axi3_intf #(.DATA_BYTE_WID(DATA_BYTES), .ADDR_WID(AXI_ADDR_WID), .ID_WID(6)) __axi3_if (.aclk(clk));
 
+    logic wr_data_oflow;
+    logic wr_data_pending;
+    logic wr_burst_oflow;
+    logic wr_burst_pending;
+    logic rd_burst_oflow;
+    logic rd_burst_pending;
+
     mem_proxy       #(
         .ACCESS_TYPE ( ACCESS_TYPE ),
         .MEM_TYPE    ( MEM_TYPE )

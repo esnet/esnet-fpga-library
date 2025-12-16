@@ -22,7 +22,15 @@ module axi3_from_mem_adapter
     mem_rd_intf.peripheral     mem_rd_if,
 
     // AXI3 interface (to peripheral)
-    axi3_intf.controller       axi3_if
+    axi3_intf.controller       axi3_if,
+
+    // Status
+    output logic               wr_data_oflow,
+    output logic               wr_data_pending,
+    output logic               wr_burst_oflow,
+    output logic               wr_burst_pending,
+    output logic               rd_burst_oflow,
+    output logic               rd_burst_pending
 );
     // Parameters
     localparam int DATA_BYTES    = get_word_size(SIZE);
@@ -64,6 +72,10 @@ module axi3_from_mem_adapter
     state_t                   wr_state;
     state_t                   nxt_wr_state;
 
+    logic                     mem_wr;
+    logic                     mem_wr_rdy;
+    logic [WORD_ADDR_WID-1:0] mem_wr_addr;
+    logic [DATA_WID-1:0]      mem_wr_data;
     logic                     wr_data_valid;
 
     logic                     wr_burst_reset;
@@ -100,19 +112,44 @@ module axi3_from_mem_adapter
     // -----------------------------
     fifo_prefetch #(
         .DATA_WID        ( DATA_WID ),
-        .PIPELINE_DEPTH  ( MAX_BURST_LEN ),
+        .PIPELINE_DEPTH  ( MAX_BURST_LEN + 8),
         .REPORT_OFLOW    ( 0 )
     ) i_fifo_prefetch__wr_data (
         .clk,
         .srst,
-        .wr      ( mem_wr_if.req && mem_wr_if.en ),
-        .wr_rdy  ( mem_wr_if.rdy ),
-        .wr_data ( mem_wr_if.data ),
+        .wr      ( mem_wr ),
+        .wr_rdy  ( mem_wr_rdy ),
+        .wr_data ( mem_wr_data ),
         .rd      ( axi3_if.wvalid && axi3_if.wready ),
         .rd_vld  ( wr_data_valid ),
         .rd_data ( axi3_if.wdata ),
-        .oflow   ( )
+        .oflow   ( wr_data_oflow )
     );
+
+    initial mem_wr = 1'b0;
+    always @(posedge clk) begin
+        if (srst) mem_wr <= 1'b0;
+        else begin
+            if (mem_wr_if.req && mem_wr_if.en && mem_wr_if.rdy) mem_wr <= 1'b1;
+            else                                                mem_wr <= 1'b0;
+        end
+    end
+
+    always_ff @(posedge clk) begin
+        mem_wr_addr <= mem_wr_if.addr;
+        mem_wr_data <= mem_wr_if.data;
+    end
+
+    initial mem_wr_if.rdy = 1'b0;
+    always @(posedge clk) begin
+        if (srst) mem_wr_if.rdy <= 1'b0;
+        else begin
+            if (mem_wr_rdy) mem_wr_if.rdy <= 1'b1;
+            else            mem_wr_if.rdy <= 1'b0;
+        end
+    end
+
+    always_ff @(posedge clk) wr_data_pending = wr_data_valid;
 
     // Burst FSM
     initial wr_state = RESET;
@@ -132,14 +169,14 @@ module axi3_from_mem_adapter
             end
             BURST_START : begin
                 wr_burst_reset = 1'b1;
-                if (mem_wr_if.req && mem_wr_if.en && mem_wr_if.rdy) begin
+                if (mem_wr) begin
                     if (BURST_SUPPORT) nxt_wr_state = BURST;
                     else wr_burst_done = 1'b1;
                 end
             end
             BURST : begin
-                if (mem_wr_if.req && mem_wr_if.en && mem_wr_if.rdy) begin
-                    if (mem_wr_if.addr == wr_burst_addr_nxt && wr_burst_len < MAX_BURST_LEN-1) wr_burst_inc = 1'b1;
+                if (mem_wr) begin
+                    if (mem_wr_addr == wr_burst_addr_nxt && wr_burst_len < MAX_BURST_LEN-1) wr_burst_inc = 1'b1;
                     else wr_burst_done = 1'b1;
                 end else begin
                     wr_burst_done = 1'b1;
@@ -155,20 +192,20 @@ module axi3_from_mem_adapter
     always_ff @(posedge clk) begin
         if (wr_burst_reset || wr_burst_done) begin
             wr_burst_len <= '0;
-            wr_burst_addr <= mem_wr_if.addr;
-            wr_burst_addr_nxt <= mem_wr_if.addr + 1;
+            wr_burst_addr <= mem_wr_addr;
+            wr_burst_addr_nxt <= mem_wr_addr + 1;
         end else if (wr_burst_inc) begin
             wr_burst_len <= wr_burst_len + 1;
             wr_burst_addr_nxt <= wr_burst_addr_nxt + 1;
         end
     end
 
-    assign wr_burst_ctxt_in.addr = BURST_SUPPORT ? wr_burst_addr : mem_wr_if.addr;
+    assign wr_burst_ctxt_in.addr = BURST_SUPPORT ? wr_burst_addr : mem_wr_addr;
     assign wr_burst_ctxt_in.len  = BURST_SUPPORT ? wr_burst_len  : '0;
 
     fifo_ctxt #(
         .DATA_WID ( $bits(burst_ctxt_t) ),
-        .DEPTH    ( 2*MAX_BURST_LEN ),
+        .DEPTH    ( MAX_BURST_LEN ),
         .REPORT_OFLOW ( 1 )
     ) i_fifo_ctxt__wr_burst (
         .clk,
@@ -179,9 +216,11 @@ module axi3_from_mem_adapter
         .rd       ( axi3_if.awvalid && axi3_if.awready ),
         .rd_vld   ( wr_burst_ctxt_vld ),
         .rd_data  ( wr_burst_ctxt_out ),
-        .oflow    ( ),
+        .oflow    ( wr_burst_oflow ),
         .uflow    ( )
     );
+
+    always @(posedge clk) wr_burst_pending <= wr_burst_ctxt_vld;
 
     // Write address
     // -----------------------------
@@ -293,10 +332,10 @@ module axi3_from_mem_adapter
     assign rd_burst_ctxt_in.addr = BURST_SUPPORT ? rd_burst_addr : mem_rd_if.addr;
     assign rd_burst_ctxt_in.len  = BURST_SUPPORT ? rd_burst_len  : '0;
 
-    fifo_ctxt #(
-        .DATA_WID ( $bits(burst_ctxt_t) ),
-        .DEPTH    ( 2*MAX_BURST_LEN )
-    ) i_fifo_ctxt__rd_burst (
+    fifo_prefetch      #(
+        .DATA_WID       ( $bits(burst_ctxt_t) ),
+        .PIPELINE_DEPTH ( MAX_BURST_LEN )
+    ) i_fifo_prefetch__rd_burst (
         .clk,
         .srst,
         .wr       ( rd_burst_done ),
@@ -305,9 +344,10 @@ module axi3_from_mem_adapter
         .rd       ( axi3_if.arready ),
         .rd_vld   ( axi3_if.arvalid ),
         .rd_data  ( rd_burst_ctxt_out ),
-        .oflow    ( ),
-        .uflow    ( )
+        .oflow    ( rd_burst_oflow )
     );
+
+    always @(posedge clk) rd_burst_pending <= axi3_if.arvalid;
 
     // Read address
     // -----------------------------
