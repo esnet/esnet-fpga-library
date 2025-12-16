@@ -56,15 +56,32 @@ module mem_aggregate_base_unit_test #(
     mem_rd_intf #(.ADDR_WID(ADDR_WID), .DATA_WID(CONTROLLER_DATA_WID)) mem_rd_if                    (.clk(rd_clk));
     mem_rd_intf #(.ADDR_WID(ADDR_WID), .DATA_WID(PERIPHERAL_DATA_WID)) mem_rd_if__to_peripheral [N] (.clk(rd_clk));
 
+    logic wr_req_oflow [N];
+    logic wr_req_pending [N];
+    logic wr_resp_oflow [N];
+    logic wr_resp_pending [N];
+
+    logic rd_req_oflow [N];
+    logic rd_req_pending [N];
+    logic rd_resp_oflow [N];
+    logic rd_resp_pending [N];
 
     mem_wr_aggregate #(.N(N)) DUT__wr (
         .from_controller ( mem_wr_if ),
-        .to_peripheral   ( mem_wr_if__to_peripheral )
+        .to_peripheral   ( mem_wr_if__to_peripheral ),
+        .req_oflow       ( wr_req_oflow ),
+        .req_pending     ( wr_req_pending ),
+        .resp_oflow      ( wr_resp_oflow ),
+        .resp_pending    ( wr_resp_pending )
     );
 
     mem_rd_aggregate #(.N(N)) DUT__rd (
         .from_controller ( mem_rd_if ),
-        .to_peripheral   ( mem_rd_if__to_peripheral )
+        .to_peripheral   ( mem_rd_if__to_peripheral ),
+        .req_oflow       ( rd_req_oflow ),
+        .req_pending     ( rd_req_pending ),
+        .resp_oflow      ( rd_resp_oflow ),
+        .resp_pending    ( rd_resp_pending )
     );
 
     generate
