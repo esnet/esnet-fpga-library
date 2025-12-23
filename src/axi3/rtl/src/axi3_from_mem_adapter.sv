@@ -51,7 +51,6 @@ module axi3_from_mem_adapter
         std_pkg::param_check(mem_rd_if.DATA_WID, DATA_WID,  "mem_rd_if.DATA_WID");
         std_pkg::param_check_gt(axi3_if.ADDR_WID, AXI_ADDR_WID,   "axi3_if.ADDR_WID");
         std_pkg::param_check(axi3_if.DATA_BYTE_WID, DATA_BYTES, "axi3_if.DATA_BYTE_WID");
-        if (BASE_ADDR > 0) std_pkg::param_check(2**$clog2(BASE_ADDR), BASE_ADDR, "BASE_ADDR must be power of 2.");
     end
 
     // Typedefs
