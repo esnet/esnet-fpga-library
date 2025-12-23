@@ -114,7 +114,7 @@ module axi3_mem_bfm #(
                     if (axi3_if[g_if].wvalid && axi3_if[g_if].wready) begin
                         if (DEBUG) $display("[Ch%0d] Push 0x%0x (ID 0x%0x, LAST 0x%0x, STRB 0x%0x) onto write data queue.", g_if, axi3_if[g_if].wdata, axi3_if[g_if].wid, axi3_if[g_if].wlast, axi3_if[g_if].wstrb);
                         wdata_q.push_back({axi3_if[g_if].wid, axi3_if[g_if].wdata, axi3_if[g_if].wstrb, axi3_if[g_if].wlast});
-                        b_ctxt_q.push_back({axi3_if[g_if].wid, timestamp});
+                        if (axi3_if[g_if].wlast) b_ctxt_q.push_back({axi3_if[g_if].wid, timestamp});
                     end
                 end
             end
