@@ -310,7 +310,7 @@ module packet_gather #(
 
     fifo_ctxt #(
         .DATA_WID ( $bits(rd_ctxt_t) ),
-        .DEPTH    ( PREFETCH_DEPTH ),
+        .DEPTH    ( 2*PREFETCH_DEPTH ),
         .REPORT_OFLOW ( 1 ),
         .REPORT_UFLOW ( 1 )
     ) i_fifo_ctxt__rd (
@@ -376,20 +376,28 @@ module packet_gather #(
             assign __prefetch_wr_data.meta = rd_ctxt_out.meta;
 
             // Prefetch buffer (data)
-            fifo_prefetch #(
-                .DATA_WID        ( $bits(prefetch_data_t) ),
-                .PIPELINE_DEPTH  ( PREFETCH_DEPTH )
-            ) i_fifo_prefetch__data (
+            fifo_sync    #(
+                .DATA_WID ( $bits(prefetch_data_t) ),
+                .DEPTH    ( 2*PREFETCH_DEPTH ),
+                .REPORT_OFLOW ( 1 )
+            ) i_fifo_sync__data (
                 .clk,
                 .srst,
-                .wr_rdy   ( prefetch_rdy ),
+                .wr_rdy   (  ),
                 .wr       ( mem_rd_if.ack ),
                 .wr_data  ( __prefetch_wr_data ),
+                .wr_count ( __prefetch_wr_count ),
+                .full     ( ),
                 .oflow    ( __prefetch_oflow ),
                 .rd       ( packet_if.rdy ),
-                .rd_vld   ( packet_if.vld ),
-                .rd_data  ( __prefetch_rd_data )
+                .rd_ack   ( packet_if.vld ),
+                .rd_data  ( __prefetch_rd_data ),
+                .rd_count ( ),
+                .empty    ( ),
+                .uflow    ( )
             );
+
+            always_ff @(posedge clk) prefetch_rdy <= (__prefetch_wr_count < PREFETCH_DEPTH);
 
             assign packet_if.data = __prefetch_rd_data.data;
             assign packet_if.eop = __prefetch_rd_data.eop;
