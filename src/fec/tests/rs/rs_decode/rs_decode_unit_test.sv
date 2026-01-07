@@ -61,7 +61,7 @@ module rs_decode_unit_test;
 
     DATA_IN_T  hsel_data_out;
     logic      [RS_K-1:0][RS_K-1:0][SYM_SIZE-1:0] hsel_h_matrix;
-    logic      [RS_N-1:0] hsel_err_loc_sel;
+    logic      [RS_N-1:0] hsel_err_loc_vec;
     logic      hsel_valid;
     logic      hsel_ready;
 
@@ -76,7 +76,7 @@ module rs_decode_unit_test;
 
         .data_out       (hsel_data_out),
         .h_matrix       (hsel_h_matrix),
-        .err_loc_sel    (hsel_err_loc_sel),
+        .err_loc_vec    (hsel_err_loc_vec),
         .data_out_valid (hsel_valid),
         .data_out_ready (hsel_ready)
     );
@@ -92,7 +92,7 @@ module rs_decode_unit_test;
 
         .data_in        (hsel_data_out),
         .h_matrix       (hsel_h_matrix),
-        .err_loc_sel    (hsel_err_loc_sel),
+        .err_loc_vec    (hsel_err_loc_vec),
         .data_in_valid  (hsel_valid),
         .data_in_ready  (hsel_ready),
 

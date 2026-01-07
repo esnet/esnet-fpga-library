@@ -21,7 +21,7 @@ module fec_decode
 
     logic [DATA_BYTE_WID/RS_K-1:0][RS_K-1:0][NUM_THREADS*SYM_SIZE-1:0] h_sel_data_out;
     logic [0:RS_K-1][0:RS_K-1][SYM_SIZE-1:0] h_matrix;
-    logic [0:RS_N-1] err_loc_sel;
+    logic [0:RS_N-1] err_loc_vec;
 
     logic [NUM_CW-1:0][NUM_THREADS-1:0][RS_K-1:0][SYM_SIZE-1:0] rsd_data_in;
     logic [NUM_CW-1:0][NUM_THREADS-1:0][RS_K-1:0][SYM_SIZE-1:0] rsd_data_out;
@@ -45,7 +45,7 @@ module fec_decode
 
         .data_out       (h_sel_data_out),
         .h_matrix       (h_matrix),
-        .err_loc_sel    (err_loc_sel),
+        .err_loc_vec    (err_loc_vec),
         .data_out_valid (rsd_data_in_valid),
         .data_out_ready (rsd_data_in_ready)
     );
@@ -81,7 +81,7 @@ module fec_decode
 
                     .data_in          (rsd_data_in[i][j]),
                     .h_matrix         (h_matrix),
-                    .err_loc_sel      (err_loc_sel),
+                    .err_loc_vec      (err_loc_vec),
                     .data_in_valid    (rsd_data_in_valid),
                     .data_in_ready    (_rsd_data_in_ready),
 
