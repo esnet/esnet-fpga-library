@@ -44,7 +44,7 @@ module fec_err_inject
                 else          _data_in[i][j] = parity_in[i][j-RS_K];
 
     // pipeline stage 1 - capture input data and select 'err_loc_vec'.
-    always @(posedge clk) begin
+    always @(posedge clk) if (data_out_ready) begin
         data_pipe[1]     <= _data_in;
         valid_pipe[1]    <= data_in_valid;
         err_loc_pipe[1]  <= err_loc_in;
@@ -63,7 +63,7 @@ module fec_err_inject
     end
 
     // pipeline stage 2 - advance pipeline and capture output indices.
-    always @(posedge clk) begin
+    always @(posedge clk) if (data_out_ready) begin
         data_pipe[0]     <= data_pipe[1];
         valid_pipe[0]    <= valid_pipe[1];
         err_loc_pipe[0]  <= err_loc_pipe[1];
@@ -72,7 +72,7 @@ module fec_err_inject
     end
 
     // output stage - capture compressed output data, plus valid and loc_out assignments.
-    always @(posedge clk) begin
+    always @(posedge clk) if (data_out_ready) begin
         for (int i=0; i<NUM_CW; i++)
             for (int j=0; j<RS_N; j++)
                 data_out[i][out_idx[j]] <= data_pipe[0][i][j];

@@ -23,7 +23,7 @@ module rs_encode
     logic [RS_2T-1:0][SYM_SIZE-1:0]           _parity, parity;
 
     // instantiate data pipeline.
-    always @(posedge clk) begin
+    always @(posedge clk) if (data_out_ready) begin
         data_in_pipe[0] <= data_in;
         data_in_valid_pipe[0] <= data_in_valid;
 
@@ -39,7 +39,7 @@ module rs_encode
         for (int i=0; i<RS_2T; i++)
             for (int j=0; j<RS_K; j++) _prod[i][j] = gf_mul(data_in_pipe[0][j], RS_G_LUT[j][RS_K+i]);
    
-    always @(posedge clk) prod <= _prod;
+    always @(posedge clk) if (data_out_ready) prod <= _prod;
 
 
     // stage 1 - calculate parity (by summing partial products).
@@ -49,7 +49,7 @@ module rs_encode
             for (int j=0; j<RS_K; j++) _parity[i] = gf_add(_parity[i], prod[i][j]);
         end
 
-    always @(posedge clk) parity <= _parity;
+    always @(posedge clk) if (data_out_ready) parity <= _parity;
 
 
     // stage 2 - output assignments.
