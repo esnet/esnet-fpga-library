@@ -134,6 +134,7 @@ module packet_gather #(
     logic               rd_eop;
     logic [MTY_WID-1:0] rd_mty;
 
+    logic          prefetch_ctxt_rdy;
     logic          prefetch_rdy;
 
     rd_ctxt_t      rd_ctxt_in;
@@ -271,7 +272,7 @@ module packet_gather #(
         endcase
     end
 
-    assign rd_rdy = mem_rd_if.rdy && prefetch_rdy;
+    assign rd_rdy = mem_rd_if.rdy && prefetch_ctxt_rdy && prefetch_rdy;
 
     // -----------------------------
     // Read pointer management
@@ -298,7 +299,7 @@ module packet_gather #(
     // -----------------------------
     assign mem_rd_if.rst = 1'b0;
     assign mem_rd_if.addr = (buffer_ctxt[buffer_sel].ptr * BUFFER_WORDS) + words;
-    assign mem_rd_if.req = buffer_rd & prefetch_rdy;
+    assign mem_rd_if.req = buffer_rd && prefetch_ctxt_rdy && prefetch_rdy;
 
     // -----------------------------
     // Maintain read context
@@ -310,13 +311,13 @@ module packet_gather #(
 
     fifo_ctxt #(
         .DATA_WID ( $bits(rd_ctxt_t) ),
-        .DEPTH    ( 2*PREFETCH_DEPTH ),
+        .DEPTH    ( PREFETCH_DEPTH ),
         .REPORT_OFLOW ( 1 ),
         .REPORT_UFLOW ( 1 )
     ) i_fifo_ctxt__rd (
         .clk,
         .srst,
-        .wr_rdy  ( ),
+        .wr_rdy  ( prefetch_ctxt_rdy ),
         .wr      ( mem_rd_if.req && mem_rd_if.rdy ),
         .wr_data ( rd_ctxt_in ),
         .rd      ( mem_rd_if.ack ),
