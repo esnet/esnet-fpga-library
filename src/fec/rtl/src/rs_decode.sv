@@ -25,7 +25,7 @@ module rs_decode
     logic [RS_K-1:0][SYM_SIZE-1:0] _sum, sum;
     logic [RS_K-1:0][SYM_SIZE-1:0] _data_out;
 
-    logic [RS_K-1:0][$clog2(RS_K):0] _errors, errors;
+    logic [RS_K-1:0][$clog2(RS_2T):0] _errors, errors;
 
 
     // instantiate data pipeline.
