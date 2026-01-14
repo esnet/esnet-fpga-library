@@ -44,72 +44,50 @@ module fec_decode_unit_test;
     fec_encode DUT0 (.*);
 
 
-    DATA_IN_T dec_data_in;
-    logic [$clog2(NUM_H)-1:0] dec_err_loc;
+    logic [$clog2(NUM_H)-1:0] err_loc_in;
 
-    always @(negedge clk) if (data_out_valid)
-        inject_errors (
-            .data_in   (data_out),
-            .parity_in (parity_out),
-            .data_out  (dec_data_in),
-            .err_loc   (dec_err_loc) );
+    always @(negedge clk) if (data_out_valid) err_loc_in = $urandom % NUM_H;
+
+    DATA_IN_T                 dec_data_in;
+    logic [$clog2(NUM_H)-1:0] dec_err_loc;
+    logic                     dec_data_in_valid;
+    logic                     dec_data_in_ready;
+
+    fec_err_inject DUT1 (
+        .clk            (clk),
+        .srst           (srst),
+
+        .data_in        (data_out),
+        .parity_in      (parity_out),
+        .err_loc_in     (err_loc_in),
+        .data_in_valid  (data_out_valid),
+        .data_in_ready  (data_out_ready),
+
+        .data_out       (dec_data_in),
+        .err_loc_out    (dec_err_loc),
+        .data_out_valid (dec_data_in_valid),
+        .data_out_ready (dec_data_in_ready)
+    );
 
 
     DATA_IN_T  dec_data_out;
     logic      dec_data_out_valid;
     logic      dec_data_out_ready;
 
-    fec_decode DUT1 (
+    fec_decode DUT2 (
         .clk            (clk),
         .srst           (srst),
 
         .data_in        (dec_data_in),
         .err_loc        (dec_err_loc),
-        .data_in_valid  (data_out_valid),
-        .data_in_ready  (data_out_ready),
+        .data_in_valid  (dec_data_in_valid),
+        .data_in_ready  (dec_data_in_ready),
 
         .data_out       (dec_data_out),
         .data_out_valid (dec_data_out_valid),
         .data_out_ready (dec_data_out_ready)
     );
 
-
-    function void inject_errors (
-        input  DATA_IN_T     data_in,
-        input  PARITY_OUT_T  parity_in,
-
-        output DATA_IN_T     data_out,
-        output [$clog2(NUM_H)-1:0] err_loc
-    );
-
-        logic [NUM_CW-1:0][RS_N-1:0][NUM_THREADS*SYM_SIZE-1:0] _data_out;
-        int num_errors;
-
-        err_loc = $urandom % NUM_H;
-
-        // restructure input data.  collect rs codewords.
-        for (int i=0; i<NUM_CW; i++)
-            for (int j=0; j<RS_N; j++)
-                if (j < RS_K) _data_out[i][j] =   data_in[i*RS_K+j];
-                else          _data_out[i][j] = parity_in[i*RS_2T+j-RS_K];
-
-        // delete error locations and compress output data.
-        for (int i=0; i<NUM_CW; i++) begin
-            num_errors=0;
-            for (int j=0; j<RS_N; j++) begin
-                if (RS_ERR_LOC_LUT[err_loc][j] == 1'b0) _data_out[i][j-num_errors] = _data_out[i][j];
-                else num_errors++;
-            end
-        end
-
-        // output data assignments.
-        for (int i=0; i<NUM_CW; i++)
-            for (int j=0; j<RS_K; j++)
-                data_out[i*RS_K+j] = _data_out[i][j];
-
-        //$display ("err_loc = %d, %h, data_out = %h", err_loc, RS_ERR_LOC_LUT[err_loc], data_out);
-
-    endfunction // inject_errors
 
 
     //===================================
