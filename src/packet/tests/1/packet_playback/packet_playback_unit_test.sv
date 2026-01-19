@@ -111,6 +111,8 @@ module packet_playback_unit_test;
 
         // Start environment
         env.run();
+
+        monitor.set_stall_rate(0.2);
     endtask
 
 

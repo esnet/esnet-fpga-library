@@ -13,8 +13,10 @@ module packet_gather #(
     parameter int MAX_PKT_SIZE = 16384,
     parameter int NUM_BUFFERS = 1,
     parameter int BUFFER_SIZE = 1,
-    parameter int MAX_RD_LATENCY = 8
-
+    parameter int MAX_RD_LATENCY = 8,
+    parameter int MAX_BURST_LEN = 1,
+    parameter int N = 1,
+    parameter int BUFFER_PREFETCH_DEPTH = 8
 ) (
     // Clock/Reset
     input  logic                clk,
@@ -24,7 +26,7 @@ module packet_gather #(
     packet_intf.tx              packet_if,
 
     // Gather controller interface (provides buffers for packet data)
-    alloc_intf.load_tx          gather_if,
+    alloc_intf.load_tx          gather_if [N],
 
     // Packet completion interface
     packet_descriptor_intf.rx   descriptor_if,
@@ -60,6 +62,10 @@ module packet_gather #(
 
     localparam int  META_WID = packet_if.META_WID;
     localparam int  SIZE_WID = BUFFER_SIZE > 1 ? $clog2(BUFFER_SIZE) : 1;
+
+    localparam int  PREFETCH_DEPTH = MAX_RD_LATENCY + MAX_BURST_LEN;
+
+    localparam int  SEL_WID = N > 1 ? $clog2(N) : 1;
 
     // -----------------------------
     // Parameter checking
@@ -109,15 +115,15 @@ module packet_gather #(
     // -----------------------------
     // Signals
     // -----------------------------
-    fetch_state_t  fetch_state;
-    fetch_state_t  nxt_fetch_state;
+    logic [SEL_WID-1:0] desc_sel;
+    logic               __descriptor_if_req [N];
+    logic               __descriptor_if_rdy [N];
 
-    logic          fetch_init;
-
-    logic          buffer_valid;
-    logic          buffer_ack;
-    logic          buffer_rd;
-    buffer_ctxt_t  buffer_ctxt;
+    logic [SEL_WID-1:0] buffer_sel;
+    logic               buffer_vld  [N];
+    logic               buffer_ack;
+    logic               buffer_rd;
+    buffer_ctxt_t       buffer_ctxt [N];
 
     read_state_t   read_state;
     read_state_t   nxt_read_state;
@@ -128,65 +134,100 @@ module packet_gather #(
     logic               rd_eop;
     logic [MTY_WID-1:0] rd_mty;
 
+    logic          prefetch_ctxt_rdy;
     logic          prefetch_rdy;
 
     rd_ctxt_t      rd_ctxt_in;
     rd_ctxt_t      rd_ctxt_out;
 
-    // -----------------------------
-    // Buffer fetch from descriptor
-    // -----------------------------
-    initial fetch_state = FETCH_RESET;
+    // Round-robin distribution of descriptors
+    initial desc_sel = 0;
     always @(posedge clk) begin
-        if (srst) fetch_state <= FETCH_RESET;
-        else      fetch_state <= nxt_fetch_state;
+        if (srst) desc_sel <= 0;
+        else begin
+            if (descriptor_if.vld && descriptor_if.rdy) desc_sel <= desc_sel < N-1 ? desc_sel + 1 : 0;
+        end
     end
 
-    always_comb begin
-        nxt_fetch_state = fetch_state;
-        fetch_init = 1'b0;
-        case (fetch_state)
-            FETCH_RESET: begin
-                nxt_fetch_state = FETCH_INIT;
-            end
-            FETCH_INIT: begin
-                fetch_init = 1'b1;
-                if (descriptor_if.vld && gather_if.rdy) nxt_fetch_state = FETCH_BUFFER;
-            end
-            FETCH_BUFFER: begin
-                if (gather_if.vld && gather_if.ack) begin
-                    if (gather_if.eof) nxt_fetch_state = FETCH_INIT;
-                end
-            end
-            default: begin
-                nxt_fetch_state = FETCH_RESET;
-            end
-        endcase
-    end
+    assign descriptor_if.rdy = __descriptor_if_rdy[desc_sel];
 
-    assign descriptor_if.rdy = fetch_init && gather_if.rdy;
-    assign gather_if.req     = fetch_init && descriptor_if.vld;
-    assign gather_if.ptr     = descriptor_if.addr;
+    generate
+        for (genvar g_inst = 0; g_inst < N; g_inst++) begin : g__inst
+            // (Local) signals
+            fetch_state_t  fetch_state;
+            fetch_state_t  nxt_fetch_state;
+            logic          fetch_init;
 
-    // -----------------------------
-    // Prefetch buffer context
-    // -----------------------------
-    initial buffer_valid = 1'b0;
+            buffer_ctxt_t  __buffer_ctxt_in;
+            logic          __buffer_ack;
+
+            // Buffer fetch from descriptor
+            initial fetch_state = FETCH_RESET;
+            always @(posedge clk) begin
+                if (srst) fetch_state <= FETCH_RESET;
+                else      fetch_state <= nxt_fetch_state;
+            end
+
+            always_comb begin
+                nxt_fetch_state = fetch_state;
+                fetch_init = 1'b0;
+                case (fetch_state)
+                    FETCH_RESET: begin
+                        nxt_fetch_state = FETCH_INIT;
+                    end
+                    FETCH_INIT: begin
+                        fetch_init = 1'b1;
+                        if ((desc_sel == g_inst) && descriptor_if.vld && gather_if[g_inst].rdy) nxt_fetch_state = FETCH_BUFFER;
+                    end
+                    FETCH_BUFFER: begin
+                        if (gather_if[g_inst].vld && gather_if[g_inst].ack) begin
+                            if (gather_if[g_inst].eof) nxt_fetch_state = FETCH_INIT;
+                        end
+                    end
+                    default: begin
+                        nxt_fetch_state = FETCH_RESET;
+                    end
+                endcase
+            end
+
+            assign __descriptor_if_rdy[g_inst] = fetch_init && gather_if[g_inst].rdy;
+            assign gather_if[g_inst].req       = fetch_init && (desc_sel == g_inst) && descriptor_if.vld;
+            assign gather_if[g_inst].ptr       = descriptor_if.addr;
+
+            assign __buffer_ctxt_in.ptr  = gather_if[g_inst].nxt_ptr;
+            assign __buffer_ctxt_in.eof  = gather_if[g_inst].eof;
+            assign __buffer_ctxt_in.size = gather_if[g_inst].size;
+            assign __buffer_ctxt_in.meta = gather_if[g_inst].meta;
+            assign __buffer_ctxt_in.err  = gather_if[g_inst].err;
+
+            // Buffer queue
+            fifo_ctxt #(
+                .DATA_WID ( $bits(buffer_ctxt_t) ),
+                .DEPTH    ( BUFFER_PREFETCH_DEPTH ),
+                .REPORT_OFLOW ( 0 )
+            ) i_fifo_ctxt__buffer (
+                .clk,
+                .srst,
+                .wr_rdy ( gather_if[g_inst].ack ),
+                .wr     ( gather_if[g_inst].vld ),
+                .wr_data ( __buffer_ctxt_in ),
+                .rd      ( __buffer_ack ),
+                .rd_vld  ( buffer_vld [g_inst] ),
+                .rd_data ( buffer_ctxt[g_inst] ),
+                .oflow   ( ),
+                .uflow   ( )
+            );
+
+            assign __buffer_ack = (buffer_sel == g_inst) && buffer_ack;
+        end : g__inst
+    endgenerate
+
+    // Round-robin buffer selector
+    initial buffer_sel = 0;
     always @(posedge clk) begin
-        if (srst)                                buffer_valid <= 1'b0;
-        else if (gather_if.vld && gather_if.ack) buffer_valid <= 1'b1;
-        else if (buffer_ack)                     buffer_valid <= 1'b0;
-    end
-
-    assign gather_if.ack = !buffer_valid || buffer_ack;
-
-    always_ff @(posedge clk) begin
-        if (gather_if.vld && gather_if.ack) begin
-            buffer_ctxt.ptr  <= gather_if.nxt_ptr;
-            buffer_ctxt.eof  <= gather_if.eof;
-            buffer_ctxt.size <= gather_if.size;
-            buffer_ctxt.err  <= gather_if.err;
-            buffer_ctxt.meta <= gather_if.meta;
+        if (srst) buffer_sel <= 0;
+        else begin
+            if (buffer_ack && rd_eop) buffer_sel <= buffer_sel < N-1 ? buffer_sel + 1 : 0;
         end
     end
 
@@ -208,9 +249,9 @@ module packet_gather #(
                 nxt_read_state = READ_SOB;
             end
             READ_SOB: begin
-                if (buffer_valid && rd_rdy) begin
+                if (buffer_vld[buffer_sel] && rd_rdy) begin
                     buffer_rd = 1'b1;
-                    if (buffer_ctxt.eof && (buffer_ctxt.size > 0 && buffer_ctxt.size <= DATA_BYTE_WID)) begin
+                    if (buffer_ctxt[buffer_sel].eof && (buffer_ctxt[buffer_sel].size > 0 && buffer_ctxt[buffer_sel].size <= DATA_BYTE_WID)) begin
                         buffer_ack = 1'b1;
                         nxt_read_state = READ_SOB;
                     end else nxt_read_state = READ_MOB;
@@ -231,47 +272,52 @@ module packet_gather #(
         endcase
     end
 
-    assign rd_rdy = mem_rd_if.rdy && prefetch_rdy;
+    assign rd_rdy = mem_rd_if.rdy && prefetch_ctxt_rdy && prefetch_rdy;
 
     // -----------------------------
     // Read pointer management
     // -----------------------------
     always_ff @(posedge clk) begin
-        if (gather_if.vld && gather_if.ack) words <= 0;
-        else if (buffer_rd)                   words <= words + 1;
+        if (srst)           words <= 0;
+        else begin
+            if (buffer_ack)     words <= 0;
+            else if (buffer_rd) words <= words + 1;
+        end
     end
 
     always_comb begin
         rd_eop = 1'b0;
-        if (buffer_ctxt.eof) begin
-            if (buffer_ctxt.size == 0) rd_eop = (words == BUFFER_WORDS == 1);
-            else                       rd_eop = (words == (buffer_ctxt.size-1)/DATA_BYTE_WID);
+        if (buffer_ctxt[buffer_sel].eof) begin
+            if (buffer_ctxt[buffer_sel].size == 0) rd_eop = (words == BUFFER_WORDS-1);
+            else                                   rd_eop = (words == (buffer_ctxt[buffer_sel].size-1)/DATA_BYTE_WID);
         end
     end
-    assign rd_mty = rd_eop ? DATA_BYTE_WID - (buffer_ctxt.size % DATA_BYTE_WID) : 0;
+    assign rd_mty = rd_eop ? DATA_BYTE_WID - (buffer_ctxt[buffer_sel].size % DATA_BYTE_WID) : 0;
 
     // -----------------------------
     // Drive memory read interface
     // -----------------------------
     assign mem_rd_if.rst = 1'b0;
-    assign mem_rd_if.addr = (buffer_ctxt.ptr * BUFFER_WORDS) + words;
-    assign mem_rd_if.req = buffer_rd & prefetch_rdy;
+    assign mem_rd_if.addr = (buffer_ctxt[buffer_sel].ptr * BUFFER_WORDS) + words;
+    assign mem_rd_if.req = buffer_rd && prefetch_ctxt_rdy && prefetch_rdy;
 
     // -----------------------------
     // Maintain read context
     // -----------------------------
     assign rd_ctxt_in.eop  = rd_eop;
     assign rd_ctxt_in.mty  = rd_mty;
-    assign rd_ctxt_in.meta = buffer_ctxt.meta;
-    assign rd_ctxt_in.err  = buffer_ctxt.err;
+    assign rd_ctxt_in.meta = buffer_ctxt[buffer_sel].meta;
+    assign rd_ctxt_in.err  = buffer_ctxt[buffer_sel].err;
 
-    fifo_small_ctxt #(
+    fifo_ctxt #(
         .DATA_WID ( $bits(rd_ctxt_t) ),
-        .DEPTH    ( MAX_RD_LATENCY )
-    ) i_fifo_small_ctxt (
+        .DEPTH    ( PREFETCH_DEPTH ),
+        .REPORT_OFLOW ( 1 ),
+        .REPORT_UFLOW ( 1 )
+    ) i_fifo_ctxt__rd (
         .clk,
         .srst,
-        .wr_rdy  ( ),
+        .wr_rdy  ( prefetch_ctxt_rdy ),
         .wr      ( mem_rd_if.req && mem_rd_if.rdy ),
         .wr_data ( rd_ctxt_in ),
         .rd      ( mem_rd_if.ack ),
@@ -331,20 +377,28 @@ module packet_gather #(
             assign __prefetch_wr_data.meta = rd_ctxt_out.meta;
 
             // Prefetch buffer (data)
-            fifo_prefetch #(
-                .DATA_WID        ( $bits(prefetch_data_t) ),
-                .PIPELINE_DEPTH  ( MAX_RD_LATENCY)
-            ) i_fifo_prefetch__data (
+            fifo_sync    #(
+                .DATA_WID ( $bits(prefetch_data_t) ),
+                .DEPTH    ( 2*PREFETCH_DEPTH ),
+                .REPORT_OFLOW ( 1 )
+            ) i_fifo_sync__data (
                 .clk,
                 .srst,
-                .wr_rdy   ( prefetch_rdy ),
+                .wr_rdy   (  ),
                 .wr       ( mem_rd_if.ack ),
                 .wr_data  ( __prefetch_wr_data ),
+                .wr_count ( __prefetch_wr_count ),
+                .full     ( ),
                 .oflow    ( __prefetch_oflow ),
                 .rd       ( packet_if.rdy ),
-                .rd_vld   ( packet_if.vld ),
-                .rd_data  ( __prefetch_rd_data )
+                .rd_ack   ( packet_if.vld ),
+                .rd_data  ( __prefetch_rd_data ),
+                .rd_count ( ),
+                .empty    ( ),
+                .uflow    ( )
             );
+
+            always_ff @(posedge clk) prefetch_rdy <= (__prefetch_wr_count < PREFETCH_DEPTH);
 
             assign packet_if.data = __prefetch_rd_data.data;
             assign packet_if.eop = __prefetch_rd_data.eop;

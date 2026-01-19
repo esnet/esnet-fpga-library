@@ -268,7 +268,8 @@ module packet_disaggregate
             assign __fifo_rd_req_q_wr_data.desc_err   = __wr_descriptor_out_if.err;
             fifo_ctxt    #(
                 .DATA_WID ( $bits(rd_req_ctxt_t) ),
-                .DEPTH    ( 2*N )
+                .DEPTH    ( 2*N ),
+                .REPORT_OFLOW ( 0 )
             ) i_fifo_ctxt__rd_req_q (
                 .clk     ( clk_out ),
                 .srst    ( srst_out ),
@@ -376,7 +377,9 @@ module packet_disaggregate
 
             fifo_small_ctxt #(
                 .DATA_WID ( SEL_WID ),
-                .DEPTH    ( MAX_RD_LATENCY+1 )
+                .DEPTH    ( MAX_RD_LATENCY+1 ),
+                .REPORT_OFLOW ( 1 ),
+                .REPORT_UFLOW ( 1 )
             ) i_fifo_small_ctxt__rd_resp (
                 .clk     ( clk_out ),
                 .srst    ( srst_out ),

@@ -223,7 +223,8 @@ module packet_aggregate
 
             fifo_ctxt    #(
                 .DATA_WID ( $bits(wr_ctxt_t) ),
-                .DEPTH    ( 2*N )
+                .DEPTH    ( 2*N ),
+                .REPORT_OFLOW ( 0 ) // Expect overflows; __mem_wr_if.rdy backpressures transaction
             ) i_fifo_ctxt__wr_q (
                 .clk     ( clk_in ),
                 .srst    ( srst_in ),

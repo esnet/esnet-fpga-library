@@ -4,6 +4,9 @@ module fifo_sync #(
     parameter bit FWFT = 1,
     parameter bit OFLOW_PROT = 1,
     parameter bit UFLOW_PROT = 1,
+    // Simulation-only parameters
+    parameter bit REPORT_OFLOW = 0,
+    parameter bit REPORT_UFLOW = 0,
     // Derived parameters (don't override)
     parameter int CNT_WID = FWFT ? $clog2(DEPTH+1+1) : $clog2(DEPTH+1)
 ) (
@@ -43,7 +46,9 @@ module fifo_sync #(
         .ASYNC    ( 0 ),
         .FWFT     ( FWFT ),
         .OFLOW_PROT ( OFLOW_PROT ),
-        .UFLOW_PROT ( UFLOW_PROT )
+        .UFLOW_PROT ( UFLOW_PROT ),
+        .REPORT_OFLOW ( REPORT_OFLOW ),
+        .REPORT_UFLOW ( REPORT_UFLOW )
     ) i_fifo_core (
         .wr_clk   ( clk ),
         .wr_srst  ( srst ),

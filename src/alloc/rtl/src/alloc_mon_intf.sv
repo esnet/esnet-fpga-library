@@ -35,6 +35,20 @@ interface alloc_mon_intf (
     );
 endinterface : alloc_mon_intf
 
+
+module alloc_mon_intf_connector (
+    alloc_mon_intf.rx from_tx,
+    alloc_mon_intf.tx to_rx
+);
+    assign to_rx.alloc        = from_tx.alloc;
+    assign to_rx.alloc_fail   = from_tx.alloc_fail;
+    assign to_rx.alloc_err    = from_tx.alloc_err;
+    assign to_rx.dealloc      = from_tx.dealloc;
+    assign to_rx.dealloc_fail = from_tx.dealloc_fail;
+    assign to_rx.dealloc_err  = from_tx.dealloc_err;
+    assign to_rx.ptr          = from_tx.ptr;
+endmodule : alloc_mon_intf_connector
+
 (* autopipeline_module = "true" *) module alloc_mon_pipe_auto (
     alloc_mon_intf.rx from_tx,
     alloc_mon_intf.tx to_rx

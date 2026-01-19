@@ -6,11 +6,11 @@ module alloc_sg_core #(
     parameter int  MAX_FRAME_SIZE = 16384,
     parameter int  META_WID = 1,
     parameter int  STORE_Q_DEPTH = 64,
-    parameter bit  STORE_Q_FC = 1'b1, // Can flow control store interface
+    parameter bit  STORE_FC = 1'b1, // Can flow control store interface
     parameter int  LOAD_Q_DEPTH = 32,
-    parameter bit  LOAD_FC = 1'b1,    // Can flow control dealloc interface,
-    parameter int  RECYCLE_Q_DEPTH = 32,
-    parameter bit  RECYCLE_FC = 1'b1,
+    parameter bit  LOAD_FC = 1'b1,   // Can flow control dealloc interface
+    parameter int  N_ALLOC = 1,      // (powers of 2 only) Controls parallelism of allocator logic; can be
+                                             // used to increase allocation throughput. See alloc_bv for details.
     // Derived parameters (don't override)
     parameter int  FRAME_SIZE_WID = $clog2(MAX_FRAME_SIZE+1),
     // Simulation-only
@@ -40,6 +40,7 @@ module alloc_sg_core #(
     input  logic               recycle_req,
     output logic               recycle_rdy,
     input  logic [PTR_WID-1:0] recycle_ptr,
+    output logic               recycle_ack,
 
     // Descriptor memory interface
     mem_wr_intf.controller     desc_mem_wr_if,
@@ -50,7 +51,10 @@ module alloc_sg_core #(
     output logic                      frame_valid [SCATTER_CONTEXTS],
     output logic                      frame_error,
     output logic [PTR_WID-1:0]        frame_ptr,
-    output logic [FRAME_SIZE_WID-1:0] frame_size
+    output logic [FRAME_SIZE_WID-1:0] frame_size,
+
+    // Allocator monitor
+    alloc_mon_intf.tx         mon_if
 );
 
     // -----------------------------
@@ -92,7 +96,7 @@ module alloc_sg_core #(
     // -----------------------------
     // Interfaces
     // -----------------------------
-    alloc_mon_intf alloc_mon_if__unused (.clk);
+    alloc_intf #(.BUFFER_SIZE(BUFFER_SIZE), .PTR_WID(PTR_WID), .META_WID(META_WID)) __gather_if [GATHER_CONTEXTS+1] (.clk);
 
     // -----------------------------
     // Status
@@ -103,7 +107,12 @@ module alloc_sg_core #(
     // Buffer pointer allocator (bit-vector allocator, on-chip)
     // -----------------------------
     alloc_bv  #(
-        .PTR_WID ( PTR_WID ),
+        .PTR_WID         ( PTR_WID ),
+        .ALLOC_Q_DEPTH   ( STORE_Q_DEPTH ),
+        .ALLOC_FC        ( STORE_FC ),
+        .DEALLOC_Q_DEPTH ( LOAD_Q_DEPTH ),
+        .DEALLOC_FC      ( LOAD_FC ),
+        .NUM_SLICES      ( N_ALLOC ),
         .SIM__FAST_INIT ( SIM__FAST_INIT ),
         .SIM__RAM_MODEL ( SIM__RAM_MODEL )
     ) i_alloc_bv__ptr (
@@ -116,10 +125,10 @@ module alloc_sg_core #(
         .alloc_req,
         .alloc_rdy,
         .alloc_ptr,
-        .dealloc_req ( dealloc_req ),
-        .dealloc_rdy ( dealloc_rdy ),
-        .dealloc_ptr ( dealloc_ptr ),
-        .mon_if      ( alloc_mon_if__unused )
+        .dealloc_req,
+        .dealloc_rdy,
+        .dealloc_ptr,
+        .mon_if
     );
 
     // -----------------------------
@@ -141,14 +150,35 @@ module alloc_sg_core #(
     // Gather core
     // -----------------------------
     alloc_gather_core  #(
-        .CONTEXTS       ( GATHER_CONTEXTS ),
+        .CONTEXTS       ( GATHER_CONTEXTS + 1),
         .PTR_WID        ( PTR_WID ),
         .BUFFER_SIZE    ( BUFFER_SIZE ),
         .META_WID       ( META_WID ),
         .Q_DEPTH        ( STORE_Q_DEPTH ),
         .SIM__FAST_INIT ( SIM__FAST_INIT )
     ) i_alloc_gather_core (
+        .gather_if      ( __gather_if ),
         .*
     );
+
+    // Most of the gather interfaces are driven from external controllers...
+    generate
+        for (genvar i = 0; i < GATHER_CONTEXTS; i++) begin : g__ctxt
+            alloc_intf_load_connector i_alloc_intf_load_connector (
+                .from_tx ( gather_if[i] ),
+                .to_rx   ( __gather_if[i] )
+            );
+        end : g__ctxt
+    endgenerate
+
+    // ... but the last one is used as the 'recycle' interface
+    //
+    //   'gather' transactions on this interface just follow the linked
+    //   list of descriptors and deallocate the buffers referenced
+    assign __gather_if[GATHER_CONTEXTS].req = recycle_req;
+    assign recycle_rdy = __gather_if[GATHER_CONTEXTS].rdy;
+    assign __gather_if[GATHER_CONTEXTS].ptr = recycle_ptr;
+    assign __gather_if[GATHER_CONTEXTS].ack = 1'b1;
+    assign recycle_ack = __gather_if[GATHER_CONTEXTS].vld && __gather_if[GATHER_CONTEXTS].eof;
 
 endmodule : alloc_sg_core

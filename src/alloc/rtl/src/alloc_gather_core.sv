@@ -8,26 +8,30 @@ module alloc_gather_core #(
     parameter bit  SIM__FAST_INIT = 1 // Optimize sim time by performing fast memory init
 ) (
     // Clock/reset
-    input logic            clk,
-    input logic            srst,
+    input logic                clk,
+    input logic                srst,
 
     // Control
-    input  logic           en,
+    input  logic               en,
 
     // Gather interface
-    alloc_intf.load_rx     gather_if [CONTEXTS],
+    alloc_intf.load_rx         gather_if [CONTEXTS],
+
+    // Pointer deallocation interface
+    output logic               dealloc_req,
+    input  logic               dealloc_rdy,
+    output logic [PTR_WID-1:0] dealloc_ptr,
 
     // Descriptor read interface
-    mem_rd_intf.controller desc_mem_rd_if,
-    input  logic           desc_mem_init_done
+    mem_rd_intf.controller     desc_mem_rd_if,
+    input  logic               desc_mem_init_done
 );
 
     // -----------------------------
     // Parameters
     // -----------------------------
     localparam int  SIZE_WID = $clog2(BUFFER_SIZE);
-    localparam int  CTXT_SEL_WID = $clog2(CONTEXTS);
-    localparam type CTXT_SEL_T = logic [CTXT_SEL_WID-1:0];
+    localparam int  CTXT_SEL_WID = CONTEXTS > 1 ? $clog2(CONTEXTS) : 1;
     localparam type DESC_T = alloc_pkg::alloc#(BUFFER_SIZE, PTR_WID, META_WID)::desc_t;
 
     // -----------------------------
@@ -46,8 +50,8 @@ module alloc_gather_core #(
     } req_ctxt_t;
 
     typedef struct packed {
-        req_ctxt_t req;
-        CTXT_SEL_T ctxt_id;
+        req_ctxt_t               req;
+        logic [CTXT_SEL_WID-1:0] ctxt_id;
     } rd_ctxt_t;
 
     typedef struct packed {
@@ -64,8 +68,7 @@ module alloc_gather_core #(
     logic [CONTEXTS-1:0] req;
     req_ctxt_t req_ctxt  [CONTEXTS];
 
-    CTXT_SEL_T           ctxt_sel;
-    logic [CONTEXTS-1:0] ctxt_sel_vec;
+    logic [CTXT_SEL_WID-1:0] ctxt_sel;
 
     state_t state;
     state_t nxt_state;
@@ -77,6 +80,11 @@ module alloc_gather_core #(
 
     logic   mem_rd_req;
     logic   mem_rd_rdy;
+
+    logic   rd_ack;
+
+    logic   rd_ctxt_fifo_rdy;
+    logic   dealloc_fifo_rdy;
 
     DESC_T  _desc;
 
@@ -92,7 +100,7 @@ module alloc_gather_core #(
             buffer_ctxt_t __buffer_ctxt_in;
             buffer_ctxt_t __buffer_ctxt_out;
 
-            assign __rd_done = desc_mem_rd_if.ack && (rd_ctxt_out.ctxt_id == g_ctxt);
+            assign __rd_done = rd_ack && (rd_ctxt_out.ctxt_id == g_ctxt);
 
             // Manage descriptor chain state
             initial __load_in_progress = 1'b0;
@@ -101,7 +109,7 @@ module alloc_gather_core #(
                 else if (gather_if[g_ctxt].req && gather_if[g_ctxt].rdy) __load_in_progress <= 1'b1;
                 else if (__rd_done && _desc.eof)                         __load_in_progress <= 1'b0;
             end
-            
+
             assign gather_if[g_ctxt].rdy = !__load_in_progress;
 
             // Manage current descriptor state
@@ -109,7 +117,7 @@ module alloc_gather_core #(
                 if (srst)                                                req[g_ctxt] <= 1'b0;
                 else if (gather_if[g_ctxt].req && gather_if[g_ctxt].rdy) req[g_ctxt] <= 1'b1;
                 else if (__rd_done && !_desc.eof)                        req[g_ctxt] <= 1'b1;
-                else if (ctxt_sel_vec[g_ctxt])                           req[g_ctxt] <= 1'b0;
+                else if (mem_rd_req && mem_rd_rdy && ctxt_sel == g_ctxt) req[g_ctxt] <= 1'b0;
             end
 
             // Latch request context
@@ -132,7 +140,8 @@ module alloc_gather_core #(
 
             fifo_ctxt #(
                 .DATA_WID ( $bits(buffer_ctxt_t) ),
-                .DEPTH    ( Q_DEPTH )
+                .DEPTH    ( Q_DEPTH ),
+                .REPORT_OFLOW ( 1 )
             ) i_fifo_ctxt (
                 .clk,
                 .srst,
@@ -156,76 +165,29 @@ module alloc_gather_core #(
         end : g__ctxt
     endgenerate
 
-    // -----------------------------
-    // Read FSM
-    // -----------------------------
-    initial state = RESET;
-    always @(posedge clk) begin
-        if (srst) state <= RESET;
-        else      state <= nxt_state;
-    end
+    // Round-robin arbitration of the read interface
+    initial ctxt_sel = 0;
+    always @(posedge clk) ctxt_sel <= ctxt_sel < CONTEXTS-1 ? ctxt_sel + 1 : 0;
 
-    always_comb begin
-        nxt_state = state;
-        arb = 1'b0;
-        mem_rd_req = 1'b0;
-        case (state)
-            RESET : begin
-                if (desc_mem_init_done) begin
-                    if (en) nxt_state = IDLE;
-                    else    nxt_state = DISABLED;
-                end
-            end
-            DISABLED : begin
-                if (en) nxt_state = IDLE;
-            end
-            IDLE : begin
-                arb = 1'b1;
-                if (!en) nxt_state = DISABLED;
-                else if (|req) nxt_state = READ;
-            end
-            READ : begin
-                mem_rd_req = 1'b1;
-                if (mem_rd_rdy) nxt_state = IDLE;
-            end
-            default : begin
-                nxt_state = RESET;
-            end
-        endcase
-    end
-
-    // Work-conserving round-robin arbiter
-    arb_rr #(
-        .MODE ( arb_pkg::WCRR ),
-        .N    ( CONTEXTS )
-    ) i_arb_rr__ctxt (
-        .clk,
-        .srst,
-        .en    ( arb ),
-        .req   ( req ),
-        .grant ( ctxt_sel_vec ),
-        .ack   ( '1 ),
-        .sel   ( ctxt_sel )
-    );
+    assign mem_rd_rdy = desc_mem_rd_if.rdy && rd_ctxt_fifo_rdy && dealloc_fifo_rdy;
+    assign mem_rd_req = en && req[ctxt_sel];
 
     // Read context FIFO
-    always_ff @(posedge clk) begin
-        if (arb) begin
-            rd_ctxt_in.ctxt_id <= ctxt_sel;
-            rd_ctxt_in.req <= req_ctxt[ctxt_sel];
-        end
-    end
+    assign rd_ctxt_in.ctxt_id = ctxt_sel;
+    assign rd_ctxt_in.req = req_ctxt[ctxt_sel];
 
-    fifo_small_ctxt #(
-        .DATA_WID ( $bits(rd_ctxt_t) ),
-        .DEPTH    ( CONTEXTS )
-    ) i_fifo_small_ctxt__rd_ctxt (
+    fifo_ctxt        #(
+        .DATA_WID     ( $bits(rd_ctxt_t) ),
+        .DEPTH        ( CONTEXTS ),
+        .REPORT_OFLOW ( 1 ),
+        .REPORT_UFLOW ( 1 )
+    ) i_fifo_ctxt__rd_ctxt (
         .clk,
         .srst,
-        .wr_rdy   ( ),
+        .wr_rdy   ( rd_ctxt_fifo_rdy ),
         .wr       ( mem_rd_req && mem_rd_rdy ),
         .wr_data  ( rd_ctxt_in ),
-        .rd       ( desc_mem_rd_if.ack ),
+        .rd       ( rd_ack ),
         .rd_vld   ( ),
         .rd_data  ( rd_ctxt_out ),
         .oflow    ( ),
@@ -235,10 +197,35 @@ module alloc_gather_core #(
     // -----------------------------
     // Drive descriptor memory interface
     // -----------------------------
-    assign desc_mem_rd_if.rst = srst;
+    assign desc_mem_rd_if.rst = 1'b0;
     assign desc_mem_rd_if.req = mem_rd_req;
-    assign mem_rd_rdy = desc_mem_rd_if.rdy;
     assign desc_mem_rd_if.addr = rd_ctxt_in.req.ptr;
-    assign _desc = desc_mem_rd_if.data;
+
+    always_ff @(posedge clk) _desc <= desc_mem_rd_if.data;
+
+    always_ff @(posedge clk) begin
+        if (desc_mem_rd_if.ack) rd_ack <= 1'b1;
+        else                    rd_ack <= 1'b0;
+    end
+
+    // -----------------------------
+    // Deallocate pointers after use
+    // -----------------------------
+    fifo_ctxt #(
+        .DATA_WID ( PTR_WID ),
+        .DEPTH    ( CONTEXTS ),
+        .REPORT_OFLOW ( 1 )
+    ) i_fifo_ctxt__dealloc (
+        .clk,
+        .srst,
+        .wr_rdy  ( dealloc_fifo_rdy ),
+        .wr      ( rd_ack ),
+        .wr_data ( rd_ctxt_out.req.ptr ),
+        .rd      ( dealloc_rdy ),
+        .rd_vld  ( dealloc_req ),
+        .rd_data ( dealloc_ptr ),
+        .oflow   ( ),
+        .uflow   ( )
+    );
 
 endmodule : alloc_gather_core

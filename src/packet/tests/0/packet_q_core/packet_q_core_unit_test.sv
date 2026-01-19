@@ -72,6 +72,8 @@ module packet_q_core_unit_test #(
 
     packet_intf #(.DATA_BYTE_WID(DATA_OUT_BYTE_WID), .META_WID(META_WID)) packet_out_if [NUM_OUTPUT_IFS] (.clk);
 
+    axi4l_intf axil_if ();
+
     logic mem_init_done;
 
     packet_q_core      #(
@@ -80,6 +82,10 @@ module packet_q_core_unit_test #(
         .MAX_PKT_SIZE   ( MAX_PKT_SIZE ),
         .NUM_BUFFERS    ( NUM_BUFFERS ),
         .BUFFER_SIZE    ( BUFFER_SIZE ),
+        .MAX_RD_LATENCY ( 48 ),
+        .MAX_BURST_LEN  ( 16 ),
+        .N_ALLOC        ( 4 ),
+        .N_GATHER       ( 4 ),
         .SIM__FAST_INIT ( 0 ),
         .SIM__RAM_MODEL ( 0 )
     ) DUT (.*);
@@ -91,7 +97,9 @@ module packet_q_core_unit_test #(
     localparam int AXI_ADDR_WID = $clog2(PACKET_Q_CAPACITY + NUM_BUFFERS);
     axi3_intf #(.DATA_BYTE_WID(MEM_DATA_BYTE_WID), .ADDR_WID(AXI_ADDR_WID)) axi3_if [NUM_MEM_CHANNELS] (.aclk(clk));
     axi3_mem_bfm #(
-        .CHANNELS ( NUM_MEM_CHANNELS)
+        .CHANNELS ( NUM_MEM_CHANNELS),
+        .WR_LATENCY ( 16 ),
+        .RD_LATENCY ( 48 )
     ) i_axi3_mem_bfm (
         .srst,
         .axi3_if
@@ -126,7 +134,10 @@ module packet_q_core_unit_test #(
     // Convert memory interfaces to AXI-3
     for (genvar g_if = 0; g_if < NUM_MEM_DATA_IFS; g_if++) begin : g_mem_if
         axi3_from_mem_adapter #(
-            .SIZE(axi3_pkg::SIZE_32BYTES)
+            .SIZE(axi3_pkg::SIZE_32BYTES),
+            .BURST_SUPPORT ( 1 ),
+            .WR_ID ( 2*g_if ),
+            .RD_ID ( 2*g_if + 1)
         ) i_axi3_from_mem_adapter (
             .clk,
             .srst,
@@ -139,7 +150,10 @@ module packet_q_core_unit_test #(
     
     axi3_from_mem_adapter #(
         .SIZE(axi3_pkg::SIZE_32BYTES),
-        .BASE_ADDR ( PACKET_Q_CAPACITY )
+        .BASE_ADDR ( PACKET_Q_CAPACITY ),
+        .BURST_SUPPORT ( 0 ),
+        .WR_ID ( NUM_MEM_DATA_IFS * 2 ),
+        .RD_ID ( NUM_MEM_DATA_IFS * 2 )
     ) i_axi3_from_mem_adapter__desc (
         .clk,
         .srst,
@@ -151,7 +165,7 @@ module packet_q_core_unit_test #(
 
     generate
         for (genvar g_if = 0; g_if < NUM_INPUT_IFS; g_if++) begin : g__if
-            packet_descriptor_fifo i_packet_descriptor_fifo (
+            packet_descriptor_fifo #(.DEPTH(512)) i_packet_descriptor_fifo (
                 .from_tx      ( desc_in_if[g_if] ),
                 .from_tx_srst ( srst ),
                 .to_rx        ( desc_out_if[g_if] ),
@@ -177,10 +191,16 @@ module packet_q_core_unit_test #(
     // Reset
     std_reset_intf reset_if (.clk(clk));
     assign srst = reset_if.reset;
+    assign axil_if.aresetn = !reset_if.reset;
     assign reset_if.ready = !srst;
 
     // Assign clock (333MHz)
     `SVUNIT_CLK_GEN(clk, 1.5ns);
+
+    // Assign AXI-L clock (125MHz)
+    `SVUNIT_CLK_GEN(axil_if.aclk, 4ns);
+
+    axi4l_intf_controller_term i_axi4l_intf_controller_term (.axi4l_if (axil_if ));
 
     //===================================
     // Build
@@ -210,6 +230,9 @@ module packet_q_core_unit_test #(
     //===================================
     task setup();
         svunit_ut.setup();
+
+        monitor.set_stall_rate(0.0);
+        driver.set_stall_rate(0.0);
 
         // Start environment
         env.run();
@@ -267,56 +290,7 @@ module packet_q_core_unit_test #(
 
         `SVTEST(one_packet_good)
             one_packet();
-            #10us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
-        `SVTEST_END
-
-        `SVTEST(one_packet_tpause_2)
-            //env.monitor.set_tpause(2);
-            one_packet();
-            #10us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
-        `SVTEST_END
-
-        `SVTEST(one_packet_twait_2)
-            //env.driver.set_twait(2);
-            one_packet();
-            #10us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
-        `SVTEST_END
-
-        `SVTEST(one_packet_tpause_2_twait_2)
-            //env.monitor.set_tpause(2);
-            //env.driver.set_twait(2);
-            one_packet();
-            #10us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
-        `SVTEST_END
-
-        `SVTEST(one_jumbo_packet)
-            len = $urandom_range(2049, 9000);
-            one_packet(.len(len));
-            #10us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
-        `SVTEST_END
-
-        `SVTEST(packet_stream_good)
-            packet_stream();
-            #100us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
-        `SVTEST_END
-
-        `SVTEST(packet_stream_tpause_2)
-            //env.monitor.set_tpause(2);
-            packet_stream();
-            #100us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
-        `SVTEST_END
-
-        `SVTEST(packet_stream_twait_2)
-            //env.driver.set_twait(2);
-            packet_stream();
-            #100us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
-        `SVTEST_END
-
-        `SVTEST(packet_stream_tpause_2_twait_2)
-            //env.monitor.set_tpause(2);
-            //env.driver.set_twait(2);
-            packet_stream();
-            #100us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
+            check(1, 10us);
         `SVTEST_END
 
         `SVTEST(one_packet_bad)
@@ -342,11 +316,102 @@ module packet_q_core_unit_test #(
             );
         `SVTEST_END
 
+        `SVTEST(one_packet_rx_stall)
+            monitor.set_stall_rate(0.5);
+            one_packet();
+            check(1, 10us);
+        `SVTEST_END
+
+        `SVTEST(one_packet_tx_stall)
+            driver.set_stall_rate(0.5);
+            one_packet();
+            check(1, 10us);
+        `SVTEST_END
+
+       `SVTEST(one_packet_tx_rx_stall)
+            monitor.set_stall_rate(0.5);
+            driver.set_stall_rate(0.5);
+            one_packet();
+            check(1, 10us);
+        `SVTEST_END
+
+        `SVTEST(one_jumbo_packet)
+            len = $urandom_range(2049, 9000);
+            one_packet(.len(len));
+            check(1, 10us);
+        `SVTEST_END
+
+        `SVTEST(packet_size_walk)
+            int idx = 0;
+            int offset = $urandom() % 64;
+            monitor.set_stall_rate(0.1);
+            driver.set_stall_rate(0.1);
+            for (int len = 60; len <= 192; len++) begin
+                one_packet(idx, len);
+                idx++;
+            end
+            one_packet(idx, 256 + offset);
+            idx++;
+            one_packet(idx, 512 + offset);
+            idx++;
+            one_packet(idx, 1024 + offset);
+            idx++;
+            one_packet(idx, 1536 + offset);
+            idx++;
+            check(192-60+1+4, 100us);
+        `SVTEST_END
+
+        `SVTEST(packet_stream_no_stall)
+            packet_stream();
+            check(100, 100us);
+        `SVTEST_END
+
+        `SVTEST(packet_stream_rx_stall)
+            monitor.set_stall_rate(0.1);
+            packet_stream();
+            check(100, 100us);
+        `SVTEST_END
+
+        `SVTEST(packet_stream_tx_stall)
+            driver.set_stall_rate(0.1);
+            packet_stream();
+            check(100, 100us);
+        `SVTEST_END
+
+        `SVTEST(packet_stream_tx_rx_stall)
+            monitor.set_stall_rate(0.1);
+            driver.set_stall_rate(0.1);
+            packet_stream();
+            check(100, 100us);
+        `SVTEST_END
+
         `SVTEST(finalize)
             env.finalize();
         `SVTEST_END
 
     `SVUNIT_TESTS_END
+
+    task check(input int EXPECTED, input time TIMEOUT);
+        fork
+            begin
+                string msg;
+                #(TIMEOUT);
+                `FAIL_IF_LOG( env.scoreboard.report(msg) > 0, msg);
+                $display($sformatf("%d", env.scoreboard.got_processed()));
+                `FAIL_IF_LOG(1, "Timeout waiting for expected transactions.");
+            end
+            begin
+                string msg;
+                int processed;
+                do
+                    #100ns;
+                while ( env.scoreboard.got_processed() != EXPECTED );
+                `FAIL_IF_LOG( env.scoreboard.report(msg) > 0, msg);
+                `FAIL_UNLESS_EQUAL( env.scoreboard.got_matched(), EXPECTED);
+            end
+        join_any
+        disable fork;
+    endtask
 
 endmodule
 

@@ -30,6 +30,8 @@ module packet_scatter #(
     // Packet completion interface
     packet_descriptor_intf.tx   descriptor_if,
 
+    input  logic                frame_valid,
+
     // Descriptor 'recycle' interface
     // output logic                recycle_req,
     // output logic [PTR_WID-1:0]  recycle_ptr,
@@ -66,6 +68,8 @@ module packet_scatter #(
     localparam int  META_WID = packet_if.META_WID;
     localparam int  SIZE_WID = BUFFER_SIZE > 1 ? $clog2(BUFFER_SIZE) : 1;
 
+    localparam int  PKT_SIZE_WID = $clog2(MAX_PKT_SIZE+1);
+
     // -----------------------------
     // Parameter checking
     // -----------------------------
@@ -93,8 +97,21 @@ module packet_scatter #(
         SOP = 1,
         MOP = 2,
         MOP_NXT = 3,
-        FLUSH = 4
+        FLUSH_SOP = 4,
+        FLUSH_MOP = 5
     } state_t;
+
+    typedef struct packed {
+        logic [PTR_WID-1:0]      ptr;
+        logic [PKT_SIZE_WID-1:0] size;
+        logic [META_WID-1:0]     meta;
+        logic                    err;
+    } pkt_desc_ctxt_t;
+
+    typedef struct packed {
+        logic [ADDR_WID-1:0] addr;
+        logic [DATA_WID-1:0] data;
+    } wr_ctxt_t;
 
     // -----------------------------
     // Signals
@@ -103,6 +120,10 @@ module packet_scatter #(
 
     state_t      state;
     state_t      nxt_state;
+
+    logic        wr_rdy;
+    wr_ctxt_t    wr_ctxt_in;
+    wr_ctxt_t    wr_ctxt_out;
 
     logic        pkt_sop;
     logic        pkt_eop;
@@ -118,18 +139,26 @@ module packet_scatter #(
     word_cnt_t     words;
     pkt_word_cnt_t pkt_words;
 
+    logic               pkt_ptr_vld;
     logic [PTR_WID-1:0] pkt_ptr;
 
     logic        oflow;
 
-    logic [META_WID-1:0] meta;
-    logic [MTY_WID-1:0]  mty;
-    logic                err;
-    logic [SIZE_WID-1:0] pkt_size;
+    logic [META_WID-1:0]     meta;
+    logic [MTY_WID-1:0]      mty;
+    logic                    err;
+    logic [PKT_SIZE_WID-1:0] pkt_size;
 
     logic        pkt_done;
     status_t     pkt_status;
     logic        pkt_good;
+
+    logic            pkt_desc_ctxt_wr_rdy;
+    pkt_desc_ctxt_t  pkt_desc_ctxt_in;
+    logic            pkt_desc_ctxt_out_vld;
+    pkt_desc_ctxt_t  pkt_desc_ctxt_out;
+
+    logic        frame_valid_out;
 
     logic        packet_event;
     logic[31:0]  packet_event_size;
@@ -161,13 +190,13 @@ module packet_scatter #(
                 if (mem_init_done) nxt_state = SOP;
             end
             SOP: begin
-                buffer_rdy = scatter_if.rdy;
-                rdy = mem_wr_if.rdy && buffer_rdy && descriptor_if.rdy;
+                buffer_rdy = scatter_if.rdy && pkt_desc_ctxt_wr_rdy;
+                rdy = wr_rdy && buffer_rdy;
                 if (packet_if.vld && packet_if.rdy) begin
                     if (IGNORE_RDY && !rdy) begin
                         pkt_oflow = 1'b1;
                         if (packet_if.eop) pkt_eop = 1'b1;
-                        else nxt_state = FLUSH;
+                        else nxt_state = FLUSH_SOP;
                     end else begin
                         buffer_req = 1'b1;
                         buffer_wr = 1'b1;
@@ -181,7 +210,7 @@ module packet_scatter #(
             end
             MOP: begin
                 buffer_rdy = words < BUFFER_WORDS;
-                rdy = mem_wr_if.rdy && buffer_rdy;
+                rdy = wr_rdy && buffer_rdy;
                 if (packet_if.vld && packet_if.rdy) begin
                     if (IGNORE_RDY && !rdy) begin
                         pkt_oflow = 1'b1;
@@ -189,14 +218,14 @@ module packet_scatter #(
                             pkt_eop = 1'b1;
                             buffer_done = 1'b1;
                             nxt_state = SOP;
-                        end else nxt_state = FLUSH;
+                        end else nxt_state = FLUSH_MOP;
                     end else begin
                         buffer_wr = 1'b1;
                         if (packet_if.eop) begin
                             pkt_eop = 1'b1;
                             buffer_done = 1'b1;
                             nxt_state = SOP;
-                        end else if (pkt_words == MAX_PKT_WORDS-1) nxt_state = FLUSH;
+                        end else if (pkt_words == MAX_PKT_WORDS-1) nxt_state = FLUSH_MOP;
                         else if (words == BUFFER_WORDS-1) begin
                             buffer_done = 1'b1;
                             nxt_state = MOP_NXT;
@@ -206,23 +235,23 @@ module packet_scatter #(
             end
             MOP_NXT: begin
                 buffer_rdy = scatter_if.rdy;
-                rdy = mem_wr_if.rdy && buffer_rdy;
+                rdy = wr_rdy && buffer_rdy;
                 if (packet_if.vld && packet_if.rdy) begin
-                    buffer_req = 1'b1;
                     if (IGNORE_RDY && !rdy) begin
                         pkt_oflow = 1'b1;
                         if (packet_if.eop) begin
                             pkt_eop = 1'b1;
                             buffer_done = 1'b1;
                             nxt_state = SOP;
-                        end else nxt_state = FLUSH;
+                        end else nxt_state = FLUSH_SOP;
                     end else begin
+                        buffer_req = 1'b1;
                         buffer_wr = 1'b1;
                         if (packet_if.eop) begin
                             pkt_eop = 1'b1;
                             buffer_done = 1'b1;
                             nxt_state = SOP;
-                        end else if (pkt_words == MAX_PKT_WORDS-1) nxt_state = FLUSH;
+                        end else if (pkt_words == MAX_PKT_WORDS-1) nxt_state = FLUSH_MOP;
                         else if (BUFFER_WORDS == 1) begin
                             buffer_done = 1'b1;
                             nxt_state = MOP_NXT;
@@ -230,7 +259,14 @@ module packet_scatter #(
                     end
                 end
             end
-            FLUSH: begin
+            FLUSH_SOP: begin
+                rdy = 1'b1;
+                if (packet_if.vld && packet_if.eop) begin
+                    pkt_eop = 1'b1;
+                    nxt_state = SOP;
+                end
+            end
+            FLUSH_MOP: begin
                 rdy = 1'b1;
                 if (packet_if.vld && packet_if.eop) begin
                     pkt_eop = 1'b1;
@@ -294,7 +330,11 @@ module packet_scatter #(
 
     // Latch pointer for SOP
     always_ff @(posedge clk) begin
-        if (state == SOP) pkt_ptr <= scatter_if.ptr;
+        if (state == SOP) begin
+            pkt_ptr <= scatter_if.ptr;
+            if (scatter_if.req && scatter_if.rdy) pkt_ptr_vld <= 1'b1;
+            else pkt_ptr_vld <= 1'b0;
+        end
     end
 
     // Latch overflow indicator
@@ -326,22 +366,82 @@ module packet_scatter #(
     end
     assign pkt_good = pkt_done && ((pkt_status == STATUS_OK) || (!DROP_ERRORED && (pkt_status == STATUS_ERR)));
 
+    // Memory write request prefetch
+    assign wr_ctxt_in.addr = (buffer_ptr * BUFFER_WORDS) + words;
+    assign wr_ctxt_in.data = packet_if.data;
+
+    fifo_prefetch #(
+        .DATA_WID  ( $bits(wr_ctxt_t) ),
+        .PIPELINE_DEPTH ( 2 ),
+        .REPORT_OFLOW ( 1 )
+    ) i_fifo_prefetch (
+        .clk,
+        .srst,
+        .wr      ( packet_if.vld && buffer_rdy && wr_rdy ),
+        .wr_rdy  ( wr_rdy ),
+        .wr_data ( wr_ctxt_in ),
+        .rd      ( mem_wr_if.rdy ),
+        .rd_vld  ( mem_wr_if.req ),
+        .rd_data ( wr_ctxt_out ),
+        .oflow   ( )
+    );
+
     // Drive memory write interface
     assign mem_wr_if.rst = 1'b0;
-    assign mem_wr_if.en = rdy;
-    assign mem_wr_if.req = packet_if.vld && buffer_rdy;
-    assign mem_wr_if.addr = (buffer_ptr * BUFFER_WORDS) + words;
-    assign mem_wr_if.data = packet_if.data;
+    assign mem_wr_if.en = 1'b1;
+    assign mem_wr_if.addr = wr_ctxt_out.addr;
+    assign mem_wr_if.data = wr_ctxt_out.data;
 
-    // Drive descriptor
-    assign descriptor_if.vld  = pkt_good;
-    assign descriptor_if.addr = pkt_ptr;
-    assign descriptor_if.size = pkt_size;
-    assign descriptor_if.meta = meta;
-    assign descriptor_if.err  = err;
+    // Descriptor output interface
+    // (descriptors are written to memory in a separate thread from the data.
+    //  Descriptor chain write completions are signaled on frame_valid input;
+    //  ensure that descriptor and data have been written before publishing
+    //  new packet descriptor)
+    fifo_ctxt #(
+        .DATA_WID ( 1 ),
+        .DEPTH    ( 8 ),
+        .REPORT_OFLOW ( 1 )
+    ) i_fifo_ctxt__frame_valid (
+        .clk,
+        .srst,
+        .wr      ( frame_valid ),
+        .wr_rdy  ( ),
+        .wr_data ( 1'b0 ),
+        .rd      ( pkt_desc_ctxt_out_vld && descriptor_if.rdy ),
+        .rd_vld  ( frame_valid_out ),
+        .rd_data ( ),
+        .oflow   ( ),
+        .uflow   ( )
+    );
+
+    assign pkt_desc_ctxt_in.ptr  = pkt_ptr;
+    assign pkt_desc_ctxt_in.size = pkt_size;
+    assign pkt_desc_ctxt_in.meta = meta;
+    assign pkt_desc_ctxt_in.err  = err;
+
+    fifo_prefetch #(
+        .DATA_WID ( $bits(pkt_desc_ctxt_t) ),
+        .PIPELINE_DEPTH ( 2 ),
+        .REPORT_OFLOW ( 1 )
+    ) i_fifo_prefetch__descriptor_done (
+        .clk,
+        .srst,
+        .wr      ( pkt_good ),
+        .wr_rdy  ( pkt_desc_ctxt_wr_rdy ),
+        .wr_data ( pkt_desc_ctxt_in ),
+        .rd      ( frame_valid_out && descriptor_if.rdy ),
+        .rd_vld  ( pkt_desc_ctxt_out_vld ),
+        .rd_data ( pkt_desc_ctxt_out ),
+        .oflow   ( )
+    );
+    assign descriptor_if.vld  = pkt_desc_ctxt_out_vld && frame_valid_out;
+    assign descriptor_if.addr = pkt_desc_ctxt_out.ptr;
+    assign descriptor_if.size = pkt_desc_ctxt_out.size;
+    assign descriptor_if.meta = pkt_desc_ctxt_out.meta;
+    assign descriptor_if.err  = pkt_desc_ctxt_out.err;
 
     // Recycle descriptors for 'bad' packets
-    assign recycle_req = pkt_done && !pkt_good;
+    assign recycle_req = pkt_ptr_vld && pkt_done && !pkt_good;
     assign recycle_ptr = pkt_ptr;
 
     // Report packet event

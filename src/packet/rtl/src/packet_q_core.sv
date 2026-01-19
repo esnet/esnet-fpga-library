@@ -10,6 +10,9 @@ module packet_q_core
     parameter int  NUM_BUFFERS = 1,
     parameter int  BUFFER_SIZE = 2048,
     parameter int  MAX_RD_LATENCY = 8,
+    parameter int  MAX_BURST_LEN = 1,
+    parameter int  N_ALLOC = 1,
+    parameter int  N_GATHER = 1,
     // Simulation-only
     parameter bit  SIM__FAST_INIT = 1,
     parameter bit  SIM__RAM_MODEL = 1
@@ -35,7 +38,9 @@ module packet_q_core
     mem_rd_intf.controller      desc_mem_rd_if,
     mem_rd_intf.controller      mem_rd_if [NUM_OUTPUT_IFS],
 
-    input logic                 mem_init_done
+    input logic                 mem_init_done,
+
+    axi4l_intf.peripheral       axil_if
 );
 
     // -----------------------------
@@ -79,10 +84,7 @@ module packet_q_core
     // Interfaces
     // -----------------------------
     alloc_intf #(.BUFFER_SIZE(BUFFER_SIZE), .PTR_WID(PTR_WID), .META_WID(META_WID)) scatter_if [NUM_INPUT_IFS]  (.clk);
-    alloc_intf #(.BUFFER_SIZE(BUFFER_SIZE), .PTR_WID(PTR_WID), .META_WID(META_WID)) gather_if  [NUM_OUTPUT_IFS] (.clk);
-
-    packet_intf #(.DATA_BYTE_WID(MEM_WR_DATA_BYTE_WID), .META_WID(META_WID)) packet_to_q_if   [NUM_INPUT_IFS]  (.clk);
-    packet_intf #(.DATA_BYTE_WID(MEM_RD_DATA_BYTE_WID), .META_WID(META_WID)) packet_from_q_if [NUM_OUTPUT_IFS] (.clk);
+    alloc_intf #(.BUFFER_SIZE(BUFFER_SIZE), .PTR_WID(PTR_WID), .META_WID(META_WID)) gather_if  [NUM_OUTPUT_IFS*N_GATHER] (.clk);
 
     packet_event_intf event_in_if  [NUM_INPUT_IFS]  (.clk);
     packet_event_intf event_out_if [NUM_OUTPUT_IFS] (.clk);
@@ -96,6 +98,7 @@ module packet_q_core
     logic               recycle_req;
     logic               recycle_rdy;
     logic [PTR_WID-1:0] recycle_ptr;
+    logic               recycle_ack;
 
     // -- Frame completion
     logic                    frame_valid [NUM_INPUT_IFS];
@@ -111,34 +114,41 @@ module packet_q_core
     // -----------------------------
     // Scatter-gather controller
     // -----------------------------
-    alloc_sg_core #(
+    alloc_axil_sg_core #(
         .SCATTER_CONTEXTS ( NUM_INPUT_IFS ),
-        .GATHER_CONTEXTS  ( NUM_OUTPUT_IFS ),
+        .GATHER_CONTEXTS  ( NUM_OUTPUT_IFS*N_GATHER ),
         .PTR_WID          ( PTR_WID ),
         .BUFFER_SIZE      ( BUFFER_SIZE ),
         .MAX_FRAME_SIZE   ( MAX_PKT_SIZE ),
         .META_WID         ( META_WID ),
+        .STORE_Q_DEPTH    ( 32 ),
+        .LOAD_Q_DEPTH     ( 32 ),
+        .N_ALLOC          ( N_ALLOC ),
         .SIM__FAST_INIT   ( SIM__FAST_INIT ),
         .SIM__RAM_MODEL   ( SIM__RAM_MODEL )
-    ) i_alloc_sg_core (
+    ) i_alloc_axil_sg_core (
         .clk,
         .srst,
         .en ( 1'b1 ),
         .init_done ( init_done__alloc_sg ),
-        .BUFFERS   ( 0 ), // No limit, i.e. BUFFERS = 2**PTR_WID
         .scatter_if,
         .gather_if,
         .recycle_req,
         .recycle_rdy,
         .recycle_ptr,
+        .recycle_ack,
         .desc_mem_wr_if,
         .desc_mem_rd_if,
         .desc_mem_init_done ( mem_init_done ),
         .frame_valid,
         .frame_error,
         .frame_ptr,
-        .frame_size
+        .frame_size,
+        .axil_if
     );
+
+    // Currently there is no method for flushing packets other than dequeuing them...
+    assign recycle_req = 1'b0;
 
     generate
         // Memory write controller
@@ -158,6 +168,7 @@ module packet_q_core
                 .packet_if     ( packet_in_if [g_if] ),
                 .scatter_if    ( scatter_if   [g_if] ),
                 .descriptor_if ( desc_in_if   [g_if] ),
+                .frame_valid   ( frame_valid  [g_if] ),
                 .event_if      ( event_in_if  [g_if] ),
                 .mem_wr_if     ( mem_wr_if    [g_if] ),
                 .mem_init_done
@@ -168,22 +179,34 @@ module packet_q_core
         // Memory read controller
         // - 'Gather' packets from memory
         for (genvar g_if = 0; g_if < NUM_OUTPUT_IFS; g_if++) begin : g__output_if
+            // (Local) interfaces
+            alloc_intf #(.BUFFER_SIZE(BUFFER_SIZE), .PTR_WID(PTR_WID), .META_WID(META_WID)) __gather_if [N_GATHER] (.clk);
+
             packet_gather      #(
                 .IGNORE_RDY     ( IGNORE_RDY_OUT ),
                 .MAX_PKT_SIZE   ( MAX_PKT_SIZE ),
                 .NUM_BUFFERS    ( NUM_BUFFERS ),
                 .BUFFER_SIZE    ( BUFFER_SIZE  ),
-                .MAX_RD_LATENCY ( MAX_RD_LATENCY )
+                .MAX_RD_LATENCY ( MAX_RD_LATENCY ),
+                .MAX_BURST_LEN  ( MAX_BURST_LEN ),
+                .N              ( N_GATHER )
             ) i_packet_gather   (
                 .clk,
                 .srst,
                 .packet_if      ( packet_out_if [g_if] ),
-                .gather_if      ( gather_if     [g_if] ),
+                .gather_if      ( __gather_if          ),
                 .descriptor_if  ( desc_out_if   [g_if] ),
                 .event_if       ( event_out_if  [g_if] ),
                 .mem_rd_if      ( mem_rd_if     [g_if] ),
                 .mem_init_done
             );
+
+            for (genvar g_gather_if = 0; g_gather_if < N_GATHER; g_gather_if++) begin : g__gather_if
+                alloc_intf_load_connector i_alloc_intf_load_connector (
+                    .from_tx ( __gather_if[g_gather_if] ),
+                    .to_rx   ( gather_if[g_if+NUM_OUTPUT_IFS*g_gather_if] )
+                );
+            end : g__gather_if
 
         end : g__output_if
     endgenerate

@@ -9,6 +9,9 @@ module fifo_core
     parameter bit UFLOW_PROT = 1,
     parameter opt_mode_t WR_OPT_MODE = fifo_pkg::OPT_MODE_TIMING,
     parameter opt_mode_t RD_OPT_MODE = fifo_pkg::OPT_MODE_TIMING,
+    // Simulation-only parameters
+    parameter bit REPORT_OFLOW = 0,
+    parameter bit REPORT_UFLOW = 0,
     // Derived parameters (don't override)
     parameter int CNT_WID = FWFT ? $clog2(DEPTH+1+1) : $clog2(DEPTH+1)
 ) (
@@ -167,13 +170,15 @@ module fifo_core
     // -----------------------------
     // Control FSM
     // -----------------------------
-    fifo_ctrl_fsm  #(
-        .DEPTH      ( DEPTH ),
-        .ASYNC      ( ASYNC ),
-        .OFLOW_PROT ( OFLOW_PROT ),
-        .UFLOW_PROT ( __UFLOW_PROT ),
-        .WR_OPT_MODE( WR_OPT_MODE ),
-        .RD_OPT_MODE( RD_OPT_MODE )
+    fifo_ctrl_fsm    #(
+        .DEPTH        ( DEPTH ),
+        .ASYNC        ( ASYNC ),
+        .OFLOW_PROT   ( OFLOW_PROT ),
+        .UFLOW_PROT   ( __UFLOW_PROT ),
+        .WR_OPT_MODE  ( WR_OPT_MODE ),
+        .RD_OPT_MODE  ( RD_OPT_MODE ),
+        .REPORT_OFLOW ( REPORT_OFLOW ),
+        .REPORT_UFLOW ( REPORT_UFLOW && !FWFT )
     ) i_fifo_ctrl_fsm (
         .wr_clk   ( wr_clk ),
         .wr_srst  ( local_wr_srst ),
@@ -230,6 +235,14 @@ module fifo_core
 
             // Underflow
             assign rd_uflow = rd && rd_empty;
+
+`ifndef SYNTHESIS
+            if (REPORT_UFLOW) begin : g__report_uflow
+                always @(posedge rd_clk) begin
+                    if (!rd_srst && rd_uflow) $display("[%0t] FIFO underflow in: %m", $time);
+                end
+            end : g__report_uflow
+`endif
 
         end : g__fwft
 

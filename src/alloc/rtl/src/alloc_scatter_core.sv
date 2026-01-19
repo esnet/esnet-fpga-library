@@ -4,7 +4,8 @@ module alloc_scatter_core #(
     parameter int  BUFFER_SIZE = 1,
     parameter int  MAX_FRAME_SIZE = 16384,
     parameter int  META_WID = 1,
-    parameter int  Q_DEPTH = 32,
+    parameter int  Q_DEPTH = 8,
+    parameter int  MEM_WR_LATENCY = 8,
     // Derived parameters (don't override)
     parameter int  FRAME_SIZE_WID = $clog2(MAX_FRAME_SIZE+1),
     // Simulation-only
@@ -41,7 +42,7 @@ module alloc_scatter_core #(
     // -----------------------------
     localparam int  SIZE_WID = $clog2(BUFFER_SIZE);
 
-    localparam int  CTXT_SEL_WID = $clog2(CONTEXTS);
+    localparam int  CTXT_SEL_WID = CONTEXTS > 1 ? $clog2(CONTEXTS) : 1;
     localparam type CTXT_SEL_T = logic [CTXT_SEL_WID-1:0];
 
     localparam type DESC_T = alloc_pkg::alloc#(BUFFER_SIZE, PTR_WID, META_WID)::desc_t;
@@ -53,9 +54,7 @@ module alloc_scatter_core #(
         RESET,
         DISABLED,
         IDLE,
-        WRITE,
-        DONE,
-        ERROR
+        WRITE
     } state_t;
 
     typedef struct packed {
@@ -66,6 +65,14 @@ module alloc_scatter_core #(
         logic [META_WID-1:0] meta;
         logic                err;
     } req_ctxt_t;
+
+    typedef struct packed {
+        CTXT_SEL_T                 ctxt;
+        logic                      eof;
+        logic [FRAME_SIZE_WID-1:0] size;
+        logic [PTR_WID-1:0]        ptr;
+        logic                      err;
+    } wr_ctxt_t;
 
     // -----------------------------
     // Signals
@@ -81,7 +88,6 @@ module alloc_scatter_core #(
 
     logic   arb;
     logic   done;
-    logic   error;
 
     logic   mem_wr_req;
     logic   mem_wr_rdy;
@@ -95,6 +101,12 @@ module alloc_scatter_core #(
     DESC_T                desc     [CONTEXTS];
     logic [PTR_WID-1:0]   _desc_ptr;
     DESC_T                _desc;
+
+    logic     wr_ctxt_in_vld;
+    wr_ctxt_t wr_ctxt_in;
+    logic     wr_ack;
+    logic     wr_ctxt_out_vld;
+    wr_ctxt_t wr_ctxt_out;
 
     // Simple round-robin distribution function for pointer allocation prefetch
     initial alloc_ctxt_sel = 0;
@@ -122,7 +134,9 @@ module alloc_scatter_core #(
             // Pre-fetch pointers to available buffers into per-context queues
             fifo_ctxt    #(
                 .DATA_WID ( PTR_WID ),
-                .DEPTH    ( Q_DEPTH )
+                .DEPTH    ( CONTEXTS ),
+                .REPORT_OFLOW ( 0 )    // Overflows expected during normal operation
+                                       // (new pointers available but no room left in context queue)
             ) i_fifo_ctxt__alloc_q (
                 .clk,
                 .srst,
@@ -234,7 +248,6 @@ module alloc_scatter_core #(
         arb = 1'b0;
         mem_wr_req = 1'b0;
         done = 1'b0;
-        error = 1'b0;
         case (state)
             RESET : begin
                 if (desc_mem_init_done) begin
@@ -252,18 +265,7 @@ module alloc_scatter_core #(
             end
             WRITE : begin
                 mem_wr_req = 1'b1;
-                if (mem_wr_rdy) begin
-                    if (_desc.eof) nxt_state = DONE;
-                    else nxt_state = IDLE;
-                end
-            end
-            DONE : begin
-                done = 1'b1;
-                nxt_state = IDLE;
-            end
-            ERROR : begin
-                error = 1'b1;
-                nxt_state = IDLE;
+                if (mem_wr_rdy) nxt_state = IDLE;
             end
             default : begin
                 nxt_state = RESET;
@@ -296,16 +298,6 @@ module alloc_scatter_core #(
     // Latch context selection
     always_ff @(posedge clk) if (arb) ctxt_sel_r <= ctxt_sel;
 
-    always_comb begin
-        for (int i = 0; i < CONTEXTS; i++) begin
-            if (ctxt_sel_r == i) frame_valid[i] = done || error;
-            else                 frame_valid[i] = 1'b0;
-        end
-    end
-    assign frame_error = error || _frame_error[ctxt_sel_r];
-    assign frame_ptr   = _frame_ptr  [ctxt_sel_r];
-    assign frame_size  = _frame_size [ctxt_sel_r];
-
     // -----------------------------
     // Drive descriptor memory interface
     // -----------------------------
@@ -315,5 +307,53 @@ module alloc_scatter_core #(
     assign mem_wr_rdy = desc_mem_wr_if.rdy;
     assign desc_mem_wr_if.addr = _desc_ptr;
     assign desc_mem_wr_if.data = _desc;
+
+    // -----------------------------
+    // Maintain write context and drive frame
+    // completion interface
+    // (wait for write acks to ensure that descriptor
+    //  write always happens before descriptor read)
+    // -----------------------------
+    assign wr_ctxt_in.ctxt = ctxt_sel_r;
+    assign wr_ctxt_in.eof  = _desc.eof;
+    assign wr_ctxt_in.ptr  = _frame_ptr  [ctxt_sel_r];
+    assign wr_ctxt_in.err  = _frame_error[ctxt_sel_r];
+    assign wr_ctxt_in.size = _frame_size [ctxt_sel_r];
+
+    initial wr_ctxt_in_vld = 1'b0;
+    always @(posedge clk) begin
+        if (desc_mem_wr_if.req && desc_mem_wr_if.rdy) wr_ctxt_in_vld <= 1'b1;
+        else                                          wr_ctxt_in_vld <= 1'b0;
+    end
+
+    always_ff @(posedge clk) wr_ack <= desc_mem_wr_if.ack;
+
+    fifo_small_ctxt    #(
+        .DATA_WID ( $bits(wr_ctxt_t) ),
+        .DEPTH    ( MEM_WR_LATENCY ),
+        .REPORT_OFLOW ( 1 ),
+        .REPORT_UFLOW ( 1 )
+    ) i_fifo_small_ctxt__wr_ctxt (
+        .clk,
+        .srst,
+        .wr      ( wr_ctxt_in_vld ),
+        .wr_rdy  ( ),
+        .wr_data ( wr_ctxt_in ),
+        .rd      ( wr_ack ),
+        .rd_vld  ( wr_ctxt_out_vld ),
+        .rd_data ( wr_ctxt_out ),
+        .oflow   ( ),
+        .uflow   ( )
+    );
+    assign frame_ptr   = wr_ctxt_out.ptr;
+    assign frame_size  = wr_ctxt_out.size;
+    assign frame_error = wr_ctxt_out.err;
+
+    always_comb begin
+        for (int i = 0; i < CONTEXTS; i++) begin
+            if (wr_ack && wr_ctxt_out_vld && wr_ctxt_out.ctxt == i && wr_ctxt_out.eof) frame_valid[i] = 1'b1;
+            else                                                                       frame_valid[i] = 1'b0;
+        end
+    end
 
 endmodule : alloc_scatter_core

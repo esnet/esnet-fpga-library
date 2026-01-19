@@ -114,6 +114,8 @@ module packet_capture_unit_test;
 
         // Start environment
         env.run();
+
+        driver.set_stall_rate(0.2);
     endtask
 
 

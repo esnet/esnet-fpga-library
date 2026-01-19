@@ -58,7 +58,7 @@ module packet_gather_wrapper #(
     localparam int NUM_BUFFERS = 2**PTR_WID;
 
     packet_intf #(DATA_BYTE_WID, META_WID) packet_if  (.clk);
-    alloc_intf #(BUFFER_SIZE, PTR_WID, META_WID) gather_if (.clk);
+    alloc_intf #(BUFFER_SIZE, PTR_WID, META_WID) gather_if [1] (.clk);
     packet_descriptor_intf #(PTR_WID, META_WID, MAX_PKT_SIZE) descriptor_if (.clk);
     packet_event_intf event_if (.clk);
     mem_rd_intf #(ADDR_WID, DATA_WID) mem_rd_if (.clk);
@@ -71,16 +71,16 @@ module packet_gather_wrapper #(
     assign packet_meta = packet_if.meta;
     assign packet_if.rdy = packet_rdy;
 
-    assign gather_if.rdy = gather_rdy;
-    assign gather_if.nxt_ptr = gather_nxt_ptr;
-    assign gather_if.vld = gather_vld;
-    assign gather_if.eof = gather_eof;
-    assign gather_if.size = gather_size;
-    assign gather_if.meta = gather_meta;
-    assign gather_if.err = gather_err;
-    assign gather_req = gather_if.req;
-    assign gather_ptr = gather_if.ptr;
-    assign gather_ack = gather_if.ack;
+    assign gather_if[0].rdy = gather_rdy;
+    assign gather_if[0].nxt_ptr = gather_nxt_ptr;
+    assign gather_if[0].vld = gather_vld;
+    assign gather_if[0].eof = gather_eof;
+    assign gather_if[0].size = gather_size;
+    assign gather_if[0].meta = gather_meta;
+    assign gather_if[0].err = gather_err;
+    assign gather_req = gather_if[0].req;
+    assign gather_ptr = gather_if[0].ptr;
+    assign gather_ack = gather_if[0].ack;
 
     assign descriptor_if.vld = descriptor_vld;
     assign descriptor_if.addr = descriptor_addr;
@@ -100,12 +100,13 @@ module packet_gather_wrapper #(
     assign mem_rd_req = mem_rd_if.req;
     assign mem_rd_addr = mem_rd_if.addr;
 
-    packet_gather    #(
-        .IGNORE_RDY   ( 0 ),
-        .MAX_PKT_SIZE ( MAX_PKT_SIZE ),
-        .BUFFER_SIZE  ( BUFFER_SIZE ),
-        .NUM_BUFFERS  ( NUM_BUFFERS ),
-        .MAX_RD_LATENCY ( 64 )
+    packet_gather      #(
+        .IGNORE_RDY     ( 0 ),
+        .MAX_PKT_SIZE   ( MAX_PKT_SIZE ),
+        .BUFFER_SIZE    ( BUFFER_SIZE ),
+        .NUM_BUFFERS    ( NUM_BUFFERS ),
+        .MAX_RD_LATENCY ( 64 ),
+        .N              ( 1 )
     ) i_packet_gather (
         .*
     );

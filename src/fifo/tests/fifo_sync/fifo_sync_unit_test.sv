@@ -65,7 +65,9 @@ module fifo_sync_unit_test #(
     fifo_sync    #(
         .DATA_WID ( DATA_WID ),
         .DEPTH    ( DEPTH ),
-        .FWFT     ( FWFT )
+        .FWFT     ( FWFT ),
+        .REPORT_OFLOW ( 1 ),
+        .REPORT_UFLOW ( 0 )
     ) DUT (.*);
 
     //===================================

@@ -218,3 +218,66 @@ module packet_intf_set_meta #(
     assign from_tx.rdy = to_rx.rdy;
 
 endmodule : packet_intf_set_meta
+
+
+// Set packet metadata
+module packet_intf_mux #(
+    parameter int N = 2,
+    // Derived parameters (don't override)
+    parameter int SEL_WID = $clog2(N)
+) (
+    packet_intf.rx            from_tx [N],
+    packet_intf.tx            to_rx,
+    input logic [SEL_WID-1:0] sel
+);
+    // Parameters
+    localparam int DATA_BYTE_WID = to_rx.DATA_BYTE_WID;
+    localparam int META_WID = to_rx.META_WID;
+    localparam int MTY_WID = DATA_BYTE_WID > 1 ? $clog2(DATA_BYTE_WID) : 1;
+    localparam int N_POW2 = 2**SEL_WID;
+
+    // Parameter check
+    initial begin
+        std_pkg::param_check(from_tx[0].DATA_BYTE_WID, DATA_BYTE_WID, "from_tx[*].DATA_BYTE_WID");
+        std_pkg::param_check(from_tx[0].META_WID,      META_WID,      "from_tx[*].META_WID");
+        std_pkg::param_check_gt(N, 2, "N");
+    end
+
+    // Signals
+    logic                          from_tx_vld  [N_POW2];
+    logic                          from_tx_rdy  [N_POW2];
+    logic [0:DATA_BYTE_WID-1][7:0] from_tx_data [N_POW2];
+    logic                          from_tx_eop  [N_POW2];
+    logic [MTY_WID-1:0]            from_tx_mty  [N_POW2];
+    logic                          from_tx_err  [N_POW2];
+    logic [META_WID-1:0]           from_tx_meta [N_POW2];
+
+    generate
+        for (genvar g_input = 0; g_input < N; g_input++) begin : g__input
+            assign from_tx_vld [g_input] = from_tx[g_input].vld;
+            assign from_tx_data[g_input] = from_tx[g_input].data;
+            assign from_tx_eop [g_input] = from_tx[g_input].eop;
+            assign from_tx_mty [g_input] = from_tx[g_input].mty;
+            assign from_tx_err [g_input] = from_tx[g_input].err;
+            assign from_tx_meta[g_input] = from_tx[g_input].meta;
+            assign from_tx[g_input].rdy  = (sel == g_input) ? to_rx.rdy : 1'b0;
+        end : g__input
+        for (genvar g_input = N; g_input < N_POW2; g_input++) begin : g__input_tieoff
+            assign from_tx_vld [g_input] = 1'b0;
+            assign from_tx_data[g_input] = '0;
+            assign from_tx_eop [g_input] = 1'b0;
+            assign from_tx_mty [g_input] = '0;
+            assign from_tx_err [g_input] = 1'b0;
+            assign from_tx_meta[g_input] = '0;
+        end : g__input_tieoff
+    endgenerate
+
+    // Mux logic
+    assign to_rx.vld   = from_tx_vld [sel];
+    assign to_rx.data  = from_tx_data[sel];
+    assign to_rx.eop   = from_tx_eop [sel];
+    assign to_rx.mty   = from_tx_mty [sel];
+    assign to_rx.err   = from_tx_err [sel];
+    assign to_rx.meta  = from_tx_meta[sel];
+
+endmodule : packet_intf_mux

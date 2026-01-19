@@ -17,7 +17,10 @@ module fifo_prefetch
                                       // This implementation is intended for 'small-ish' prefetch depths,
                                       // typically <= 64
     parameter opt_mode_t WR_OPT_MODE = OPT_MODE_TIMING,
-    parameter opt_mode_t RD_OPT_MODE = OPT_MODE_TIMING
+    parameter opt_mode_t RD_OPT_MODE = OPT_MODE_TIMING,
+    // Simulation-only parameters
+    parameter bit REPORT_OFLOW = 1,
+    parameter bit REPORT_UFLOW = 0
 ) (
     // Clock/reset
     input  logic                clk,
@@ -54,7 +57,7 @@ module fifo_prefetch
     // Parameter checking
     // -----------------------------
     initial begin
-        std_pkg::param_check_lt(MEM_DEPTH, 256, "DEPTH");
+        std_pkg::param_check_lt(PIPELINE_DEPTH, 256, "PIPELINE_DEPTH");
     end
 
     // -----------------------------
@@ -70,15 +73,17 @@ module fifo_prefetch
     // -----------------------------
     // Standard FIFO instantiation
     // -----------------------------
-    fifo_core       #(
-        .DATA_WID    ( DATA_WID ),
-        .DEPTH       ( DEPTH ),
-        .ASYNC       ( 0 ),
-        .FWFT        ( 1 ),
-        .OFLOW_PROT  ( 1 ),
-        .UFLOW_PROT  ( 1 ),
-        .WR_OPT_MODE ( WR_OPT_MODE ),
-        .RD_OPT_MODE ( RD_OPT_MODE )
+    fifo_core        #(
+        .DATA_WID     ( DATA_WID ),
+        .DEPTH        ( DEPTH ),
+        .ASYNC        ( 0 ),
+        .FWFT         ( 1 ),
+        .OFLOW_PROT   ( 1 ),
+        .UFLOW_PROT   ( 1 ),
+        .WR_OPT_MODE  ( WR_OPT_MODE ),
+        .RD_OPT_MODE  ( RD_OPT_MODE ),
+        .REPORT_OFLOW ( REPORT_OFLOW ),
+        .REPORT_UFLOW ( REPORT_UFLOW )
     ) i_fifo_core (
         .wr_clk   ( clk ),
         .wr_srst  ( srst ),

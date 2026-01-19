@@ -155,49 +155,6 @@ module packet_intf_unit_test #(
             check(1, 10us);
         `SVTEST_END
 
-        `SVTEST(one_packet_tpause_2)
-            //env.monitor.set_tpause(2);
-            one_packet();
-            check(1, 10us);
-        `SVTEST_END
-
-        `SVTEST(one_packet_twait_2)
-            //env.driver.set_twait(2);
-            one_packet();
-            check(1, 10us);
-        `SVTEST_END
-
-        `SVTEST(one_packet_tpause_2_twait_2)
-            //env.monitor.set_tpause(2);
-            //env.driver.set_twait(2);
-            one_packet();
-            check(1, 10us);
-        `SVTEST_END
-
-        `SVTEST(packet_stream_good)
-            packet_stream();
-            check(NUM_PKTS, 100us);
-        `SVTEST_END
-
-        `SVTEST(packet_stream_tpause_2)
-            //env.monitor.set_tpause(2);
-            packet_stream();
-            check(NUM_PKTS, 100us);
-        `SVTEST_END
-
-        `SVTEST(packet_stream_twait_2)
-            //env.driver.set_twait(2);
-            packet_stream();
-            check(NUM_PKTS, 100us);
-        `SVTEST_END
-
-        `SVTEST(packet_stream_tpause_2_twait_2)
-            //env.monitor.set_tpause(2);
-            //env.driver.set_twait(2);
-            packet_stream();
-            check(NUM_PKTS, 100us);
-        `SVTEST_END
-
         `SVTEST(one_packet_bad)
             int bad_byte_idx;
             byte bad_byte_data;
@@ -219,6 +176,58 @@ module packet_intf_unit_test #(
                 scoreboard.report(msg),
                 "Passed unexpectedly."
             );
+        `SVTEST_END
+
+        `SVTEST(one_packet_rx_stall)
+            monitor.set_stall_rate(0.5);
+            one_packet();
+            check(1, 10us);
+        `SVTEST_END
+
+        `SVTEST(one_packet_tx_stall)
+            driver.set_stall_rate(0.5);
+            one_packet();
+            check(1, 10us);
+        `SVTEST_END
+
+       `SVTEST(one_packet_tx_rx_stall)
+            monitor.set_stall_rate(0.5);
+            driver.set_stall_rate(0.5);
+            one_packet();
+            check(1, 10us);
+        `SVTEST_END
+
+        `SVTEST(packet_size_walk)
+            monitor.set_stall_rate(0.1);
+            driver.set_stall_rate(0.1);
+            for (int i = 60; i <= 192; i++) begin
+                one_packet(i-60, i);
+            end
+            check(192-60+1, 100us);
+        `SVTEST_END
+
+        `SVTEST(packet_stream_no_stall)
+            packet_stream();
+            check(NUM_PKTS, 100us);
+        `SVTEST_END
+
+        `SVTEST(packet_stream_rx_stall)
+            monitor.set_stall_rate(0.1);
+            packet_stream();
+            check(NUM_PKTS, 100us);
+        `SVTEST_END
+
+        `SVTEST(packet_stream_tx_stall)
+            driver.set_stall_rate(0.1);
+            packet_stream();
+            check(NUM_PKTS, 100us);
+        `SVTEST_END
+
+        `SVTEST(packet_stream_tx_rx_stall)
+            monitor.set_stall_rate(0.1);
+            driver.set_stall_rate(0.1);
+            packet_stream();
+            check(NUM_PKTS, 100us);
         `SVTEST_END
 
         `SVTEST(finalize)

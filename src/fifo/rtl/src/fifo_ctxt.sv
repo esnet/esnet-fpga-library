@@ -1,6 +1,9 @@
 module fifo_ctxt #(
     parameter int DATA_WID = 1,
-    parameter int DEPTH = 32
+    parameter int DEPTH = 32,
+    // Simulation-only parameters
+    parameter int REPORT_OFLOW = 1,
+    parameter int REPORT_UFLOW = 0
 ) (
     // Clock/reset
     input  logic                clk,
@@ -41,7 +44,9 @@ module fifo_ctxt #(
         .OFLOW_PROT ( 1 ),
         .UFLOW_PROT ( 1 ),
         .WR_OPT_MODE ( fifo_pkg::OPT_MODE_LATENCY ),
-        .RD_OPT_MODE ( fifo_pkg::OPT_MODE_LATENCY )
+        .RD_OPT_MODE ( fifo_pkg::OPT_MODE_LATENCY ),
+        .REPORT_OFLOW ( REPORT_OFLOW ),
+        .REPORT_UFLOW ( REPORT_UFLOW )
     ) i_fifo_core (
         .wr_clk   ( clk ),
         .wr_srst  ( srst ),

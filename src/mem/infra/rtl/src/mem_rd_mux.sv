@@ -10,12 +10,12 @@ module mem_rd_mux #(
     mem_rd_intf.controller to_peripheral,
     input logic [SEL_WID-1:0] sel
 );
-    localparam int ADDR_WID = to_peripheral[0].ADDR_WID;
-    localparam int DATA_WID = to_peripheral[0].DATA_WID;
+    localparam int ADDR_WID = to_peripheral.ADDR_WID;
+    localparam int DATA_WID = to_peripheral.DATA_WID;
 
     initial begin
         std_pkg::param_check(from_controller[0].DATA_WID, DATA_WID, "DATA_WID");
-        std_pkg::param_check(from_controller[0].ADDR_WID, ADDR_WID, "ADDR_WID");
+        std_pkg::param_check_lt(from_controller[0].ADDR_WID, ADDR_WID, "ADDR_WID");
     end
 
     logic clk;
@@ -36,12 +36,11 @@ module mem_rd_mux #(
             logic ack                 [N];
 
             for (genvar g_if = 0; g_if < N; g_if++) begin : g__input
-                assign en[g_if] = from_controller[g_if].en;
                 assign req[g_if] = from_controller[g_if].req;
                 assign addr[g_if] = from_controller[g_if].addr;
                 assign from_controller[g_if].rdy = rdy[g_if];
                 assign from_controller[g_if].ack = ack[g_if];
-                assign from_controller[g_if].data[g_if] = from_controller.data;
+                assign from_controller[g_if].data = to_peripheral.data;
             end : g__input
             // Assign values for sel 'out-of-range'
             for (genvar g_if = N; g_if < N_POW2; g_if++) begin : g__input_out_of_range
@@ -54,12 +53,11 @@ module mem_rd_mux #(
             assign to_peripheral.rst  = srst;
 
             always_comb begin
-                to_peripheral.en = en[sel];
                 to_peripheral.req = req[sel];
                 to_peripheral.addr = addr[sel];
                 for (int i = 0; i < N; i++) begin
-                    if (sel == SEL'(i)) rdy[i] = to_peripheral.rdy;
-                    else                rdy[i] = 1'b0;
+                    if (sel == SEL_WID'(i)) rdy[i] = to_peripheral.rdy;
+                    else                    rdy[i] = 1'b0;
                 end
             end
 
@@ -71,7 +69,7 @@ module mem_rd_mux #(
                 .clk,
                 .srst,
                 .wr_rdy  ( ),
-                .wr      ( to_peripheral.rdy && to_peripheral.en && to_peripheral.req ),
+                .wr      ( to_peripheral.rdy && to_peripheral.req ),
                 .wr_data ( sel ),
                 .rd      ( to_peripheral.ack ),
                 .rd_vld  ( ),
@@ -83,8 +81,8 @@ module mem_rd_mux #(
             // Response demux
             always_comb begin
                 for (int i = 0; i < N; i++) begin
-                    if (sel_out == SEL'(i)) ack[i] = to_peripheral.ack;
-                    else                    ack[i] = 1'b0;
+                    if (sel_out == SEL_WID'(i)) ack[i] = to_peripheral.ack;
+                    else                        ack[i] = 1'b0;
                 end
             end
 
