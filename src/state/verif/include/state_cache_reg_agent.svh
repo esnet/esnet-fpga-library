@@ -14,7 +14,7 @@ class state_cache_reg_agent#(type KEY_T = bit, type ID_T = bit) extends state_ca
     function new(
             input string name="state_cache_reg_agent",
             input int NUM_IDS,
-            const ref reg_verif_pkg::reg_agent reg_agent,
+            reg_verif_pkg::reg_agent reg_agent,
             input int BASE_OFFSET=0
     );
         super.new(name, BASE_OFFSET);

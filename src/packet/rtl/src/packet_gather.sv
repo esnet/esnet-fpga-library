@@ -357,6 +357,9 @@ module packet_gather #(
         end : g__ignore_rdy
         else begin : g__obey_rdy
             // Backpressure from receiver supported; prefetch needed
+            // (Local) parameters
+            localparam int PREFETCH_DATA_DEPTH = 2*PREFETCH_DEPTH;
+            localparam int PREFETCH_DATA_CNT_WID = $clog2(PREFETCH_DATA_DEPTH);
             // (Local) typedefs
             typedef struct packed {
                 logic [DATA_WID-1:0] data;
@@ -366,6 +369,7 @@ module packet_gather #(
                 logic [META_WID-1:0] meta;
             } prefetch_data_t;
             // (Local) signals
+            logic [PREFETCH_DATA_CNT_WID-1:0] __prefetch_wr_count;
             prefetch_data_t __prefetch_wr_data;
             prefetch_data_t __prefetch_rd_data;
             logic           __prefetch_oflow;
@@ -379,7 +383,7 @@ module packet_gather #(
             // Prefetch buffer (data)
             fifo_sync    #(
                 .DATA_WID ( $bits(prefetch_data_t) ),
-                .DEPTH    ( 2*PREFETCH_DEPTH ),
+                .DEPTH    ( PREFETCH_DATA_DEPTH ),
                 .REPORT_OFLOW ( 1 )
             ) i_fifo_sync__data (
                 .clk,

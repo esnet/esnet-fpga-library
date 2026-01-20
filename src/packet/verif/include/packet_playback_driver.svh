@@ -21,7 +21,7 @@ class packet_playback_driver #(parameter type META_T=bit) extends packet_driver#
     function new(input string name="packet_playback_driver",
                  input int mem_size=16384,
                  input int data_wid,
-                 const ref reg_verif_pkg::reg_agent reg_agent,
+                 reg_verif_pkg::reg_agent reg_agent,
                  input int BASE_OFFSET=0
         );
         super.new(name);

@@ -12,7 +12,7 @@ class fifo_reg_agent extends std_verif_pkg::agent;
     //===================================
     function new(
             input string name="fifo_ctrl_reg_agent",
-            const ref reg_verif_pkg::reg_agent reg_agent,
+            reg_verif_pkg::reg_agent reg_agent,
             input int BASE_OFFSET=0
     );
         ctrl_reg_blk_agent   = new("ctrl",   BASE_OFFSET);

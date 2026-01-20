@@ -110,7 +110,7 @@ virtual class component extends base;
     endfunction
 
     // Register subcomponents
-    function automatic void register_subcomponent(const ref component SUBCOMPONENT);
+    function automatic void register_subcomponent(component SUBCOMPONENT);
         __SUBCOMPONENTS.push_back(SUBCOMPONENT);
     endfunction
 

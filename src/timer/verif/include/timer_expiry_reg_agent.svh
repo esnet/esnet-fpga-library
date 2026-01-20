@@ -7,7 +7,7 @@ class timer_expiry_reg_agent extends timer_expiry_reg_blk_agent;
     //===================================
     function new(
             input string name="timer_expiry_reg_agent",
-            const ref reg_verif_pkg::reg_agent reg_agent,
+            reg_verif_pkg::reg_agent reg_agent,
             input int BASE_OFFSET=0
     );
         super.new(name, BASE_OFFSET);

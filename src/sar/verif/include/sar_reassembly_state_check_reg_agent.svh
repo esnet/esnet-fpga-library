@@ -5,7 +5,7 @@ class sar_reassembly_state_check_reg_agent extends sar_reassembly_state_check_re
     //===================================
     function new(
             input string name="sar_reassembly_state_check_reg_agent",
-            const ref reg_verif_pkg::reg_agent reg_agent,
+            reg_verif_pkg::reg_agent reg_agent,
             input int BASE_OFFSET=0
     );
         super.new(name, BASE_OFFSET);

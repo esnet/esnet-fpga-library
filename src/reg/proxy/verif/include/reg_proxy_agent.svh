@@ -24,7 +24,7 @@ class reg_proxy_agent #(
     // Constructor
     function new(
             input string name="reg_proxy_agent",
-            const ref reg_agent#(ADDR_WID, DATA_WID) reg_agent_base,
+            reg_agent#(ADDR_WID, DATA_WID) reg_agent_base,
             input int BASE_OFFSET=0
         );
         super.new(name);

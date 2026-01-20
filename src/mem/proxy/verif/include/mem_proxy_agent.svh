@@ -17,7 +17,7 @@ class mem_proxy_agent extends mem_proxy_reg_blk_agent;
     function new(
             input string name="mem_proxy_agent",
             input int data_wid,
-            const ref reg_verif_pkg::reg_agent reg_agent,
+            reg_verif_pkg::reg_agent reg_agent,
             input int BASE_OFFSET=0
         );
         super.new(name, BASE_OFFSET);
