@@ -28,6 +28,7 @@ SUBCOMPONENTS = \
     packet.pkg \
     packet.rtl \
     mem.rtl \
+    mem.infra.rtl \
     axi3.rtl \
     axi4l.rtl \
     axi3.verif \
