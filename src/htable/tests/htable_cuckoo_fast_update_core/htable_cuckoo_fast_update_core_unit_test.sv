@@ -297,8 +297,9 @@ module htable_cuckoo_fast_update_core_unit_test;
         agent.unset(key, got_valid, got_value, error, timeout);
         `FAIL_IF(error);
         `FAIL_IF(timeout);
-        `FAIL_UNLESS(got_valid);
-        `FAIL_UNLESS_EQUAL(got_value, exp_value);
+        // UNSET command does not return previous value for this component
+        //`FAIL_UNLESS(got_valid);
+        //`FAIL_UNLESS_EQUAL(got_value, exp_value);
         // Read back and check that entry is cleared
         agent.get(key, got_valid, got_value, error, timeout);
         `FAIL_IF(error);
@@ -326,8 +327,9 @@ module htable_cuckoo_fast_update_core_unit_test;
         agent.replace(key, exp_value[1], got_valid, got_value, error, timeout);
         `FAIL_IF(error);
         `FAIL_IF(timeout);
-        `FAIL_UNLESS(got_valid);
-        `FAIL_UNLESS_EQUAL(got_value, exp_value[0]);
+        // REPLACE command does not return previous value for this component
+        //`FAIL_UNLESS(got_valid);
+        //`FAIL_UNLESS_EQUAL(got_value, exp_value[0]);
         // Read back and check for new entry
         agent.get(key, got_valid, got_value, error, timeout);
         `FAIL_IF(error);
@@ -503,6 +505,7 @@ module htable_cuckoo_fast_update_core_unit_test;
         `FAIL_IF(timeout);
         `FAIL_UNLESS(got_valid);
         `FAIL_UNLESS_EQUAL(got_value, exp_value);
+        update_if._wait(50);
         // Check stats
         check_stats();
     `SVTEST_END

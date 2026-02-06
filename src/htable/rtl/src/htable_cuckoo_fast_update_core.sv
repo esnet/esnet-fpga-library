@@ -95,7 +95,8 @@ module htable_cuckoo_fast_update_core
     db_core          #(
         .NUM_WR_TRANSACTIONS ( NUM_WR_TRANSACTIONS ),
         .NUM_RD_TRANSACTIONS ( NUM_RD_TRANSACTIONS ),
-        .APP_CACHE_EN ( 1 )
+        .APP_CACHE_EN ( 0 ),
+        .DB_CACHE_EN  ( 0 )
     ) i_db_core       (
         .clk          ( clk ),
         .srst         ( srst ),
