@@ -1,10 +1,10 @@
+// Stash implementation of database
+// - lookup returns first entry with matching key
+// - updates (writes) either overwrite existing entry with matching key (if it exists)
+//   or insert into the next available slot
+//   or fail if the stash is full
 module db_stash #(
-    parameter int  SIZE = 8,
-    parameter bit  REG_REQ = 1'b0 // When enabled, register both write and read requests to stash memory
-                                  // Using a common parameter for both write and read sides maintains
-                                  // the timing relationship between reads and writes, ensuring that e.g.
-                                  // RMW operations return the previous value before the new value takes
-                                  // effect.
+    parameter int  SIZE = 8
 )(
     // Clock/reset
     input  logic              clk,
@@ -73,7 +73,7 @@ module db_stash #(
     logic [KEY_WID-1:0]   rd_key;
     logic                 rd_next;
     logic                 rd_match;
-    logic [IDX_WID-1:0]   rd_idx;
+    logic [IDX_WID-1:0]   rd_match_idx;
 
     logic [IDX_WID-1:0]   next_rd_idx;
 
@@ -105,8 +105,8 @@ module db_stash #(
     db_core #(
         .NUM_WR_TRANSACTIONS ( 2 ),
         .NUM_RD_TRANSACTIONS ( 2 ),
-        .DB_CACHE_EN ( 0 ),
-        .APP_CACHE_EN ( 0 ) // No caching; writes/reads are executed in one cycle
+        .DB_CACHE_EN ( 0 ), // Caching not required; read result takes into account any preceding writes
+        .APP_CACHE_EN ( 0 )
     ) i_db_core (
         .*
     );
@@ -125,33 +125,30 @@ module db_stash #(
     // ----------------------------------
     assign db_wr_if.rdy = db_init_done;
 
-    // (Optionally) register write request
-    generate
-        if (REG_REQ) begin : g__wr_req_reg
-            always_ff @(posedge clk) begin
-                if (db_wr_if.req && db_wr_if.rdy) wr_req <= 1'b1;
-                else                              wr_req <= 1'b0;
-                wr_key <= db_wr_if.key;
-                wr_valid <= db_wr_if.valid;
-                wr_value <= db_wr_if.value;
-            end
-        end : g__wr_req_reg
-        else begin : g__wr_req_no_reg
-            assign wr_req = db_wr_if.req && db_wr_if.rdy;
-            assign wr_key = db_wr_if.key;
-            assign wr_valid = db_wr_if.valid;
-            assign wr_value = db_wr_if.value;
-        end : g__wr_req_no_reg
-    endgenerate
+    initial wr_req = 1'b0;
+    always @(posedge clk) begin
+        if (srst) wr_req <= 1'b0;
+        else      wr_req <= db_wr_if.req && db_wr_if.rdy;
+    end
+
+    always_ff @(posedge clk) begin
+        wr_valid <= db_wr_if.valid;
+        wr_key   <= db_wr_if.key;
+        wr_value <= db_wr_if.value;
+    end
 
     // Search for match to write key
-    always_comb begin
-        wr_match = 1'b0;
-        wr_match_idx = '0;
-        for (int i = 0; i < SIZE; i++) begin
-            if (stash[i].key == wr_key) begin
-                wr_match = 1'b1;
-                wr_match_idx = i;
+    always_ff @(posedge clk) begin
+        if (wr_match && db_wr_if.key == wr_key) begin
+            wr_match <= 1'b1;
+            wr_match_idx <= wr_match_idx;
+        end else begin
+            wr_match <= 1'b0;
+            for (int i = 0; i < SIZE; i++) begin
+                if (stash[i].key == db_wr_if.key) begin
+                    wr_match <= 1'b1;
+                    wr_match_idx <= i;
+                end
             end
         end
     end
@@ -223,35 +220,30 @@ module db_stash #(
     // ----------------------------------
     assign db_rd_if.rdy = db_init_done;
 
-    // (Optionally) pipeline read request
-    generate
-        if (REG_REQ) begin : g__rd_req_reg
-            always_ff @(posedge clk) begin
-                if (db_rd_if.req && db_rd_if.rdy) rd_req <= 1'b1;
-                else                              rd_req <= 1'b0;
-                rd_key <= db_rd_if.key;
-                rd_next <= db_rd_if.next;
-            end
-        end : g__rd_req_reg
-        else begin : g__rd_req_no_reg
-            assign rd_req = db_rd_if.req && db_rd_if.rdy;
-            assign rd_key = db_rd_if.key;
-            assign rd_next = db_rd_if.next;
-        end : g__rd_req_no_reg
-    endgenerate
+    initial rd_req = 1'b0;
+    always @(posedge clk) begin
+        if (srst) rd_req <= 1'b0;
+        else      rd_req <= db_rd_if.req && db_rd_if.rdy;
+    end
+
+    always_ff @(posedge clk) begin
+        rd_key  <= db_rd_if.key;
+        rd_next <= db_rd_if.next;
+    end
 
     // Search for match to read key
-    always_comb begin
-        rd_idx = '0;
-        rd_match = 1'b0;
-        if (rd_next) begin
-            rd_match = 1'b1;
-            rd_idx = next_rd_idx;
+    always_ff @(posedge clk) begin
+        rd_match <= 1'b0;
+        rd_match_idx <= '0;
+        if (wr_match && db_rd_if.key == wr_key) begin
+            rd_match <= 1'b1;
+            rd_match_idx <= wr_match_idx;
         end else begin
+            rd_match <= 1'b0;
             for (int i = 0; i < SIZE; i++) begin
-                if (stash[i].key == rd_key) begin
-                    rd_match = 1'b1;
-                    rd_idx = i;
+                if (stash[i].key == db_rd_if.key) begin
+                    rd_match <= 1'b1;
+                    rd_match_idx <= i;
                 end
             end
         end
@@ -269,10 +261,10 @@ module db_stash #(
 
     // Read response
     always_ff @(posedge clk) begin
-        db_rd_if.ack <= rd_req;
-        db_rd_if.valid <= rd_match ? stash_vld[rd_idx] : 1'b0;
-        db_rd_if.value <= rd_match ? stash[rd_idx].value : '0;
-        db_rd_if.next_key <= rd_next ? stash[rd_idx].key : '0;
+        db_rd_if.ack     <= rd_req;
+        db_rd_if.valid   <= rd_next ? stash_vld[next_rd_idx]   : rd_match ? stash_vld[rd_match_idx]   : 1'b0;
+        db_rd_if.value   <= rd_next ? stash[next_rd_idx].value : rd_match ? stash[rd_match_idx].value : '0;
+        db_rd_if.next_key <= rd_next ? stash[next_rd_idx].key : '0;
     end
     assign db_rd_if.error = 1'b0;
 

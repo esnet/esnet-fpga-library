@@ -105,6 +105,7 @@ module htable_fast_update_core #(
     req_ctxt_t  tbl_req_ctxt_in;
     req_ctxt_t  tbl_req_ctxt_out;
     resp_ctxt_t tbl_resp_ctxt_in;
+    resp_ctxt_t tbl_resp_ctxt_out_d[2];
     resp_ctxt_t tbl_resp_ctxt_out;
 
     update_entry_t stash_lookup_resp;
@@ -227,7 +228,11 @@ module htable_fast_update_core #(
     assign tbl_resp_ctxt_in.error = tbl_lookup_if.error;
     assign tbl_resp_ctxt_in.value = tbl_lookup_if.value;
 
-    always_ff @(posedge clk) tbl_resp_ctxt_out <= tbl_resp_ctxt_in;
+    always_ff @(posedge clk) begin
+        tbl_resp_ctxt_out_d[0] <= tbl_resp_ctxt_in;
+        tbl_resp_ctxt_out_d[1] <= tbl_resp_ctxt_out_d[0];
+    end
+    assign tbl_resp_ctxt_out = tbl_resp_ctxt_out_d[1];
 
     // ----------------------------------
     // Update stash

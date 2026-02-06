@@ -280,7 +280,7 @@ module state_cache_core
 
     fifo_sync    #(
         .DATA_WID ( $bits(lookup_req_ctxt_t) ),
-        .DEPTH    ( NUM_RD_TRANSACTIONS ),
+        .DEPTH    ( NUM_RD_TRANSACTIONS + 1 ), // Account for extra pipelining of read result in htable_cuckoo_fast_update_core
         .FWFT     ( 1 )
     ) i_fifo_sync__lookup_req_ctxt (
         .clk      ( clk ),

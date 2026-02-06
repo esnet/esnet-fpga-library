@@ -60,8 +60,19 @@ module db_stash_fifo #(
     logic               db_init;
     logic               db_init_done;
 
-    logic               rd_match;
-    logic [IDX_WID-1:0] rd_idx;
+    logic [SIZE-1:0]      rd_slot_match;
+    logic                 rd_slot_valid [SIZE];
+    logic [VALUE_WID-1:0] rd_slot_value [SIZE];
+    logic                 rd_match;
+    logic [IDX_WID-1:0]   rd_idx;
+
+    logic                 rd_head_valid;
+    logic [VALUE_WID-1:0] rd_head_value;
+    logic [KEY_WID-1:0]   rd_head_key;
+    logic                 rd_head_empty;
+
+    logic               db_rd_d [2];
+    logic               db_rd_next;
 
     logic               wr_safe;
     logic               full;
@@ -97,10 +108,10 @@ module db_stash_fifo #(
     // 'Standard' database core
     // ----------------------------------
     db_core #(
-        .NUM_WR_TRANSACTIONS ( 2 ),
+        .NUM_WR_TRANSACTIONS ( 1 ),
         .NUM_RD_TRANSACTIONS ( 2 ),
-        .DB_CACHE_EN ( 0 ),
-        .APP_CACHE_EN ( 0 ) // No caching; writes/reads are executed in one cycle
+        .DB_CACHE_EN ( 0 ), // Caching not required; read result takes into account any preceding writes
+        .APP_CACHE_EN ( 0 )
     ) i_db_core (
         .*
     );
@@ -203,37 +214,60 @@ module db_stash_fifo #(
     // ----------------------------------
     assign db_rd_if.rdy = init_done;
 
-    // Search for match to read key
+    // Read response pipeline (read latency is 2 cycles)
+    initial db_rd_d = '{default: 1'b0};
+    always @(posedge clk) begin
+        if (__srst) db_rd_d <= '{default: 1'b0};
+        else begin
+            db_rd_d[0] <= db_rd_if.req && db_rd_if.rdy;
+            db_rd_d[1] <= db_rd_d[0];
+        end
+    end
+    assign db_rd_if.ack = db_rd_d[1];
+
+    // Read context
+    always_ff @(posedge clk) db_rd_next <= db_rd_if.next;
+
+    // Search for match to read key (two-cycle process)
+    // - first cycle: check for match in each slot
+    always @(posedge clk) begin
+        for (int i = 0; i < SIZE; i++) begin
+            rd_slot_match[i] <= stash_vld[i] && (stash[i].key == db_rd_if.key);
+            rd_slot_valid[i] <= stash[i].valid;
+            rd_slot_value[i] <= stash[i].value;
+        end
+    end
+    // - second cycle: return (most-recently-inserted) match
     always_comb begin
         rd_idx = '0;
         rd_match = 1'b0;
         for (int i = SIZE-1; i >= 0; i--) begin
-            if (stash_vld[i] && (stash[i].key == db_rd_if.key)) begin
+            if (rd_slot_match[i]) begin
                 rd_match = 1'b1;
                 rd_idx = i;
             end
         end
     end
 
-    // Read response
-    initial db_rd_if.ack = 1'b0;
-    always @(posedge clk) begin
-        if (__srst)                            db_rd_if.ack <= 1'b0;
-        else if (db_rd_if.req && db_rd_if.rdy) db_rd_if.ack <= 1'b1;
-        else                                   db_rd_if.ack <= 1'b0;
-    end
-
     assign rd_ptr = count - 1;
 
+    // Perform read of FIFO head element (implement as two-cycle process)
     always_ff @(posedge clk) begin
-        if (db_rd_if.next) begin
-            db_rd_if.valid    <= stash[rd_ptr].valid;
-            db_rd_if.value    <= stash[rd_ptr].value;
-            db_rd_if.next_key <= stash[rd_ptr].key;
-            db_rd_if.error    <= empty;
+        rd_head_valid <= stash[rd_ptr].valid;
+        rd_head_value <= stash[rd_ptr].value;
+        rd_head_key   <= stash[rd_ptr].key;
+        rd_head_empty <= empty;
+    end
+
+    always_ff @(posedge clk) begin
+        if (db_rd_next) begin
+            db_rd_if.valid    <= rd_head_valid;
+            db_rd_if.value    <= rd_head_value;
+            db_rd_if.next_key <= rd_head_key;
+            db_rd_if.error    <= rd_head_empty;
         end else begin
-            db_rd_if.valid    <= rd_match ? stash[rd_idx].valid : 1'b0;
-            db_rd_if.value    <= rd_match ? stash[rd_idx].value : '0;
+            db_rd_if.valid    <= rd_match ? rd_slot_valid[rd_idx] : 1'b0;
+            db_rd_if.value    <= rd_match ? rd_slot_value[rd_idx] : '0;
             db_rd_if.error    <= 1'b0;
             db_rd_if.next_key <= '0;
         end

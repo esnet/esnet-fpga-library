@@ -1,5 +1,6 @@
 module db_stash_lru #(
-    parameter int  SIZE = 8
+    parameter int  SIZE = 8,
+    parameter bit  WRITE_FLOW_THROUGH = 0
 )(
     // Clock/reset
     input  logic              clk,
@@ -45,8 +46,6 @@ module db_stash_lru #(
     // ----------------------------------
     // Signals
     // ----------------------------------
-    logic __srst;
-
     logic db_init;
     logic db_init_done;
 
@@ -78,10 +77,10 @@ module db_stash_lru #(
     // 'Standard' database core
     // ----------------------------------
     db_core #(
-        .NUM_WR_TRANSACTIONS ( 2 ),
+        .NUM_WR_TRANSACTIONS ( 1 ),
         .NUM_RD_TRANSACTIONS ( 2 ),
-        .DB_CACHE_EN ( 0 ),
-        .APP_CACHE_EN ( 0 ) // No caching; writes/reads are executed in one cycle
+        .DB_CACHE_EN ( 0 ), // Caching not required; read result takes into account any preceding writes
+        .APP_CACHE_EN ( 0 )
     ) i_db_core (
         .*
     );
@@ -90,9 +89,9 @@ module db_stash_lru #(
     // LRU cache implementation
     // ----------------------------------
     db_store_lru #(
-        .SIZE    ( SIZE )
+        .SIZE    ( SIZE ),
+        .WRITE_FLOW_THROUGH ( WRITE_FLOW_THROUGH )
     ) i_db_cache_lru (
-        .srst ( __srst ),
         .*
     );
 
