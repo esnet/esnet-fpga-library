@@ -7,7 +7,7 @@ module db_core #(
     parameter int  NUM_RD_TRANSACTIONS = 8, // Maximum number of database read transactions that can
                                             // be in flight (from the perspective of this module)
                                             // at any given time.
-    parameter bit  DB_CACHE_EN = 1'b1,      // Enable caching of db wr/rd interface transactions
+    parameter bit  DB_CACHE_EN = 1'b0,      // Enable caching of db wr/rd interface transactions
     parameter bit  APP_CACHE_EN = 1'b0      // Enable caching of app_wr/rd interface transactions to ensure consistency
                                             // of underlying state data for cases where multiple transactions
                                             // (closely spaced in time) target the same state ID; can be disabled to
@@ -124,7 +124,7 @@ module db_core #(
     //   of db wr/rd interfaces
     // ------------------------------------------------
     generate
-        if (DB_CACHE_EN) begin : g__db_cache
+        if (DB_CACHE_EN && (NUM_WR_TRANSACTIONS > 1)) begin : g__db_cache
             // (Local) typedefs
             typedef struct packed {
                 logic                 ins_del_n;
@@ -153,14 +153,6 @@ module db_core #(
             logic         cache_ctxt_out_vld;
             logic         cache_ctxt_q_oflow;
             logic         cache_ctxt_q_uflow;
-
-            rd_ctxt_t     rd_ctxt_in;
-            rd_ctxt_t     rd_ctxt_out;
-            logic         rd_ctxt_out_vld;
-            logic         rd_ctxt_q_oflow;
-            logic         rd_ctxt_q_uflow;
-
-            logic         ctxt_fifo_rd;
 
             // (Local) interfaces
             db_intf #(.KEY_WID(KEY_WID), .VALUE_WID($bits(cache_entry_t))) cache_wr_if (.clk);
@@ -211,42 +203,18 @@ module db_core #(
                 .wr_rdy  ( ),
                 .wr      ( cache_rd_if.ack ),
                 .wr_data ( cache_ctxt_in ),
-                .rd      ( ctxt_fifo_rd ),
+                .rd      ( db_rd_if.ack ),
                 .rd_vld  ( cache_ctxt_out_vld ),
                 .rd_data ( cache_ctxt_out ),
                 .oflow   ( cache_ctxt_q_oflow ),
                 .uflow   ( cache_ctxt_q_uflow )
             );
 
-            // Collect read responses
-            assign rd_ctxt_in.error    = db_rd_if.error;
-            assign rd_ctxt_in.next_key = db_rd_if.next_key;
-            assign rd_ctxt_in.valid    = db_rd_if.valid;
-            assign rd_ctxt_in.value    = db_rd_if.value;
-
-            fifo_small_ctxt  #(
-                .DATA_WID ( $bits(rd_ctxt_t) ),
-                .DEPTH    ( 2 )
-            ) i_fifo_small_ctxt__rd (
-                .clk     ( clk ),
-                .srst    ( __srst ),
-                .wr_rdy  ( ),
-                .wr      ( db_rd_if.ack ),
-                .wr_data ( rd_ctxt_in ),
-                .rd      ( ctxt_fifo_rd ),
-                .rd_vld  ( rd_ctxt_out_vld ),
-                .rd_data ( rd_ctxt_out ),
-                .oflow   ( rd_ctxt_q_oflow ),
-                .uflow   ( rd_ctxt_q_uflow )
-            );
-
-            assign ctxt_fifo_rd = rd_ctxt_out_vld && cache_ctxt_out_vld;
-
             // Incorporate cache result and drive read response
             initial __db_rd_if.ack = 1'b0;
             always @(posedge clk) begin
                 if (__srst) __db_rd_if.ack <= 1'b0;
-                else        __db_rd_if.ack <= ctxt_fifo_rd;
+                else        __db_rd_if.ack <= db_rd_if.ack;
             end
 
             always_ff @(posedge clk) begin
@@ -256,10 +224,10 @@ module db_core #(
                     __db_rd_if.value    <= cache_ctxt_out.value;
                     __db_rd_if.next_key <= '0;
                 end else begin
-                    __db_rd_if.error    <= rd_ctxt_out.error;
-                    __db_rd_if.valid    <= rd_ctxt_out.valid;
-                    __db_rd_if.next_key <= rd_ctxt_out.next_key;
-                    __db_rd_if.value    <= rd_ctxt_out.value;
+                    __db_rd_if.error    <= db_rd_if.error;
+                    __db_rd_if.valid    <= db_rd_if.valid;
+                    __db_rd_if.next_key <= db_rd_if.next_key;
+                    __db_rd_if.value    <= db_rd_if.value;
                 end
             end
 
@@ -283,7 +251,7 @@ module db_core #(
     // - ensures consistent 'instantaneous' view of the
     //   database contents for RMW consistency
     generate
-        if (APP_CACHE_EN) begin : g__app_cache
+        if (APP_CACHE_EN && (NUM_RD_TRANSACTIONS > 1)) begin : g__app_cache
             // (Local) typedefs
             typedef struct packed {
                 logic                 ins_del_n;
@@ -303,8 +271,11 @@ module db_core #(
             rd_req_ctxt_t  rd_req_ctxt_out;
             logic          rd_req_ctxt_out_vld;
 
-            logic                 app_rd_if__valid;
-            logic [VALUE_WID-1:0] app_rd_if__value;
+            logic                 app_rd_if__ack   [2];
+            logic                 app_rd_if__valid [2];
+            logic [VALUE_WID-1:0] app_rd_if__value [2];
+            logic                 app_rd_if__error [2];
+            logic [KEY_WID-1:0]   app_rd_if__next_key [2];
 
             // (Local) interfaces
             db_intf #(.KEY_WID(KEY_WID), .VALUE_WID($bits(cache_entry_t))) cache_wr_if (.clk);
@@ -332,10 +303,10 @@ module db_core #(
             assign cache_wr_if.next = 1'b0; // Unused
 
             // Read request context (wait for read to complete)
-            fifo_small_ctxt #(
+            fifo_ctxt #(
                 .DATA_WID ( $bits(rd_req_ctxt_t) ),
                 .DEPTH    ( NUM_RD_TRANSACTIONS )
-            ) i_fifo_small_ctxt__rd_req (
+            ) i_fifo_ctxt__rd_req (
                 .clk     ( clk ),
                 .srst    ( __srst ),
                 .wr_rdy  ( ),
@@ -364,29 +335,38 @@ module db_core #(
             assign app_rd_if.rdy = __app_rd_if.rdy;
 
             // Account for cache read
-            initial app_rd_if.ack = 1'b0;
+            initial app_rd_if__ack = '{default: 1'b0};
             always @(posedge clk) begin
-                if (__srst)                app_rd_if.ack <= 1'b0;
-                else if (__app_rd_if.ack)  app_rd_if.ack <= 1'b1;
-                else                       app_rd_if.ack <= 1'b0;
+                if (__srst) app_rd_if__ack <= '{default: 1'b0};
+                else begin
+                    app_rd_if__ack[0] <= __app_rd_if.ack;
+                    app_rd_if__ack[1] <= app_rd_if__ack[0];
+                end
             end
+            assign app_rd_if.ack = app_rd_if__ack[1];
 
             always_ff @(posedge clk) begin
-                app_rd_if.error <= __app_rd_if.error;
-                app_rd_if.next_key <= __app_rd_if.next_key;
+                app_rd_if__valid   [0] <= __app_rd_if.valid;
+                app_rd_if__value   [0] <= __app_rd_if.value;
+                app_rd_if__error   [0] <= __app_rd_if.error;
+                app_rd_if__next_key[0] <= __app_rd_if.next_key;
+                app_rd_if__valid   [1] <= app_rd_if__valid[0];
+                app_rd_if__value   [1] <= app_rd_if__value[0];
+                app_rd_if__error   [1] <= app_rd_if__error[0];
+                app_rd_if__next_key[1] <= app_rd_if__next_key[0];
             end
 
             // Response (incorporate cache result)
-            always_ff @(posedge clk) begin
-                app_rd_if__valid <= __app_rd_if.valid;
-                app_rd_if__value <= __app_rd_if.value;
-            end
             always_comb begin
-                app_rd_if.valid = app_rd_if__valid;
-                app_rd_if.value = app_rd_if__value;
+                app_rd_if.valid = app_rd_if__valid[1];
+                app_rd_if.value = app_rd_if__value[1];
+                app_rd_if.error = app_rd_if__error[1];
+                app_rd_if.next_key = app_rd_if__next_key[1];
                 if (cache_rd_if.ack && cache_rd_if.valid) begin
                     app_rd_if.valid = cache_rd_if_value.ins_del_n;
                     app_rd_if.value = cache_rd_if_value.value;
+                    app_rd_if.error = cache_rd_if.error;
+                    app_rd_if.next_key = cache_rd_if.next_key;
                 end
             end
         end : g__app_cache
