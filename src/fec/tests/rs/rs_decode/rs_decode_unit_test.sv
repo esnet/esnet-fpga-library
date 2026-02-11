@@ -176,6 +176,7 @@ module rs_decode_unit_test;
         svunit_ut.setup();
         env.run();
 
+        env.monitor.enable_stalls(.stall_cycles(0));  // 0 is random within default range (0-4).
         #50ns;
 
     endtask
@@ -237,7 +238,7 @@ module rs_decode_unit_test;
             end
 
             fork
-                #10us if (!rx_done) `INFO("TIMEOUT! waiting for rx packets...");
+                #20us if (!rx_done) `INFO("TIMEOUT! waiting for rx packets...");
 
                 while (!rx_done) #100ns if (env.scoreboard.exp_pending()==0) rx_done=1;
             join_any

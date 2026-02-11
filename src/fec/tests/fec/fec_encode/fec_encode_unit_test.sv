@@ -16,23 +16,20 @@ module fec_encode_unit_test;
     //===================================
     // Parameters
     //===================================
-    localparam int DATA_IN_WID  = 512;
-    localparam int NUM_THREADS  = 2;
-    localparam int NUM_CW       = DATA_IN_WID / (RS_K * NUM_THREADS * SYM_SIZE);
-
-    localparam int DATA_OUT_WID = DATA_IN_WID * RS_N / RS_K;
+    localparam int DATA_IN_WID = 512;
+    localparam int NUM_THREADS = 2;
 
     //===================================
     // Derived parameters
     //===================================
+    localparam int PARITY_OUT_WID = DATA_IN_WID * RS_2T / RS_K;
+    localparam int NUM_CW         = DATA_IN_WID / (RS_K * NUM_THREADS * SYM_SIZE);
 
     //===================================
     // Typedefs
     //===================================
     typedef logic [NUM_CW*RS_K -1:0][NUM_THREADS*SYM_SIZE-1:0] DATA_IN_T;
     typedef logic [NUM_CW*RS_2T-1:0][NUM_THREADS*SYM_SIZE-1:0] PARITY_OUT_T;
-
-    typedef logic [NUM_CW*RS_N -1:0][NUM_THREADS*SYM_SIZE-1:0] DATA_OUT_T;
 
     //===================================
     // DUT
@@ -49,15 +46,15 @@ module fec_encode_unit_test;
     logic      data_out_valid;
     logic      data_out_ready;
 
-    fec_encode DUT (.*);
+    fec_encode #(.DATA_BYTE_WID(DATA_IN_WID/8), .NUM_THREADS(NUM_THREADS)) DUT (.*);
 
     //===================================
     // Testbench
     //===================================
-    rs_encode_tb_env #(NUM_THREADS, DATA_IN_T, DATA_OUT_T) env;
+    rs_encode_tb_env #(NUM_THREADS, DATA_IN_T, PARITY_OUT_T) env;
 
-    bus_intf #(DATA_IN_WID)  wr_if (.clk);
-    bus_intf #(DATA_OUT_WID) rd_if (.clk);
+    bus_intf #(DATA_IN_WID)    wr_if (.clk);
+    bus_intf #(PARITY_OUT_WID) rd_if (.clk);
 
     std_reset_intf reset_if (.clk);
 
@@ -73,7 +70,7 @@ module fec_encode_unit_test;
     assign wr_if.ready    = data_in_ready;
 
     assign data_out_ready = rd_if.ready;
-    assign rd_if.data     = {parity_out, data_out};
+    assign rd_if.data     = parity_out;
     assign rd_if.valid    = data_out_valid;
 
     // Assign clock (100MHz)
@@ -99,6 +96,7 @@ module fec_encode_unit_test;
         svunit_ut.setup();
         env.run();
 
+        env.monitor.enable_stalls(.stall_cycles(0));  // 0 is random within default range (0-4).
         #50ns;
 
     endtask
@@ -174,7 +172,7 @@ module fec_encode_unit_test;
             end
 
             fork
-                #10us if (!rx_done) `INFO("TIMEOUT! waiting for rx packets...");
+                #20us if (!rx_done) `INFO("TIMEOUT! waiting for rx packets...");
 
                 while (!rx_done) #100ns if (env.scoreboard.exp_pending()==0) rx_done=1;
             join_any

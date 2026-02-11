@@ -3,8 +3,8 @@ import fec_pkg::*;
 
 class rs_model #(
     parameter int  NUM_THREADS = 2,  // # threads = # symbols per data unit e.g. 2 symbols per byte.
-    parameter type TRANSACTION_IN_T  = raw_transaction#(logic [RS_K-1:0][NUM_THREADS*SYM_SIZE-1:0]),
-    parameter type TRANSACTION_OUT_T = raw_transaction#(logic [RS_N-1:0][NUM_THREADS*SYM_SIZE-1:0])
+    parameter type TRANSACTION_IN_T  = raw_transaction#(logic [RS_K -1:0][NUM_THREADS*SYM_SIZE-1:0]),
+    parameter type TRANSACTION_OUT_T = raw_transaction#(logic [RS_2T-1:0][NUM_THREADS*SYM_SIZE-1:0])
 ) extends model#(TRANSACTION_IN_T, TRANSACTION_OUT_T);
 
     local static const string __CLASS_NAME = "fec_verif_pkg::rs_model";
@@ -41,7 +41,6 @@ class rs_model #(
         logic [NUM_CW-1:0][NUM_THREADS-1:0][RS_2T-1:0][SYM_SIZE-1:0] rem;
 
         logic [NUM_CW-1:0][RS_2T-1:0][NUM_THREADS*SYM_SIZE-1:0] parity_out;
-        logic [NUM_CW-1:0][RS_N -1:0][NUM_THREADS*SYM_SIZE-1:0] data_out;
 
 
         // rearrange and organize input data.
@@ -69,9 +68,7 @@ class rs_model #(
             end
         end
 
-        data_out = { parity_out, transaction_in.data };
-
-        transaction_out = new($sformatf("trans_%0d_out", num_output_transactions()), data_out);
+        transaction_out = new($sformatf("trans_%0d_out", num_output_transactions()), parity_out);
 
         _enqueue(transaction_out);
     endtask

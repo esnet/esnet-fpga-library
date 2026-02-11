@@ -16,8 +16,8 @@ module rs_encode_unit_test;
     //===================================
     // Parameters
     //===================================
-    localparam int DATA_IN_WID  = RS_K * SYM_SIZE;
-    localparam int DATA_OUT_WID = RS_N * SYM_SIZE;
+    localparam int DATA_IN_WID    = RS_K  * SYM_SIZE;
+    localparam int PARITY_OUT_WID = RS_2T * SYM_SIZE;
 
     //===================================
     // Derived parameters
@@ -27,7 +27,6 @@ module rs_encode_unit_test;
     // Typedefs
     //===================================
     typedef logic [RS_K -1:0][SYM_SIZE-1:0] DATA_IN_T;
-    typedef logic [RS_N -1:0][SYM_SIZE-1:0] DATA_OUT_T;
     typedef logic [RS_2T-1:0][SYM_SIZE-1:0] PARITY_OUT_T;
 
     //===================================
@@ -50,10 +49,10 @@ module rs_encode_unit_test;
     //===================================
     // Testbench
     //===================================
-    rs_encode_tb_env #(1, DATA_IN_T, DATA_OUT_T) env;  // NUM_THREADS=1
+    rs_encode_tb_env #(1, DATA_IN_T, PARITY_OUT_T) env;  // NUM_THREADS=1
 
-    bus_intf #(DATA_IN_WID)  wr_if (.clk);
-    bus_intf #(DATA_OUT_WID) rd_if (.clk);
+    bus_intf #(DATA_IN_WID)    wr_if (.clk);
+    bus_intf #(PARITY_OUT_WID) rd_if (.clk);
 
     std_reset_intf reset_if (.clk);
 
@@ -69,7 +68,7 @@ module rs_encode_unit_test;
     assign wr_if.ready    = data_in_ready;
 
     assign data_out_ready = rd_if.ready;
-    assign rd_if.data     = {parity_out, data_out};
+    assign rd_if.data     = parity_out;
     assign rd_if.valid    = data_out_valid;
 
     // Assign clock (100MHz)
@@ -95,6 +94,7 @@ module rs_encode_unit_test;
         svunit_ut.setup();
         env.run();
 
+        env.monitor.enable_stalls(.stall_cycles(0));  // 0 is random within default range (0-4).
         #50ns;
 
     endtask
@@ -158,7 +158,7 @@ module rs_encode_unit_test;
             end
 
             fork
-                #10us if (!rx_done) `INFO("TIMEOUT! waiting for rx packets...");
+                #20us if (!rx_done) `INFO("TIMEOUT! waiting for rx packets...");
 
                 while (!rx_done) #100ns if (env.scoreboard.exp_pending()==0) rx_done=1;
             join_any
