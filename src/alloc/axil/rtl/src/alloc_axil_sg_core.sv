@@ -12,6 +12,7 @@ module alloc_axil_sg_core #(
     parameter int  LOAD_Q_DEPTH = 32,
     parameter bit  LOAD_FC = 1'b1,    // Can flow control dealloc interface
     parameter int  N_ALLOC = 1,
+    parameter int  MEM_WR_LATENCY = 8,
     // Derived parameters (don't override)
     parameter int  FRAME_SIZE_WID = $clog2(MAX_FRAME_SIZE+1),
     // Simulation-only
@@ -86,6 +87,7 @@ module alloc_axil_sg_core #(
         .LOAD_Q_DEPTH     ( LOAD_Q_DEPTH ),
         .LOAD_FC          ( LOAD_FC ),
         .N_ALLOC          ( N_ALLOC ),
+        .MEM_WR_LATENCY   ( MEM_WR_LATENCY ),
         .SIM__FAST_INIT   ( SIM__FAST_INIT ),
         .SIM__RAM_MODEL   ( SIM__RAM_MODEL )
     ) i_alloc_sg_core (

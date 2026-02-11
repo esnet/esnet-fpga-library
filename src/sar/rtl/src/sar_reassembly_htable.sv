@@ -156,7 +156,6 @@ module sar_reassembly_htable
         .NUM_TABLES          ( NUM_TABLES ),
         .TABLE_SIZE          ( '{default: TABLE_SIZE} ),
         .HASH_LATENCY        ( 1 ),
-        .NUM_WR_TRANSACTIONS ( NUM_WR_TRANSACTIONS ),
         .NUM_RD_TRANSACTIONS ( NUM_RD_TRANSACTIONS ),
         .UPDATE_BURST_SIZE   ( BURST_SIZE )
     ) i_htable_cuckoo_fast_update_core (

@@ -67,10 +67,10 @@ module mem_wr_mux #(
             end
 
             // Context FIFO
-            fifo_small_ctxt #(
+            fifo_ctxt #(
                 .DATA_WID    ( SEL_WID ),
                 .DEPTH       ( NUM_TRANSACTIONS )
-            ) i_fifo_small_ctxt (
+            ) i_fifo_ctxt (
                 .clk,
                 .srst,
                 .wr_rdy  ( ),

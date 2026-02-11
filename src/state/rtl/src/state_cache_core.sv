@@ -6,7 +6,6 @@ module state_cache_core
     parameter int  NUM_TABLES = 3,
     parameter int  TABLE_SIZE [NUM_TABLES] = '{default: 512},
     parameter int  HASH_LATENCY = 0,
-    parameter int  NUM_WR_TRANSACTIONS = 4,
     parameter int  NUM_RD_TRANSACTIONS = 8,
     parameter int  UPDATE_BURST_SIZE = 8,
     // Simulation-only
@@ -248,7 +247,6 @@ module state_cache_core
         .NUM_TABLES          ( NUM_TABLES ),
         .TABLE_SIZE          ( TABLE_SIZE ),
         .HASH_LATENCY        ( HASH_LATENCY ),
-        .NUM_WR_TRANSACTIONS ( NUM_WR_TRANSACTIONS ),
         .NUM_RD_TRANSACTIONS ( NUM_RD_TRANSACTIONS ),
         .UPDATE_BURST_SIZE   ( UPDATE_BURST_SIZE )
     ) i_htable_cuckoo_fast_update_core   (
@@ -386,7 +384,7 @@ module state_cache_core
     // (assumption here is that deletions can be backpressured and therefore less
     //  time-sensitive, whereas insertion operations need to be executed promptly)
     db_intf_prio_mux     #(
-        .NUM_TRANSACTIONS ( NUM_WR_TRANSACTIONS ),
+        .NUM_TRANSACTIONS ( 1 ),
         .WR_RD_N          ( 1 )
     ) i_db_intf_prio_mux (
         .clk                    ( clk ),

@@ -6,7 +6,6 @@ module htable_cuckoo_fast_update_core
     parameter int  NUM_TABLES = 3,
     parameter int  TABLE_SIZE [NUM_TABLES] = '{default: 4096},
     parameter int  HASH_LATENCY = 0,
-    parameter int  NUM_WR_TRANSACTIONS = 4,
     parameter int  NUM_RD_TRANSACTIONS = 8,
     parameter int  UPDATE_BURST_SIZE = 8
 )(
@@ -93,7 +92,7 @@ module htable_cuckoo_fast_update_core
     // Database core
     // ----------------------------------
     db_core          #(
-        .NUM_WR_TRANSACTIONS ( NUM_WR_TRANSACTIONS ),
+        .NUM_WR_TRANSACTIONS ( 1 ),
         .NUM_RD_TRANSACTIONS ( NUM_RD_TRANSACTIONS ),
         .APP_CACHE_EN ( 0 ),
         .DB_CACHE_EN  ( 0 )
@@ -149,7 +148,7 @@ module htable_cuckoo_fast_update_core
         .NUM_TABLES          ( NUM_TABLES ),
         .TABLE_SIZE          ( TABLE_SIZE ),
         .HASH_LATENCY        ( HASH_LATENCY ),
-        .NUM_WR_TRANSACTIONS ( NUM_WR_TRANSACTIONS ),
+        .NUM_WR_TRANSACTIONS ( 1 ),
         .NUM_RD_TRANSACTIONS ( NUM_RD_TRANSACTIONS )
     ) i_htable_cuckoo_core   (
         .clk                 ( clk ),

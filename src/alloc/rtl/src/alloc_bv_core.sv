@@ -276,12 +276,12 @@ module alloc_bv_core #(
     //  and read operations occuring during scanning)
     assign rd_ctxt_in.scan = !rd;
 
-    fifo_small_ctxt #(
+    fifo_ctxt #(
         .DATA_WID ( $bits(rd_ctxt_t) ),
         .DEPTH    ( MEM_RD_LATENCY ),
         .REPORT_OFLOW ( 1 ),
         .REPORT_UFLOW ( 1 )
-    ) i_fifo_small_ctxt__rd_ctxt (
+    ) i_fifo_ctxt__rd_ctxt (
         .clk,
         .srst,
         .wr_rdy  ( ),

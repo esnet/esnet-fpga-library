@@ -88,7 +88,7 @@ module htable_multi_stash_core
     logic               stash_init_done;
     stash_lookup_resp_t stash_lookup_resp_in;
     stash_lookup_resp_t stash_lookup_resp;
-    logic               stash_lookup_resp_fifo_empty;
+    logic               stash_lookup_resp_uflow;
 
     // ----------------------------------
     // Interfaces
@@ -146,10 +146,9 @@ module htable_multi_stash_core
     // ----------------------------------
     // Stash
     // ----------------------------------
-    db_stash    #(
-        .SIZE    ( STASH_SIZE ),
-        .REG_REQ ( 1 )
-    ) i_db_stash (
+    db_stash      #(
+        .SIZE      ( STASH_SIZE )
+    ) i_db_stash   (
         .clk       ( clk ),
         .srst      ( srst ),
         .init_done ( stash_init_done ),
@@ -175,21 +174,22 @@ module htable_multi_stash_core
 
     // This assumes tbl lookup takes at least one cycle longer than stash lookup;
     // use fifo_small_* here for single-cycle write-to-read latency
-    fifo_small    #(
-        .DATA_WID  ( $bits(stash_lookup_resp_t) ),
-        .DEPTH     ( NUM_RD_TRANSACTIONS )
-    ) i_fifo_small__lookup_resp (
+    fifo_ctxt        #(
+        .DATA_WID     ( $bits(stash_lookup_resp_t) ),
+        .DEPTH        ( NUM_RD_TRANSACTIONS ),
+        .REPORT_OFLOW ( 1 ),
+        .REPORT_UFLOW ( 1 )
+    ) i_fifo_ctxt__lookup_resp (
         .clk     ( clk ),
         .srst    ( srst ),
         .wr      ( stash_lookup_if.ack ),
+        .wr_rdy  ( ),
         .wr_data ( stash_lookup_resp_in ),
-        .full    ( ),
-        .oflow   ( ),
         .rd      ( tbl_lookup_if.ack ),
+        .rd_vld  ( ),
         .rd_data ( stash_lookup_resp ),
-        .empty   ( stash_lookup_resp_fifo_empty ),
-        .uflow   ( ),
-        .count   ( )
+        .oflow   ( ),
+        .uflow   ( stash_lookup_resp_uflow )
     );
 
     // ----------------------------------
@@ -198,17 +198,17 @@ module htable_multi_stash_core
     // Lookup interface is ready when both tables and stash are ready
     assign lookup_if.rdy = tbl_lookup_if.rdy && stash_lookup_if.rdy;
 
-    assign tbl_lookup_if.req   = lookup_if.req && stash_lookup_if.rdy;
-    assign tbl_lookup_if.key   = lookup_if.key;
+    assign tbl_lookup_if.req  = lookup_if.req && stash_lookup_if.rdy;
+    assign tbl_lookup_if.key  = lookup_if.key;
     assign tbl_lookup_if.next = 1'b0; // Unsupported in lookup context
 
-    assign stash_lookup_if.req = lookup_if.req && tbl_lookup_if.rdy;
-    assign stash_lookup_if.key = lookup_if.key;
+    assign stash_lookup_if.req  = lookup_if.req && tbl_lookup_if.rdy;
+    assign stash_lookup_if.key  = lookup_if.key;
     assign stash_lookup_if.next = 1'b0; // Unsupported in lookup context
             
     // Lookup response
     assign lookup_if.ack = tbl_lookup_if.ack;
-    assign lookup_if.error = stash_lookup_resp.error || tbl_lookup_if.error || stash_lookup_resp_fifo_empty;
+    assign lookup_if.error = stash_lookup_resp.error || tbl_lookup_if.error || stash_lookup_resp_uflow;
 
     always_comb begin
         lookup_if.valid = 1'b0;

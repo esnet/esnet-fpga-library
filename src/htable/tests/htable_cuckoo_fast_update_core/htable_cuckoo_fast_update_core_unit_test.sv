@@ -16,7 +16,7 @@ module htable_cuckoo_fast_update_core_unit_test;
     //===================================
     parameter int KEY_WID = 96;
     parameter int VALUE_WID = 32;
-    parameter int HASH_WID = 8;
+    parameter int HASH_WID = 9;
     parameter int TIMEOUT_CYCLES = 0;
     parameter int HASH_LATENCY = 0;
     

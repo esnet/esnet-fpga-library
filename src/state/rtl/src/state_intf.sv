@@ -369,10 +369,10 @@ module state_intf_control_mux #(
     assign to_target.update = ctrl_sel_in ? __from_control.update : from_datapath.update;
 
     // Maintain context for open transactions
-    fifo_small_ctxt #(
+    fifo_ctxt #(
         .DATA_WID ( 1 ),
         .DEPTH    ( NUM_TRANSACTIONS )
-    ) i_fifo_small_ctxt (
+    ) i_fifo_ctxt (
         .clk     ( clk ),
         .srst    ( srst ),
         .wr_rdy  ( ),

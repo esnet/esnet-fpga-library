@@ -191,10 +191,10 @@ module packet_read
     end
 
     // Read context
-    fifo_small_ctxt  #(
+    fifo_ctxt  #(
         .DATA_WID ( $bits(ctxt_t) ),
         .DEPTH    ( MAX_RD_LATENCY )
-    ) i_fifo_small_ctxt (
+    ) i_fifo_ctxt (
         .clk,
         .srst,
         .wr_rdy  ( ),

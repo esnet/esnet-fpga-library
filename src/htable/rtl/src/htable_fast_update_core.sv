@@ -202,24 +202,21 @@ module htable_fast_update_core #(
     // Store lookup request context
     assign tbl_req_ctxt_in.key = tbl_lookup_if.key;
 
-    fifo_sync    #(
+    fifo_ctxt    #(
         .DATA_WID ( $bits(req_ctxt_t) ),
         .DEPTH    ( NUM_RD_TRANSACTIONS ),
-        .FWFT     ( 1 )
-    ) i_fifo_sync__tbl_lookup_req_ctxt (
+        .REPORT_OFLOW ( 1 ),
+        .REPORT_UFLOW ( 1 )
+    ) i_fifo_ctxt__tbl_lookup_req_ctxt (
         .clk     ( clk ),
         .srst    ( __srst ),
-        .wr_rdy  ( ),
         .wr      ( tbl_lookup_if.req && tbl_lookup_if.rdy ),
+        .wr_rdy  ( ),
         .wr_data ( tbl_req_ctxt_in ),
-        .wr_count( ),
-        .full    ( ),
-        .oflow   ( ),
         .rd      ( tbl_lookup_if.ack ),
+        .rd_vld  ( ),
         .rd_data ( tbl_req_ctxt_out ),
-        .rd_ack  ( ),
-        .rd_count( ),
-        .empty   ( ),
+        .oflow   ( ),
         .uflow   ( )
     );
 
@@ -300,7 +297,7 @@ module htable_fast_update_core #(
     initial state = RESET;
     always @(posedge clk) begin
         if (__srst) state <= RESET;
-        else      state <= nxt_state;
+        else        state <= nxt_state;
     end
 
     always_comb begin
