@@ -25,6 +25,7 @@ waves ?= OFF
 SUBCOMPONENTS = \
     std.verif \
     bus.verif \
+    fifo.rtl \
     fec.pkg \
     fec.rtl \
     fec.verif \
