@@ -128,13 +128,13 @@ module mem_ram_sp
     // Base RAM is always ready
     assign __mem_if.rdy = 1'b1;
 
+`ifndef SYNTHESIS
     // Check for expected write/read latencies
     initial begin
         std_pkg::param_check(WR_LATENCY_RAM, i_xilinx_ram_sp.WR_LATENCY, "WR_LATENCY");
         std_pkg::param_check(RD_LATENCY_RAM, i_xilinx_ram_sp.RD_LATENCY, "RD_LATENCY");
     end
 
-`ifndef SYNTHESIS
         end : g__ram
     endgenerate
 `endif // ifndef SYNTHESIS

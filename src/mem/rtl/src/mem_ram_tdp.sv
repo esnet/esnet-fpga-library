@@ -201,13 +201,13 @@ module mem_ram_tdp
     assign __mem_if_0.rdy = 1'b1;
     assign __mem_if_1.rdy = 1'b1;
 
+`ifndef SYNTHESIS
     // Check for expected write/read latencies
     initial begin
         std_pkg::param_check(WR_LATENCY_RAM, i_xilinx_ram_tdp.WR_LATENCY, "WR_LATENCY");
         std_pkg::param_check(RD_LATENCY_RAM, i_xilinx_ram_tdp.RD_LATENCY, "RD_LATENCY");
     end
 
-`ifndef SYNTHESIS
         end : g__ram
     endgenerate
 `endif // ifndef SYNTHESIS
