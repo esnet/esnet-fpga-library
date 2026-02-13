@@ -105,14 +105,41 @@ IP_SIM_INC_DIRS += \
      $(VITISNETP4_IP_NAME)/src/verilog
 
 EXT_LIBS += \
- 	$(XILINX_VIVADO)/data/rsb/busdef \
-	cam_v$(IP_VER_CAM) \
+    $(XILINX_VIVADO)/data/rsb/busdef \
+    cam_v$(IP_VER_CAM) \
     cam_blk_lib_v1_3_0 \
     cdcam_v$(IP_VER_CDCAM) \
     vitis_net_p4_v$(IP_VER_VITIS_NET_P4) \
     unisims_ver \
     unisims_macro \
     xpm
+else
+ifeq ($(VIVADO_ACTIVE_VERSION__MAJOR),2025.2)
+IP_SIM_INC_DIRS += \
+     $(VITISNETP4_IP_NAME)/hdl \
+     $(VITISNETP4_IP_NAME)/hdl/include \
+     $(VITISNETP4_IP_NAME)/hdl/fpga_asic_macros_v1_0/hdl/include/fpga \
+     $(VITISNETP4_IP_NAME)/hdl/mcfh_v3_0/hdl/include \
+     $(VITISNETP4_IP_NAME)/hdl/cue_v2_0/hdl \
+     $(VITISNETP4_IP_NAME)/hdl/infrastructure_v6_4/ic_infrastructure/libs/axi \
+     $(VITISNETP4_IP_NAME)/hdl/atom_v1_1/hdl \
+     $(VITISNETP4_IP_NAME)/hdl/dbpl_v1_1/hdl \
+     $(VITISNETP4_IP_NAME)/hdl/dbcam_v2_0/hdl \
+     $(VITISNETP4_IP_NAME)/hdl/axil_mil_v2_4/axil_mil/sv/axil_mil \
+     $(VITISNETP4_IP_NAME)/src/hw/simulation \
+     $(VITISNETP4_IP_NAME)/src/hw/top/hdl \
+     $(VITISNETP4_IP_NAME)/src/verilog
+
+EXT_LIBS += \
+    $(XILINX_VIVADO)/data/rsb/busdef \
+    cam_v$(IP_VER_CAM) \
+    cam_blk_lib_v1_4_0 \
+    cdcam_v$(IP_VER_CDCAM) \
+    vitis_net_p4_v$(IP_VER_VITIS_NET_P4) \
+    unisims_ver \
+    unisims_macro \
+    xpm
+endif
 endif
 endif
 endif
