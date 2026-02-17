@@ -22,6 +22,9 @@ module rs_acc
     localparam CLKS_PER_COL = SYM_PER_COL / DATA_SYM_WID;  // CLKS_PER_COL >= 4 (PIPE_STAGES).
     localparam CLKS_PER_BLK = SYM_PER_BLK / DATA_SYM_WID;
 
+    // parameter validation.
+    initial std_pkg::param_check_gt(CLKS_PER_COL, 4, "CLKS_PER_COL i.e. SYM_PER_COL/(DATA_WID/SYM_SIZE) >= 4");
+
     localparam PIPE_STAGES = 4;  // ingress pipeline parameters.
     localparam   RD_STAGE  = 0;
     localparam   PP_STAGE  = 1;
