@@ -41,7 +41,7 @@ module fec_decode_unit_test;
     logic         data_out_valid;
     logic         data_out_ready;
 
-    fec_encode DUT0 (.*);
+    fec_encode #(.DATA_WID(DATA_IN_WID), .NUM_THREADS(NUM_THREADS)) DUT0 (.*);
 
 
     logic [$clog2(NUM_H)-1:0] err_loc_in;
@@ -53,7 +53,7 @@ module fec_decode_unit_test;
     logic                     dec_data_in_valid;
     logic                     dec_data_in_ready;
 
-    fec_err_inject DUT1 (
+    fec_err_inject #(.DATA_WID(DATA_IN_WID), .NUM_THREADS(NUM_THREADS)) DUT1 (
         .clk            (clk),
         .srst           (srst),
 
@@ -74,7 +74,7 @@ module fec_decode_unit_test;
     logic      dec_data_out_valid;
     logic      dec_data_out_ready;
 
-    fec_decode DUT2 (
+    fec_decode #(.DATA_WID(DATA_IN_WID), .NUM_THREADS(NUM_THREADS)) DUT2 (
         .clk            (clk),
         .srst           (srst),
 

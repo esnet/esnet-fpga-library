@@ -46,7 +46,7 @@ module fec_encode_unit_test;
     logic      data_out_valid;
     logic      data_out_ready;
 
-    fec_encode #(.DATA_BYTE_WID(DATA_IN_WID/8), .NUM_THREADS(NUM_THREADS)) DUT (.*);
+    fec_encode #(.DATA_WID(DATA_IN_WID), .NUM_THREADS(NUM_THREADS)) DUT (.*);
 
     //===================================
     // Testbench
