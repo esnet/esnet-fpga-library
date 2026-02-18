@@ -43,8 +43,7 @@ module db_stash_unit_test;
     logic db_init_done;
     
     db_stash #(
-        .SIZE (SIZE),
-        .REG_REQ ( 1'b1 )
+        .SIZE (SIZE)
     ) DUT (.*);
 
     //===================================

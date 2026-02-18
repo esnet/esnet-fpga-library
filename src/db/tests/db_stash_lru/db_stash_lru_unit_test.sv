@@ -40,7 +40,8 @@ module db_stash_lru_unit_test;
     db_intf #(.KEY_WID(KEY_WID), .VALUE_WID(VALUE_WID)) app_rd_if (.clk);
     
     db_stash_lru #(
-        .SIZE (SIZE)
+        .SIZE (SIZE),
+        .WRITE_FLOW_THROUGH ( 0 )
     ) DUT (.*);
 
     //===================================

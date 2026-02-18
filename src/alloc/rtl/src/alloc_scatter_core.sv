@@ -328,12 +328,12 @@ module alloc_scatter_core #(
 
     always_ff @(posedge clk) wr_ack <= desc_mem_wr_if.ack;
 
-    fifo_small_ctxt    #(
+    fifo_ctxt    #(
         .DATA_WID ( $bits(wr_ctxt_t) ),
         .DEPTH    ( MEM_WR_LATENCY ),
         .REPORT_OFLOW ( 1 ),
         .REPORT_UFLOW ( 1 )
-    ) i_fifo_small_ctxt__wr_ctxt (
+    ) i_fifo_ctxt__wr_ctxt (
         .clk,
         .srst,
         .wr      ( wr_ctxt_in_vld ),

@@ -77,7 +77,6 @@ module state_cache_core_unit_test;
         .NUM_TABLES ( NUM_TABLES ),
         .TABLE_SIZE ( TABLE_SIZE ),
         .HASH_LATENCY ( 0 ),
-        .NUM_WR_TRANSACTIONS ( 4 ),
         .NUM_RD_TRANSACTIONS ( 8 ),
         .UPDATE_BURST_SIZE ( BURST_SIZE )
     ) DUT (.*);

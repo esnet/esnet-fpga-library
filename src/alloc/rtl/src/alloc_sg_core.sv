@@ -11,6 +11,7 @@ module alloc_sg_core #(
     parameter bit  LOAD_FC = 1'b1,   // Can flow control dealloc interface
     parameter int  N_ALLOC = 1,      // (powers of 2 only) Controls parallelism of allocator logic; can be
                                              // used to increase allocation throughput. See alloc_bv for details.
+    parameter int  MEM_WR_LATENCY = 8,
     // Derived parameters (don't override)
     parameter int  FRAME_SIZE_WID = $clog2(MAX_FRAME_SIZE+1),
     // Simulation-only
@@ -113,8 +114,8 @@ module alloc_sg_core #(
         .DEALLOC_Q_DEPTH ( LOAD_Q_DEPTH ),
         .DEALLOC_FC      ( LOAD_FC ),
         .NUM_SLICES      ( N_ALLOC ),
-        .SIM__FAST_INIT ( SIM__FAST_INIT ),
-        .SIM__RAM_MODEL ( SIM__RAM_MODEL )
+        .SIM__FAST_INIT  ( SIM__FAST_INIT ),
+        .SIM__RAM_MODEL  ( SIM__RAM_MODEL )
     ) i_alloc_bv__ptr (
         .clk,
         .srst,
@@ -141,6 +142,7 @@ module alloc_sg_core #(
         .MAX_FRAME_SIZE ( MAX_FRAME_SIZE ),
         .META_WID       ( META_WID ),
         .Q_DEPTH        ( STORE_Q_DEPTH ),
+        .MEM_WR_LATENCY ( MEM_WR_LATENCY ),
         .SIM__FAST_INIT ( SIM__FAST_INIT )
     ) i_alloc_scatter_core (
         .*

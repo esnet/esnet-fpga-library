@@ -29,12 +29,21 @@ module alloc_axil_sg_core_unit_test #(
     localparam type META_T = logic;
     localparam int  CONTEXTS = 1;
     localparam int  Q_DEPTH = 8;
-    localparam int  PREALLOC_DEPTH = CONTEXTS * (CONTEXTS + 2);
+    localparam int  PREALLOC_DEPTH = CONTEXTS * CONTEXTS;
 
     localparam int  META_WID = $bits(META_T);
 
     localparam type DESC_T = alloc_pkg::alloc#(BUFFER_SIZE, PTR_WID, META_WID)::desc_t;
     localparam int  DESC_WID = $bits(DESC_T);
+
+    localparam mem_pkg::spec_t  MEM_SPEC = '{
+                                        ADDR_WID: PTR_WID,
+                                        DATA_WID: DESC_WID,
+                                        ASYNC: 1'b0,
+                                        RESET_FSM: 1'b0,
+                                        OPT_MODE: mem_pkg::OPT_MODE_DEFAULT
+                                    };
+    localparam int MEM_WR_LATENCY = mem_pkg::get_wr_latency(MEM_SPEC);
 
     //===================================
     // DUT
@@ -75,11 +84,12 @@ module alloc_axil_sg_core_unit_test #(
         .META_WID         ( META_WID ),
         .STORE_Q_DEPTH    ( Q_DEPTH ),
         .LOAD_Q_DEPTH     ( Q_DEPTH ),
-        .N_ALLOC          ( N_ALLOC )
+        .N_ALLOC          ( N_ALLOC ),
+        .MEM_WR_LATENCY   ( MEM_WR_LATENCY )
     ) DUT (.*);
 
     mem_ram_sdp #(
-        .SPEC ( '{ADDR_WID: PTR_WID, DATA_WID: DESC_WID, ASYNC: 1'b0, RESET_FSM: 1'b0, OPT_MODE: mem_pkg::OPT_MODE_DEFAULT} ),
+        .SPEC ( MEM_SPEC ),
         .SIM__RAM_MODEL ( RAM_MODEL )
     ) i_mem_ram_sdp (
         .mem_wr_if ( desc_mem_wr_if ),
