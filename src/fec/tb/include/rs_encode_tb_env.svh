@@ -2,29 +2,29 @@ import fec_pkg::*;
 import fec_verif_pkg::*;
 
 class rs_encode_tb_env #(
-    parameter int  NUM_THREADS = 2,   // # threads = # symbols per data unit e.g. 2 symbols per byte.
-    parameter type DATA_IN_T  = logic [RS_K-1:0][NUM_THREADS*SYM_SIZE-1:0],
-    parameter type DATA_OUT_T = logic [RS_N-1:0][NUM_THREADS*SYM_SIZE-1:0]
+    parameter int  NUM_THREADS  = 2,    // # threads = # symbols per data unit e.g. 2 symbols per byte.
+    parameter type DATA_IN_T    = logic [RS_K -1:0][NUM_THREADS*SYM_SIZE-1:0],
+    parameter type PARITY_OUT_T = logic [RS_2T-1:0][NUM_THREADS*SYM_SIZE-1:0]
 ) extends std_verif_pkg::component_env#(
     std_verif_pkg::raw_transaction#(DATA_IN_T),
-    std_verif_pkg::raw_transaction#(DATA_OUT_T),
+    std_verif_pkg::raw_transaction#(PARITY_OUT_T),
     bus_verif_pkg::bus_driver#(DATA_IN_T),
-    bus_verif_pkg::bus_monitor#(DATA_OUT_T),
-    rs_model#(NUM_THREADS, raw_transaction#(DATA_IN_T), raw_transaction#(DATA_OUT_T)),
-    std_verif_pkg::raw_scoreboard#(DATA_OUT_T)
+    bus_verif_pkg::bus_monitor#(PARITY_OUT_T),
+    rs_model#(NUM_THREADS, raw_transaction#(DATA_IN_T), raw_transaction#(PARITY_OUT_T)),
+    std_verif_pkg::raw_scoreboard#(PARITY_OUT_T)
 );
 
     //===================================
     // Properties
     //===================================
-    localparam int DATA_IN_WID  = $bits(DATA_IN_T);
-    localparam int DATA_OUT_WID = $bits(DATA_OUT_T);
+    localparam int DATA_IN_WID = $bits(DATA_IN_T);
+    localparam int PARITY_OUT_WID = $bits(PARITY_OUT_T);
 
     //===================================
     // Properties
     //===================================
-    virtual bus_intf #(DATA_IN_WID)  wr_vif;
-    virtual bus_intf #(DATA_OUT_WID) rd_vif;
+    virtual bus_intf #(DATA_IN_WID) wr_vif;
+    virtual bus_intf #(PARITY_OUT_WID) rd_vif;
 
     //===================================
     // Methods
@@ -32,9 +32,9 @@ class rs_encode_tb_env #(
     // Constructor
     function new(
             string name="rs_encode_tb_env",
-            virtual std_reset_intf  _reset_vif,
-            virtual bus_intf#(DATA_IN_WID)  _wr_vif,
-            virtual bus_intf#(DATA_OUT_WID) _rd_vif
+            virtual std_reset_intf _reset_vif,
+            virtual bus_intf#(DATA_IN_WID) _wr_vif,
+            virtual bus_intf#(PARITY_OUT_WID) _rd_vif
         );
         // Create superclass instance
         super.new(name);

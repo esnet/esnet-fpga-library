@@ -1,9 +1,17 @@
 package fec_pkg;
 
+    // Typedefs
+    typedef enum logic {
+        CW_TO_COL = 1'b0,
+        COL_TO_CW = 1'b1
+    } fec_blk_transpose_mode_t;
+
+
+    // FEC Lookup Definitions.
     `include "../include/fec_luts.svh"
 
-    // ----- GF Math Functions -----
 
+    // ----- GF Math Functions -----
     function logic [SYM_SIZE-1:0] gf_mul (input logic [SYM_SIZE-1:0] a, b);
         logic [SYM_SIZE-1:0] y, z;
 
@@ -36,7 +44,6 @@ package fec_pkg;
 
  
     // ----- Polynomial Math Functions -----
-
     localparam MAX_LEN = RS_N;
 
     function void poly_scale (
