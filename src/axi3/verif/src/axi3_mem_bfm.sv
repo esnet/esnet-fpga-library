@@ -16,9 +16,9 @@ module axi3_mem_bfm #(
     // Parameters
     localparam int ADDR_WID = axi3_if[0].ADDR_WID;
     localparam int DATA_BYTE_WID = axi3_if[0].DATA_BYTE_WID;
-    localparam int BYTE_SEL_WID = $clog2(DATA_BYTE_WID);
+    localparam int BYTE_SEL_WID = DATA_BYTE_WID > 1 ? $clog2(DATA_BYTE_WID) : 1;
     localparam int AXI_ID_WID = axi3_if[0].ID_WID;
-    localparam int CHANNEL_ID_WID = $clog2(CHANNELS);
+    localparam int CHANNEL_ID_WID = CHANNELS > 1 ? $clog2(CHANNELS) : 1;
 
     // Typedefs
     typedef logic [ADDR_WID-1:0]           addr_t;
