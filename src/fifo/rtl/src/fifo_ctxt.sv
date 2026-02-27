@@ -1,3 +1,6 @@
+// FIFO optimized for context management applications
+// e.g. storing context for outstanding tranactions
+// - prioritizes minimization of write-to-read latency
 module fifo_ctxt #(
     parameter int DATA_WID = 1,
     parameter int DEPTH = 32,
