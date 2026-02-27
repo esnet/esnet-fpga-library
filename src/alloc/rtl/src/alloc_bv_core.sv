@@ -41,8 +41,10 @@ module alloc_bv_core #(
                                          // (used for sizing context FIFO)
 ) (
     // Clock/reset
-    input logic                clk,
-    input logic                srst,
+    input  logic               clk,
+    input  logic               srst,
+
+    output logic               init_done,
 
     // Control
     input  logic               en,
@@ -158,14 +160,19 @@ module alloc_bv_core #(
     logic               alloc_q_wr;
     logic               alloc_q_wr_rdy;
     logic [PTR_WID-1:0] alloc_q_wr_data;
+    logic               alloc_q_full;
 
     logic               alloc;
     logic               alloc_fail;
     logic               alloc_err;
     logic [PTR_WID-1:0] alloc_err_ptr;
 
+    logic               __alloc_req;
+    logic               __alloc_rdy;
+    logic [PTR_WID-1:0] __alloc_ptr;
+
     logic       __alloc;
-    ptr_addr_t  __alloc_ptr;
+    ptr_addr_t  __nxt_alloc_ptr;
 
     // Dealloc FIFO
     logic               dealloc_q_rd;
@@ -212,19 +219,45 @@ module alloc_bv_core #(
         .wr      ( alloc_q_wr ),
         .wr_data ( alloc_q_wr_data ),
         .wr_count( ),
-        .full    ( ),
+        .full    ( alloc_q_full ),
         .oflow   ( ),
-        .rd      ( alloc_req ),
-        .rd_ack  ( alloc_rdy ),
-        .rd_data ( alloc_ptr ),
+        .rd      ( __alloc_req ),
+        .rd_ack  ( __alloc_rdy ),
+        .rd_data ( __alloc_ptr ),
         .rd_count( ),
         .empty   ( ),
         .uflow   ( )
     );
 
+    // Maintain next pointer to be allocated in register to
+    // achieve finer control over enable/disable; allows
+    // pointers to be pre-fetched even while allocator is disabled
+    initial alloc_rdy = 1'b0;
+    always @(posedge clk) begin
+        if (srst) alloc_rdy <= 1'b0;
+        else begin
+            if (en && __alloc_rdy) alloc_rdy <= 1'b1;
+            else if (alloc_req)    alloc_rdy <= 1'b0;
+        end
+    end
+
+    assign __alloc_req = en && (alloc_req || !alloc_rdy);
+
+    always_ff @(posedge clk) if (__alloc_req && __alloc_rdy) alloc_ptr <= __alloc_ptr;
+
     assign alloc = alloc_req && alloc_rdy;
     assign alloc_fail = ALLOC_FC ? 1'b0 : alloc_req && !alloc_rdy;
-    assign alloc_q_wr_data = {'0, __alloc_ptr};
+    assign alloc_q_wr_data = {'0, __nxt_alloc_ptr};
+
+    // Declare init_done when initial prefetch is complete
+    // - this supports well-defined sequencing of dependent comoponents,
+    //   i.e. those components can hold off operations that depend on
+    //        pointer allocation until pointers are available
+    initial init_done = 1'b0;
+    always @(posedge clk) begin
+        if (srst)              init_done <= 1'b0;
+        else if (alloc_q_full) init_done <= 1'b1;
+    end
 
     // -----------------------------
     // Deallocation queue
@@ -320,7 +353,7 @@ module alloc_bv_core #(
             end
             IDLE : begin
                 if (dealloc_q_rd_rdy) nxt_state = DEALLOC;
-                else if (en && alloc_q_wr_rdy && scan_done) nxt_state = ALLOC;
+                else if (alloc_q_wr_rdy && scan_done) nxt_state = ALLOC;
             end
             DEALLOC : begin
                 dealloc_q_rd = 1'b1;
@@ -369,7 +402,7 @@ module alloc_bv_core #(
         end else if (state == ALLOC) begin
             __alloc   <= 1'b1;
             __dealloc <= 1'b0;
-            ptr       <= __alloc_ptr;
+            ptr       <= __nxt_alloc_ptr;
         end
     end
 
@@ -478,8 +511,8 @@ module alloc_bv_core #(
     always_ff @(posedge clk) if (scan_check) scan_col <= __scan_col;
 
     // Assign next pointer to be allocated from scan result
-    assign __alloc_ptr.row = scan_row;
-    assign __alloc_ptr.col = scan_col;
+    assign __nxt_alloc_ptr.row = scan_row;
+    assign __nxt_alloc_ptr.col = scan_col;
 
     // ----------------------------------
     // Monitoring

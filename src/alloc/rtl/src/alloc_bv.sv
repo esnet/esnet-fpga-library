@@ -91,7 +91,7 @@ module alloc_bv #(
     // -----------------------------
     // Signals
     // -----------------------------
-    logic [NUM_SLICES-1:0]                    mem_init_done;
+    logic [NUM_SLICES-1:0]                    __init_done;
     logic [NUM_SLICES-1:0]                    __alloc_req;
     logic [NUM_SLICES-1:0]                    __alloc_rdy;
     logic [NUM_SLICES-1:0][SLICE_PTR_WID-1:0] __alloc_ptr;
@@ -126,6 +126,7 @@ module alloc_bv #(
                 .DEALLOC_FC      ( DEALLOC_FC ),
                 .MEM_RD_LATENCY  ( MEM_RD_LATENCY )
             ) i_alloc_bv_core (
+                .init_done ( __init_done[g_slice] ),
                 .PTRS (__PTRS),
                 .alloc_req ( __alloc_req[g_slice] ),
                 .alloc_rdy ( __alloc_rdy[g_slice] ),
@@ -134,11 +135,9 @@ module alloc_bv #(
                 .dealloc_rdy ( __dealloc_rdy[g_slice] ),
                 .dealloc_ptr ( __dealloc_ptr ),
                 .mon_if      ( __mon_if[g_slice] ),
-                .mem_init_done ( mem_init_done[g_slice] ),
+                .mem_init_done ( mem_wr_if.rdy ),
                 .*
             );
-
-            assign mem_init_done[g_slice] = mem_wr_if.rdy;
 
             // -----------------------------
             // Memory
@@ -152,7 +151,7 @@ module alloc_bv #(
         end : g__slice
     endgenerate
 
-    assign init_done = &mem_init_done;
+    assign init_done = &__init_done;
 
     generate
         if (NUM_SLICES > 1) begin : g__slice_arb
