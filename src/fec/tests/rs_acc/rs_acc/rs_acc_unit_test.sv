@@ -16,16 +16,16 @@ module rs_acc_unit_test;
     //===================================
     // Parameters
     //===================================
-    localparam int DATA_WID     = 512;
-    localparam int SYM_PER_COL  = 1024;
+    localparam int DATA_WID = 512;
+    localparam int COL_LEN  = 1024;
 
     //===================================
     // Derived parameters
     //===================================
     localparam int PARITY_WID   = DATA_WID * RS_2T/RS_K;
     localparam int DATA_SYM_WID = DATA_WID / SYM_SIZE;
-    localparam int SYM_PER_BLK  = SYM_PER_COL * RS_K;
-    localparam int CLKS_PER_COL = SYM_PER_COL / DATA_SYM_WID;  // CLKS_PER_COL >= 4 (PIPE_STAGES).
+    localparam int SYM_PER_BLK  = COL_LEN * RS_K;
+    localparam int CLKS_PER_COL = COL_LEN / DATA_SYM_WID;  // CLKS_PER_COL >= 4 (PIPE_STAGES).
 
     //===================================
     // Typedefs
@@ -47,7 +47,7 @@ module rs_acc_unit_test;
     logic   parity_out_valid;
     logic   parity_out_ready;
    
-    rs_acc #(.DATA_WID(DATA_WID), .SYM_PER_COL(SYM_PER_COL)) DUT (.*);
+    rs_acc #(.DATA_WID(DATA_WID), .COL_LEN(COL_LEN)) DUT (.*);
 
 
     DATA_T  cw_to_col_data_in;
@@ -57,8 +57,8 @@ module rs_acc_unit_test;
     fec_blk_transpose #(
         .DATA_WID       (DATA_WID),
         .NUM_COL        (RS_K),
-        .SYM_PER_COL    (SYM_PER_COL),
-        .MODE           (CW_TO_COL)
+        .COL_LEN        (COL_LEN),
+        .MODE           (CW_TO_SYM)
     ) fec_cw_to_col_inst (
         .clk            (clk),
         .srst           (srst),
@@ -78,8 +78,8 @@ module rs_acc_unit_test;
     fec_blk_transpose #(
         .DATA_WID       (DATA_WID),
         .NUM_COL        (RS_2T),
-        .SYM_PER_COL    (SYM_PER_COL),
-        .MODE           (COL_TO_CW)
+        .COL_LEN        (COL_LEN),
+        .MODE           (SYM_TO_CW)
     ) fec_col_to_cw_inst (
         .clk            (clk),
         .srst           (srst),

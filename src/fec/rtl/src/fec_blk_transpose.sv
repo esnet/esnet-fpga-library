@@ -1,10 +1,10 @@
 module fec_blk_transpose
     import fec_pkg::*;
 #(
-    parameter int DATA_WID    = 512,
-    parameter int NUM_COL     = RS_K,
-    parameter int SYM_PER_COL = 1024,
-    parameter fec_blk_transpose_mode_t MODE = CW_TO_COL
+    parameter int DATA_WID = 512,
+    parameter int NUM_COL  = RS_K,
+    parameter int COL_LEN  = 1024,
+    parameter fec_blk_transpose_mode_t MODE = CW_TO_SYM
 ) (
     input  logic clk,
     input  logic srst,
@@ -20,8 +20,8 @@ module fec_blk_transpose
 
     // derived parameters.
     localparam DATA_SYM_WID = DATA_WID / SYM_SIZE;
-    localparam  SYM_PER_BLK = SYM_PER_COL * NUM_COL;
-    localparam CLKS_PER_COL = SYM_PER_COL / DATA_SYM_WID;
+    localparam  SYM_PER_BLK = COL_LEN * NUM_COL;
+    localparam CLKS_PER_COL = COL_LEN / DATA_SYM_WID;
     localparam CLKS_PER_BLK = SYM_PER_BLK / DATA_SYM_WID;
 
     // pipeline parameters.
@@ -137,13 +137,13 @@ module fec_blk_transpose
             assign mux_rd_if[i][j][0].req  = '0;
             assign mux_rd_if[i][j][0].addr = '0;
 
-            if (MODE == CW_TO_COL) begin
+            if (MODE == CW_TO_SYM) begin
                 assign mux_wr_if[i][j][0].rst  = srst;
                 assign mux_wr_if[i][j][0].en   = 1'b1;
                 assign mux_wr_if[i][j][0].req  = pipe_valid[REQ_STAGE] && ((pipe_index[REQ_STAGE] % NUM_COL) == i);
                 assign mux_wr_if[i][j][0].addr = { '0, pipe_index[REQ_STAGE] / NUM_COL };
                 assign mux_wr_if[i][j][0].data = pipe_data [REQ_STAGE];
-            end else if (MODE == COL_TO_CW) begin
+            end else if (MODE == SYM_TO_CW) begin
                 assign mux_wr_if[i][j][0].rst  = srst;
                 assign mux_wr_if[i][j][0].en   = 1'b1;
                 assign mux_wr_if[i][j][0].req  = pipe_valid[REQ_STAGE] && ((pipe_index[REQ_STAGE] / CLKS_PER_COL) == i);
@@ -159,11 +159,11 @@ module fec_blk_transpose
             assign mux_wr_if[i][j][1].addr = '0;
             assign mux_wr_if[i][j][1].data = '0;
 
-            if (MODE == CW_TO_COL) begin
+            if (MODE == CW_TO_SYM) begin
                 assign mux_rd_if[i][j][1].rst  = srst;
                 assign mux_rd_if[i][j][1].req  = rd_req;
                 assign mux_rd_if[i][j][1].addr = rd_index % CLKS_PER_COL;
-            end else if (MODE == COL_TO_CW) begin
+            end else if (MODE == SYM_TO_CW) begin
                 assign mux_rd_if[i][j][1].rst  = srst;
                 assign mux_rd_if[i][j][1].req  = rd_req;
                 assign mux_rd_if[i][j][1].addr = rd_index / NUM_COL;
@@ -181,11 +181,11 @@ module fec_blk_transpose
 
         // output muxing logic from double buffers.
         for (genvar j = 0; j < DATA_SYM_WID/NUM_COL; j++) begin : g_cw
-            if (MODE == CW_TO_COL) begin
+            if (MODE == CW_TO_SYM) begin
                 assign fifo_in[i*DATA_SYM_WID/NUM_COL+j] = pipe_buf_sel[ACK_STAGE] ?
                        buf_rd_if[i][0].data[(pipe_rd_index[1]/CLKS_PER_COL + j*NUM_COL)*SYM_SIZE +: SYM_SIZE] :
                        buf_rd_if[i][1].data[(pipe_rd_index[1]/CLKS_PER_COL + j*NUM_COL)*SYM_SIZE +: SYM_SIZE] ;
-            end else if (MODE == COL_TO_CW) begin
+            end else if (MODE == SYM_TO_CW) begin
                 assign fifo_in[j*NUM_COL+i] = pipe_buf_sel[ACK_STAGE] ?
                        buf_rd_if[i][0].data[((pipe_rd_index[1]%NUM_COL) * DATA_SYM_WID/NUM_COL + j)*SYM_SIZE +: SYM_SIZE] :
                        buf_rd_if[i][1].data[((pipe_rd_index[1]%NUM_COL) * DATA_SYM_WID/NUM_COL + j)*SYM_SIZE +: SYM_SIZE] ;
