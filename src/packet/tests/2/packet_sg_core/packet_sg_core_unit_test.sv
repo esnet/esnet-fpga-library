@@ -1,13 +1,13 @@
 `include "svunit_defines.svh"
 
-module packet_q_core_unit_test #(
+module packet_sg_core_unit_test #(
     parameter int NUM_INPUT_IFS = 1,
     parameter int NUM_OUTPUT_IFS = 1
 );
     import svunit_pkg::svunit_testcase;
     import packet_verif_pkg::*;
 
-    string name = $sformatf("packet_q_core_%0din_%0dout_ut", NUM_INPUT_IFS, NUM_OUTPUT_IFS);
+    string name = $sformatf("packet_sg_core_%0din_%0dout_ut", NUM_INPUT_IFS, NUM_OUTPUT_IFS);
     svunit_testcase svunit_ut;
 
     //===================================
@@ -76,7 +76,7 @@ module packet_q_core_unit_test #(
 
     logic mem_init_done;
 
-    packet_q_core      #(
+    packet_sg_core     #(
         .NUM_INPUT_IFS  ( NUM_INPUT_IFS ),
         .NUM_OUTPUT_IFS ( NUM_OUTPUT_IFS ),
         .MAX_PKT_SIZE   ( MAX_PKT_SIZE ),
@@ -418,12 +418,12 @@ endmodule
 
 // 'Boilerplate' unit test wrapper code
 //  Builds unit test for a parameterized
-//  packet_q_core instance that maintains
+//  packet_sg_core instance that maintains
 //  SVUnit compatibility
-`define PACKET_Q_CORE_TEST(INPUT_IFS,OUTPUT_IFS)\
+`define PACKET_SG_CORE_TEST(INPUT_IFS,OUTPUT_IFS)\
   import svunit_pkg::svunit_testcase;\
   svunit_testcase svunit_ut;\
-  packet_q_core_unit_test #(INPUT_IFS,OUTPUT_IFS) test();\
+  packet_sg_core_unit_test #(INPUT_IFS,OUTPUT_IFS) test();\
   function void build();\
     test.build();\
     svunit_ut = test.svunit_ut;\
@@ -436,10 +436,10 @@ endmodule
   endtask
 
 
-module packet_q_core_1in_1out_unit_test;
-`PACKET_Q_CORE_TEST(1,1)
+module packet_sg_core_1in_1out_unit_test;
+`PACKET_SG_CORE_TEST(1,1)
 endmodule
 
-module packet_q_core_2in_2out_unit_test;
-`PACKET_Q_CORE_TEST(2,2)
+module packet_sg_core_2in_2out_unit_test;
+`PACKET_SG_CORE_TEST(2,2)
 endmodule
