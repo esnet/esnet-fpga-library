@@ -37,13 +37,6 @@ module alloc_gather_core #(
     // -----------------------------
     // Typedefs
     // -----------------------------
-    typedef enum logic [1:0] {
-        RESET,
-        DISABLED,
-        IDLE,
-        READ
-    } state_t;
-
     typedef struct packed {
         logic               sof;
         logic [PTR_WID-1:0] ptr;
@@ -69,9 +62,6 @@ module alloc_gather_core #(
     req_ctxt_t req_ctxt  [CONTEXTS];
 
     logic [CTXT_SEL_WID-1:0] ctxt_sel;
-
-    state_t state;
-    state_t nxt_state;
 
     rd_ctxt_t rd_ctxt_in;
     rd_ctxt_t rd_ctxt_out;

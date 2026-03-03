@@ -73,7 +73,7 @@ module alloc_axil_sg_core #(
     alloc_mon_intf mon_if (.clk);
 
     // -----------------------------
-    // BV allocator instantiation
+    // SG allocator instantiation
     // -----------------------------
     alloc_sg_core        #(
         .SCATTER_CONTEXTS ( SCATTER_CONTEXTS ),
