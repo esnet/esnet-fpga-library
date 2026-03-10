@@ -56,7 +56,7 @@ module fec_blk_transpose
             index   <= '0;
             buf_sel <=  0;
         end else if (data_in_valid && data_in_ready) begin
-            index   <= index+1;
+            index   <= (index == CLKS_PER_BLK-1) ? 0 : index+1;
             buf_sel <= (index == CLKS_PER_BLK-1) ? !buf_sel : buf_sel;
         end
 
