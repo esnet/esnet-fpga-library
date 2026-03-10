@@ -2,19 +2,22 @@ module rs_acc
     import fec_pkg::*;
 #(
     parameter int DATA_WID = 512,
+    parameter int NUM_COL  = RS_2T,
     parameter int COL_LEN  = 1024
 ) (
     input  logic clk,
     input  logic srst,
+    input  logic [0:NUM_COL-1][0:RS_K-1][SYM_SIZE-1:0] coef_matrix,
 
     input  logic [DATA_WID/SYM_SIZE-1:0][SYM_SIZE-1:0] data_in,
     input  logic data_in_valid,
     output logic data_in_ready,
 
-    output logic [DATA_WID/SYM_SIZE-1:0][SYM_SIZE-1:0] parity_out,
-    output logic parity_out_valid,
-    input  logic parity_out_ready
+    output logic [DATA_WID/SYM_SIZE-1:0][SYM_SIZE-1:0] data_out,
+    output logic data_out_valid,
+    input  logic data_out_ready
 );
+    import fifo_pkg::*;
 
     // derived parameters.
     localparam DATA_SYM_WID = DATA_WID / SYM_SIZE;
@@ -41,29 +44,29 @@ module rs_acc
     logic [PIPE_STAGES-1:0]                                 pipe_valid;
     logic [PIPE_STAGES-1:0][$clog2(CLKS_PER_BLK)-1:0]       pipe_index;
     logic [PIPE_STAGES-1:0]                                 pipe_buf_sel;
+    logic [PIPE_STAGES-1:0][0:NUM_COL-1][0:RS_K-1][SYM_SIZE-1:0] pipe_coef_matrix;
 
-    // signals - egress parity_out pipeline.
+    // signals - egress data_out pipeline.
     logic [$clog2(CLKS_PER_BLK):0] rd_index;
     logic rd_req;
 
     logic [PIPE_STAGES-1:0][$clog2(CLKS_PER_BLK)-1:0]       pipe_rd_index;
     logic [PIPE_STAGES-1:0]                                 pipe_rd_req;
 
-    logic [RS_2T-1:0][DATA_SYM_WID-1:0][SYM_SIZE-1:0] parity;
+    logic [NUM_COL-1:0][DATA_SYM_WID-1:0][SYM_SIZE-1:0] parity;
 
-    logic [DATA_WID/SYM_SIZE-1:0][SYM_SIZE-1:0] fifo_in;
-    logic fifo_wr_rdy, fifo_rd, fifo_empty;
+    logic fifo_wr_rdy;
 
 
     // instantiate ingress and egress pipelines.
-    assign data_in_ready = parity_out_ready;
+    assign data_in_ready = fifo_wr_rdy;
 
     always_ff @(posedge clk)
         if (srst) begin
             index   <= '0;
             buf_sel <=  0;
         end else if (data_in_valid && data_in_ready) begin
-            index   <= index+1;
+            index   <= (index == CLKS_PER_BLK-1) ? 0 : index+1;
             buf_sel <= (index == CLKS_PER_BLK-1) ? !buf_sel : buf_sel;
         end
 
@@ -72,6 +75,7 @@ module rs_acc
         pipe_valid[0]     <= data_in_valid && data_in_ready;
         pipe_index[0]     <= index;
         pipe_buf_sel[0]   <= buf_sel;
+        pipe_coef_matrix[0]  <= coef_matrix;
 
         pipe_rd_index[0]  <= rd_index;
         pipe_rd_req[0]    <= rd_req;
@@ -81,6 +85,7 @@ module rs_acc
             pipe_valid    [i] <= pipe_valid    [i-1];
             pipe_index    [i] <= pipe_index    [i-1];
             pipe_buf_sel  [i] <= pipe_buf_sel  [i-1];
+            pipe_coef_matrix [i] <= pipe_coef_matrix [i-1];
 
             pipe_rd_index [i] <= pipe_rd_index [i-1];
             pipe_rd_req   [i] <= pipe_rd_req   [i-1];
@@ -93,10 +98,10 @@ module rs_acc
         if (srst) begin
             rd_index <= '1;
             rd_req   <= 1'b0;
-        end else if (pipe_buf_sel[ACC_STAGE] ^ pipe_buf_sel[WR_STAGE]) begin
+        end else if (pipe_buf_sel[RD_STAGE] ^ buf_sel) begin
             rd_index <= '0;
             rd_req   <= 1'b1;
-        end else if ((rd_index < RS_2T*CLKS_PER_COL-1) && parity_out_ready && fifo_wr_rdy) begin
+        end else if ((rd_index < NUM_COL*CLKS_PER_COL-1) && fifo_wr_rdy) begin
             rd_index <= rd_index+1;
             rd_req   <= 1'b1;
         end else begin
@@ -114,23 +119,23 @@ module rs_acc
 
 
     // PP_STAGE ---- calculates partial products (as well as latency cycle from RD_STAGE).
-    logic [$clog2(RS_K)-1:0] g_index;
-    logic [RS_2T-1:0][DATA_SYM_WID-1:0][SYM_SIZE-1:0] _pp, pp;
+    logic [$clog2(RS_K)-1:0] coef_index;
+    logic [NUM_COL-1:0][DATA_SYM_WID-1:0][SYM_SIZE-1:0] _pp, pp;
 
     always_comb begin
-       g_index = pipe_index[PP_STAGE] / CLKS_PER_COL;
-       for (int i=0; i<RS_2T; i++)
+       coef_index = pipe_index[PP_STAGE] / CLKS_PER_COL;
+       for (int i=0; i<NUM_COL; i++)
            for (int j=0; j<DATA_SYM_WID; j++)
-               _pp[i][j] = gf_mul( pipe_data[PP_STAGE][j], RS_G_LUT[g_index][RS_K+i] );
+               _pp[i][j] = gf_mul( pipe_data[PP_STAGE][j], pipe_coef_matrix[PP_STAGE][i][coef_index] );
     end
 
     always @(posedge clk) pp <= _pp;
 
 
     // ACC_STAGE ---- accumulates partial product with running sums ('parity state' from memory).
-    logic [RS_2T-1:0][DATA_SYM_WID-1:0][SYM_SIZE-1:0] _acc, acc, sum;
+    logic [NUM_COL-1:0][DATA_SYM_WID-1:0][SYM_SIZE-1:0] _acc, acc, sum;
     always_comb
-       for (int i=0; i<RS_2T; i++) begin
+       for (int i=0; i<NUM_COL; i++) begin
            for (int j=0; j<DATA_SYM_WID; j++)
                if ( pipe_index[ACC_STAGE] >> $clog2(CLKS_PER_COL) == '0 )
                     _acc[i][j] = pp[i][j];  // initialize acc with 1st pp.
@@ -150,14 +155,14 @@ module rs_acc
     localparam int NUM_BUFS = 2;      // double buffer implementation for concurrent streaming and processing.
     localparam int RAM_ADDR_WID = 9;  // 512 words.
 
-    mem_wr_intf #(.ADDR_WID(RAM_ADDR_WID), .DATA_WID(DATA_WID)) mux_wr_if [RS_2T][NUM_BUFS][2] (.clk(clk));
-    mem_rd_intf #(.ADDR_WID(RAM_ADDR_WID), .DATA_WID(DATA_WID)) mux_rd_if [RS_2T][NUM_BUFS][2] (.clk(clk));
+    mem_wr_intf #(.ADDR_WID(RAM_ADDR_WID), .DATA_WID(DATA_WID)) mux_wr_if [NUM_COL][NUM_BUFS][2] (.clk(clk));
+    mem_rd_intf #(.ADDR_WID(RAM_ADDR_WID), .DATA_WID(DATA_WID)) mux_rd_if [NUM_COL][NUM_BUFS][2] (.clk(clk));
 
-    mem_wr_intf #(.ADDR_WID(RAM_ADDR_WID), .DATA_WID(DATA_WID)) buf_wr_if [RS_2T][NUM_BUFS] (.clk(clk));
-    mem_rd_intf #(.ADDR_WID(RAM_ADDR_WID), .DATA_WID(DATA_WID)) buf_rd_if [RS_2T][NUM_BUFS] (.clk(clk));
+    mem_wr_intf #(.ADDR_WID(RAM_ADDR_WID), .DATA_WID(DATA_WID)) buf_wr_if [NUM_COL][NUM_BUFS] (.clk(clk));
+    mem_rd_intf #(.ADDR_WID(RAM_ADDR_WID), .DATA_WID(DATA_WID)) buf_rd_if [NUM_COL][NUM_BUFS] (.clk(clk));
 
     generate
-    for (genvar i = 0; i < RS_2T; i++) begin : g_parity
+    for (genvar i = 0; i < NUM_COL; i++) begin : g_parity
         for (genvar j = 0; j < NUM_BUFS; j++) begin : g_buf
  
             // instantiate input muxing logic for double buffers.
@@ -214,33 +219,43 @@ module rs_acc
         assign sum[i] = pipe_buf_sel[WR_STAGE] ? buf_rd_if[i][1].data : buf_rd_if[i][0].data;
 
         // output muxing logic from double buffers (output parity streaming).
-        assign parity[i] = pipe_buf_sel[WR_STAGE] ? buf_rd_if [i][0].data : buf_rd_if [i][1].data ;
+        assign parity[i] = pipe_buf_sel[ACC_STAGE] ? buf_rd_if [i][0].data : buf_rd_if [i][1].data ;
 
     end
     endgenerate
 
 
     // instantiate output FIFO (to support stalls in datapath).
-    assign fifo_in = parity[pipe_rd_index[OUT_STAGE]/CLKS_PER_COL];
+    localparam DEPTH = 32;
 
-    fifo_sync #(.DATA_WID(DATA_WID), .DEPTH(8)) fifo_sync_inst (
+    logic [DATA_WID/SYM_SIZE-1:0][SYM_SIZE-1:0] fifo_wr_data;
+    logic [DATA_WID/SYM_SIZE-1:0][SYM_SIZE-1:0] fifo_rd_data;
+
+    logic fifo_wr, fifo_rd, fifo_empty;
+    logic [$clog2(DEPTH):0] fifo_count;
+
+    assign fifo_wr_data = parity[pipe_rd_index[OUT_STAGE]/CLKS_PER_COL];
+    assign fifo_wr      = pipe_rd_req[OUT_STAGE];
+    assign fifo_wr_rdy  = fifo_count < DEPTH - PIPE_STAGES;
+    assign fifo_rd      = data_out_ready && data_out_valid;
+
+    fifo_small #(
+        .DATA_WID(DATA_WID), .DEPTH(DEPTH), .REPORT_OFLOW(1), .REPORT_UFLOW(1)
+    ) fifo_inst (
         .clk       (clk),
-	.srst      (srst),
-	.wr_rdy    (fifo_wr_rdy),
-        .wr        (pipe_rd_req[OUT_STAGE]),
-        .wr_data   (fifo_in),
-        .wr_count  (),
+        .srst      (srst),
+        .wr        (fifo_wr),
+        .wr_data   (fifo_wr_data),
         .full      (),
         .oflow     (),
         .rd        (fifo_rd),
-	.rd_ack    (),
-        .rd_data   (parity_out),
-        .rd_count  (),
+        .rd_data   (fifo_rd_data),
         .empty     (fifo_empty),
-        .uflow     ()
+        .uflow     (),
+        .count     (fifo_count)
     );
 
-    assign fifo_rd = parity_out_ready && !fifo_empty;
-    assign parity_out_valid = fifo_rd;
+    assign data_out = fifo_rd_data;
+    assign data_out_valid = !fifo_empty;
 
 endmodule;  // rs_acc
