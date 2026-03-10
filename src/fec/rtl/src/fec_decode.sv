@@ -32,20 +32,20 @@ module fec_decode
 
     // instantiate H matrix selection block.
     rs_decode_h_select #(
-        .DATA_WID       (DATA_WID),
-        .NUM_THREADS    (NUM_THREADS)
+        .DATA_WID       (DATA_WID)
     ) rs_decode_h_select_0 (
         .clk            (clk),
         .srst           (srst),
+        .err_loc        (err_loc),
 
         .data_in        (data_in),
-        .err_loc        (err_loc),
         .data_in_valid  (data_in_valid),
         .data_in_ready  (data_in_ready),
 
-        .data_out       (h_sel_data_out),
         .h_matrix       (h_matrix),
         .err_loc_vec    (err_loc_vec),
+
+        .data_out       (h_sel_data_out),
         .data_out_valid (rsd_data_in_valid),
         .data_out_ready (rsd_data_in_ready)
     );
