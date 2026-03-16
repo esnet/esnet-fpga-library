@@ -16,16 +16,16 @@ module rs_acc_unit_test;
     //===================================
     // Parameters
     //===================================
-    localparam int DATA_WID     = 512;
-    localparam int SYM_PER_COL  = 1024;
+    localparam int DATA_WID = 512;
+    localparam int COL_LEN  = 1024;
 
     //===================================
     // Derived parameters
     //===================================
     localparam int PARITY_WID   = DATA_WID * RS_2T/RS_K;
     localparam int DATA_SYM_WID = DATA_WID / SYM_SIZE;
-    localparam int SYM_PER_BLK  = SYM_PER_COL * RS_K;
-    localparam int CLKS_PER_COL = SYM_PER_COL / DATA_SYM_WID;  // CLKS_PER_COL >= 4 (PIPE_STAGES).
+    localparam int SYM_PER_BLK  = COL_LEN * RS_K;
+    localparam int CLKS_PER_COL = COL_LEN / DATA_SYM_WID;  // CLKS_PER_COL >= 4 (PIPE_STAGES).
 
     //===================================
     // Typedefs
@@ -39,15 +39,17 @@ module rs_acc_unit_test;
     logic clk;
     logic srst;
 
+    logic [0:RS_2T-1][0:RS_K-1][SYM_SIZE-1:0] coef_matrix = RS_P_LUT;
+
     DATA_T  data_in;
     logic   data_in_valid;
     logic   data_in_ready;
 
-    DATA_T  parity_out;
-    logic   parity_out_valid;
-    logic   parity_out_ready;
+    DATA_T  data_out;
+    logic   data_out_valid;
+    logic   data_out_ready;
    
-    rs_acc #(.DATA_WID(DATA_WID), .SYM_PER_COL(SYM_PER_COL)) DUT (.*);
+    rs_acc #(.DATA_WID(DATA_WID), .COL_LEN(COL_LEN)) DUT (.*);
 
 
     DATA_T  cw_to_col_data_in;
@@ -57,8 +59,8 @@ module rs_acc_unit_test;
     fec_blk_transpose #(
         .DATA_WID       (DATA_WID),
         .NUM_COL        (RS_K),
-        .SYM_PER_COL    (SYM_PER_COL),
-        .MODE           (CW_TO_COL)
+        .COL_LEN        (COL_LEN),
+        .MODE           (CW_TO_SYM)
     ) fec_cw_to_col_inst (
         .clk            (clk),
         .srst           (srst),
@@ -78,14 +80,14 @@ module rs_acc_unit_test;
     fec_blk_transpose #(
         .DATA_WID       (DATA_WID),
         .NUM_COL        (RS_2T),
-        .SYM_PER_COL    (SYM_PER_COL),
-        .MODE           (COL_TO_CW)
+        .COL_LEN        (COL_LEN),
+        .MODE           (SYM_TO_CW)
     ) fec_col_to_cw_inst (
         .clk            (clk),
         .srst           (srst),
-        .data_in        (parity_out),
-        .data_in_valid  (parity_out_valid),
-        .data_in_ready  (parity_out_ready),
+        .data_in        (data_out),
+        .data_in_valid  (data_out_valid),
+        .data_in_ready  (data_out_ready),
         .data_out       (col_to_cw_data_out),
         .data_out_valid (col_to_cw_valid),
         .data_out_ready (col_to_cw_ready)
@@ -142,11 +144,13 @@ module rs_acc_unit_test;
     //===================================
     // Setup for running the Unit Tests
     //===================================
+    int max_stall = $urandom % 4;  // stall range max is randomly chosen (0-3).
     task setup();
         svunit_ut.setup();
         env.run();
 
-        env.monitor.enable_stalls(.stall_cycles(0));  // 0 is random within default range (0-4).
+        env.monitor.set_max_stall(.max_stall(max_stall));
+        env.monitor.enable_stalls(.stall_cycles(0));  // 0 is random within stall range (default is 0-4).
         #50ns;
 
     endtask

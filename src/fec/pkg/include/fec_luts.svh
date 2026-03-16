@@ -70,7 +70,7 @@ localparam RS_2T = 2;
 
 localparam logic [RS_2T:0][SYM_SIZE-1:0] RS_G_POLY = '{ 8,6,1 };
 
-localparam logic [SYM_SIZE-1:0] RS_G_LUT [RS_K][RS_N] = '{
+localparam logic [0:RS_K-1][0:RS_N-1][SYM_SIZE-1:0] RS_G_LUT = '{
     '{ 1,0,0,0,0,0,0,0,14,5 },
     '{ 0,1,0,0,0,0,0,0,6,9 },
     '{ 0,0,1,0,0,0,0,0,14,4 },
@@ -79,6 +79,11 @@ localparam logic [SYM_SIZE-1:0] RS_G_LUT [RS_K][RS_N] = '{
     '{ 0,0,0,0,0,1,0,0,1,1 },
     '{ 0,0,0,0,0,0,1,0,15,5 },
     '{ 0,0,0,0,0,0,0,1,6,8 }
+};
+
+localparam logic [0:RS_2T-1][0:RS_K-1][SYM_SIZE-1:0] RS_P_LUT = '{
+    '{ 14,6,14,9,7,1,15,6 },
+    '{ 5,9,4,13,8,1,5,8 }
 };
 
 localparam NUM_H = 45;

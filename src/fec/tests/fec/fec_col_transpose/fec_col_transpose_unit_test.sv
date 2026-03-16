@@ -3,100 +3,87 @@
 // (Failsafe) timeout
 `define SVUNIT_TIMEOUT 500us
 
-module fec_decode_unit_test;
+module fec_col_transpose_unit_test;
 
     import svunit_pkg::svunit_testcase;
     import tb_pkg::*;
     import fec_pkg::*;
 
-    string name = $sformatf("fec_decode_ut");
+    string name = $sformatf("fec_col_transpose_ut");
 
     svunit_testcase svunit_ut;
 
     //===================================
     // Parameters
     //===================================
-    localparam int DATA_IN_WID  = 512;
-    localparam int NUM_THREADS  = 2;
-    localparam int NUM_CW       = DATA_IN_WID / (RS_K * NUM_THREADS * SYM_SIZE);
+    localparam int DATA_WID = 512;
+    localparam int COL_WID  = SYM_SIZE;
+    localparam int COL_LEN  = 4096;
+
+    localparam int NUM_THREADS = 1;
 
     //===================================
     // Typedefs
     //===================================
-    typedef logic [NUM_CW*RS_K -1:0][NUM_THREADS*SYM_SIZE-1:0] DATA_IN_T;
-    typedef logic [NUM_CW*RS_2T-1:0][NUM_THREADS*SYM_SIZE-1:0] PARITY_OUT_T;
+    typedef logic [DATA_WID-1:0] DATA_T;
 
     //===================================
-    // DUTs (fec_encode -> inject_errors -> fec_decode)
+    // DUTs (fec_bit_to_sym -> fec_sym_to_bit)
     //===================================
-    logic clk;
-    logic srst;
+    logic  clk;
+    logic  srst;
 
-    DATA_IN_T     data_in;
-    logic         data_in_valid;
-    logic         data_in_ready;
+    DATA_T data_in;
+    logic  data_in_valid;
+    logic  data_in_ready;
 
-    DATA_IN_T     data_out;
-    PARITY_OUT_T  parity_out;
-    logic         data_out_valid;
-    logic         data_out_ready;
+    DATA_T col_data_out;
+    logic  col_out_valid;
+    logic  col_out_ready;
 
-    fec_encode #(.DATA_WID(DATA_IN_WID), .NUM_THREADS(NUM_THREADS)) DUT0 (.*);
+    DATA_T data_out;
+    logic  data_out_valid;
+    logic  data_out_ready;
 
-
-    logic [$clog2(NUM_H)-1:0] err_loc_in;
-
-    always @(negedge clk) if (data_out_valid) err_loc_in = $urandom % NUM_H;
-
-    DATA_IN_T                 dec_data_in;
-    logic [$clog2(NUM_H)-1:0] dec_err_loc;
-    logic                     dec_data_in_valid;
-    logic                     dec_data_in_ready;
-
-    fec_err_inject #(.DATA_WID(DATA_IN_WID), .NUM_THREADS(NUM_THREADS)) DUT1 (
+    fec_col_transpose #(
+        .DATA_WID       (DATA_WID),
+        .COL_WID        (COL_WID),
+        .COL_LEN        (COL_LEN),
+        .MODE           (BIT_TO_SYM)
+    ) fec_bit_to_sym_inst (
         .clk            (clk),
         .srst           (srst),
-
-        .data_in        (data_out),
-        .parity_in      (parity_out),
-        .err_loc_in     (err_loc_in),
-        .data_in_valid  (data_out_valid),
-        .data_in_ready  (data_out_ready),
-
-        .data_out       (dec_data_in),
-        .err_loc_out    (dec_err_loc),
-        .data_out_valid (dec_data_in_valid),
-        .data_out_ready (dec_data_in_ready)
+        .data_in        (data_in),
+        .data_in_valid  (data_in_valid),
+        .data_in_ready  (data_in_ready),
+        .data_out       (col_data_out),
+        .data_out_valid (col_out_valid),
+        .data_out_ready (col_out_ready)
     );
 
-
-    DATA_IN_T  dec_data_out;
-    logic      dec_data_out_valid;
-    logic      dec_data_out_ready;
-
-    fec_decode #(.DATA_WID(DATA_IN_WID), .NUM_THREADS(NUM_THREADS)) DUT2 (
+    fec_col_transpose #(
+        .DATA_WID       (DATA_WID),
+        .COL_WID        (COL_WID),
+        .COL_LEN        (COL_LEN),
+        .MODE           (SYM_TO_BIT)
+    ) fec_sym_to_bit_inst (
         .clk            (clk),
         .srst           (srst),
-
-        .data_in        (dec_data_in),
-        .err_loc        (dec_err_loc),
-        .data_in_valid  (dec_data_in_valid),
-        .data_in_ready  (dec_data_in_ready),
-
-        .data_out       (dec_data_out),
-        .data_out_valid (dec_data_out_valid),
-        .data_out_ready (dec_data_out_ready)
+        .data_in        (col_data_out),
+        .data_in_valid  (col_out_valid),
+        .data_in_ready  (col_out_ready),
+        .data_out       (data_out),
+        .data_out_valid (data_out_valid),
+        .data_out_ready (data_out_ready)
     );
-
-
 
     //===================================
     // Testbench
     //===================================
-    rs_decode_tb_env #(NUM_THREADS, DATA_IN_T) env;
+    rs_decode_tb_env #(NUM_THREADS, DATA_T) env;
 
-    bus_intf #(DATA_IN_WID) wr_if (.clk);
-    bus_intf #(DATA_IN_WID) rd_if (.clk);
+    bus_intf #(DATA_WID) wr_if (.clk);
+    bus_intf #(DATA_WID) rd_if (.clk);
 
     std_reset_intf reset_if (.clk);
 
@@ -111,9 +98,9 @@ module fec_decode_unit_test;
     assign data_in        = wr_if.data;
     assign wr_if.ready    = data_in_ready;
 
-    assign dec_data_out_ready = rd_if.ready;
-    assign rd_if.data         = dec_data_out;
-    assign rd_if.valid        = dec_data_out_valid;
+    assign data_out_ready = rd_if.ready;
+    assign rd_if.data   = data_out;
+    assign rd_if.valid  = data_out_valid;
 
     // Assign clock (100MHz)
     `SVUNIT_CLK_GEN(clk, 5ns);
@@ -166,9 +153,9 @@ module fec_decode_unit_test;
     //   `SVTEST_END
     //===================================
 
-    std_verif_pkg::raw_transaction#(DATA_IN_T) transaction_in;
+    std_verif_pkg::raw_transaction#(DATA_T) transaction_in;
 
-    DATA_IN_T transaction_in_data;
+    DATA_T transaction_in_data;
     initial begin
         transaction_in_data[0]=1;
         transaction_in_data[1]=2;
@@ -190,28 +177,38 @@ module fec_decode_unit_test;
         `SVTEST_END
 
         `SVTEST(basic_sanity)
-            int N=500;
+            int N=1024;
 
             for (int i=0; i<N; i++) begin
                 // Send transaction
-                for (int j=0; j<NUM_CW; j++)
-                    for (int k=0; k<RS_K; k++) transaction_in_data[j*RS_K+k] = $urandom;
-
+                for (int j=0; j<DATA_WID; j++) transaction_in_data[j] = $urandom;
+/*
+                     if (i%8 == 0) for (int j=0; j<DATA_WID; j++) transaction_in_data[j] = 1;                     // bit slice 0
+                else if (i%8 == 1) for (int j=0; j<DATA_WID; j++) transaction_in_data[j] = (j/(DATA_WID/4))%2;  
+                else if (i%8 == 2) for (int j=0; j<DATA_WID; j++) transaction_in_data[j] = (j/(DATA_WID/4))%2+1;  // bit slice 1
+                else if (i%8 == 3) for (int j=0; j<DATA_WID; j++) transaction_in_data[j] = (j/(DATA_WID/4))%2+1;  
+                else if (i%8 == 4) for (int j=0; j<DATA_WID; j++) transaction_in_data[j] = (j/(DATA_WID/2))%2;    // bit slice 2
+                else if (i%8 == 5) for (int j=0; j<DATA_WID; j++) transaction_in_data[j] = (j/(DATA_WID/2))%2;  
+                else if (i%8 == 6) for (int j=0; j<DATA_WID; j++) transaction_in_data[j] = (j/(DATA_WID/2))%2+1;  // bit slice 3
+                else if (i%8 == 7) for (int j=0; j<DATA_WID; j++) transaction_in_data[j] = (j/(DATA_WID/2))%2;  
+                else               for (int j=0; j<DATA_WID; j++) transaction_in_data[j] = $urandom;
+*/                
                 transaction_in = new("transaction_in", transaction_in_data);
                 env.inbox.put(transaction_in);
             end
 
             fork
-                #20us if (!rx_done) `INFO("TIMEOUT! waiting for rx packets...");
+                #50us if (!rx_done) `INFO("TIMEOUT! waiting for rx packets...");
 
                 while (!rx_done) #100ns if (env.scoreboard.exp_pending()==0) rx_done=1;
             join_any
-	      
+
             #100ns;
             `FAIL_IF_LOG( env.scoreboard.report(msg) > 0, msg );
             `FAIL_UNLESS_EQUAL( env.scoreboard.got_matched(), N );
+
         `SVTEST_END
 
     `SVUNIT_TESTS_END
 
-endmodule : fec_decode_unit_test
+endmodule : fec_col_transpose_unit_test

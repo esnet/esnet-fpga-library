@@ -19,7 +19,7 @@ module fec_blk_transpose_unit_test;
     localparam int DATA_WID     = 512;
     localparam int NUM_THREADS  = 1;
     localparam int NUM_CW       = DATA_WID / (RS_K * NUM_THREADS * SYM_SIZE);
-    localparam int SYM_PER_COL  = 1024;
+    localparam int COL_LEN      = 1024;
     localparam int NUM_COL      = 8;
 
     //===================================
@@ -48,8 +48,8 @@ module fec_blk_transpose_unit_test;
     fec_blk_transpose #(
         .DATA_WID       (DATA_WID),
         .NUM_COL        (NUM_COL),
-        .SYM_PER_COL    (SYM_PER_COL),
-        .MODE           (CW_TO_COL)
+        .COL_LEN        (COL_LEN),
+        .MODE           (CW_TO_SYM)
     ) fec_cw_to_col_inst (
         .clk            (clk),
         .srst           (srst),
@@ -64,8 +64,8 @@ module fec_blk_transpose_unit_test;
     fec_blk_transpose #(
         .DATA_WID       (DATA_WID),
         .NUM_COL        (NUM_COL),
-        .SYM_PER_COL    (SYM_PER_COL),
-        .MODE           (COL_TO_CW)
+        .COL_LEN        (COL_LEN),
+        .MODE           (SYM_TO_CW)
     ) fec_col_to_cw_inst (
         .clk            (clk),
         .srst           (srst),

@@ -454,6 +454,10 @@ if (True) :
    print("G = ")
    print(G,"\n")
 
+   P = G.transpose()[-2*t:]
+   print("P = ")
+   print(P,"\n")
+
    print("-----  RS Encoder testing  -----")
 
    print(f"matrix (G) based encoder: message d = {d} t = {t}")
@@ -639,12 +643,20 @@ if (True) :
    print(f'''localparam logic [RS_2T:0][SYM_SIZE-1:0] RS_G_POLY = '{{ {",".join(map(str,Gpoly[::-1]))} }};\n''',
          file = svh_file);
 
-   print(f'''localparam logic [SYM_SIZE-1:0] RS_G_LUT [RS_K][RS_N] = '{{''', file = svh_file);
+   print(f'''localparam logic [0:RS_K-1][0:RS_N-1][SYM_SIZE-1:0] RS_G_LUT = '{{''', file = svh_file);
    for row in range(len(G)):
       if row < len(G)-1:
           print(f'''    '{{ {",".join(map(str,G[row]))} }},''', file = svh_file);
       else: # last row, no comma.
           print(f'''    '{{ {",".join(map(str,G[row]))} }}''', file = svh_file);
+   print(f'''}};\n''', file = svh_file);
+
+   print(f'''localparam logic [0:RS_2T-1][0:RS_K-1][SYM_SIZE-1:0] RS_P_LUT = '{{''', file = svh_file);
+   for row in range(len(P)):
+      if row < len(P)-1:
+          print(f'''    '{{ {",".join(map(str,P[row]))} }},''', file = svh_file);
+      else: # last row, no comma.
+          print(f'''    '{{ {",".join(map(str,P[row]))} }}''', file = svh_file);
    print(f'''}};\n''', file = svh_file);
 
    print(f'''localparam NUM_H = {len(H_LUT)};\n''', file = svh_file);

@@ -2,9 +2,14 @@ package fec_pkg;
 
     // Typedefs
     typedef enum logic {
-        CW_TO_COL = 1'b0,
-        COL_TO_CW = 1'b1
+        CW_TO_SYM = 1'b0,
+        SYM_TO_CW = 1'b1
     } fec_blk_transpose_mode_t;
+
+    typedef enum logic {
+        SYM_TO_BIT = 1'b1,
+        BIT_TO_SYM = 1'b0
+    } fec_col_transpose_mode_t;
 
 
     // FEC Lookup Definitions.

@@ -163,7 +163,7 @@ module rs_decode_unit_test;
         svunit_ut = new(name);
 
         // Create testbench environment
-        env = new("rs_encode_tb_env", reset_if, wr_if, rd_if);
+        env = new("rs_decode_tb_env", reset_if, wr_if, rd_if);
         env.build();
         env.set_debug_level(1);
 
