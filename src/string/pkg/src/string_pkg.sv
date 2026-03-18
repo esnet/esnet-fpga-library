@@ -23,7 +23,7 @@ package string_pkg;
     endfunction
 
     // String : convert byte array to hex string
-    function automatic string byte_array_to_hex_string(input byte ba[$]);
+    function automatic string byte_array_to_hex_string(input byte ba[]);
         string str = "";
         foreach (ba[i]) begin
             str = {str, $sformatf("%2x", ba[i])};
@@ -32,7 +32,7 @@ package string_pkg;
     endfunction
 
     // String : convert byte array to ASCII string
-    function automatic string byte_array_to_ascii_string(input byte ba[$]);
+    function automatic string byte_array_to_ascii_string(input byte ba[]);
         string str = "";
         byte c;
         foreach (ba[i]) begin
@@ -45,11 +45,12 @@ package string_pkg;
     endfunction
 
     // String : print byte array in hex and ASCII format, in rows of 16 bytes (similar to xxd)
-    function automatic string byte_array_to_string(input byte ba[$]);
+    function automatic string byte_array_to_string(input byte ba[]);
+        automatic byte ba_q[$] = ba;
         string str = "";
         int byte_idx = 0;
         int row_idx = 0;
-        while (ba.size() > 0) begin
+        while (ba_q.size() > 0) begin
             string hex_str = "";
             string ascii_str = "";
             for (int i = 0; i < 2; i++) begin
@@ -57,7 +58,7 @@ package string_pkg;
                     byte ba_segment [$] = {};
                     string pad_str = "";
                     for (int k = 0; k < 2; k++) begin
-                        if (ba.size() > 0) ba_segment.push_back(ba.pop_front());
+                        if (ba_q.size() > 0) ba_segment.push_back(ba_q.pop_front());
                         else pad_str = {pad_str, " "};
                         byte_idx++;
                     end
