@@ -178,14 +178,20 @@ package pci_vpd_verif_pkg;
     function automatic string vpd_record_to_string(input vpd_record_t record, input string indent="");
         string str;
         string value_str;
-        str = {str, indent, record.name, ": "};
+        str = {str, indent, "[",  record.name, "] "};
         case (record.name)
-            "SN", "PN", "V3" : value_str = string_pkg::byte_array_to_ascii_string(record.value);
+            "PN" : str = {str, "Part number: "};
+            "SN" : str = {str, "Serial number: "};
+            "RV" : str = {str, "Reserved: "};
+            "RM" : str = {str, "Firmware version: "};
+            default : str = {str, "Vendor specific: "};
+        endcase
+        case (record.name)
             "RV"   : begin
                 value_str = {"\n", indent, "\t", $sformatf("Checksum: 0x%0x", record.value[0])};
                 if (record.value.size() > 1) value_str = {value_str, "\n", indent, "\t", $sformatf("RSVD: %0dB", record.value.size()-1)};
             end
-            default: value_str = string_pkg::byte_array_to_hex_string(record.value);
+            default: value_str = string_pkg::byte_array_to_ascii_string(record.value);
         endcase
         str = {str, value_str, "\n"};
         return str;
