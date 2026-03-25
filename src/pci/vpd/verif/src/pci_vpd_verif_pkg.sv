@@ -163,7 +163,7 @@ package pci_vpd_verif_pkg;
         str = {str, indent, vpd_get_tag_name(resource.tag), "\n"};
         str = {str, indent, "\t", "Len: ", $sformatf("%0d", resource.value.size()), "\n"};
         str = {str, indent, "\t", "Sum: ", $sformatf("0x%0x", resource.sum), "\n"};
-        if (resource.value.size() < 256) begin
+        if (resource.value.size() < 2**VPD_ADDR_WID) begin
             str = {str, indent, "\t", "Value: "};
             value_str = "";
             case (resource.tag)
