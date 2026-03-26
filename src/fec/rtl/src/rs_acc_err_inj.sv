@@ -46,4 +46,4 @@ module rs_acc_err_inj
     assign data_out_blk_size = index==0 ? data_in_blk_size : blk_size;
     assign data_out          = data_in;
 
-endmodule;  // rs_acc_err_inj
+endmodule  // rs_acc_err_inj

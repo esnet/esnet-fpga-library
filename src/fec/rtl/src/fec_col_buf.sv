@@ -75,4 +75,4 @@ module fec_col_buf
         end
     endgenerate
 
-endmodule;  // fec_col_buf
+endmodule  // fec_col_buf

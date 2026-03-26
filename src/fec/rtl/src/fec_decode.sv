@@ -96,4 +96,4 @@ module fec_decode
         end : g__rsd_cw
     endgenerate
 
-endmodule;  // fec_decode
+endmodule  // fec_decode

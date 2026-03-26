@@ -91,4 +91,4 @@ module rs_acc_encode
     assign data_out       = parity_sel ? parity_data  : pad_data;
     assign data_out_valid = parity_sel ? parity_valid : pad_valid;
 
-endmodule;  // rs_acc_encode
+endmodule  // rs_acc_encode

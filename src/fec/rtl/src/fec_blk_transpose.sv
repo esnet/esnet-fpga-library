@@ -218,4 +218,4 @@ module fec_blk_transpose
 
     assign data_out_valid = fifo_rd;
 
-endmodule;  // fec_blk_transpose
+endmodule  // fec_blk_transpose

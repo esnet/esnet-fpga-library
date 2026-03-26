@@ -81,4 +81,4 @@ module fec_err_inject
         err_loc_out   <= err_loc_pipe[0];
     end
 
-endmodule;  // fec_err_inject
+endmodule  // fec_err_inject

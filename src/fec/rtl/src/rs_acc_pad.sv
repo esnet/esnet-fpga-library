@@ -65,4 +65,4 @@ module rs_acc_pad
         end
     end endgenerate
 
-endmodule;  // rs_acc_pad
+endmodule  // rs_acc_pad

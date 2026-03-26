@@ -244,4 +244,4 @@ module fec_col_transpose
 
     assign data_out_valid = fifo_rd;
 
-endmodule;  // fec_col_transpose
+endmodule  // fec_col_transpose

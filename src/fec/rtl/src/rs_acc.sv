@@ -265,4 +265,4 @@ module rs_acc
     assign data_out_blk_size  = fifo_rd_data[DATA_WID +: $clog2(CLKS_PER_BLK)];
     assign data_out_valid     = !fifo_empty;
 
-endmodule;  // rs_acc
+endmodule  // rs_acc

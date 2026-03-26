@@ -36,4 +36,4 @@ module rs_decode_h_select
 
     assign data_in_ready = data_out_ready;
 
-endmodule;  // rs_decode_h_select
+endmodule  // rs_decode_h_select

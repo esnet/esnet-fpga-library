@@ -96,4 +96,4 @@ module rs_decode
 
     assign data_in_ready = data_out_ready;
 
-endmodule;  // rs_decode
+endmodule  // rs_decode

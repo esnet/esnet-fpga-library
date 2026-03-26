@@ -59,4 +59,4 @@ module rs_encode
 
     assign data_in_ready = data_out_ready;
 
-endmodule;  // rs_encode
+endmodule  // rs_encode

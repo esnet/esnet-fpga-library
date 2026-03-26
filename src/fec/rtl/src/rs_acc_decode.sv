@@ -84,4 +84,4 @@ module rs_acc_decode
         .data_out_ready     (data_out_ready)
     );
 
-endmodule;  // rs_acc_decode
+endmodule  // rs_acc_decode
