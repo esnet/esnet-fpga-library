@@ -26,12 +26,14 @@ module rs_acc_unit_test;
     localparam int DATA_SYM_WID = DATA_WID / SYM_SIZE;
     localparam int SYM_PER_BLK  = COL_LEN * RS_K;
     localparam int CLKS_PER_COL = COL_LEN / DATA_SYM_WID;  // CLKS_PER_COL >= 4 (PIPE_STAGES).
+    localparam int CLKS_PER_BLK = RS_K * COL_LEN * SYM_SIZE / DATA_WID;
 
     //===================================
     // Typedefs
     //===================================
     typedef logic [DATA_WID/SYM_SIZE-1:0]  [SYM_SIZE-1:0] DATA_T;
     typedef logic [PARITY_WID/SYM_SIZE-1:0][SYM_SIZE-1:0] PARITY_T;
+    typedef logic [$clog2(CLKS_PER_BLK)-1:0] INDEX_T;
 
     //===================================
     // DUT
@@ -43,10 +45,12 @@ module rs_acc_unit_test;
 
     DATA_T  data_in;
     logic   data_in_valid;
+    INDEX_T data_in_blk_size = CLKS_PER_BLK-1;
     logic   data_in_ready;
 
     DATA_T  data_out;
     logic   data_out_valid;
+    INDEX_T data_out_blk_size;
     logic   data_out_ready;
    
     rs_acc #(.DATA_WID(DATA_WID), .COL_LEN(COL_LEN)) DUT (.*);
