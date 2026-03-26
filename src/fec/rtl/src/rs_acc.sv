@@ -11,15 +11,8 @@ module rs_acc
     input  logic srst,
     input  logic [0:NUM_COL-1][0:RS_K-1][SYM_SIZE-1:0] coef_matrix,
 
-    input  logic [DATA_WID/SYM_SIZE-1:0][SYM_SIZE-1:0] data_in,
-    input  logic data_in_valid,
-    input  logic [$clog2(CLKS_PER_BLK)-1:0] data_in_blk_size,
-    output logic data_in_ready,
-
-    output logic [DATA_WID/SYM_SIZE-1:0][SYM_SIZE-1:0] data_out,
-    output logic data_out_valid,
-    output  logic [$clog2(CLKS_PER_BLK)-1:0] data_out_blk_size,
-    input  logic data_out_ready
+    rs_acc_intf.rx  data_in,
+    rs_acc_intf.tx  data_out
 );
     import fifo_pkg::*;
 
@@ -62,23 +55,23 @@ module rs_acc
 
 
     // instantiate ingress and egress pipelines.
-    assign data_in_ready = fifo_wr_rdy;
+    assign data_in.ready = fifo_wr_rdy;
 
     always_ff @(posedge clk)
         if (srst) begin
             index   <= '0;
             buf_sel <=  0;
-        end else if (data_in_valid && data_in_ready) begin
+        end else if (data_in.valid && data_in.ready) begin
             index   <= (index == CLKS_PER_BLK-1) ? 0 : index+1;
             buf_sel <= (index == CLKS_PER_BLK-1) ? !buf_sel : buf_sel;
 
-            wr_blk_size <= (index == 0) ?         data_in_blk_size : wr_blk_size;
+            wr_blk_size <= (index == 0) ?         data_in.blk_size : wr_blk_size;
             rd_blk_size <= (index == CLKS_PER_BLK-1) ? wr_blk_size : rd_blk_size;
         end
 
     always @(posedge clk) begin
-        pipe_data [0]        <= data_in;
-        pipe_valid[0]        <= data_in_valid && data_in_ready;
+        pipe_data [0]        <= data_in.data;
+        pipe_valid[0]        <= data_in.valid && data_in.ready;
         pipe_index[0]        <= index;
         pipe_buf_sel[0]      <= buf_sel;
         pipe_coef_matrix[0]  <= coef_matrix;
@@ -243,7 +236,7 @@ module rs_acc
     assign fifo_wr_data = { rd_blk_size, parity[pipe_rd_index[OUT_STAGE]/CLKS_PER_COL] };
     assign fifo_wr      = pipe_rd_req[OUT_STAGE];
     assign fifo_wr_rdy  = fifo_count < DEPTH - PIPE_STAGES;
-    assign fifo_rd      = data_out_ready && data_out_valid;
+    assign fifo_rd      = data_out.ready && data_out.valid;
 
     fifo_small #(
         .DATA_WID($clog2(CLKS_PER_BLK)+DATA_WID), .DEPTH(DEPTH), .REPORT_OFLOW(1), .REPORT_UFLOW(1)
@@ -261,8 +254,8 @@ module rs_acc
         .count     (fifo_count)
     );
 
-    assign data_out           = fifo_rd_data[DATA_WID-1:0];
-    assign data_out_blk_size  = fifo_rd_data[DATA_WID +: $clog2(CLKS_PER_BLK)];
-    assign data_out_valid     = !fifo_empty;
+    assign data_out.data      = fifo_rd_data[DATA_WID-1:0];
+    assign data_out.blk_size  = fifo_rd_data[DATA_WID +: $clog2(CLKS_PER_BLK)];
+    assign data_out.valid     = !fifo_empty;
 
 endmodule  // rs_acc

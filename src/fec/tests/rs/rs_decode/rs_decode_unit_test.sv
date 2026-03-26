@@ -59,6 +59,13 @@ module rs_decode_unit_test;
             .err_loc   (hsel_err_loc) );
 
 
+    rs_acc_intf #(.DATA_WID(DATA_IN_WID), .COL_LEN(1)) data_in_if  (.clk(clk));
+    rs_acc_intf #(.DATA_WID(DATA_IN_WID), .COL_LEN(1)) data_out_if (.clk(clk));
+
+    assign data_in_if.data     = hsel_data_in;
+    assign data_in_if.valid    = data_out_valid;
+    assign data_out_ready      = data_in_if.ready;
+
     DATA_IN_T  hsel_data_out;
     logic      [RS_K-1:0][RS_K-1:0][SYM_SIZE-1:0] hsel_h_matrix;
     logic      [RS_N-1:0] hsel_err_loc_vec;
@@ -68,18 +75,16 @@ module rs_decode_unit_test;
     rs_decode_h_select DUT1 (
         .clk            (clk),
         .srst           (srst),
-
-        .data_in        (hsel_data_in),
         .err_loc        (hsel_err_loc),
-        .data_in_valid  (data_out_valid),
-        .data_in_ready  (data_out_ready),
-
-        .data_out       (hsel_data_out),
+        .data_in        (data_in_if),
         .h_matrix       (hsel_h_matrix),
         .err_loc_vec    (hsel_err_loc_vec),
-        .data_out_valid (hsel_valid),
-        .data_out_ready (hsel_ready)
+        .data_out       (data_out_if)
     );
+
+    assign hsel_data_out     = data_out_if.data;
+    assign hsel_valid        = data_out_if.valid;
+    assign data_out_if.ready = hsel_ready;
 
 
     DATA_IN_T  rsd_data_out;

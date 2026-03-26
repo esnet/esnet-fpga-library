@@ -8,18 +8,10 @@ module rs_acc_err_inj
 ) (
     input  logic clk,
     input  logic srst,
-
-    input  logic [DATA_WID-1:0] data_in,
-    input  logic data_in_valid,
-    input  logic [$clog2(CLKS_PER_BLK)-1:0] data_in_blk_size,
-    output logic data_in_ready,
-
     input  logic [0:RS_N-1] err_loc_vec,
 
-    output logic [DATA_WID-1:0] data_out,
-    output logic data_out_valid,
-    output logic [$clog2(CLKS_PER_BLK)-1:0] data_out_blk_size,
-    input  logic data_out_ready
+    rs_acc_intf.rx  data_in,
+    rs_acc_intf.tx  data_out
 );
 
     // derived parameters.
@@ -32,18 +24,18 @@ module rs_acc_err_inj
 
     logic [$clog2(CLKS_PER_BLK)-1:0] blk_size;
 
-    assign data_in_ready = data_out_ready;
+    assign data_in.ready = data_out.ready;
 
     always_ff @(posedge clk)
         if (srst)
             index <= '0;
-        else if (data_in_valid && data_in_ready)
+        else if (data_in.valid && data_in.ready)
             index <= (index == CLKS_PER_CW_BLK-1) ? 0 : index+1;
 
-    always_ff @(posedge clk) if (index == 0) blk_size <= data_in_blk_size;
+    always_ff @(posedge clk) if (index == 0) blk_size <= data_in.blk_size;
 
-    assign data_out_valid    = data_in_valid && !err_loc_vec[index / CLKS_PER_COL];
-    assign data_out_blk_size = index==0 ? data_in_blk_size : blk_size;
-    assign data_out          = data_in;
+    assign data_out.valid    = data_in.valid && !err_loc_vec[index / CLKS_PER_COL];
+    assign data_out.blk_size = index==0 ? data_in.blk_size : blk_size;
+    assign data_out.data     = data_in.data;
 
 endmodule  // rs_acc_err_inj

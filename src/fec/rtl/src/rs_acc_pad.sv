@@ -10,14 +10,8 @@ module rs_acc_pad
     input  logic clk,
     input  logic srst,
 
-    input  logic [DATA_WID-1:0] data_in,
-    input  logic data_in_valid,
-    input  logic [$clog2(CLKS_PER_BLK)-1:0] data_in_blk_size,
-    output logic data_in_ready,
-
-    output logic [DATA_WID-1:0] data_out,
-    output logic data_out_valid,
-    input  logic data_out_ready
+    rs_acc_intf.rx  data_in,
+    rs_acc_intf.tx  data_out
 );
 
     logic [$clog2(CLKS_PER_BLK)-1:0] index;
@@ -25,27 +19,27 @@ module rs_acc_pad
 
     always_ff @(posedge clk)
         if (srst) begin
-            index    <= '0;
+            index  <= '0;
             pad_en <=  0;
         end else begin
             if (!pad_en) begin
-                if (data_in_valid && data_in_ready) begin
+                if (data_in.valid && data_in.ready) begin
                     if (index == CLKS_PER_BLK-1) begin
-                        index <= '0;
-                    end else if (index == data_in_blk_size) begin
-                        index <= index+1;
+                        index  <= '0;
+                    end else if (index == data_in.blk_size) begin
+                        index  <= index+1;
                         pad_en <= 1;
                     end else begin
-                        index <= index+1;
+                        index  <= index+1;
                     end
                 end
             end else if (pad_en) begin
-                if (data_out_ready) begin
+                if (data_out.ready) begin
                     if (index == CLKS_PER_BLK-1) begin
-                        index <= '0;
+                        index  <= '0;
                         pad_en <= 0;
                     end else begin
-                        index <= index+1;
+                        index  <= index+1;
                     end
                 end
             end	       
@@ -53,14 +47,14 @@ module rs_acc_pad
 
     generate begin
         if (MODE == INSERT) begin
-            assign data_in_ready  = pad_en ? '0 : data_out_ready;
-            assign data_out_valid = pad_en ? '1 : data_in_valid;
-            assign data_out       = pad_en ? '0 : data_in;
+            assign data_in.ready  = pad_en ? '0 : data_out.ready;
+            assign data_out.valid = pad_en ? '1 : data_in.valid;
+            assign data_out.data  = pad_en ? '0 : data_in.data;
 
         end else if (MODE == DELETE) begin
-            assign data_in_ready  = pad_en ? '1 : data_out_ready;
-            assign data_out_valid = pad_en ? '0 : data_in_valid;
-            assign data_out       = pad_en ? '0 : data_in;
+            assign data_in.ready  = pad_en ? '1 : data_out.ready;
+            assign data_out.valid = pad_en ? '0 : data_in.valid;
+            assign data_out.data  = pad_en ? '0 : data_in.data;
 
         end
     end endgenerate

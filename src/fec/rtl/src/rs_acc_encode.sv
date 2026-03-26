@@ -9,71 +9,54 @@ module rs_acc_encode
     input  logic clk,
     input  logic srst,
 
-    input  logic [DATA_WID-1:0] data_in,
-    input  logic data_in_valid,
-    input  logic [$clog2(CLKS_PER_BLK)-1:0] data_in_blk_size,
-    output logic data_in_ready,
-
-    output logic [DATA_WID-1:0] data_out,
-    output logic data_out_valid,
-    input  logic data_out_ready
+    rs_acc_intf.rx  data_in,
+    rs_acc_intf.tx  data_out
 );
 
     // derived parameters.
     localparam CLKS_PER_CW_BLK = CLKS_PER_BLK * RS_N / RS_K;
 
-    logic [DATA_WID-1:0] pad_data;
-    logic pad_valid;
-    logic pad_ready;
-
-    logic [DATA_WID-1:0] parity_data;
-    logic parity_valid;
-    logic parity_ready;
-
+    // signals.
     logic [$clog2(CLKS_PER_CW_BLK)-1:0] index;
     logic parity_sel;
 
+    // instantiate interfaces.
+    rs_acc_intf #(.DATA_WID(DATA_WID), .COL_LEN(COL_LEN)) pad (.clk(clk));
+    rs_acc_intf #(.DATA_WID(DATA_WID), .COL_LEN(COL_LEN)) pad_out (.clk(clk));
+    rs_acc_intf #(.DATA_WID(DATA_WID), .COL_LEN(COL_LEN)) parity  (.clk(clk));
+
+
 //    logic  _data_in_valid,  _data_in_ready;
-//    assign _data_in_valid =  data_in_valid && data_out_ready && !parity_sel;
-//    assign  data_in_ready = _data_in_ready && data_out_ready && !parity_sel;
+//    assign _data_in_valid =  data_in.valid && data_out_ready && !parity_sel;
+//    assign  data_in.ready = _data_in_ready && data_out_ready && !parity_sel;
 
     rs_acc_pad #(.DATA_WID(DATA_WID), .COL_LEN(COL_LEN), .MODE(INSERT)) rs_acc_pad_0 (
         .clk              (clk),
         .srst             (srst),
         .data_in          (data_in),
-//        .data_in_valid    (_data_in_valid),
-//        .data_in_ready    (_data_in_ready),
-        .data_in_valid    (data_in_valid),
-        .data_in_ready    (data_in_ready),
-        .data_in_blk_size (data_in_blk_size),
-        .data_out         (pad_data),
-        .data_out_valid   (pad_valid),
-        .data_out_ready   (pad_ready)
+        .data_out         (pad)
     );
 
     logic  _pad_valid,  _pad_ready;
-    assign _pad_valid =  pad_valid && data_out_ready && !parity_sel;
-    assign  pad_ready = _pad_ready && data_out_ready && !parity_sel;
+    assign _pad_valid =     pad.valid && data_out.ready && !parity_sel;
+    assign  pad.ready = pad_out.ready && data_out.ready && !parity_sel;
+
+    assign pad_out.data  = pad.data;
+    assign pad_out.valid = _pad_valid;
 
     rs_acc #(.DATA_WID(DATA_WID), .NUM_COL(RS_2T), .COL_LEN(COL_LEN)) rs_acc (
         .clk              (clk),
         .srst             (srst),
         .coef_matrix      (RS_P_LUT),
-        .data_in          (pad_data),
-//        .data_in_valid    (pad_valid),
-//        .data_in_ready    (pad_ready),
-        .data_in_valid    (_pad_valid),
-        .data_in_ready    (_pad_ready),
-        .data_out         (parity_data),
-        .data_out_valid   (parity_valid),
-        .data_out_ready   (parity_ready)
+        .data_in          (pad_out),
+        .data_out         (parity)
     );
 
     always_ff @(posedge clk)
         if (srst) begin
             index <= '0;
             parity_sel <=  0;
-        end else if (data_out_valid && data_out_ready) begin
+        end else if (data_out.valid && data_out.ready) begin
             if (index == CLKS_PER_CW_BLK-1) begin
                 index <= '0;
                 parity_sel <= 0;
@@ -84,11 +67,11 @@ module rs_acc_encode
                 index <= index+1;
         end
 
-    assign parity_ready = data_out_ready;
+    assign parity.ready = data_out.ready;
 
-//    assign data_out       = parity_sel ? parity_data  : data_in;
-//    assign data_out_valid = parity_sel ? parity_valid : data_in_valid;
-    assign data_out       = parity_sel ? parity_data  : pad_data;
-    assign data_out_valid = parity_sel ? parity_valid : pad_valid;
+//    assign data_out.data  = parity_sel ? parity.data  : data_in.data;
+//    assign data_out.valid = parity_sel ? parity.valid : data_in.valid;
+    assign data_out.data  = parity_sel ? parity.data  : pad.data;
+    assign data_out.valid = parity_sel ? parity.valid : pad.valid;
 
 endmodule  // rs_acc_encode
