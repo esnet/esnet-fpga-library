@@ -11,6 +11,11 @@ package fec_pkg;
         BIT_TO_SYM = 1'b0
     } fec_col_transpose_mode_t;
 
+    typedef enum logic {
+        INSERT = 1'b1,
+        DELETE = 1'b0
+    } rs_acc_pad_mode_t;
+
 
     // FEC Lookup Definitions.
     `include "../include/fec_luts.svh"
