@@ -69,7 +69,7 @@ module rs_acc
             rd_blk_size <= (index == CLKS_PER_BLK-1) ? wr_blk_size : rd_blk_size;
         end
 
-    always @(posedge clk) begin
+    always_ff @(posedge clk) begin
         pipe_data [0]        <= data_in.data;
         pipe_valid[0]        <= data_in.valid && data_in.ready;
         pipe_index[0]        <= index;
@@ -128,7 +128,7 @@ module rs_acc
                _pp[i][j] = gf_mul( pipe_data[PP_STAGE][j], pipe_coef_matrix[PP_STAGE][i][coef_index] );
     end
 
-    always @(posedge clk) pp <= _pp;
+    always_ff @(posedge clk) pp <= _pp;
 
 
     // ACC_STAGE ---- accumulates partial product with running sums ('parity state' from memory).
@@ -141,7 +141,7 @@ module rs_acc
                else _acc[i][j] = gf_add(sum[i][j], pp[i][j]);
        end
 
-    always @(posedge clk) acc <= _acc;
+    always_ff @(posedge clk) acc <= _acc;
 
 
     // WR_STAGE ---- write accumulator state.

@@ -62,7 +62,7 @@ module fec_col_transpose
             buf_sel <= (index == CLKS_PER_BLK-1) ? !buf_sel : buf_sel;
         end
 
-    always @(posedge clk) begin
+    always_ff @(posedge clk) begin
         pipe_data [0]   <= data_in;
         pipe_valid[0]   <= data_in_valid && data_in_ready;
         pipe_index[0]   <= index;

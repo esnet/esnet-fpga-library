@@ -19,7 +19,7 @@ module rs_decode_h_select
 );
 
     // pipeline data and select 'h_matrix' and 'err_loc_vec'.
-    always @(posedge clk) if (data_out.ready) begin
+    always_ff @(posedge clk) if (data_out.ready) begin
         data_out.data      <= data_in.data;
         data_out.valid     <= data_in.valid;
         data_out.blk_size  <= data_in.blk_size;
