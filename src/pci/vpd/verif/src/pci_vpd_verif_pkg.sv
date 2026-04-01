@@ -134,8 +134,10 @@ package pci_vpd_verif_pkg;
 
     // Return the data associated with a record of a specified 'name', within the specified VPD-R resource
     function automatic value_t vpd_r_get_record_value(input vpd_r_t vpd_r, input string name);
+        value_t returnVal;
         foreach (vpd_r.records[i]) if (vpd_r.records[i].name == name) return vpd_r.records[i].value;
-        return "";
+        returnVal = new[0];
+        return returnVal;
     endfunction
 
     // Display functions
