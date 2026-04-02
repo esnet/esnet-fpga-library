@@ -134,8 +134,10 @@ package pci_vpd_verif_pkg;
 
     // Return the data associated with a record of a specified 'name', within the specified VPD-R resource
     function automatic value_t vpd_r_get_record_value(input vpd_r_t vpd_r, input string name);
+        value_t returnVal;
         foreach (vpd_r.records[i]) if (vpd_r.records[i].name == name) return vpd_r.records[i].value;
-        return "";
+        returnVal = new[0];
+        return returnVal;
     endfunction
 
     // Display functions
@@ -163,7 +165,7 @@ package pci_vpd_verif_pkg;
         str = {str, indent, vpd_get_tag_name(resource.tag), "\n"};
         str = {str, indent, "\t", "Len: ", $sformatf("%0d", resource.value.size()), "\n"};
         str = {str, indent, "\t", "Sum: ", $sformatf("0x%0x", resource.sum), "\n"};
-        if (resource.value.size() < 256) begin
+        if (resource.value.size() < 2**VPD_ADDR_WID) begin
             str = {str, indent, "\t", "Value: "};
             value_str = "";
             case (resource.tag)
@@ -178,14 +180,20 @@ package pci_vpd_verif_pkg;
     function automatic string vpd_record_to_string(input vpd_record_t record, input string indent="");
         string str;
         string value_str;
-        str = {str, indent, record.name, ": "};
+        str = {str, indent, "[",  record.name, "] "};
         case (record.name)
-            "SN", "PN", "V3" : value_str = string_pkg::byte_array_to_ascii_string(record.value);
+            "PN" : str = {str, "Part number: "};
+            "SN" : str = {str, "Serial number: "};
+            "RV" : str = {str, "Reserved: "};
+            "RM" : str = {str, "Firmware version: "};
+            default : str = {str, "Vendor specific: "};
+        endcase
+        case (record.name)
             "RV"   : begin
                 value_str = {"\n", indent, "\t", $sformatf("Checksum: 0x%0x", record.value[0])};
                 if (record.value.size() > 1) value_str = {value_str, "\n", indent, "\t", $sformatf("RSVD: %0dB", record.value.size()-1)};
             end
-            default: value_str = string_pkg::byte_array_to_hex_string(record.value);
+            default: value_str = string_pkg::byte_array_to_ascii_string(record.value);
         endcase
         str = {str, value_str, "\n"};
         return str;
