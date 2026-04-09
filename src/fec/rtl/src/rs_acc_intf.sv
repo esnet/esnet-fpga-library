@@ -19,6 +19,7 @@ interface rs_acc_intf
     // Signals
     logic valid;
     logic ready;
+    logic eos; // end-of-segment
     logic [DATA_WID-1:0] data;
     logic [$clog2(CLKS_PER_BLK)-1:0] blk_size;
 
@@ -28,6 +29,7 @@ interface rs_acc_intf
         input  clk,
         output valid,
         input  ready,
+        output eos,
         output data,
         output blk_size
     );
@@ -36,6 +38,7 @@ interface rs_acc_intf
         input  clk,
         input  valid,
         output ready,
+        input  eos,
         input  data,
         input  blk_size
     );

@@ -14,6 +14,9 @@ module rs_acc_pad
     rs_acc_intf.tx  data_out
 );
 
+    // derived parameters.
+    localparam CLKS_PER_BIT = COL_LEN / DATA_WID;
+
     logic [$clog2(CLKS_PER_BLK)-1:0] index;
     logic pad_en;
 
@@ -58,5 +61,7 @@ module rs_acc_pad
 
         end
     end endgenerate
+
+    assign data_out.eos = (index % CLKS_PER_BIT) == CLKS_PER_BIT-1;
 
 endmodule  // rs_acc_pad
