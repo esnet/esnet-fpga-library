@@ -26,10 +26,6 @@ module rs_acc_encode
     rs_acc_intf #(.DATA_WID(DATA_WID), .COL_LEN(COL_LEN)) parity  (.clk(clk));
 
 
-//    logic  _data_in_valid,  _data_in_ready;
-//    assign _data_in_valid =  data_in.valid && data_out_ready && !parity_sel;
-//    assign  data_in.ready = _data_in_ready && data_out_ready && !parity_sel;
-
     rs_acc_pad #(.DATA_WID(DATA_WID), .COL_LEN(COL_LEN), .MODE(INSERT)) rs_acc_pad_0 (
         .clk              (clk),
         .srst             (srst),
@@ -37,12 +33,10 @@ module rs_acc_encode
         .data_out         (pad)
     );
 
-    logic  _pad_valid,  _pad_ready;
-    assign _pad_valid =     pad.valid && data_out.ready && !parity_sel;
-    assign  pad.ready = pad_out.ready && data_out.ready && !parity_sel;
+    assign pad.ready = pad_out.ready && data_out.ready && !parity_sel;
 
     assign pad_out.data  = pad.data;
-    assign pad_out.valid = _pad_valid;
+    assign pad_out.valid = pad.valid && data_out.ready && !parity_sel;
 
     rs_acc #(.DATA_WID(DATA_WID), .NUM_COL(RS_2T), .COL_LEN(COL_LEN)) rs_acc (
         .clk              (clk),
@@ -69,8 +63,6 @@ module rs_acc_encode
 
     assign parity.ready = data_out.ready;
 
-//    assign data_out.data  = parity_sel ? parity.data  : data_in.data;
-//    assign data_out.valid = parity_sel ? parity.valid : data_in.valid;
     assign data_out.data  = parity_sel ? parity.data  : pad.data;
     assign data_out.valid = parity_sel ? parity.valid : pad.valid;
 
