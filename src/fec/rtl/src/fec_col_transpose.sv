@@ -9,13 +9,8 @@ module fec_col_transpose
     input  logic clk,
     input  logic srst,
 
-    input  logic [DATA_WID-1:0] data_in,
-    input  logic data_in_valid,
-    output logic data_in_ready,
-
-    output logic [DATA_WID-1:0] data_out,
-    output logic data_out_valid,
-    input  logic data_out_ready
+    rs_acc_intf.rx  data_in,
+    rs_acc_intf.tx  data_out
 );
 
     // derived parameters.
@@ -51,20 +46,20 @@ module fec_col_transpose
 
 
     // instantiate ingress and egress pipelines.
-    assign data_in_ready = data_out_ready;
+    assign data_in.ready = data_out.ready;
 
     always_ff @(posedge clk)
         if (srst) begin
             index   <= '0;
             buf_sel <=  0;
-        end else if (data_in_valid && data_in_ready) begin
+        end else if (data_in.valid && data_in.ready) begin
             index   <= (index == CLKS_PER_BLK-1) ? 0 : index+1;
             buf_sel <= (index == CLKS_PER_BLK-1) ? !buf_sel : buf_sel;
         end
 
     always_ff @(posedge clk) begin
-        pipe_data [0]   <= data_in;
-        pipe_valid[0]   <= data_in_valid && data_in_ready;
+        pipe_data [0]   <= data_in.data;
+        pipe_valid[0]   <= data_in.valid && data_in.ready;
         pipe_index[0]   <= index;
         pipe_buf_sel[0] <= buf_sel;
 
@@ -93,7 +88,7 @@ module fec_col_transpose
         end else if (buf_sel ^ pipe_buf_sel[0]) begin
             rd_index <= '0;
             rd_req   <= 1'b1;
-        end else if ((rd_index < CLKS_PER_BLK-1) && data_out_ready && fifo_wr_rdy) begin
+        end else if ((rd_index < CLKS_PER_BLK-1) && data_out.ready && fifo_wr_rdy) begin
             rd_index <= rd_index+1;
             rd_req   <= 1'b1;
         end else begin
@@ -101,7 +96,6 @@ module fec_col_transpose
             rd_req   <= 1'b0;
         end
     end
-
 
 
     // ---- FEC bank buffer instantiations ----
@@ -221,9 +215,8 @@ module fec_col_transpose
 
     end endgenerate
 
-
     // instantiate output FIFO (to support stalls in datapath).
-    assign fifo_rd = data_out_ready && !fifo_empty;
+    assign fifo_rd = data_out.ready && !fifo_empty;
 
     fifo_sync #(.DATA_WID(DATA_WID), .DEPTH(8), .OFLOW_PROT(1)) fifo_sync_inst (
         .clk       (clk),
@@ -236,12 +229,12 @@ module fec_col_transpose
         .oflow     (),
         .rd        (fifo_rd),
         .rd_ack    (),
-        .rd_data   (data_out),
+        .rd_data   (data_out.data),
         .rd_count  (),
         .empty     (fifo_empty),
         .uflow     ()
     );
 
-    assign data_out_valid = fifo_rd;
+    assign data_out.valid = fifo_rd;
 
 endmodule  // fec_col_transpose
