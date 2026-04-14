@@ -18,6 +18,7 @@ module rs_acc_pad
     localparam CLKS_PER_BIT = COL_LEN / DATA_WID;
 
     logic [$clog2(CLKS_PER_BLK)-1:0] index;
+    logic [$clog2(CLKS_PER_BLK)-1:0] blk_size;
     logic pad_en;
 
     always_ff @(posedge clk)
@@ -35,6 +36,7 @@ module rs_acc_pad
                     end else begin
                         index  <= index+1;
                     end
+                    blk_size <= (index == 0) ? data_in.blk_size : blk_size;
                 end
             end else if (pad_en) begin
                 if (data_out.ready) begin
@@ -50,18 +52,20 @@ module rs_acc_pad
 
     generate begin
         if (MODE == INSERT) begin
-            assign data_in.ready  = pad_en ? '0 : data_out.ready;
-            assign data_out.valid = pad_en ? '1 : data_in.valid;
-            assign data_out.data  = pad_en ? '0 : data_in.data;
+            assign data_in.ready     = pad_en ? '0 : data_out.ready;
+            assign data_out.valid    = pad_en ? '1 : data_in.valid;
+            assign data_out.data     = pad_en ? '0 : data_in.data;
+            assign data_out.blk_size = pad_en ? blk_size : data_in.blk_size;
 
         end else if (MODE == DELETE) begin
             assign data_in.ready  = pad_en ? '1 : data_out.ready;
             assign data_out.valid = pad_en ? '0 : data_in.valid;
             assign data_out.data  = pad_en ? '0 : data_in.data;
+            assign data_out.blk_size = pad_en ? blk_size : data_in.blk_size;
 
         end
     end endgenerate
 
-    assign data_out.eos = (index % CLKS_PER_BIT) == CLKS_PER_BIT-1;
+    assign data_out.eos = ((index % CLKS_PER_BIT) == CLKS_PER_BIT-1) | (index == data_in.blk_size);
 
 endmodule  // rs_acc_pad

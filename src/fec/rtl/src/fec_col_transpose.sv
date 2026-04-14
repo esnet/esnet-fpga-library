@@ -16,6 +16,7 @@ module fec_col_transpose
     // derived parameters.
     localparam CLKS_PER_BIT = COL_LEN / DATA_WID;
     localparam CLKS_PER_COL = CLKS_PER_BIT * COL_WID;
+    localparam CLKS_PER_BLK = RS_K * SYM_SIZE * COL_LEN / DATA_WID;
 
     // pipeline parameters.
     localparam PIPE_STAGES = 3;
@@ -37,7 +38,9 @@ module fec_col_transpose
     logic [$clog2(CLKS_PER_COL):0]                     wr_index;
 
     logic [$clog2(CLKS_PER_COL):0]                     rd_index;
+    logic [$clog2(CLKS_PER_BLK)-1:0]                   rd_blk_size, wr_blk_size;
     logic                                              rd_req;
+
     logic [PIPE_STAGES-1:0][$clog2(CLKS_PER_COL)-1:0]  pipe_rd_index;
     logic [PIPE_STAGES-1:0]                            pipe_rd_req;
 
@@ -56,6 +59,9 @@ module fec_col_transpose
         end else if (data_in.valid && data_in.ready) begin
             index   <= (index == CLKS_PER_COL-1) ? 0 : index+1;
             buf_sel <= (index == CLKS_PER_COL-1) ? !buf_sel : buf_sel;
+
+            wr_blk_size <= (index == 0) ?          data_in.blk_size : wr_blk_size;
+            rd_blk_size <= (index == CLKS_PER_COL-1) ?  wr_blk_size : rd_blk_size;
         end
 
     always_ff @(posedge clk) begin
@@ -221,18 +227,19 @@ module fec_col_transpose
     // instantiate output FIFO (to support stalls in datapath).
     assign fifo_rd = data_out.ready && !fifo_empty;
 
-    fifo_sync #(.DATA_WID(DATA_WID+1), .DEPTH(8), .OFLOW_PROT(1)) fifo_sync_inst (
+    localparam FIFO_DATA_WID = DATA_WID + 1 + $clog2(CLKS_PER_BLK);
+    fifo_sync #(.DATA_WID(FIFO_DATA_WID), .DEPTH(8), .OFLOW_PROT(1)) fifo_sync_inst (
         .clk       (clk),
         .srst      (srst),
         .wr_rdy    (fifo_wr_rdy),
         .wr        (pipe_rd_req[1]),
-        .wr_data   ({rd_eos, fifo_in}),
+        .wr_data   ({rd_blk_size, rd_eos, fifo_in}),
         .wr_count  (),
         .full      (),
         .oflow     (),
         .rd        (fifo_rd),
         .rd_ack    (),
-        .rd_data   ({data_out.eos, data_out.data}),
+        .rd_data   ({data_out.blk_size, data_out.eos, data_out.data}),
         .rd_count  (),
         .empty     (fifo_empty),
         .uflow     ()
