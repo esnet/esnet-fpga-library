@@ -17,7 +17,7 @@ module rs_acc_decode_unit_test;
     // Parameters
     //===================================
     localparam int DATA_WID  = 512;
-    localparam int COL_LEN   = 512; //65536;
+    localparam int COL_LEN   = 4096;
 
     localparam int CLKS_PER_BLK    = RS_K * COL_LEN * SYM_SIZE / DATA_WID;
     localparam int CLKS_PER_CW_BLK = RS_N * COL_LEN * SYM_SIZE / DATA_WID;
