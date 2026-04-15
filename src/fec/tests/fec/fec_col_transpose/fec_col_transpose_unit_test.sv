@@ -33,17 +33,9 @@ module fec_col_transpose_unit_test;
     logic  clk;
     logic  srst;
 
-    DATA_T data_in;
-    logic  data_in_valid;
-    logic  data_in_ready;
-
-    DATA_T col_data_out;
-    logic  col_out_valid;
-    logic  col_out_ready;
-
-    DATA_T data_out;
-    logic  data_out_valid;
-    logic  data_out_ready;
+    rs_acc_intf #(.DATA_WID(DATA_WID), .COL_LEN(COL_LEN)) data_in  (.clk(clk));
+    rs_acc_intf #(.DATA_WID(DATA_WID), .COL_LEN(COL_LEN)) col_out  (.clk(clk));
+    rs_acc_intf #(.DATA_WID(DATA_WID), .COL_LEN(COL_LEN)) data_out (.clk(clk));
 
     fec_col_transpose #(
         .DATA_WID       (DATA_WID),
@@ -54,11 +46,7 @@ module fec_col_transpose_unit_test;
         .clk            (clk),
         .srst           (srst),
         .data_in        (data_in),
-        .data_in_valid  (data_in_valid),
-        .data_in_ready  (data_in_ready),
-        .data_out       (col_data_out),
-        .data_out_valid (col_out_valid),
-        .data_out_ready (col_out_ready)
+        .data_out       (col_out)
     );
 
     fec_col_transpose #(
@@ -69,12 +57,8 @@ module fec_col_transpose_unit_test;
     ) fec_sym_to_bit_inst (
         .clk            (clk),
         .srst           (srst),
-        .data_in        (col_data_out),
-        .data_in_valid  (col_out_valid),
-        .data_in_ready  (col_out_ready),
-        .data_out       (data_out),
-        .data_out_valid (data_out_valid),
-        .data_out_ready (data_out_ready)
+        .data_in        (col_out),
+        .data_out       (data_out)
     );
 
     //===================================
@@ -94,13 +78,13 @@ module fec_col_transpose_unit_test;
     always @(posedge clk) reset_if.ready <= ~srst;
 
     // Assign data interfaces
-    assign data_in_valid  = wr_if.valid;
-    assign data_in        = wr_if.data;
-    assign wr_if.ready    = data_in_ready;
+    assign data_in.valid  = wr_if.valid;
+    assign data_in.data   = wr_if.data;
+    assign wr_if.ready    = data_in.ready;
 
-    assign data_out_ready = rd_if.ready;
-    assign rd_if.data   = data_out;
-    assign rd_if.valid  = data_out_valid;
+    assign data_out.ready = rd_if.ready;
+    assign rd_if.data     = data_out.data;
+    assign rd_if.valid    = data_out.valid;
 
     // Assign clock (100MHz)
     `SVUNIT_CLK_GEN(clk, 5ns);

@@ -3,27 +3,22 @@ module rs_acc
 #(
     parameter int DATA_WID = 512,
     parameter int NUM_COL  = RS_2T,
-    parameter int COL_LEN  = 1024
+    parameter int COL_LEN  = 1024,
+    // Derived parameters (don't override)
+    parameter int CLKS_PER_BLK = RS_K * SYM_SIZE * COL_LEN / DATA_WID
 ) (
     input  logic clk,
     input  logic srst,
     input  logic [0:NUM_COL-1][0:RS_K-1][SYM_SIZE-1:0] coef_matrix,
 
-    input  logic [DATA_WID/SYM_SIZE-1:0][SYM_SIZE-1:0] data_in,
-    input  logic data_in_valid,
-    output logic data_in_ready,
-
-    output logic [DATA_WID/SYM_SIZE-1:0][SYM_SIZE-1:0] data_out,
-    output logic data_out_valid,
-    input  logic data_out_ready
+    rs_acc_intf.rx  data_in,
+    rs_acc_intf.tx  data_out
 );
     import fifo_pkg::*;
 
     // derived parameters.
     localparam DATA_SYM_WID = DATA_WID / SYM_SIZE;
-    localparam  SYM_PER_BLK = COL_LEN * RS_K;
     localparam CLKS_PER_COL = COL_LEN / DATA_SYM_WID;  // CLKS_PER_COL >= 4 (PIPE_STAGES).
-    localparam CLKS_PER_BLK = SYM_PER_BLK / DATA_SYM_WID;
 
     // parameter validation.
     initial std_pkg::param_check_gt(CLKS_PER_COL, 4, "CLKS_PER_COL i.e. COL_LEN/(DATA_WID/SYM_SIZE) >= 4");
@@ -40,18 +35,19 @@ module rs_acc
     logic [$clog2(CLKS_PER_BLK)-1:0] index;   // word index within FEC block.  1 word = 'DATA_SYM_WID' symbols.
     logic buf_sel;
 
-    logic [PIPE_STAGES-1:0][DATA_SYM_WID-1:0][SYM_SIZE-1:0] pipe_data;
-    logic [PIPE_STAGES-1:0]                                 pipe_valid;
-    logic [PIPE_STAGES-1:0][$clog2(CLKS_PER_BLK)-1:0]       pipe_index;
-    logic [PIPE_STAGES-1:0]                                 pipe_buf_sel;
-    logic [PIPE_STAGES-1:0][0:NUM_COL-1][0:RS_K-1][SYM_SIZE-1:0] pipe_coef_matrix;
+    logic [PIPE_STAGES-1:0][DATA_SYM_WID-1:0][SYM_SIZE-1:0]       pipe_data;
+    logic [PIPE_STAGES-1:0]                                       pipe_valid;
+    logic [PIPE_STAGES-1:0][$clog2(CLKS_PER_BLK)-1:0]             pipe_index;
+    logic [PIPE_STAGES-1:0]                                       pipe_buf_sel;
+    logic [PIPE_STAGES-1:0][0:NUM_COL-1][0:RS_K-1][SYM_SIZE-1:0]  pipe_coef_matrix;
 
     // signals - egress data_out pipeline.
-    logic [$clog2(CLKS_PER_BLK):0] rd_index;
+    logic [$clog2(CLKS_PER_BLK)-1:0] rd_index;
+    logic [$clog2(CLKS_PER_BLK)-1:0] rd_blk_size, wr_blk_size;
     logic rd_req;
 
-    logic [PIPE_STAGES-1:0][$clog2(CLKS_PER_BLK)-1:0]       pipe_rd_index;
-    logic [PIPE_STAGES-1:0]                                 pipe_rd_req;
+    logic [PIPE_STAGES-1:0][$clog2(CLKS_PER_BLK)-1:0]   pipe_rd_index;
+    logic [PIPE_STAGES-1:0]                             pipe_rd_req;
 
     logic [NUM_COL-1:0][DATA_SYM_WID-1:0][SYM_SIZE-1:0] parity;
 
@@ -59,36 +55,39 @@ module rs_acc
 
 
     // instantiate ingress and egress pipelines.
-    assign data_in_ready = fifo_wr_rdy;
+    assign data_in.ready = fifo_wr_rdy;
 
     always_ff @(posedge clk)
         if (srst) begin
             index   <= '0;
             buf_sel <=  0;
-        end else if (data_in_valid && data_in_ready) begin
+        end else if (data_in.valid && data_in.ready) begin
             index   <= (index == CLKS_PER_BLK-1) ? 0 : index+1;
             buf_sel <= (index == CLKS_PER_BLK-1) ? !buf_sel : buf_sel;
+
+            wr_blk_size <= (index == 0) ?         data_in.blk_size : wr_blk_size;
+            rd_blk_size <= (index == CLKS_PER_BLK-1) ? wr_blk_size : rd_blk_size;
         end
 
-    always @(posedge clk) begin
-        pipe_data [0]     <= data_in;
-        pipe_valid[0]     <= data_in_valid && data_in_ready;
-        pipe_index[0]     <= index;
-        pipe_buf_sel[0]   <= buf_sel;
+    always_ff @(posedge clk) begin
+        pipe_data [0]        <= data_in.data;
+        pipe_valid[0]        <= data_in.valid && data_in.ready;
+        pipe_index[0]        <= index;
+        pipe_buf_sel[0]      <= buf_sel;
         pipe_coef_matrix[0]  <= coef_matrix;
 
-        pipe_rd_index[0]  <= rd_index;
-        pipe_rd_req[0]    <= rd_req;
+        pipe_rd_index[0]     <= rd_index;
+        pipe_rd_req[0]       <= rd_req;
 
         for (int i=1; i<PIPE_STAGES; i++) begin
-            pipe_data     [i] <= pipe_data     [i-1];
-            pipe_valid    [i] <= pipe_valid    [i-1];
-            pipe_index    [i] <= pipe_index    [i-1];
-            pipe_buf_sel  [i] <= pipe_buf_sel  [i-1];
-            pipe_coef_matrix [i] <= pipe_coef_matrix [i-1];
+            pipe_data[i]         <= pipe_data[i-1];
+            pipe_valid[i]        <= pipe_valid[i-1];
+            pipe_index[i]        <= pipe_index[i-1];
+            pipe_buf_sel[i]      <= pipe_buf_sel[i-1];
+            pipe_coef_matrix[i]  <= pipe_coef_matrix[i-1];
 
-            pipe_rd_index [i] <= pipe_rd_index [i-1];
-            pipe_rd_req   [i] <= pipe_rd_req   [i-1];
+            pipe_rd_index[i]     <= pipe_rd_index[i-1];
+            pipe_rd_req[i]       <= pipe_rd_req[i-1];
         end
     end
 
@@ -129,7 +128,7 @@ module rs_acc
                _pp[i][j] = gf_mul( pipe_data[PP_STAGE][j], pipe_coef_matrix[PP_STAGE][i][coef_index] );
     end
 
-    always @(posedge clk) pp <= _pp;
+    always_ff @(posedge clk) pp <= _pp;
 
 
     // ACC_STAGE ---- accumulates partial product with running sums ('parity state' from memory).
@@ -142,7 +141,7 @@ module rs_acc
                else _acc[i][j] = gf_add(sum[i][j], pp[i][j]);
        end
 
-    always @(posedge clk) acc <= _acc;
+    always_ff @(posedge clk) acc <= _acc;
 
 
     // WR_STAGE ---- write accumulator state.
@@ -228,19 +227,19 @@ module rs_acc
     // instantiate output FIFO (to support stalls in datapath).
     localparam DEPTH = 32;
 
-    logic [DATA_WID/SYM_SIZE-1:0][SYM_SIZE-1:0] fifo_wr_data;
-    logic [DATA_WID/SYM_SIZE-1:0][SYM_SIZE-1:0] fifo_rd_data;
+    logic [$clog2(CLKS_PER_BLK)+DATA_WID-1:0] fifo_wr_data;
+    logic [$clog2(CLKS_PER_BLK)+DATA_WID-1:0] fifo_rd_data;
 
     logic fifo_wr, fifo_rd, fifo_empty;
     logic [$clog2(DEPTH):0] fifo_count;
 
-    assign fifo_wr_data = parity[pipe_rd_index[OUT_STAGE]/CLKS_PER_COL];
+    assign fifo_wr_data = { rd_blk_size, parity[pipe_rd_index[OUT_STAGE]/CLKS_PER_COL] };
     assign fifo_wr      = pipe_rd_req[OUT_STAGE];
     assign fifo_wr_rdy  = fifo_count < DEPTH - PIPE_STAGES;
-    assign fifo_rd      = data_out_ready && data_out_valid;
+    assign fifo_rd      = data_out.ready && data_out.valid;
 
     fifo_small #(
-        .DATA_WID(DATA_WID), .DEPTH(DEPTH), .REPORT_OFLOW(1), .REPORT_UFLOW(1)
+        .DATA_WID($clog2(CLKS_PER_BLK)+DATA_WID), .DEPTH(DEPTH), .REPORT_OFLOW(1), .REPORT_UFLOW(1)
     ) fifo_inst (
         .clk       (clk),
         .srst      (srst),
@@ -255,7 +254,8 @@ module rs_acc
         .count     (fifo_count)
     );
 
-    assign data_out = fifo_rd_data;
-    assign data_out_valid = !fifo_empty;
+    assign data_out.data      = fifo_rd_data[DATA_WID-1:0];
+    assign data_out.blk_size  = fifo_rd_data[DATA_WID +: $clog2(CLKS_PER_BLK)];
+    assign data_out.valid     = !fifo_empty;
 
-endmodule;  // rs_acc
+endmodule  // rs_acc

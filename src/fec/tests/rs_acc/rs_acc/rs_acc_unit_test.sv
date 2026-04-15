@@ -26,12 +26,14 @@ module rs_acc_unit_test;
     localparam int DATA_SYM_WID = DATA_WID / SYM_SIZE;
     localparam int SYM_PER_BLK  = COL_LEN * RS_K;
     localparam int CLKS_PER_COL = COL_LEN / DATA_SYM_WID;  // CLKS_PER_COL >= 4 (PIPE_STAGES).
+    localparam int CLKS_PER_BLK = RS_K * COL_LEN * SYM_SIZE / DATA_WID;
 
     //===================================
     // Typedefs
     //===================================
     typedef logic [DATA_WID/SYM_SIZE-1:0]  [SYM_SIZE-1:0] DATA_T;
     typedef logic [PARITY_WID/SYM_SIZE-1:0][SYM_SIZE-1:0] PARITY_T;
+    typedef logic [$clog2(CLKS_PER_BLK)-1:0] INDEX_T;
 
     //===================================
     // DUT
@@ -39,18 +41,8 @@ module rs_acc_unit_test;
     logic clk;
     logic srst;
 
-    logic [0:RS_2T-1][0:RS_K-1][SYM_SIZE-1:0] coef_matrix = RS_P_LUT;
-
-    DATA_T  data_in;
-    logic   data_in_valid;
-    logic   data_in_ready;
-
-    DATA_T  data_out;
-    logic   data_out_valid;
-    logic   data_out_ready;
-   
-    rs_acc #(.DATA_WID(DATA_WID), .COL_LEN(COL_LEN)) DUT (.*);
-
+    rs_acc_intf #(.DATA_WID(DATA_WID), .COL_LEN(COL_LEN)) data_in  (.clk(clk));
+    rs_acc_intf #(.DATA_WID(DATA_WID), .COL_LEN(COL_LEN)) data_out (.clk(clk));
 
     DATA_T  cw_to_col_data_in;
     logic   cw_to_col_valid;
@@ -67,9 +59,20 @@ module rs_acc_unit_test;
         .data_in        (cw_to_col_data_in),
         .data_in_valid  (cw_to_col_valid),
         .data_in_ready  (cw_to_col_ready),
-        .data_out       (data_in),
-        .data_out_valid (data_in_valid),
-        .data_out_ready (data_in_ready)
+        .data_out       (data_in.data),
+        .data_out_valid (data_in.valid),
+        .data_out_ready (data_in.ready)
+    );
+
+
+    logic [0:RS_2T-1][0:RS_K-1][SYM_SIZE-1:0] coef_matrix = RS_P_LUT;
+
+    rs_acc #(.DATA_WID(DATA_WID), .COL_LEN(COL_LEN)) DUT (
+        .clk            (clk),
+        .srst           (srst),
+        .coef_matrix    (coef_matrix),
+        .data_in        (data_in),
+        .data_out       (data_out)
     );
 
 
@@ -85,9 +88,9 @@ module rs_acc_unit_test;
     ) fec_col_to_cw_inst (
         .clk            (clk),
         .srst           (srst),
-        .data_in        (data_out),
-        .data_in_valid  (data_out_valid),
-        .data_in_ready  (data_out_ready),
+        .data_in        (data_out.data),
+        .data_in_valid  (data_out.valid),
+        .data_in_ready  (data_out.ready),
         .data_out       (col_to_cw_data_out),
         .data_out_valid (col_to_cw_valid),
         .data_out_ready (col_to_cw_ready)

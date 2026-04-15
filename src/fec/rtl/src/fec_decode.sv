@@ -31,24 +31,28 @@ module fec_decode
 
 
     // instantiate H matrix selection block.
+    rs_acc_intf #(.DATA_WID(DATA_WID), .COL_LEN(1)) data_in_if  (.clk(clk));
+    rs_acc_intf #(.DATA_WID(DATA_WID), .COL_LEN(1)) data_out_if (.clk(clk));
+
+    assign data_in_if.data     = data_in;
+    assign data_in_if.valid    = data_in_valid;
+    assign data_in_ready       = data_in_if.ready;
+
     rs_decode_h_select #(
-        .DATA_WID       (DATA_WID)
+        .DATA_WID           (DATA_WID)
     ) rs_decode_h_select_0 (
-        .clk            (clk),
-        .srst           (srst),
-        .err_loc        (err_loc),
-
-        .data_in        (data_in),
-        .data_in_valid  (data_in_valid),
-        .data_in_ready  (data_in_ready),
-
-        .h_matrix       (h_matrix),
-        .err_loc_vec    (err_loc_vec),
-
-        .data_out       (h_sel_data_out),
-        .data_out_valid (rsd_data_in_valid),
-        .data_out_ready (rsd_data_in_ready)
+        .clk                (clk),
+        .srst               (srst),
+        .err_loc            (err_loc),
+        .data_in            (data_in_if),
+        .h_matrix           (h_matrix),
+        .err_loc_vec        (err_loc_vec),
+        .data_out           (data_out_if)
     );
+
+    assign h_sel_data_out    = data_out_if.data;
+    assign rsd_data_in_valid = data_out_if.valid;
+    assign data_out_if.ready = rsd_data_in_ready;
 
 
     // rearrange and organize decoder input and output data.
@@ -94,4 +98,4 @@ module fec_decode
         end : g__rsd_cw
     endgenerate
 
-endmodule;  // fec_decode
+endmodule  // fec_decode

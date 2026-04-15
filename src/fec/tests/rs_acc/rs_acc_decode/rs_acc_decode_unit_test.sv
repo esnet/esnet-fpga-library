@@ -17,14 +17,19 @@ module rs_acc_decode_unit_test;
     // Parameters
     //===================================
     localparam int DATA_WID  = 512;
-    localparam int COL_LEN   = 512; //8192;
+    localparam int COL_LEN   = 4096;
 
-    localparam int CLKS_PER_BLK = (RS_N*COL_LEN)/(DATA_WID/SYM_SIZE);
+    localparam int CLKS_PER_BLK    = RS_K * COL_LEN * SYM_SIZE / DATA_WID;
+    localparam int CLKS_PER_CW_BLK = RS_N * COL_LEN * SYM_SIZE / DATA_WID;
 
     //===================================
     // Typedefs
     //===================================
     typedef logic [DATA_WID-1:0] DATA_T;
+
+    typedef logic [$clog2(CLKS_PER_BLK)-1:0] INDEX_T;
+
+    typedef logic [$clog2(CLKS_PER_CW_BLK)-1:0] CW_INDEX_T;
 
     //===================================
     // DUTs (rs_acc_encode -> rs_acc_err_inj -> rs_acc_decode)
@@ -32,68 +37,48 @@ module rs_acc_decode_unit_test;
     logic clk;
     logic srst;
 
-    DATA_T data_in;
-    logic  data_in_valid;
-    logic  data_in_ready;
-
-    DATA_T enc_out;
-    logic  enc_out_valid;
-    logic  enc_out_ready;
+    rs_acc_intf #(.DATA_WID(DATA_WID), .COL_LEN(COL_LEN)) data_in  (.clk(clk));
+    rs_acc_intf #(.DATA_WID(DATA_WID), .COL_LEN(COL_LEN)) enc_out  (.clk(clk));
+    rs_acc_intf #(.DATA_WID(DATA_WID), .COL_LEN(COL_LEN)) inj_out  (.clk(clk));
+    rs_acc_intf #(.DATA_WID(DATA_WID), .COL_LEN(COL_LEN)) data_out (.clk(clk));
 
     rs_acc_encode #(.DATA_WID(DATA_WID), .COL_LEN(COL_LEN)) DUT_ENC (
-        .clk            (clk),
-        .srst           (srst),
-        .data_in        (data_in),
-        .data_in_valid  (data_in_valid),
-        .data_in_ready  (data_in_ready),
-        .data_out       (enc_out),
-        .data_out_valid (enc_out_valid),
-        .data_out_ready (enc_out_ready)
+        .clk               (clk),
+        .srst              (srst),
+        .data_in           (data_in),
+        .data_out          (enc_out)
     );
 
-    logic [$clog2(CLKS_PER_BLK)-1:0] index   = '0;
-    logic [$clog2(NUM_H)-1:0]        err_loc = 5;
+    CW_INDEX_T index = '0;
 
-    always @(posedge clk) if (enc_out_valid && enc_out_ready) begin
-        index   <= (index == CLKS_PER_BLK-1) ? '0 : index+1;
-        err_loc <= (index == CLKS_PER_BLK-1) ? ($urandom % NUM_H) : err_loc;
+    logic [$clog2(NUM_H)-1:0] err_loc = 0;
+
+    always @(posedge clk) if (enc_out.valid && enc_out.ready) begin
+        index   <= (index == CLKS_PER_CW_BLK-1) ? '0 : index+1;
+        err_loc <= (index == CLKS_PER_CW_BLK-1) ? ($urandom % NUM_H) : err_loc;
     end
 
-    DATA_T inj_out;
-    logic  inj_out_valid;
-    logic  inj_out_ready;
-
     rs_acc_err_inj #(.DATA_WID(DATA_WID), .COL_LEN(COL_LEN)) DUT_INJ (
-        .clk            (clk),
-        .srst           (srst),
-        .data_in        (enc_out),
-        .data_in_valid  (enc_out_valid),
-        .data_in_ready  (enc_out_ready),
-        .err_loc_vec    (RS_ERR_LOC_LUT[err_loc]),
-        .data_out       (inj_out),
-        .data_out_valid (inj_out_valid),
-        .data_out_ready (inj_out_ready)
+        .clk               (clk),
+        .srst              (srst),
+        .err_loc_vec       (RS_ERR_LOC_LUT[err_loc]),
+        .data_in           (enc_out),
+        .data_out          (inj_out)
     );
 
-    DATA_T data_out;
-    logic  data_out_valid;
-    logic  data_out_ready;
-
     rs_acc_decode #(.DATA_WID(DATA_WID), .COL_LEN(COL_LEN)) DUT_DEC (
-        .clk            (clk),
-        .srst           (srst),
-        .data_in        (inj_out),
-        .data_in_valid  (inj_out_valid),
-        .data_in_ready  (inj_out_ready),
-        .err_loc        (err_loc),
-        .data_out       (data_out),
-        .data_out_valid (data_out_valid),
-        .data_out_ready (data_out_ready)
+        .clk               (clk),
+        .srst              (srst),
+        .err_loc           (err_loc),
+        .data_in           (inj_out),
+        .data_out          (data_out)
     );
 
     //===================================
     // Testbench
     //===================================
+    int N;  // N = number of packets
+
     rs_decode_tb_env #(1, DATA_T) env;  // NUM_THREADS=1
 
     bus_intf #(DATA_WID) wr_if (.clk);
@@ -108,13 +93,18 @@ module rs_acc_decode_unit_test;
     always @(posedge clk) reset_if.ready <= ~srst;
 
     // Assign data interfaces
-    assign data_in_valid  = wr_if.valid;
-    assign data_in        = wr_if.data;
-    assign wr_if.ready    = data_in_ready;
+    int pkt_cnt=0;
+    always @(posedge clk) if (data_in.valid && data_in.ready) pkt_cnt++;
 
-    assign data_out_ready = rd_if.ready;
-    assign rd_if.data     = data_out;
-    assign rd_if.valid    = data_out_valid;
+    assign data_in.data     = wr_if.data;
+    assign data_in.valid    = wr_if.valid;
+    assign data_in.blk_size = ( N - ((pkt_cnt / CLKS_PER_BLK) * CLKS_PER_BLK) ) > CLKS_PER_BLK ?
+                              CLKS_PER_BLK-1 : (N % CLKS_PER_BLK)-1;
+    assign wr_if.ready      = data_in.ready;
+
+    assign rd_if.data       = data_out.data;
+    assign rd_if.valid      = data_out.valid;
+    assign data_out.ready   = rd_if.ready;
 
     // Assign clock (100MHz)
     `SVUNIT_CLK_GEN(clk, 5ns);
@@ -193,7 +183,7 @@ module rs_acc_decode_unit_test;
         `SVTEST_END
 
         `SVTEST(basic_sanity)
-            int N=1024;
+            N = $urandom_range(1024,1);
 
             for (int i=0; i<N; i++) begin
                 // Send transaction

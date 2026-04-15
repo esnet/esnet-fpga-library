@@ -9,18 +9,14 @@ module fec_col_transpose
     input  logic clk,
     input  logic srst,
 
-    input  logic [DATA_WID-1:0] data_in,
-    input  logic data_in_valid,
-    output logic data_in_ready,
-
-    output logic [DATA_WID-1:0] data_out,
-    output logic data_out_valid,
-    input  logic data_out_ready
+    rs_acc_intf.rx  data_in,
+    rs_acc_intf.tx  data_out
 );
 
     // derived parameters.
-    localparam CLKS_PER_COL = COL_LEN / DATA_WID;
-    localparam CLKS_PER_BLK = CLKS_PER_COL * COL_WID;
+    localparam CLKS_PER_BIT = COL_LEN / DATA_WID;
+    localparam CLKS_PER_COL = CLKS_PER_BIT * COL_WID;
+    localparam CLKS_PER_BLK = RS_K * SYM_SIZE * COL_LEN / DATA_WID;
 
     // pipeline parameters.
     localparam PIPE_STAGES = 3;
@@ -29,42 +25,48 @@ module fec_col_transpose
 
 
     // signals.
-    logic [$clog2(CLKS_PER_BLK)-1:0] index;  // word index within column.  1 word = 'DATA_WID' bits.
+    logic [$clog2(CLKS_PER_COL)-1:0] index;  // word index within column.  1 word = 'DATA_WID' bits.
     logic buf_sel;
 
     logic [PIPE_STAGES-1:0][DATA_WID-1:0]              pipe_data;
     logic [PIPE_STAGES-1:0]                            pipe_valid;
-    logic [PIPE_STAGES-1:0][$clog2(CLKS_PER_BLK)-1:0]  pipe_index;
+    logic [PIPE_STAGES-1:0][$clog2(CLKS_PER_COL)-1:0]  pipe_index;
     logic [PIPE_STAGES-1:0]                            pipe_buf_sel;
 
     logic [2*DATA_WID-1:0]                             pipe_data_x2;
     logic   [DATA_WID-1:0]                             wr_data;
-    logic [$clog2(CLKS_PER_BLK):0]                     wr_index;
+    logic [$clog2(CLKS_PER_COL):0]                     wr_index;
 
-    logic [$clog2(CLKS_PER_BLK):0]                     rd_index;
+    logic [$clog2(CLKS_PER_COL):0]                     rd_index;
+    logic [$clog2(CLKS_PER_BLK)-1:0]                   rd_blk_size, wr_blk_size;
     logic                                              rd_req;
-    logic [PIPE_STAGES-1:0][$clog2(CLKS_PER_BLK)-1:0]  pipe_rd_index;
+
+    logic [PIPE_STAGES-1:0][$clog2(CLKS_PER_COL)-1:0]  pipe_rd_index;
     logic [PIPE_STAGES-1:0]                            pipe_rd_req;
 
+    logic rd_eos;  // rd end-of-segment.
     logic [DATA_WID-1:0] fifo_in;
     logic fifo_wr_rdy, fifo_rd, fifo_empty;
 
 
     // instantiate ingress and egress pipelines.
-    assign data_in_ready = data_out_ready;
+    assign data_in.ready = data_out.ready;
 
     always_ff @(posedge clk)
         if (srst) begin
             index   <= '0;
             buf_sel <=  0;
-        end else if (data_in_valid && data_in_ready) begin
-            index   <= (index == CLKS_PER_BLK-1) ? 0 : index+1;
-            buf_sel <= (index == CLKS_PER_BLK-1) ? !buf_sel : buf_sel;
+        end else if (data_in.valid && data_in.ready) begin
+            index   <= (index == CLKS_PER_COL-1) ? 0 : index+1;
+            buf_sel <= (index == CLKS_PER_COL-1) ? !buf_sel : buf_sel;
+
+            wr_blk_size <= (index == 0) ?          data_in.blk_size : wr_blk_size;
+            rd_blk_size <= (index == CLKS_PER_COL-1) ?  wr_blk_size : rd_blk_size;
         end
 
-    always @(posedge clk) begin
-        pipe_data [0]   <= data_in;
-        pipe_valid[0]   <= data_in_valid && data_in_ready;
+    always_ff @(posedge clk) begin
+        pipe_data [0]   <= data_in.data;
+        pipe_valid[0]   <= data_in.valid && data_in.ready;
         pipe_index[0]   <= index;
         pipe_buf_sel[0] <= buf_sel;
 
@@ -93,7 +95,7 @@ module fec_col_transpose
         end else if (buf_sel ^ pipe_buf_sel[0]) begin
             rd_index <= '0;
             rd_req   <= 1'b1;
-        end else if ((rd_index < CLKS_PER_BLK-1) && data_out_ready && fifo_wr_rdy) begin
+        end else if ((rd_index < CLKS_PER_COL-1) && data_out.ready && fifo_wr_rdy) begin
             rd_index <= rd_index+1;
             rd_req   <= 1'b1;
         end else begin
@@ -101,7 +103,6 @@ module fec_col_transpose
             rd_req   <= 1'b0;
         end
     end
-
 
 
     // ---- FEC bank buffer instantiations ----
@@ -122,7 +123,7 @@ module fec_col_transpose
 
     generate begin
         if (MODE == BIT_TO_SYM)
-             assign wr_data = pipe_data_x2[(2*DATA_WID - (wr_index/CLKS_PER_COL)*(DATA_WID/COL_WID))-1 -: DATA_WID];
+             assign wr_data = pipe_data_x2[(2*DATA_WID - (wr_index/CLKS_PER_BIT)*(DATA_WID/COL_WID))-1 -: DATA_WID];
         else 
              assign wr_data = pipe_data[REQ_STAGE];
 
@@ -155,7 +156,7 @@ module fec_col_transpose
                     assign mux_wr_if[i][j][0].rst  = srst;
                     assign mux_wr_if[i][j][0].en   = 1'b1;
                     assign mux_wr_if[i][j][0].req  = pipe_valid[REQ_STAGE];
-                    assign mux_wr_if[i][j][0].addr = { '0,  ((i-wr_index)%COL_WID)*CLKS_PER_COL + wr_index/COL_WID };
+                    assign mux_wr_if[i][j][0].addr = { '0,  ((i-wr_index)%COL_WID)*CLKS_PER_BIT + wr_index/COL_WID };
 
                     for (genvar k = 0; k < BANK_DATA_WID; k++) begin : g_bit_slice
                         assign mux_wr_if[i][j][0].data[k] = wr_data[(i-wr_index)%COL_WID + k*COL_WID +: 1];
@@ -184,7 +185,7 @@ module fec_col_transpose
                 end else if (MODE == BIT_TO_SYM) begin
                     assign mux_rd_if[i][j][1].rst  = srst;
                     assign mux_rd_if[i][j][1].req  = rd_req;
-                    assign mux_rd_if[i][j][1].addr = { '0, ((i-rd_index)%COL_WID)*CLKS_PER_COL + rd_index/COL_WID };
+                    assign mux_rd_if[i][j][1].addr = { '0, ((i-rd_index)%COL_WID)*CLKS_PER_BIT + rd_index/COL_WID };
                 end 
 
                 assign buf_rd_data[j][i*BANK_DATA_WID +: BANK_DATA_WID] = buf_rd_if[i][j].data;
@@ -209,8 +210,8 @@ module fec_col_transpose
             for (genvar j = 0; j < COL_WID; j++) begin : g_bit
                 if (MODE == SYM_TO_BIT) begin
                     assign fifo_in[i*COL_WID+j] = pipe_buf_sel[ACK_STAGE] ?
-                           buf_rd_data_x2[0][(pipe_rd_index[1]/CLKS_PER_COL)*BANK_DATA_WID + (i*COL_WID+j) +: 1] :
-                           buf_rd_data_x2[1][(pipe_rd_index[1]/CLKS_PER_COL)*BANK_DATA_WID + (i*COL_WID+j) +: 1] ;
+                           buf_rd_data_x2[0][(pipe_rd_index[1]/CLKS_PER_BIT)*BANK_DATA_WID + (i*COL_WID+j) +: 1] :
+                           buf_rd_data_x2[1][(pipe_rd_index[1]/CLKS_PER_BIT)*BANK_DATA_WID + (i*COL_WID+j) +: 1] ;
                 end else if (MODE == BIT_TO_SYM) begin
                     assign fifo_in[i*COL_WID+j] = pipe_buf_sel[ACK_STAGE] ?
                            buf_rd_data[0][(((j+pipe_rd_index[1])%COL_WID)*BANK_DATA_WID + i) +: 1] :
@@ -221,27 +222,29 @@ module fec_col_transpose
 
     end endgenerate
 
+    assign rd_eos = ((pipe_rd_index[1] % CLKS_PER_BIT) == CLKS_PER_BIT-1) && data_out.ready && fifo_wr_rdy;
 
     // instantiate output FIFO (to support stalls in datapath).
-    assign fifo_rd = data_out_ready && !fifo_empty;
+    assign fifo_rd = data_out.ready && !fifo_empty;
 
-    fifo_sync #(.DATA_WID(DATA_WID), .DEPTH(8), .OFLOW_PROT(1)) fifo_sync_inst (
+    localparam FIFO_DATA_WID = DATA_WID + 1 + $clog2(CLKS_PER_BLK);
+    fifo_sync #(.DATA_WID(FIFO_DATA_WID), .DEPTH(8), .OFLOW_PROT(1)) fifo_sync_inst (
         .clk       (clk),
         .srst      (srst),
         .wr_rdy    (fifo_wr_rdy),
         .wr        (pipe_rd_req[1]),
-        .wr_data   (fifo_in),
+        .wr_data   ({rd_blk_size, rd_eos, fifo_in}),
         .wr_count  (),
         .full      (),
         .oflow     (),
         .rd        (fifo_rd),
         .rd_ack    (),
-        .rd_data   (data_out),
+        .rd_data   ({data_out.blk_size, data_out.eos, data_out.data}),
         .rd_count  (),
         .empty     (fifo_empty),
         .uflow     ()
     );
 
-    assign data_out_valid = fifo_rd;
+    assign data_out.valid = fifo_rd;
 
-endmodule;  // fec_col_transpose
+endmodule  // fec_col_transpose

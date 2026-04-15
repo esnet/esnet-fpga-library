@@ -83,4 +83,4 @@ module fec_bank_buf
         end
     endgenerate
 
-endmodule;  // fec_bank_buf
+endmodule  // fec_bank_buf

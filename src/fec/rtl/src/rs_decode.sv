@@ -29,7 +29,7 @@ module rs_decode
 
 
     // instantiate data pipeline.
-    always @(posedge clk) if (data_out_ready) begin
+    always_ff @(posedge clk) if (data_out_ready) begin
         data_in_pipe[0]        <= data_in;
         data_in_valid_pipe[0]  <= data_in_valid;
         err_loc_vec_pipe[0]    <= err_loc_vec;
@@ -50,7 +50,7 @@ module rs_decode
         end
     end
 
-    always @(posedge clk) if (data_out_ready) prod <= _prod;
+    always_ff @(posedge clk) if (data_out_ready) prod <= _prod;
 
 
     // stage 1 - accumulate partial products.
@@ -71,7 +71,7 @@ module rs_decode
         end
     end
 
-    always @(posedge clk) if (data_out_ready) begin 
+    always_ff @(posedge clk) if (data_out_ready) begin 
         sum <= _sum;
         errors <= _errors;
     end
@@ -89,11 +89,11 @@ module rs_decode
 
 
     // output assignments.
-    always @(posedge clk) if (data_out_ready) begin
+    always_ff @(posedge clk) if (data_out_ready) begin
         data_out <= _data_out;
         data_out_valid <= data_in_valid_pipe[1];
     end
 
     assign data_in_ready = data_out_ready;
 
-endmodule;  // rs_decode
+endmodule  // rs_decode

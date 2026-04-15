@@ -68,4 +68,4 @@ module fec_encode
         end : g__rse_cw
     endgenerate
 
-endmodule;  // fec_encode
+endmodule  // fec_encode
