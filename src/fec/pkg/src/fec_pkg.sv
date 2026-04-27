@@ -1,5 +1,8 @@
 package fec_pkg;
 
+    // FEC Lookup Definitions.
+    `include "../include/fec_luts.svh"
+
     // Typedefs
     typedef enum logic {
         CW_TO_SYM = 1'b0,
@@ -16,9 +19,26 @@ package fec_pkg;
         DELETE = 1'b0
     } rs_acc_pad_mode_t;
 
+    typedef enum logic {
+        TX = 1'b1,
+        RX = 1'b0
+    } rs_acc_framer_mode_t;
 
-    // FEC Lookup Definitions.
-    `include "../include/fec_luts.svh"
+    typedef struct packed {
+//        logic [7:0]  version=1;
+//        logic [7:0]  next_proto;
+//        logic [15:0] data_id;
+        logic        parity;
+        logic [6:0]  ec_frame_num;
+        logic [6:0]  pad_frames;
+        logic [15:0] ec_sgmt_size;
+        logic [15:0] pad_bytes;
+        logic [31:0] fec_blk_num;
+
+        logic eos; // end-of-segment
+        logic [15:0] fec_blk_size;
+    } fec_meta_t;
+
 
 
     // ----- GF Math Functions -----
