@@ -22,8 +22,6 @@ module rs_acc_err_inj
     // signals.
     logic [$clog2(CLKS_PER_CW_BLK)-1:0] index;  // word index within FEC block.  1 word = 'DATA_WID' bits.
 
-    logic [$clog2(CLKS_PER_BLK)-1:0] blk_size;
-
     assign data_in.ready = data_out.ready;
 
     always_ff @(posedge clk)
@@ -32,10 +30,8 @@ module rs_acc_err_inj
         else if (data_in.valid && data_in.ready)
             index <= (index == CLKS_PER_CW_BLK-1) ? 0 : index+1;
 
-    always_ff @(posedge clk) if (index == 0) blk_size <= data_in.blk_size;
-
-    assign data_out.valid    = data_in.valid && !err_loc_vec[index / CLKS_PER_COL];
-    assign data_out.blk_size = index==0 ? data_in.blk_size : blk_size;
-    assign data_out.data     = data_in.data;
+    assign data_out.valid = data_in.valid && !err_loc_vec[index / CLKS_PER_COL];
+    assign data_out.data  = data_in.data;
+    assign data_out.meta  = data_in.meta;
 
 endmodule  // rs_acc_err_inj

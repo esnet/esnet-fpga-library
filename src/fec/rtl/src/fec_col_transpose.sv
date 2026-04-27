@@ -16,7 +16,8 @@ module fec_col_transpose
     // derived parameters.
     localparam CLKS_PER_BIT = COL_LEN / DATA_WID;
     localparam CLKS_PER_COL = CLKS_PER_BIT * COL_WID;
-    localparam CLKS_PER_BLK = RS_K * SYM_SIZE * COL_LEN / DATA_WID;
+
+    localparam META_WID = data_in.META_WID;
 
     // pipeline parameters.
     localparam PIPE_STAGES = 3;
@@ -38,13 +39,12 @@ module fec_col_transpose
     logic [$clog2(CLKS_PER_COL):0]                     wr_index;
 
     logic [$clog2(CLKS_PER_COL):0]                     rd_index;
-    logic [$clog2(CLKS_PER_BLK)-1:0]                   rd_blk_size, wr_blk_size;
+    fec_meta_t                                         rd_meta, _rd_meta, __rd_meta, wr_meta;
     logic                                              rd_req;
 
     logic [PIPE_STAGES-1:0][$clog2(CLKS_PER_COL)-1:0]  pipe_rd_index;
     logic [PIPE_STAGES-1:0]                            pipe_rd_req;
 
-    logic rd_eos;  // rd end-of-segment.
     logic [DATA_WID-1:0] fifo_in;
     logic fifo_wr_rdy, fifo_rd, fifo_empty;
 
@@ -60,8 +60,8 @@ module fec_col_transpose
             index   <= (index == CLKS_PER_COL-1) ? 0 : index+1;
             buf_sel <= (index == CLKS_PER_COL-1) ? !buf_sel : buf_sel;
 
-            wr_blk_size <= (index == 0) ?          data_in.blk_size : wr_blk_size;
-            rd_blk_size <= (index == CLKS_PER_COL-1) ?  wr_blk_size : rd_blk_size;
+            wr_meta <= (index == 0) ?         data_in.meta : wr_meta;
+            rd_meta <= (index == CLKS_PER_COL-1) ? wr_meta : rd_meta;
         end
 
     always_ff @(posedge clk) begin
@@ -81,6 +81,7 @@ module fec_col_transpose
             pipe_rd_index [i] <= pipe_rd_index [i-1];
             pipe_rd_req [i] <= pipe_rd_req [i-1];
         end
+        _rd_meta <= (pipe_rd_index[0] == 0) ? rd_meta : _rd_meta;
     end
 
     assign pipe_data_x2 = {pipe_data[REQ_STAGE], pipe_data[REQ_STAGE]};
@@ -222,24 +223,28 @@ module fec_col_transpose
 
     end endgenerate
 
-    assign rd_eos = ((pipe_rd_index[1] % CLKS_PER_BIT) == CLKS_PER_BIT-1) && data_out.ready && fifo_wr_rdy;
+    always_comb begin
+        __rd_meta = _rd_meta;
+        __rd_meta.ec_frame_num[$clog2(SYM_SIZE)-1:0] = pipe_rd_index[1] / CLKS_PER_BIT;
+        __rd_meta.eos = ((pipe_rd_index[1] % CLKS_PER_BIT) == CLKS_PER_BIT-1) && data_out.ready && fifo_wr_rdy;
+    end
 
     // instantiate output FIFO (to support stalls in datapath).
     assign fifo_rd = data_out.ready && !fifo_empty;
 
-    localparam FIFO_DATA_WID = DATA_WID + 1 + $clog2(CLKS_PER_BLK);
+    localparam FIFO_DATA_WID = DATA_WID + META_WID;
     fifo_sync #(.DATA_WID(FIFO_DATA_WID), .DEPTH(8), .OFLOW_PROT(1)) fifo_sync_inst (
         .clk       (clk),
         .srst      (srst),
         .wr_rdy    (fifo_wr_rdy),
         .wr        (pipe_rd_req[1]),
-        .wr_data   ({rd_blk_size, rd_eos, fifo_in}),
+        .wr_data   ({__rd_meta, fifo_in}),
         .wr_count  (),
         .full      (),
         .oflow     (),
         .rd        (fifo_rd),
         .rd_ack    (),
-        .rd_data   ({data_out.blk_size, data_out.eos, data_out.data}),
+        .rd_data   ({data_out.meta, data_out.data}),
         .rd_count  (),
         .empty     (fifo_empty),
         .uflow     ()
