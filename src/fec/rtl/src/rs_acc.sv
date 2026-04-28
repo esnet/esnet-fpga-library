@@ -23,6 +23,8 @@ module rs_acc
     // parameter validation.
     initial std_pkg::param_check_gt(CLKS_PER_COL, 4, "CLKS_PER_COL i.e. COL_LEN/(DATA_WID/SYM_SIZE) >= 4");
 
+    localparam META_WID = data_in.META_WID;
+
     localparam PIPE_STAGES = 4;  // ingress pipeline parameters.
     localparam   RD_STAGE  = 0;
     localparam   PP_STAGE  = 1;
@@ -43,7 +45,7 @@ module rs_acc
 
     // signals - egress data_out pipeline.
     logic [$clog2(CLKS_PER_BLK)-1:0] rd_index;
-    logic [$clog2(CLKS_PER_BLK)-1:0] rd_blk_size, wr_blk_size;
+    fec_meta_t rd_meta, wr_meta;
     logic rd_req;
 
     logic [PIPE_STAGES-1:0][$clog2(CLKS_PER_BLK)-1:0]   pipe_rd_index;
@@ -65,8 +67,8 @@ module rs_acc
             index   <= (index == CLKS_PER_BLK-1) ? 0 : index+1;
             buf_sel <= (index == CLKS_PER_BLK-1) ? !buf_sel : buf_sel;
 
-            wr_blk_size <= (index == 0) ?         data_in.blk_size : wr_blk_size;
-            rd_blk_size <= (index == CLKS_PER_BLK-1) ? wr_blk_size : rd_blk_size;
+            wr_meta <= (index == 0) ?         data_in.meta : wr_meta;
+            rd_meta <= (index == CLKS_PER_BLK-1) ? wr_meta : rd_meta;
         end
 
     always_ff @(posedge clk) begin
@@ -226,20 +228,21 @@ module rs_acc
 
     // instantiate output FIFO (to support stalls in datapath).
     localparam DEPTH = 32;
+    localparam FIFO_DATA_WID = DATA_WID + META_WID;
 
-    logic [$clog2(CLKS_PER_BLK)+DATA_WID-1:0] fifo_wr_data;
-    logic [$clog2(CLKS_PER_BLK)+DATA_WID-1:0] fifo_rd_data;
+    logic [FIFO_DATA_WID-1:0] fifo_wr_data;
+    logic [FIFO_DATA_WID-1:0] fifo_rd_data;
 
     logic fifo_wr, fifo_rd, fifo_empty;
     logic [$clog2(DEPTH):0] fifo_count;
 
-    assign fifo_wr_data = { rd_blk_size, parity[pipe_rd_index[OUT_STAGE]/CLKS_PER_COL] };
+    assign fifo_wr_data = { rd_meta, parity[pipe_rd_index[OUT_STAGE]/CLKS_PER_COL] };
     assign fifo_wr      = pipe_rd_req[OUT_STAGE];
     assign fifo_wr_rdy  = fifo_count < DEPTH - PIPE_STAGES;
     assign fifo_rd      = data_out.ready && data_out.valid;
 
     fifo_small #(
-        .DATA_WID($clog2(CLKS_PER_BLK)+DATA_WID), .DEPTH(DEPTH), .REPORT_OFLOW(1), .REPORT_UFLOW(1)
+        .DATA_WID(FIFO_DATA_WID), .DEPTH(DEPTH), .REPORT_OFLOW(1), .REPORT_UFLOW(1)
     ) fifo_inst (
         .clk       (clk),
         .srst      (srst),
@@ -254,8 +257,8 @@ module rs_acc
         .count     (fifo_count)
     );
 
-    assign data_out.data      = fifo_rd_data[DATA_WID-1:0];
-    assign data_out.blk_size  = fifo_rd_data[DATA_WID +: $clog2(CLKS_PER_BLK)];
-    assign data_out.valid     = !fifo_empty;
+    assign data_out.data  = fifo_rd_data[DATA_WID-1:0];
+    assign data_out.meta  = fifo_rd_data[DATA_WID +: META_WID];
+    assign data_out.valid = !fifo_empty;
 
 endmodule  // rs_acc

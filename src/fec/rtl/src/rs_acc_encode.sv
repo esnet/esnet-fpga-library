@@ -15,10 +15,13 @@ module rs_acc_encode
 
     // derived parameters.
     localparam CLKS_PER_CW_BLK = CLKS_PER_BLK * RS_N / RS_K;
+    localparam CLKS_PER_COL = CLKS_PER_BLK / RS_K;
 
     // signals.
     logic [$clog2(CLKS_PER_CW_BLK)-1:0] index;
     logic parity_sel;
+
+    logic [6:0] data_col_num, prty_col_num;
 
     // instantiate interfaces.
     rs_acc_intf #(.DATA_WID(DATA_WID), .COL_LEN(COL_LEN)) pad (.clk(clk));
@@ -35,10 +38,9 @@ module rs_acc_encode
 
     assign pad.ready = pad_out.ready && data_out.ready && !parity_sel;
 
-    assign pad_out.data     = pad.data;
-    assign pad_out.valid    = pad.valid && data_out.ready && !parity_sel;
-    assign pad_out.blk_size = pad.blk_size;
-    assign pad_out.eos      = pad.eos;
+    assign pad_out.data  = pad.data;
+    assign pad_out.valid = pad.valid && data_out.ready && !parity_sel;
+    assign pad_out.meta  = pad.meta;
 
     rs_acc #(.DATA_WID(DATA_WID), .NUM_COL(RS_2T), .COL_LEN(COL_LEN)) rs_acc (
         .clk              (clk),
@@ -63,11 +65,19 @@ module rs_acc_encode
                 index <= index+1;
         end
 
-    assign parity.ready = data_out.ready;
+    always_comb begin
+        parity.ready = data_out.ready;
 
-    assign data_out.data     = parity_sel ? parity.data     : pad.data;
-    assign data_out.valid    = parity_sel ? parity.valid    : pad.valid;
-    assign data_out.blk_size = parity_sel ? parity.blk_size : pad.blk_size;
-    assign data_out.eos      = parity_sel ? parity.eos      : pad.eos;
+        data_out.data  = parity_sel ? parity.data  : pad.data;
+        data_out.valid = parity_sel ? parity.valid : pad.valid;
+        data_out.meta  = parity_sel ? parity.meta  : pad.meta;
+
+        data_out.meta.parity = parity_sel ? '1 : '0;
+
+        data_col_num = index / CLKS_PER_COL;
+        prty_col_num = data_col_num - RS_K;
+
+        data_out.meta.ec_frame_num[6:$clog2(SYM_SIZE)] = parity_sel ? prty_col_num : data_col_num;
+    end
 
 endmodule  // rs_acc_encode

@@ -36,16 +36,26 @@ module rs_acc_decode_unit_test;
     //===================================
     logic clk;
     logic srst;
+    logic [31:0] fec_evt_size;
 
     rs_acc_intf #(.DATA_WID(DATA_WID), .COL_LEN(COL_LEN)) data_in  (.clk(clk));
+    rs_acc_intf #(.DATA_WID(DATA_WID), .COL_LEN(COL_LEN)) frm_out  (.clk(clk));
     rs_acc_intf #(.DATA_WID(DATA_WID), .COL_LEN(COL_LEN)) enc_out  (.clk(clk));
     rs_acc_intf #(.DATA_WID(DATA_WID), .COL_LEN(COL_LEN)) inj_out  (.clk(clk));
     rs_acc_intf #(.DATA_WID(DATA_WID), .COL_LEN(COL_LEN)) data_out (.clk(clk));
 
+    rs_acc_framer #(.DATA_WID(DATA_WID), .COL_LEN(COL_LEN)) DUT_FRM (
+        .clk               (clk),
+        .srst              (srst),
+        .fec_evt_size      (fec_evt_size),
+        .data_in           (data_in),
+        .data_out          (frm_out)
+    );
+
     rs_acc_encode #(.DATA_WID(DATA_WID), .COL_LEN(COL_LEN)) DUT_ENC (
         .clk               (clk),
         .srst              (srst),
-        .data_in           (data_in),
+        .data_in           (frm_out),
         .data_out          (enc_out)
     );
 
@@ -98,8 +108,6 @@ module rs_acc_decode_unit_test;
 
     assign data_in.data     = wr_if.data;
     assign data_in.valid    = wr_if.valid;
-    assign data_in.blk_size = ( N - ((pkt_cnt / CLKS_PER_BLK) * CLKS_PER_BLK) ) > CLKS_PER_BLK ?
-                              CLKS_PER_BLK-1 : (N % CLKS_PER_BLK)-1;
     assign wr_if.ready      = data_in.ready;
 
     assign rd_if.data       = data_out.data;
@@ -184,6 +192,7 @@ module rs_acc_decode_unit_test;
 
         `SVTEST(basic_sanity)
             N = $urandom_range(1024,1);
+            fec_evt_size = N * DATA_WID/8;
 
             for (int i=0; i<N; i++) begin
                 // Send transaction
