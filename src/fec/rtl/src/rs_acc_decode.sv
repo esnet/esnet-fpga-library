@@ -2,13 +2,12 @@ module rs_acc_decode
     import fec_pkg::*;
 #(
     parameter int DATA_WID = 512,
-    parameter int COL_LEN  = 1024,
-    // Derived parameters (don't override)
-    parameter int CLKS_PER_BLK = RS_K * SYM_SIZE * COL_LEN / DATA_WID
+    parameter int COL_LEN  = 1024
 ) (
     input  logic clk,
     input  logic srst,
     input  logic [$clog2(NUM_H)-1:0] err_loc,
+    output logic [$clog2(DATA_WID/8):0] keep,
 
     rs_acc_intf.rx  data_in,
     rs_acc_intf.tx  data_out
@@ -47,6 +46,7 @@ module rs_acc_decode
     rs_acc_pad #(.DATA_WID(DATA_WID), .COL_LEN(COL_LEN), .MODE(DELETE)) rs_acc_pad_0 (
         .clk                (clk),
         .srst               (srst),
+        .keep               (keep),
         .data_in            (acc),
         .data_out           (data_out)
     );

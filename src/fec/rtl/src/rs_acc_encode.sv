@@ -2,9 +2,7 @@ module rs_acc_encode
     import fec_pkg::*;
 #(
     parameter int DATA_WID = 512,
-    parameter int COL_LEN  = 1024,
-    // Derived parameters (don't override)
-    parameter int CLKS_PER_BLK = RS_K * SYM_SIZE * COL_LEN / DATA_WID
+    parameter int COL_LEN  = 1024
 ) (
     input  logic clk,
     input  logic srst,
@@ -14,6 +12,7 @@ module rs_acc_encode
 );
 
     // derived parameters.
+    localparam CLKS_PER_BLK = RS_K * SYM_SIZE * COL_LEN / DATA_WID;
     localparam CLKS_PER_CW_BLK = CLKS_PER_BLK * RS_N / RS_K;
     localparam CLKS_PER_COL = CLKS_PER_BLK / RS_K;
 
@@ -32,6 +31,7 @@ module rs_acc_encode
     rs_acc_pad #(.DATA_WID(DATA_WID), .COL_LEN(COL_LEN), .MODE(INSERT)) rs_acc_pad_0 (
         .clk              (clk),
         .srst             (srst),
+        .keep             (),
         .data_in          (data_in),
         .data_out         (pad)
     );
