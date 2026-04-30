@@ -36,7 +36,7 @@ package fec_pkg;
         logic [31:0] fec_blk_num;
 
         logic eos; // end-of-segment
-        logic [15:0] fec_blk_size;
+        logic [19:0] fec_blk_size; // in bytes.
     } fec_meta_t;
 
 
