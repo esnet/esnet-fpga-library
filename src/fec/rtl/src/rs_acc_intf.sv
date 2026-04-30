@@ -2,9 +2,7 @@ interface rs_acc_intf
     import fec_pkg::*;
 #(
     parameter int DATA_WID = 1,
-    parameter int COL_LEN  = 1,
-    // Derived parameters (don't override)                                                                                       
-    parameter int CLKS_PER_BLK = RS_K * SYM_SIZE * COL_LEN / DATA_WID
+    parameter int COL_LEN = 1
 ) (
     input logic clk
 );

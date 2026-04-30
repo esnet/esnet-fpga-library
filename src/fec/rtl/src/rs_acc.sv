@@ -3,9 +3,7 @@ module rs_acc
 #(
     parameter int DATA_WID = 512,
     parameter int NUM_COL  = RS_2T,
-    parameter int COL_LEN  = 1024,
-    // Derived parameters (don't override)
-    parameter int CLKS_PER_BLK = RS_K * SYM_SIZE * COL_LEN / DATA_WID
+    parameter int COL_LEN  = 1024
 ) (
     input  logic clk,
     input  logic srst,
@@ -17,6 +15,7 @@ module rs_acc
     import fifo_pkg::*;
 
     // derived parameters.
+    localparam CLKS_PER_BLK = RS_K * SYM_SIZE * COL_LEN / DATA_WID;
     localparam DATA_SYM_WID = DATA_WID / SYM_SIZE;
     localparam CLKS_PER_COL = COL_LEN / DATA_SYM_WID;  // CLKS_PER_COL >= 4 (PIPE_STAGES).
 
