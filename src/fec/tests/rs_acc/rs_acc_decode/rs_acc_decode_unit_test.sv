@@ -37,6 +37,7 @@ module rs_acc_decode_unit_test;
     logic clk;
     logic srst;
     logic [31:0] fec_evt_size;
+    logic [31:0] last_pkt_size;
 
     rs_acc_intf #(.DATA_WID(DATA_WID), .COL_LEN(COL_LEN)) data_in  (.clk(clk));
     rs_acc_intf #(.DATA_WID(DATA_WID), .COL_LEN(COL_LEN)) frm_out  (.clk(clk));
@@ -192,14 +193,21 @@ module rs_acc_decode_unit_test;
 
         `SVTEST(basic_sanity)
             N = $urandom_range(1024,1);
-            fec_evt_size = N * DATA_WID/8;
+            last_pkt_size = $urandom_range(DATA_WID/8,1);
+            fec_evt_size = N * DATA_WID/8 + last_pkt_size;
 
+            // send first N packets.
             for (int i=0; i<N; i++) begin
                 // Send transaction
                 for (int j=0; j<DATA_WID; j++) transaction_in_data[j] = $urandom;
                 transaction_in = new("transaction_in", transaction_in_data);
                 env.inbox.put(transaction_in);
             end
+
+            // send last packet.
+            for (int j=0; j<DATA_WID; j++) transaction_in_data[j] = (j < last_pkt_size*8) ? $urandom : 0;
+            transaction_in = new("transaction_in", transaction_in_data);
+            env.inbox.put(transaction_in);
 
             fork
                 #40us if (!rx_done) `INFO("TIMEOUT! waiting for rx packets...");
@@ -209,7 +217,7 @@ module rs_acc_decode_unit_test;
 	      
             #100ns;
             `FAIL_IF_LOG( env.scoreboard.report(msg) > 0, msg );
-            `FAIL_UNLESS_EQUAL( env.scoreboard.got_matched(), N );
+            `FAIL_UNLESS_EQUAL( env.scoreboard.got_matched(), N+1 );
         `SVTEST_END
 
     `SVUNIT_TESTS_END
