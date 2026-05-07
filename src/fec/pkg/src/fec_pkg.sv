@@ -4,6 +4,7 @@ package fec_pkg;
     `include "../include/fec_luts.svh"
 
     localparam COL_LEN = 4096; // in bits.
+    localparam FEC_BLK_SIZE = RS_K * SYM_SIZE * COL_LEN / 8; // in bytes.
 
     // Typedefs
     typedef enum logic {

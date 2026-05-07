@@ -14,7 +14,6 @@ module rs_acc_framer
 
     // derived parameters.
     localparam DATA_BYTE_WID = DATA_WID / 8;
-    localparam FEC_BLK_SIZE  = RS_K * SYM_SIZE * COL_LEN / 8;  // in bytes.
     localparam CLKS_PER_BLK  = FEC_BLK_SIZE / DATA_BYTE_WID;
     localparam CLKS_PER_BIT  = CLKS_PER_BLK / (RS_K * SYM_SIZE);
 
