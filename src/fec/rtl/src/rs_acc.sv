@@ -2,8 +2,7 @@ module rs_acc
     import fec_pkg::*;
 #(
     parameter int DATA_WID = 512,
-    parameter int NUM_COL  = RS_2T,
-    parameter int COL_LEN  = 1024
+    parameter int NUM_COL  = RS_2T
 ) (
     input  logic clk,
     input  logic srst,

@@ -17,7 +17,6 @@ module rs_acc_unit_test;
     // Parameters
     //===================================
     localparam int DATA_WID = 512;
-    localparam int COL_LEN  = 1024;
 
     //===================================
     // Derived parameters
@@ -41,8 +40,8 @@ module rs_acc_unit_test;
     logic clk;
     logic srst;
 
-    rs_acc_intf #(.DATA_WID(DATA_WID), .COL_LEN(COL_LEN)) data_in  (.clk(clk));
-    rs_acc_intf #(.DATA_WID(DATA_WID), .COL_LEN(COL_LEN)) data_out (.clk(clk));
+    rs_acc_intf #(.DATA_WID(DATA_WID)) data_in  (.clk(clk));
+    rs_acc_intf #(.DATA_WID(DATA_WID)) data_out (.clk(clk));
 
     DATA_T  cw_to_col_data_in;
     logic   cw_to_col_valid;
@@ -51,7 +50,6 @@ module rs_acc_unit_test;
     fec_blk_transpose #(
         .DATA_WID       (DATA_WID),
         .NUM_COL        (RS_K),
-        .COL_LEN        (COL_LEN),
         .MODE           (CW_TO_SYM)
     ) fec_cw_to_col_inst (
         .clk            (clk),
@@ -67,7 +65,7 @@ module rs_acc_unit_test;
 
     logic [0:RS_2T-1][0:RS_K-1][SYM_SIZE-1:0] coef_matrix = RS_P_LUT;
 
-    rs_acc #(.DATA_WID(DATA_WID), .COL_LEN(COL_LEN)) DUT (
+    rs_acc #(.DATA_WID(DATA_WID)) DUT (
         .clk            (clk),
         .srst           (srst),
         .coef_matrix    (coef_matrix),
@@ -83,7 +81,6 @@ module rs_acc_unit_test;
     fec_blk_transpose #(
         .DATA_WID       (DATA_WID),
         .NUM_COL        (RS_2T),
-        .COL_LEN        (COL_LEN),
         .MODE           (SYM_TO_CW)
     ) fec_col_to_cw_inst (
         .clk            (clk),

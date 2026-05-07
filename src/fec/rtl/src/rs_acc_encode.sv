@@ -1,8 +1,7 @@
 module rs_acc_encode
     import fec_pkg::*;
 #(
-    parameter int DATA_WID = 512,
-    parameter int COL_LEN  = 1024
+    parameter int DATA_WID = 512
 ) (
     input  logic clk,
     input  logic srst,
@@ -23,12 +22,12 @@ module rs_acc_encode
     logic [6:0] data_col_num, prty_col_num;
 
     // instantiate interfaces.
-    rs_acc_intf #(.DATA_WID(DATA_WID), .COL_LEN(COL_LEN)) pad (.clk(clk));
-    rs_acc_intf #(.DATA_WID(DATA_WID), .COL_LEN(COL_LEN)) pad_out (.clk(clk));
-    rs_acc_intf #(.DATA_WID(DATA_WID), .COL_LEN(COL_LEN)) parity  (.clk(clk));
+    rs_acc_intf #(.DATA_WID(DATA_WID)) pad (.clk(clk));
+    rs_acc_intf #(.DATA_WID(DATA_WID)) pad_out (.clk(clk));
+    rs_acc_intf #(.DATA_WID(DATA_WID)) parity  (.clk(clk));
 
 
-    rs_acc_pad #(.DATA_WID(DATA_WID), .COL_LEN(COL_LEN), .MODE(INSERT)) rs_acc_pad_0 (
+    rs_acc_pad #(.DATA_WID(DATA_WID), .MODE(INSERT)) rs_acc_pad_0 (
         .clk              (clk),
         .srst             (srst),
         .keep             (),
@@ -42,7 +41,7 @@ module rs_acc_encode
     assign pad_out.valid = pad.valid && data_out.ready && !parity_sel;
     assign pad_out.meta  = pad.meta;
 
-    rs_acc #(.DATA_WID(DATA_WID), .NUM_COL(RS_2T), .COL_LEN(COL_LEN)) rs_acc (
+    rs_acc #(.DATA_WID(DATA_WID), .NUM_COL(RS_2T)) rs_acc (
         .clk              (clk),
         .srst             (srst),
         .coef_matrix      (RS_P_LUT),

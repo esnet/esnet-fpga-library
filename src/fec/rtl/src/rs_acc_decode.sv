@@ -1,8 +1,7 @@
 module rs_acc_decode
     import fec_pkg::*;
 #(
-    parameter int DATA_WID = 512,
-    parameter int COL_LEN  = 1024
+    parameter int DATA_WID = 512
 ) (
     input  logic clk,
     input  logic srst,
@@ -18,12 +17,12 @@ module rs_acc_decode
     logic [0:RS_N-1] err_loc_vec;    
 
     // instantiate interfaces.
-    rs_acc_intf #(.DATA_WID(DATA_WID), .COL_LEN(COL_LEN)) h_sel (.clk(clk));
-    rs_acc_intf #(.DATA_WID(DATA_WID), .COL_LEN(COL_LEN)) acc   (.clk(clk));
+    rs_acc_intf #(.DATA_WID(DATA_WID)) h_sel (.clk(clk));
+    rs_acc_intf #(.DATA_WID(DATA_WID)) acc   (.clk(clk));
 
 
     // instantiate H matrix selection block.
-    rs_decode_h_select #(.DATA_WID(DATA_WID), .COL_LEN(COL_LEN)) rs_decode_h_select_0 (
+    rs_decode_h_select #(.DATA_WID(DATA_WID)) rs_decode_h_select_0 (
         .clk                (clk),
         .srst               (srst),
         .err_loc            (err_loc),
@@ -34,7 +33,7 @@ module rs_acc_decode
     );
 
     // instantiate RS accumulator block.
-    rs_acc #(.DATA_WID(DATA_WID), .NUM_COL(RS_K), .COL_LEN(COL_LEN)) rs_acc_0 (
+    rs_acc #(.DATA_WID(DATA_WID), .NUM_COL(RS_K)) rs_acc_0 (
         .clk                (clk),
         .srst               (srst),
         .coef_matrix        (h_matrix),
@@ -43,7 +42,7 @@ module rs_acc_decode
     );
 
     // instantiate zero pad deletion block.
-    rs_acc_pad #(.DATA_WID(DATA_WID), .COL_LEN(COL_LEN), .MODE(DELETE)) rs_acc_pad_0 (
+    rs_acc_pad #(.DATA_WID(DATA_WID), .MODE(DELETE)) rs_acc_pad_0 (
         .clk                (clk),
         .srst               (srst),
         .keep               (keep),

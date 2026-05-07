@@ -18,7 +18,6 @@ module fec_col_transpose_unit_test;
     //===================================
     localparam int DATA_WID = 512;
     localparam int COL_WID  = SYM_SIZE;
-    localparam int COL_LEN  = 4096;
 
     localparam int NUM_THREADS = 1;
 
@@ -33,14 +32,13 @@ module fec_col_transpose_unit_test;
     logic  clk;
     logic  srst;
 
-    rs_acc_intf #(.DATA_WID(DATA_WID), .COL_LEN(COL_LEN)) data_in  (.clk(clk));
-    rs_acc_intf #(.DATA_WID(DATA_WID), .COL_LEN(COL_LEN)) col_out  (.clk(clk));
-    rs_acc_intf #(.DATA_WID(DATA_WID), .COL_LEN(COL_LEN)) data_out (.clk(clk));
+    rs_acc_intf #(.DATA_WID(DATA_WID)) data_in  (.clk(clk));
+    rs_acc_intf #(.DATA_WID(DATA_WID)) col_out  (.clk(clk));
+    rs_acc_intf #(.DATA_WID(DATA_WID)) data_out (.clk(clk));
 
     fec_col_transpose #(
         .DATA_WID       (DATA_WID),
         .COL_WID        (COL_WID),
-        .COL_LEN        (COL_LEN),
         .MODE           (BIT_TO_SYM)
     ) fec_bit_to_sym_inst (
         .clk            (clk),
@@ -52,7 +50,6 @@ module fec_col_transpose_unit_test;
     fec_col_transpose #(
         .DATA_WID       (DATA_WID),
         .COL_WID        (COL_WID),
-        .COL_LEN        (COL_LEN),
         .MODE           (SYM_TO_BIT)
     ) fec_sym_to_bit_inst (
         .clk            (clk),

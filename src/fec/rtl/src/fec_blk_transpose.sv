@@ -3,7 +3,6 @@ module fec_blk_transpose
 #(
     parameter int DATA_WID = 512,
     parameter int NUM_COL  = RS_K,
-    parameter int COL_LEN  = 1024,
     parameter fec_blk_transpose_mode_t MODE = CW_TO_SYM
 ) (
     input  logic clk,

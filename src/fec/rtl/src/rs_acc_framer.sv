@@ -2,7 +2,6 @@ module rs_acc_framer
     import fec_pkg::*;
 #(
     parameter int DATA_WID = 512,
-    parameter int COL_LEN  = 1024,
     parameter rs_acc_framer_mode_t MODE = TX
 ) (
     input  logic clk,

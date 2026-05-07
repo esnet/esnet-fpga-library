@@ -1,8 +1,7 @@
 module rs_decode_h_select
     import fec_pkg::*;
 #(
-    parameter int DATA_WID = RS_K*SYM_SIZE,
-    parameter int COL_LEN = 0
+    parameter int DATA_WID = RS_K*SYM_SIZE
 ) (
     input  logic clk,
     input  logic srst,

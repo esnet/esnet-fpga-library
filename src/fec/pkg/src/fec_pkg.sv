@@ -3,6 +3,8 @@ package fec_pkg;
     // FEC Lookup Definitions.
     `include "../include/fec_luts.svh"
 
+    localparam COL_LEN = 4096; // in bits.
+
     // Typedefs
     typedef enum logic {
         CW_TO_SYM = 1'b0,

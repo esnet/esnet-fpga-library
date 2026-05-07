@@ -59,8 +59,8 @@ module rs_decode_unit_test;
             .err_loc   (hsel_err_loc) );
 
 
-    rs_acc_intf #(.DATA_WID(DATA_IN_WID), .COL_LEN(1)) data_in_if  (.clk(clk));
-    rs_acc_intf #(.DATA_WID(DATA_IN_WID), .COL_LEN(1)) data_out_if (.clk(clk));
+    rs_acc_intf #(.DATA_WID(DATA_IN_WID)) data_in_if  (.clk(clk));
+    rs_acc_intf #(.DATA_WID(DATA_IN_WID)) data_out_if (.clk(clk));
 
     assign data_in_if.data     = hsel_data_in;
     assign data_in_if.valid    = data_out_valid;

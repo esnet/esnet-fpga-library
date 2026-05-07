@@ -3,7 +3,6 @@ module fec_col_transpose
 #(
     parameter int DATA_WID = 512,
     parameter int COL_WID  = SYM_SIZE,
-    parameter int COL_LEN  = 1024,
     parameter fec_col_transpose_mode_t MODE = BIT_TO_SYM
 ) (
     input  logic clk,

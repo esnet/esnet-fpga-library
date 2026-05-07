@@ -17,7 +17,6 @@ module rs_acc_decode_unit_test;
     // Parameters
     //===================================
     localparam int DATA_WID  = 512;
-    localparam int COL_LEN   = 4096;
 
     localparam int CLKS_PER_BLK    = RS_K * COL_LEN * SYM_SIZE / DATA_WID;
     localparam int CLKS_PER_CW_BLK = RS_N * COL_LEN * SYM_SIZE / DATA_WID;
@@ -39,13 +38,13 @@ module rs_acc_decode_unit_test;
     logic [31:0] fec_evt_size;
     logic [31:0] last_pkt_size;
 
-    rs_acc_intf #(.DATA_WID(DATA_WID), .COL_LEN(COL_LEN)) data_in  (.clk(clk));
-    rs_acc_intf #(.DATA_WID(DATA_WID), .COL_LEN(COL_LEN)) frm_out  (.clk(clk));
-    rs_acc_intf #(.DATA_WID(DATA_WID), .COL_LEN(COL_LEN)) enc_out  (.clk(clk));
-    rs_acc_intf #(.DATA_WID(DATA_WID), .COL_LEN(COL_LEN)) inj_out  (.clk(clk));
-    rs_acc_intf #(.DATA_WID(DATA_WID), .COL_LEN(COL_LEN)) data_out (.clk(clk));
+    rs_acc_intf #(.DATA_WID(DATA_WID)) data_in  (.clk(clk));
+    rs_acc_intf #(.DATA_WID(DATA_WID)) frm_out  (.clk(clk));
+    rs_acc_intf #(.DATA_WID(DATA_WID)) enc_out  (.clk(clk));
+    rs_acc_intf #(.DATA_WID(DATA_WID)) inj_out  (.clk(clk));
+    rs_acc_intf #(.DATA_WID(DATA_WID)) data_out (.clk(clk));
 
-    rs_acc_framer #(.DATA_WID(DATA_WID), .COL_LEN(COL_LEN)) DUT_FRM (
+    rs_acc_framer #(.DATA_WID(DATA_WID)) DUT_FRM (
         .clk               (clk),
         .srst              (srst),
         .fec_evt_size      (fec_evt_size),
@@ -53,7 +52,7 @@ module rs_acc_decode_unit_test;
         .data_out          (frm_out)
     );
 
-    rs_acc_encode #(.DATA_WID(DATA_WID), .COL_LEN(COL_LEN)) DUT_ENC (
+    rs_acc_encode #(.DATA_WID(DATA_WID)) DUT_ENC (
         .clk               (clk),
         .srst              (srst),
         .data_in           (frm_out),
@@ -69,7 +68,7 @@ module rs_acc_decode_unit_test;
         err_loc <= (index == CLKS_PER_CW_BLK-1) ? ($urandom % NUM_H) : err_loc;
     end
 
-    rs_acc_err_inj #(.DATA_WID(DATA_WID), .COL_LEN(COL_LEN)) DUT_INJ (
+    rs_acc_err_inj #(.DATA_WID(DATA_WID)) DUT_INJ (
         .clk               (clk),
         .srst              (srst),
         .err_loc_vec       (RS_ERR_LOC_LUT[err_loc]),
@@ -77,7 +76,7 @@ module rs_acc_decode_unit_test;
         .data_out          (inj_out)
     );
 
-    rs_acc_decode #(.DATA_WID(DATA_WID), .COL_LEN(COL_LEN)) DUT_DEC (
+    rs_acc_decode #(.DATA_WID(DATA_WID)) DUT_DEC (
         .clk               (clk),
         .srst              (srst),
         .err_loc           (err_loc),
