@@ -6,7 +6,6 @@ module rs_acc_decode
     input  logic clk,
     input  logic srst,
     input  logic [$clog2(NUM_H)-1:0] err_loc,
-    output logic [$clog2(DATA_WID/8):0] keep,
 
     rs_acc_intf.rx  data_in,
     rs_acc_intf.tx  data_out
@@ -45,7 +44,6 @@ module rs_acc_decode
     rs_acc_pad #(.DATA_WID(DATA_WID), .MODE(DELETE)) rs_acc_pad_0 (
         .clk                (clk),
         .srst               (srst),
-        .keep               (keep),
         .data_in            (acc),
         .data_out           (data_out)
     );

@@ -31,15 +31,16 @@ package fec_pkg;
 //        logic [7:0]  version=1;
 //        logic [7:0]  next_proto;
 //        logic [15:0] data_id;
-        logic        parity;
-        logic [6:0]  ec_frame_num;
-        logic [6:0]  pad_frames;
-        logic [15:0] ec_sgmt_size;
-        logic [15:0] pad_bytes;
+        logic parity;
+        logic [$clog2(RS_K*SYM_SIZE)-1:0] ec_frame_num;
+        logic [$clog2(RS_K*SYM_SIZE)-1:0] pad_frames;
+        logic [$clog2(COL_LEN/8):0] ec_sgmt_size;
+        logic [$clog2(COL_LEN/8):0] pad_bytes;
         logic [31:0] fec_blk_num;
 
         logic eos; // end-of-segment
-        logic [19:0] fec_blk_size; // in bytes.
+        logic [6:0] keep; // number of bytes to keep in last packet (up to 64).
+        logic [18:0] fec_blk_size; // in bytes. (32 bit-slices x 65,536 bits/slice = 256kB max)
     } fec_meta_t;
 
 

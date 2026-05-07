@@ -30,7 +30,6 @@ module rs_acc_encode
     rs_acc_pad #(.DATA_WID(DATA_WID), .MODE(INSERT)) rs_acc_pad_0 (
         .clk              (clk),
         .srst             (srst),
-        .keep             (),
         .data_in          (data_in),
         .data_out         (pad)
     );
@@ -76,7 +75,8 @@ module rs_acc_encode
         data_col_num = index / CLKS_PER_COL;
         prty_col_num = data_col_num - RS_K;
 
-        data_out.meta.ec_frame_num[6:$clog2(SYM_SIZE)] = parity_sel ? prty_col_num : data_col_num;
+        data_out.meta.ec_frame_num[$clog2(RS_K*SYM_SIZE)-1:$clog2(SYM_SIZE)] =
+            parity_sel ? prty_col_num : data_col_num;
     end
 
 endmodule  // rs_acc_encode

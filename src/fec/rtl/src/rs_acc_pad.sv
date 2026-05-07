@@ -6,7 +6,6 @@ module rs_acc_pad
 ) (
     input  logic clk,
     input  logic srst,
-    output logic [$clog2(DATA_WID/8):0] keep,
 
     rs_acc_intf.rx  data_in,
     rs_acc_intf.tx  data_out
@@ -64,7 +63,8 @@ module rs_acc_pad
                 data_out.valid = pad_en ?   '1 : data_in.valid;
                 data_out.data  = pad_en ?   '0 : data_in.data;
                 data_out.meta  = pad_en ? meta : data_in.meta;
-                keep = DATA_BYTE_WID;
+
+                data_out.meta.keep = DATA_BYTE_WID;
             end
         end else if (MODE == DELETE) begin
             always_comb begin
@@ -76,11 +76,11 @@ module rs_acc_pad
                 data_out.meta.eos = ((index % CLKS_PER_BIT) == CLKS_PER_BIT-1) | (index == blk_size-1);
 
                 if (index != blk_size-1)
-                    keep = DATA_BYTE_WID;
+                    data_out.meta.keep = DATA_BYTE_WID;
                 else if (data_in.meta.fec_blk_size % DATA_BYTE_WID == 0)
-                    keep = DATA_BYTE_WID;
+                    data_out.meta.keep = DATA_BYTE_WID;
                 else
-                    keep = data_in.meta.fec_blk_size % DATA_BYTE_WID;
+                    data_out.meta.keep = data_in.meta.fec_blk_size % DATA_BYTE_WID;
             end
         end
     end endgenerate

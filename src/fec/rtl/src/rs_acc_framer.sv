@@ -17,11 +17,11 @@ module rs_acc_framer
     localparam CLKS_PER_BLK  = FEC_BLK_SIZE / DATA_BYTE_WID;
     localparam CLKS_PER_BIT  = CLKS_PER_BLK / (RS_K * SYM_SIZE);
 
-    logic [31:0] index;        // word index within fec event.
+    logic [31:0] index;  // word index within fec event.
     logic [31:0] fec_blk_num;
     logic [31:0] clks_per_evt;
-    logic [31:0] num_fec_blks; // number of FULL fec blks per evt (excludes LAST blk, if partial).
-    logic  [6:0] pad_frames;   // pad frames within last fec block.
+    logic [31:0] num_fec_blks;  // number of FULL fec blks per evt (excludes LAST blk, if partial).
+    logic [$clog2(RS_K*SYM_SIZE)-1:0] pad_frames;  // pad frames within last fec block.
 
     logic [19:0] last_blk_size;
 
