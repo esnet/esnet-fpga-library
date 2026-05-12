@@ -247,7 +247,7 @@ _bd_synth_sources: | $(COMPONENT_OUT_SYNTH_PATH)
 	@echo "# ------------------------" >> $(SYNTH_SOURCES_OBJ)
 	@rm -rf $(COMPONENT_OUT_SYNTH_PATH)/*.f
 	@-for bdfile in $(abspath $(BD_FILES)); do \
-		echo $$bdfile >> $(COMPONENT_OUT_SYNTH_PATH)/ip_srcs.f; \
+		echo $$bdfile >> $(COMPONENT_OUT_SYNTH_PATH)/bd_srcs.f; \
 		echo "read_bd -quiet $$bdfile" >> $(SYNTH_SOURCES_OBJ); \
 	done
 	@echo >> $(SYNTH_SOURCES_OBJ)

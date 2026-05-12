@@ -52,6 +52,7 @@ SYNTH_CONSTRAINTS_OBJ = $(COMPONENT_OUT_SYNTH_PATH)/constraints.tcl
 list_files = $(shell test -e $(1) && cat $(1) | tr '\n' ' ')
 
 SYNTH_DEFINES = $(sort $(DEFINES) $(foreach subcomponent_path,$(SUBCOMPONENT_PATHS),$(call list_files,$(subcomponent_path)/synth/defines.f)))
+SYNTH_BD_FILES     = $(sort $(foreach subcomponent_path,$(SUBCOMPONENT_PATHS),$(call list_files,$(subcomponent_path)/synth/bd_srcs.f)))
 SYNTH_IP_XCI_FILES = $(sort $(foreach subcomponent_path,$(SUBCOMPONENT_PATHS),$(call list_files,$(subcomponent_path)/synth/ip_srcs.f)))
 SYNTH_V_SRC_FILES  = $(sort $(abspath $(V_SRC_FILES))  $(foreach subcomponent_path,$(SUBCOMPONENT_PATHS),$(call list_files,$(subcomponent_path)/synth/v_srcs.f)))
 SYNTH_V_HDR_FILES  = $(sort $(abspath $(V_HDR_FILES))  $(foreach subcomponent_path,$(SUBCOMPONENT_PATHS),$(call list_files,$(subcomponent_path)/synth/v_hdrs.f)))
@@ -184,6 +185,13 @@ _synth_sources: $(SRCS) $(HDRS) | $(COMPONENT_OUT_SYNTH_PATH)
 		echo "}" >> $(SYNTH_SOURCES_OBJ); \
 		echo "set_property verilog_define \$$verilog_defines [current_fileset]" >> $(SYNTH_SOURCES_OBJ); \
 	fi
+	@echo >> $(SYNTH_SOURCES_OBJ)
+	@echo "# Xilinx BD source listing" >> $(SYNTH_SOURCES_OBJ)
+	@echo "# ------------------------" >> $(SYNTH_SOURCES_OBJ)
+	@-for bdfile in $(abspath $(SYNTH_BD_FILES)); do \
+		echo $$bdfile >> $(COMPONENT_OUT_SYNTH_PATH)/bd_srcs.f; \
+		echo "read_bd -quiet $$bdfile" >> $(SYNTH_SOURCES_OBJ); \
+	done
 	@echo >> $(SYNTH_SOURCES_OBJ)
 	@echo "# Xilinx IP source listing" >> $(SYNTH_SOURCES_OBJ)
 	@echo "# ------------------------" >> $(SYNTH_SOURCES_OBJ)
