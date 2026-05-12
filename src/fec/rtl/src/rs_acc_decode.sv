@@ -1,7 +1,8 @@
 module rs_acc_decode
     import fec_pkg::*;
 #(
-    parameter int DATA_WID = 512
+    parameter int   DATA_WID = 512,
+    parameter logic DELETE_PAD_BYTES = 0
 ) (
     input  logic clk,
     input  logic srst,
@@ -40,12 +41,22 @@ module rs_acc_decode
         .data_out           (acc)
     );
 
-    // instantiate zero pad deletion block.
-    rs_acc_pad #(.DATA_WID(DATA_WID), .MODE(DELETE)) rs_acc_pad_0 (
-        .clk                (clk),
-        .srst               (srst),
-        .data_in            (acc),
-        .data_out           (data_out)
-    );
+    generate begin
+        if (DELETE_PAD_BYTES) begin
+            // instantiate zero pad deletion block.
+            rs_acc_pad #(.DATA_WID(DATA_WID), .MODE(DELETE)) rs_acc_pad_0 (
+                .clk                (clk),
+                .srst               (srst),
+                .data_in            (acc),
+                .data_out           (data_out)
+            );
 
+        end else begin
+            assign acc.ready = data_out.ready;
+
+            assign data_out.data  = acc.data;
+            assign data_out.valid = acc.valid;
+            assign data_out.meta  = acc.meta;
+        end
+    end endgenerate
 endmodule  // rs_acc_decode
