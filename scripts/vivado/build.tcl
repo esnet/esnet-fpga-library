@@ -20,6 +20,8 @@ array set OPTIONS {
     -constraints_tcl_auto synth/constraints.tcl
     -sources_tcl          {}
     -constraints_xdc      {}
+    -constraints_xdc_impl {}
+    -hook_tcl             {}
     -define               {}
     -timestamp            0
     -userid               0
@@ -30,7 +32,7 @@ for {set i 2} {$i < $argc} {incr i 2} {
     set argName [lindex $argv $i]
     set argValue [lindex $argv [expr $i+1]]
     if {[info exists OPTIONS($argName)]} {
-        if {[lsearch {-sources_tcl -constraints_xdc -define} $argName] >= 0} {
+        if {[lsearch {-sources_tcl -constraints_xdc -constraints_xdc_impl -hook_tcl -define} $argName] >= 0} {
             lappend OPTIONS($argName) $argValue
         } else {
             set OPTIONS($argName) $argValue
@@ -42,6 +44,28 @@ for {set i 2} {$i < $argc} {incr i 2} {
 # Reformat options (flatten array, remove dash, convert to uppercase)
 foreach {argName argValue} [array get OPTIONS] {
     set [string toupper [string range $argName 1 end]] $argValue
+}
+
+# -------------------------------
+# Versal detection
+# -------------------------------
+proc is_versal {part} {
+    if {$part == ""} { return 0 }
+    if {[catch {set family [get_property FAMILY [get_parts $part]]}]} { return 0 }
+    return [string match "versal*" [string tolower $family]]
+}
+
+# -------------------------------
+# Map hook file basename to implementation run step property
+# -------------------------------
+proc hook_step_property {filename} {
+    set base [file tail $filename]
+    if {[string match "*opt.post*" $base]}             { return "STEPS.OPT_DESIGN.TCL.POST" }
+    if {[string match "*place.pre*" $base]}            { return "STEPS.PLACE_DESIGN.TCL.PRE" }
+    if {[string match "*route.pre*" $base]}            { return "STEPS.ROUTE_DESIGN.TCL.PRE" }
+    if {[string match "*write_device_image.pre*" $base]} { return "STEPS.WRITE_DEVICE_IMAGE.TCL.PRE" }
+    if {[string match "*write_bitstream.pre*" $base]}  { return "STEPS.WRITE_BITSTREAM.TCL.PRE" }
+    return ""
 }
 
 # -------------------------------
@@ -94,6 +118,23 @@ if {$PHASE == "create_proj"} {
     # Configure implementation run
     vivadoProcs::config_impl_run "impl_1" $OOC
     set_property -name generic -value "BUILD_TIMESTAMP=${build_timestamp}" -object [current_fileset]
+
+    # Attach implementation step hooks
+    foreach hook_file $HOOK_TCL {
+        if {[file exists $hook_file]} {
+            set step_prop [hook_step_property $hook_file]
+            if {$step_prop != ""} {
+                puts "Attaching hook $hook_file to $step_prop"
+                import_files -fileset utils_1 -norecurse $hook_file
+                set_property $step_prop [get_files [file tail $hook_file]] [get_runs impl_1]
+            } else {
+                puts "WARNING: Could not determine step property for hook file [file tail $hook_file] — skipping."
+            }
+        } else {
+            puts "WARNING: Hook file not found: $hook_file"
+        }
+    }
+
     # Clean up
     vivadoProcs::close_proj
 } else {
@@ -147,13 +188,25 @@ if {$PHASE == "create_proj"} {
             }
         }
     }
+
+    # Load implementation-only constraint files (used_in_synthesis false)
+    foreach xdc_file $CONSTRAINTS_XDC_IMPL {
+        if {[file exists ${xdc_file}]} {
+            puts "Reading implementation-only constraint file ${xdc_file}."
+            read_xdc -quiet -unmanaged ${xdc_file}
+            set_property used_in_synthesis false [get_files [file tail ${xdc_file}]]
+        }
+    }
+
     if !${OOC} {
-        # Configure bitstream parameters
-        set fp [open [file join $PROJ_DIR "build.xdc" ] w]
-        puts $fp "set_property BITSTREAM.CONFIG.USERID \"$USERID\" \[current_design\]"
-        puts $fp "set_property BITSTREAM.CONFIG.USR_ACCESS $USR_ACCESS \[current_design\]"
-        close $fp
-        read_xdc -quiet [file join $PROJ_DIR "build.xdc"]
+        # Configure bitstream parameters (not applicable for Versal — handled by hooks)
+        if {![is_versal $PART]} {
+            set fp [open [file join $PROJ_DIR "build.xdc" ] w]
+            puts $fp "set_property BITSTREAM.CONFIG.USERID \"$USERID\" \[current_design\]"
+            puts $fp "set_property BITSTREAM.CONFIG.USR_ACCESS $USR_ACCESS \[current_design\]"
+            close $fp
+            read_xdc -quiet [file join $PROJ_DIR "build.xdc"]
+        }
     }
 
     # Perform specified operation
@@ -220,6 +273,15 @@ if {$PHASE == "create_proj"} {
                 puts "Error generating bitstream. Implementation is not complete."
             }
         }
+        device_image {
+            puts "Generating device image for $TOP ..."
+            if {[get_property PROGRESS [get_runs impl_1]] == "100%"} {
+                launch_runs -jobs $JOBS -to_step write_device_image impl_1
+                wait_on_runs impl_1
+            } else {
+                puts "Error generating device image. Implementation is not complete."
+            }
+        }
         flash {
             puts "Generating flash image for $TOP ..."
             set bitfile ${PROJ_DIR}/proj.runs/impl_1/${TOP}.bit
@@ -231,7 +293,7 @@ if {$PHASE == "create_proj"} {
             }
         }
         default {
-            puts "INVALID job: $PHASE (create_proj/synth/opt/place/place_opt/route/route_opt/bitstream/flash/gui)"
+            puts "INVALID job: $PHASE (create_proj/synth/opt/place/place_opt/route/route_opt/bitstream/device_image/flash/gui)"
         }
     }
     switch $PHASE {

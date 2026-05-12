@@ -11,6 +11,8 @@
 # -----------------------------------------------
 SOURCES_TCL_USER ?= $(abspath sources.tcl)
 CONSTRAINTS_XDC_USER ?= $(abspath timing.xdc pins.xdc general.xdc)
+CONSTRAINTS_XDC_IMPL ?=
+IMPL_HOOK_TCL_FILES ?=
 # -----------------------------------------------
 # Command
 # -----------------------------------------------
@@ -22,7 +24,7 @@ VIVADO_BUILD_CMD_GUI = $(VIVADO_BUILD_CMD_BASE) -mode gui
 # -----------------------------------------------
 # Configure build flow
 # -----------------------------------------------
-BUILD_STAGES = synth opt place place_opt route route_opt bitstream flash
+BUILD_STAGES ?= synth opt place place_opt route route_opt bitstream flash
 
 # -----------------------------------------------
 # Configure build options
@@ -42,6 +44,8 @@ BUILD_OPTIONS = \
     -constraints_tcl_auto $(CONSTRAINTS_TCL_AUTO) \
     $(foreach sources_tcl,$(SOURCES_TCL_USER),-sources_tcl $(sources_tcl)) \
     $(foreach constraints_xdc,$(CONSTRAINTS_XDC_USER),-constraints_xdc $(constraints_xdc)) \
+    $(foreach xdc_impl,$(CONSTRAINTS_XDC_IMPL),-constraints_xdc_impl $(xdc_impl)) \
+    $(foreach hook_tcl,$(IMPL_HOOK_TCL_FILES),-hook_tcl $(hook_tcl)) \
     $(foreach define,$(DEFINES),-define $(define)) \
     -timestamp $(BUILD_TIMESTAMP) \
     -userid $(BITSTREAM_USERID) \
