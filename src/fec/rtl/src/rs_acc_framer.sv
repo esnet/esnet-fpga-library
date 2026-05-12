@@ -53,7 +53,7 @@ module rs_acc_framer
         clks_per_evt  <= (fec_evt_size + DATA_BYTE_WID - 1) / DATA_BYTE_WID;  // round up.
         num_fec_blks  <= fec_evt_size / FEC_BLK_SIZE;  // number of FULL fec blocks per event.
         pad_frames    <= (CLKS_PER_BLK - (clks_per_evt % CLKS_PER_BLK)) / CLKS_PER_BIT;
-        last_blk_size <= fec_evt_size % FEC_BLK_SIZE;  // TODO: adjust calc when adding igr bit-slicing logic.
+        last_blk_size <= fec_evt_size % FEC_BLK_SIZE;
     end
 
 
