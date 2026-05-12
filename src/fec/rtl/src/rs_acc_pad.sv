@@ -64,6 +64,7 @@ module rs_acc_pad
                 data_out.data  = pad_en ?   '0 : data_in.data;
                 data_out.meta  = pad_en ? meta : data_in.meta;
 
+                data_out.meta.fec_blk_size = FEC_BLK_SIZE;
                 data_out.meta.keep = DATA_BYTE_WID;
             end
         end else if (MODE == DELETE) begin
