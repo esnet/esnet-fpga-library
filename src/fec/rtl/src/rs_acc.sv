@@ -43,11 +43,12 @@ module rs_acc
 
     // signals - egress data_out pipeline.
     logic [$clog2(CLKS_PER_BLK)-1:0] rd_index;
-    fec_meta_t rd_meta, wr_meta;
+    fec_meta_t rd_meta, _rd_meta, wr_meta;
     logic rd_req;
 
     logic [PIPE_STAGES-1:0][$clog2(CLKS_PER_BLK)-1:0]   pipe_rd_index;
     logic [PIPE_STAGES-1:0]                             pipe_rd_req;
+    fec_meta_t [PIPE_STAGES-1:0]                        pipe_rd_meta;
 
     logic [NUM_COL-1:0][DATA_SYM_WID-1:0][SYM_SIZE-1:0] parity;
 
@@ -65,8 +66,7 @@ module rs_acc
             index   <= (index == CLKS_PER_BLK-1) ? 0 : index+1;
             buf_sel <= (index == CLKS_PER_BLK-1) ? !buf_sel : buf_sel;
 
-            wr_meta <= (index == 0) ?         data_in.meta : wr_meta;
-            rd_meta <= (index == CLKS_PER_BLK-1) ? wr_meta : rd_meta;
+            wr_meta <= (index == CLKS_PER_BLK-1) ? data_in.meta : wr_meta;
         end
 
     always_ff @(posedge clk) begin
@@ -76,18 +76,12 @@ module rs_acc
         pipe_buf_sel[0]      <= buf_sel;
         pipe_coef_matrix[0]  <= coef_matrix;
 
-        pipe_rd_index[0]     <= rd_index;
-        pipe_rd_req[0]       <= rd_req;
-
         for (int i=1; i<PIPE_STAGES; i++) begin
             pipe_data[i]         <= pipe_data[i-1];
             pipe_valid[i]        <= pipe_valid[i-1];
             pipe_index[i]        <= pipe_index[i-1];
             pipe_buf_sel[i]      <= pipe_buf_sel[i-1];
             pipe_coef_matrix[i]  <= pipe_coef_matrix[i-1];
-
-            pipe_rd_index[i]     <= pipe_rd_index[i-1];
-            pipe_rd_req[i]       <= pipe_rd_req[i-1];
         end
     end
 
@@ -100,6 +94,7 @@ module rs_acc
         end else if (pipe_buf_sel[RD_STAGE] ^ buf_sel) begin
             rd_index <= '0;
             rd_req   <= 1'b1;
+            rd_meta  <= wr_meta;
         end else if ((rd_index < NUM_COL*CLKS_PER_COL-1) && fifo_wr_rdy) begin
             rd_index <= rd_index+1;
             rd_req   <= 1'b1;
@@ -109,6 +104,22 @@ module rs_acc
         end
     end
 
+    always_comb begin
+        _rd_meta = rd_meta;
+        _rd_meta.ec_frame_num[$clog2(RS_K*SYM_SIZE)-1:$clog2(SYM_SIZE)] = rd_index / CLKS_PER_COL;
+    end
+
+    always_ff @(posedge clk) begin
+        pipe_rd_index[0]     <= rd_index;
+        pipe_rd_req[0]       <= rd_req;
+        pipe_rd_meta[0]      <= _rd_meta;
+
+        for (int i=1; i<PIPE_STAGES; i++) begin
+            pipe_rd_index[i]     <= pipe_rd_index[i-1];
+            pipe_rd_req[i]       <= pipe_rd_req[i-1];
+            pipe_rd_meta[i]      <= pipe_rd_meta[i-1];
+        end
+    end
 
 
     // === parity processing pipeline (RD_STAGE -> PP_STAGE -> ACC_STAGE -> WR_STAGE). ===
@@ -234,7 +245,7 @@ module rs_acc
     logic fifo_wr, fifo_rd, fifo_empty;
     logic [$clog2(DEPTH):0] fifo_count;
 
-    assign fifo_wr_data = { rd_meta, parity[pipe_rd_index[OUT_STAGE]/CLKS_PER_COL] };
+    assign fifo_wr_data = { pipe_rd_meta[OUT_STAGE], parity[pipe_rd_index[OUT_STAGE]/CLKS_PER_COL] };
     assign fifo_wr      = pipe_rd_req[OUT_STAGE];
     assign fifo_wr_rdy  = fifo_count < DEPTH - PIPE_STAGES;
     assign fifo_rd      = data_out.ready && data_out.valid;
