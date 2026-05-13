@@ -13,6 +13,7 @@ SOURCES_TCL_USER ?= $(abspath sources.tcl)
 CONSTRAINTS_XDC_USER ?= $(abspath timing.xdc pins.xdc general.xdc)
 CONSTRAINTS_XDC_IMPL ?=
 IMPL_HOOK_TCL_FILES ?=
+IP_REPO_PATHS ?=
 # -----------------------------------------------
 # Command
 # -----------------------------------------------
@@ -46,6 +47,7 @@ BUILD_OPTIONS = \
     $(foreach constraints_xdc,$(CONSTRAINTS_XDC_USER),-constraints_xdc $(constraints_xdc)) \
     $(foreach xdc_impl,$(CONSTRAINTS_XDC_IMPL),-constraints_xdc_impl $(xdc_impl)) \
     $(foreach hook_tcl,$(IMPL_HOOK_TCL_FILES),-hook_tcl $(hook_tcl)) \
+    $(foreach iprepo,$(IP_REPO_PATHS),-ip_repo $(iprepo)) \
     $(foreach define,$(DEFINES),-define $(define)) \
     -timestamp $(BUILD_TIMESTAMP) \
     -userid $(BITSTREAM_USERID) \

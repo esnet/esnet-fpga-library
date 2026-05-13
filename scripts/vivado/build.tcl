@@ -22,6 +22,7 @@ array set OPTIONS {
     -constraints_xdc      {}
     -constraints_xdc_impl {}
     -hook_tcl             {}
+    -ip_repo              {}
     -define               {}
     -timestamp            0
     -userid               0
@@ -32,7 +33,7 @@ for {set i 2} {$i < $argc} {incr i 2} {
     set argName [lindex $argv $i]
     set argValue [lindex $argv [expr $i+1]]
     if {[info exists OPTIONS($argName)]} {
-        if {[lsearch {-sources_tcl -constraints_xdc -constraints_xdc_impl -hook_tcl -define} $argName] >= 0} {
+        if {[lsearch {-sources_tcl -constraints_xdc -constraints_xdc_impl -hook_tcl -ip_repo -define} $argName] >= 0} {
             lappend OPTIONS($argName) $argValue
         } else {
             set OPTIONS($argName) $argValue
@@ -150,6 +151,16 @@ if {$PHASE == "create_proj"} {
         puts "ERROR: specified board part ($BOARD_PART) is different from project board part ([vivadoProcs::get_board_part])."
         exit 2
     }
+    # Configure custom IP repositories before loading sources so BD IPs can be resolved
+    foreach ip_repo $IP_REPO {
+        set __ip_repos [get_property ip_repo_paths [current_project]]
+        lappend __ip_repos $ip_repo
+        set_property ip_repo_paths [lsort -unique ${__ip_repos}] [current_project]
+    }
+    if {[llength $IP_REPO] > 0} {
+        update_ip_catalog
+    }
+
     # Load sources
     if {[file exists $SOURCES_TCL_AUTO]} {
         source $SOURCES_TCL_AUTO
