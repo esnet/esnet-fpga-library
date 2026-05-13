@@ -228,7 +228,7 @@ $(BD_DCP_FILES): _bd_dcp_files.intermediate ;
 		test -f $$dcp_file && touch $$dcp_file || false; \
 	done
 
-_bd_dcp_files.intermediate: $(BD_XCI_FILES) | $(PROJ_XPR)
+_bd_dcp_files.intermediate: $(BD_FILES) | $(PROJ_XPR)
 	@echo "----------------------------------------------------------"
 	@echo "Synthesize BD ($(COMPONENT_NAME)) ..."
 	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_BD_CMD) -tclargs synth $(BUILD_OPTIONS) $(foreach bdfile,$(BD_FILES),-bd_file $(bdfile))
@@ -262,7 +262,7 @@ __BD_SIM_INC_DIRS = $(addprefix $(COMPONENT_OUT_PATH)/,$(BD_SIM_INC_DIRS))
 
 $(__BD_SIM_SRC_FILES) $(__BD_SIM_INC_DIRS): _bd_sim_sources.intermediate ;
 
-_bd_sim_sources.intermediate: $(BD_XCI_FILES) | $(PROJ_XPR)
+_bd_sim_sources.intermediate: $(BD_FILES) | $(PROJ_XPR)
 	@echo "----------------------------------------------------------"
 	@echo "Generate BD simulation output products ($(COMPONENT_NAME)) ..."
 	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_BD_CMD) -tclargs sim $(BUILD_OPTIONS) $(foreach bdfile,$(BD_FILES),-bd_file $(bdfile))
