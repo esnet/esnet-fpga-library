@@ -171,11 +171,11 @@ $(BD_PROXY_DIR)/.refreshed: $(BD_PROXY_REFRESH_FILES) | $(PROJ_XPR) $(BD_PROXY_D
 	@touch $@
 	@echo "Done."
 
-# BD files are generated via the bd target; downstream targets (i.e. those that
+# BD files are generated via the _bd target; downstream targets (i.e. those that
 # generate simulation and synthesis output products) depend on the BD file only
 # so that they only get updated when necessary, i.e. when the BD specification has
 # changed.
-$(BD_FILES): bd
+$(BD_FILES): _bd
 	@for bd in $(BD_LIST); do \
 		if [ ! -f $(COMPONENT_OUT_PATH)/$$bd/$$bd.bd ]; then \
 			echo "----------------------------------------------------------"; \
