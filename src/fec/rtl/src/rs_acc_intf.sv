@@ -1,10 +1,7 @@
 interface rs_acc_intf
     import fec_pkg::*;
 #(
-    parameter int DATA_WID = 1,
-    parameter int COL_LEN  = 1,
-    // Derived parameters (don't override)                                                                                       
-    parameter int CLKS_PER_BLK = RS_K * SYM_SIZE * COL_LEN / DATA_WID
+    parameter int DATA_WID = 1
 ) (
     input logic clk
 );
@@ -12,7 +9,6 @@ interface rs_acc_intf
     // Parameter validation
     initial begin
         std_pkg::param_check_gt(DATA_WID, 1, "DATA_WID");
-        std_pkg::param_check_gt(COL_LEN,  1, "COL_LEN" );
     end
 
     // Signals

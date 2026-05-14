@@ -1,10 +1,7 @@
 module rs_acc_encode
     import fec_pkg::*;
 #(
-    parameter int DATA_WID = 512,
-    parameter int COL_LEN  = 1024,
-    // Derived parameters (don't override)
-    parameter int CLKS_PER_BLK = RS_K * SYM_SIZE * COL_LEN / DATA_WID
+    parameter int DATA_WID = 512
 ) (
     input  logic clk,
     input  logic srst,
@@ -14,6 +11,7 @@ module rs_acc_encode
 );
 
     // derived parameters.
+    localparam CLKS_PER_BLK = RS_K * SYM_SIZE * COL_LEN / DATA_WID;
     localparam CLKS_PER_CW_BLK = CLKS_PER_BLK * RS_N / RS_K;
     localparam CLKS_PER_COL = CLKS_PER_BLK / RS_K;
 
@@ -24,12 +22,12 @@ module rs_acc_encode
     logic [6:0] data_col_num, prty_col_num;
 
     // instantiate interfaces.
-    rs_acc_intf #(.DATA_WID(DATA_WID), .COL_LEN(COL_LEN)) pad (.clk(clk));
-    rs_acc_intf #(.DATA_WID(DATA_WID), .COL_LEN(COL_LEN)) pad_out (.clk(clk));
-    rs_acc_intf #(.DATA_WID(DATA_WID), .COL_LEN(COL_LEN)) parity  (.clk(clk));
+    rs_acc_intf #(.DATA_WID(DATA_WID)) pad (.clk(clk));
+    rs_acc_intf #(.DATA_WID(DATA_WID)) pad_out (.clk(clk));
+    rs_acc_intf #(.DATA_WID(DATA_WID)) parity  (.clk(clk));
 
 
-    rs_acc_pad #(.DATA_WID(DATA_WID), .COL_LEN(COL_LEN), .MODE(INSERT)) rs_acc_pad_0 (
+    rs_acc_pad #(.DATA_WID(DATA_WID), .MODE(INSERT)) rs_acc_pad_0 (
         .clk              (clk),
         .srst             (srst),
         .data_in          (data_in),
@@ -42,7 +40,7 @@ module rs_acc_encode
     assign pad_out.valid = pad.valid && data_out.ready && !parity_sel;
     assign pad_out.meta  = pad.meta;
 
-    rs_acc #(.DATA_WID(DATA_WID), .NUM_COL(RS_2T), .COL_LEN(COL_LEN)) rs_acc (
+    rs_acc #(.DATA_WID(DATA_WID), .NUM_COL(RS_2T)) rs_acc (
         .clk              (clk),
         .srst             (srst),
         .coef_matrix      (RS_P_LUT),
@@ -77,7 +75,8 @@ module rs_acc_encode
         data_col_num = index / CLKS_PER_COL;
         prty_col_num = data_col_num - RS_K;
 
-        data_out.meta.ec_frame_num[6:$clog2(SYM_SIZE)] = parity_sel ? prty_col_num : data_col_num;
+        data_out.meta.ec_frame_num[$clog2(RS_K*SYM_SIZE)-1:$clog2(SYM_SIZE)] =
+            parity_sel ? prty_col_num : data_col_num;
     end
 
 endmodule  // rs_acc_encode

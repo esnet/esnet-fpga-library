@@ -1,10 +1,7 @@
 module rs_acc_err_inj
     import fec_pkg::*;
 #(
-    parameter int DATA_WID = 512,
-    parameter int COL_LEN  = 1024,
-    // Derived parameters (don't override)
-    parameter int CLKS_PER_BLK = RS_K * SYM_SIZE * COL_LEN / DATA_WID
+    parameter int DATA_WID = 512
 ) (
     input  logic clk,
     input  logic srst,
