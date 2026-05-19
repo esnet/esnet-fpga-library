@@ -11,6 +11,7 @@
 # -----------------------------------------------
 SOURCES_TCL_USER ?= $(abspath sources.tcl)
 CONSTRAINTS_XDC_USER ?= $(abspath timing_ooc.xdc place_ooc.xdc)
+IP_REPO_PATHS ?=
 
 # -----------------------------------------------
 # Command
@@ -40,7 +41,8 @@ BUILD_OPTIONS = \
     -constraints_tcl_auto $(CONSTRAINTS_TCL_AUTO) \
     $(foreach sources_tcl,$(SOURCES_TCL_USER),-sources_tcl $(sources_tcl)) \
     $(foreach constraints_xdc,$(CONSTRAINTS_XDC_USER),-constraints_xdc $(constraints_xdc)) \
-    $(foreach define,$(DEFINES),-define $(define))
+    $(foreach define,$(DEFINES),-define $(define)) \
+    $(foreach iprepo,$(IP_REPO_PATHS),-ip_repo $(iprepo))
 
 # -----------------------------------------------
 # Output files
