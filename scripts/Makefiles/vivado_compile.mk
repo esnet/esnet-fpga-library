@@ -275,7 +275,7 @@ _synth_sources: $(SRCS) $(HDRS) | $(COMPONENT_OUT_SYNTH_PATH)
 	@echo "# Synthesized DCP source listing" >> $(SYNTH_SOURCES_OBJ)
 	@echo "# ------------------------------" >> $(SYNTH_SOURCES_OBJ)
 	@if [ ! -z "$(strip $(SYNTH_DCP_FILES))" ]; then \
-		echo "read_checkpoint -quiet {" >> $(SYNTH_SOURCES_OBJ); \
+		echo "add_files -quiet -norecurse {" >> $(SYNTH_SOURCES_OBJ); \
 	fi
 	@-for dcpfile in $(abspath $(SYNTH_DCP_FILES)); do \
 		echo $$dcpfile >> $(COMPONENT_OUT_SYNTH_PATH)/dcp_srcs.f; \
