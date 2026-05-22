@@ -300,8 +300,9 @@ switch $PHASE {
     device_image {
         open_checkpoint $OUT_DIR/${TOP}.route_opt.dcp
         # Expose build context to hook scripts (e.g. write_device_image.pre.tcl)
-        set ::NP_TOP    $TOP
+        set ::NP_TOP     $TOP
         set ::NP_OUT_DIR $OUT_DIR
+        set ::NP_TOP_DCP $TOP_DCP
         source_hooks $HOOK_TCL "*write_device_image.pre*"
         write_device_image -force $OUT_DIR/${TOP}.pdi
         puts "Wrote: $OUT_DIR/${TOP}.pdi"
