@@ -1,10 +1,7 @@
 module rs_decode_h_select
     import fec_pkg::*;
 #(
-    parameter int DATA_WID = RS_K*SYM_SIZE,
-    parameter int COL_LEN = 0,
-    // Derived parameters (don't override)
-    parameter int CLKS_PER_BLK = RS_K * SYM_SIZE * COL_LEN / DATA_WID
+    parameter int DATA_WID = RS_K*SYM_SIZE
 ) (
     input  logic clk,
     input  logic srst,
@@ -20,9 +17,9 @@ module rs_decode_h_select
 
     // pipeline data and select 'h_matrix' and 'err_loc_vec'.
     always_ff @(posedge clk) if (data_out.ready) begin
-        data_out.data      <= data_in.data;
-        data_out.valid     <= data_in.valid;
-        data_out.blk_size  <= data_in.blk_size;
+        data_out.data  <= data_in.data;
+        data_out.valid <= data_in.valid;
+        data_out.meta  <= data_in.meta;
 
         h_matrix     <= RS_H_LUT[err_loc];
         err_loc_vec  <= RS_ERR_LOC_LUT[err_loc];

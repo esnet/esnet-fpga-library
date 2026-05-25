@@ -1,5 +1,11 @@
 package fec_pkg;
 
+    // FEC Lookup Definitions.
+    `include "../include/fec_luts.svh"
+
+    localparam COL_LEN = 4096; // in bits.
+    localparam FEC_BLK_SIZE = RS_K * SYM_SIZE * COL_LEN / 8; // in bytes.
+
     // Typedefs
     typedef enum logic {
         CW_TO_SYM = 1'b0,
@@ -16,9 +22,27 @@ package fec_pkg;
         DELETE = 1'b0
     } rs_acc_pad_mode_t;
 
+    typedef enum logic {
+        TX = 1'b1,
+        RX = 1'b0
+    } rs_acc_framer_mode_t;
 
-    // FEC Lookup Definitions.
-    `include "../include/fec_luts.svh"
+    typedef struct packed {
+//        logic [7:0]  version=1;
+//        logic [7:0]  next_proto;
+//        logic [15:0] data_id;
+        logic parity;
+        logic [$clog2(RS_K*SYM_SIZE)-1:0] ec_frame_num;
+        logic [$clog2(RS_K*SYM_SIZE)-1:0] pad_frames;
+        logic [$clog2(COL_LEN/8):0] ec_sgmt_size;
+        logic [$clog2(COL_LEN/8):0] pad_bytes;
+        logic [31:0] fec_blk_num;
+
+        logic eos; // end-of-segment
+        logic [6:0] keep; // number of bytes to keep in last packet (up to 64).
+        logic [18:0] fec_blk_size; // in bytes. (32 bit-slices x 65,536 bits/slice = 256kB max)
+    } fec_meta_t;
+
 
 
     // ----- GF Math Functions -----

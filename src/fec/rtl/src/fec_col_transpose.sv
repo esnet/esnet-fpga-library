@@ -3,7 +3,6 @@ module fec_col_transpose
 #(
     parameter int DATA_WID = 512,
     parameter int COL_WID  = SYM_SIZE,
-    parameter int COL_LEN  = 1024,
     parameter fec_col_transpose_mode_t MODE = BIT_TO_SYM
 ) (
     input  logic clk,
@@ -16,7 +15,8 @@ module fec_col_transpose
     // derived parameters.
     localparam CLKS_PER_BIT = COL_LEN / DATA_WID;
     localparam CLKS_PER_COL = CLKS_PER_BIT * COL_WID;
-    localparam CLKS_PER_BLK = RS_K * SYM_SIZE * COL_LEN / DATA_WID;
+
+    localparam META_WID = data_in.META_WID;
 
     // pipeline parameters.
     localparam PIPE_STAGES = 3;
@@ -38,15 +38,21 @@ module fec_col_transpose
     logic [$clog2(CLKS_PER_COL):0]                     wr_index;
 
     logic [$clog2(CLKS_PER_COL):0]                     rd_index;
-    logic [$clog2(CLKS_PER_BLK)-1:0]                   rd_blk_size, wr_blk_size;
     logic                                              rd_req;
+    fec_meta_t                                         rd_meta, _rd_meta, wr_meta;
+    logic                                              pad_bytes;
+
+    logic [18:0]                                       blk_size; // in words.
+    logic [$clog2(RS_K*SYM_SIZE)-1:0]                  last_col_num;
+    logic [$clog2(CLKS_PER_COL)-1:0]                   last_col_size;
+    logic                                              col_num_match, col_size_match, last_eos;
 
     logic [PIPE_STAGES-1:0][$clog2(CLKS_PER_COL)-1:0]  pipe_rd_index;
     logic [PIPE_STAGES-1:0]                            pipe_rd_req;
+    fec_meta_t [PIPE_STAGES-1:0]                       pipe_rd_meta;
 
-    logic rd_eos;  // rd end-of-segment.
-    logic [DATA_WID-1:0] fifo_in;
-    logic fifo_wr_rdy, fifo_rd, fifo_empty;
+    logic [DATA_WID-1:0]                               fifo_in;
+    logic                                              fifo_wr_rdy, fifo_rd, fifo_empty;
 
 
     // instantiate ingress and egress pipelines.
@@ -60,47 +66,90 @@ module fec_col_transpose
             index   <= (index == CLKS_PER_COL-1) ? 0 : index+1;
             buf_sel <= (index == CLKS_PER_COL-1) ? !buf_sel : buf_sel;
 
-            wr_blk_size <= (index == 0) ?          data_in.blk_size : wr_blk_size;
-            rd_blk_size <= (index == CLKS_PER_COL-1) ?  wr_blk_size : rd_blk_size;
+            wr_meta <= (index == CLKS_PER_COL-1) ? data_in.meta : wr_meta;
         end
 
     always_ff @(posedge clk) begin
-        pipe_data [0]   <= data_in.data;
+        pipe_data[0]    <= data_in.data;
         pipe_valid[0]   <= data_in.valid && data_in.ready;
         pipe_index[0]   <= index;
         pipe_buf_sel[0] <= buf_sel;
 
-        pipe_rd_index[0] <= rd_index;
-        pipe_rd_req[0] <= rd_req;
-
         for (int i=1; i<PIPE_STAGES; i++) begin
-            pipe_valid   [i] <= pipe_valid   [i-1];
-            pipe_index   [i] <= pipe_index   [i-1];
-            pipe_buf_sel [i] <= pipe_buf_sel [i-1];
-
-            pipe_rd_index [i] <= pipe_rd_index [i-1];
-            pipe_rd_req [i] <= pipe_rd_req [i-1];
+            pipe_valid[i]   <= pipe_valid[i-1];
+            pipe_index[i]   <= pipe_index[i-1];
+            pipe_buf_sel[i] <= pipe_buf_sel[i-1];
         end
     end
 
     assign pipe_data_x2 = {pipe_data[REQ_STAGE], pipe_data[REQ_STAGE]};
-
     assign wr_index = pipe_index[REQ_STAGE];
+
 
     // memory read fsm (for steaming output data).
     always_ff @(posedge clk) begin
         if (srst) begin
-            rd_index <= '1;
-            rd_req   <= 1'b0;
+            rd_index  <= '1;
+            rd_req    <= 1'b0;
         end else if (buf_sel ^ pipe_buf_sel[0]) begin
-            rd_index <= '0;
-            rd_req   <= 1'b1;
-        end else if ((rd_index < CLKS_PER_COL-1) && data_out.ready && fifo_wr_rdy) begin
+            rd_index  <= '0;
+            rd_req    <= 1'b1;
+            rd_meta   <= wr_meta;
+        end else if (data_out.ready && fifo_wr_rdy && (rd_index < CLKS_PER_COL-1)) begin
             rd_index <= rd_index+1;
             rd_req   <= 1'b1;
         end else begin
             rd_index <= rd_index;
             rd_req   <= 1'b0;
+        end
+    end
+
+    always_ff @(posedge clk) begin
+        if (srst) begin
+            pad_bytes <= 1'b0;
+        end else if (buf_sel ^ pipe_buf_sel[0]) begin
+            if (wr_meta.ec_frame_num[$clog2(RS_K*SYM_SIZE)-1:$clog2(SYM_SIZE)] == 0)
+                pad_bytes <= 1'b0;
+            else if (data_out.ready && fifo_wr_rdy && last_eos)
+                pad_bytes <= 1'b1;
+        end else if (data_out.ready && fifo_wr_rdy && last_eos) begin
+            pad_bytes <= 1'b1;
+        end
+    end
+
+    assign blk_size       = (rd_meta.fec_blk_size + (DATA_WID/8)-1) / (DATA_WID/8);  // in words. rounded up.
+    assign last_col_num   = ((blk_size + CLKS_PER_COL-1) / CLKS_PER_COL) - 1;
+    assign last_col_size =   (blk_size % CLKS_PER_COL) - 1;
+
+    assign col_num_match  = (rd_meta.ec_frame_num[$clog2(RS_K*SYM_SIZE)-1:$clog2(SYM_SIZE)] == last_col_num);
+    assign col_size_match = rd_index == last_col_size;
+    assign last_eos       = col_num_match && col_size_match;
+
+    always_comb begin
+        _rd_meta = rd_meta;
+        _rd_meta.ec_frame_num[$clog2(SYM_SIZE)-1:0] = rd_index / CLKS_PER_BIT;
+        _rd_meta.eos = ( ((rd_index % CLKS_PER_BIT) == CLKS_PER_BIT-1) || last_eos );
+
+        if (pad_bytes) begin
+            _rd_meta.keep = 0;
+        end else if (!last_eos) begin
+            _rd_meta.keep = DATA_WID/8;
+        end else if (rd_meta.fec_blk_size % (DATA_WID/8) == 0) begin
+            _rd_meta.keep = DATA_WID/8;
+        end else begin
+            _rd_meta.keep = rd_meta.fec_blk_size % (DATA_WID/8);
+        end
+    end
+
+    always_ff @(posedge clk) begin
+        pipe_rd_index[0] <= rd_index;
+        pipe_rd_req[0] <= rd_req;
+        pipe_rd_meta[0] <= _rd_meta;
+
+        for (int i=1; i<PIPE_STAGES; i++) begin
+            pipe_rd_index [i] <= pipe_rd_index [i-1];
+            pipe_rd_req [i] <= pipe_rd_req [i-1];
+            pipe_rd_meta[i] <= pipe_rd_meta[i-1];
         end
     end
 
@@ -222,24 +271,23 @@ module fec_col_transpose
 
     end endgenerate
 
-    assign rd_eos = ((pipe_rd_index[1] % CLKS_PER_BIT) == CLKS_PER_BIT-1) && data_out.ready && fifo_wr_rdy;
 
     // instantiate output FIFO (to support stalls in datapath).
     assign fifo_rd = data_out.ready && !fifo_empty;
 
-    localparam FIFO_DATA_WID = DATA_WID + 1 + $clog2(CLKS_PER_BLK);
+    localparam FIFO_DATA_WID = DATA_WID + META_WID;
     fifo_sync #(.DATA_WID(FIFO_DATA_WID), .DEPTH(8), .OFLOW_PROT(1)) fifo_sync_inst (
         .clk       (clk),
         .srst      (srst),
         .wr_rdy    (fifo_wr_rdy),
         .wr        (pipe_rd_req[1]),
-        .wr_data   ({rd_blk_size, rd_eos, fifo_in}),
+        .wr_data   ({pipe_rd_meta[1], fifo_in}),
         .wr_count  (),
         .full      (),
         .oflow     (),
         .rd        (fifo_rd),
         .rd_ack    (),
-        .rd_data   ({data_out.blk_size, data_out.eos, data_out.data}),
+        .rd_data   ({data_out.meta, data_out.data}),
         .rd_count  (),
         .empty     (fifo_empty),
         .uflow     ()

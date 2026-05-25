@@ -2,10 +2,7 @@ module rs_acc_pad
     import fec_pkg::*;
 #(
     parameter int DATA_WID = 512,
-    parameter int COL_LEN  = 1024,
-    parameter rs_acc_pad_mode_t MODE = INSERT,
-    // Derived parameters (don't override)
-    parameter int CLKS_PER_BLK = RS_K * SYM_SIZE * COL_LEN / DATA_WID
+    parameter rs_acc_pad_mode_t MODE = INSERT
 ) (
     input  logic clk,
     input  logic srst,
@@ -15,11 +12,20 @@ module rs_acc_pad
 );
 
     // derived parameters.
+    localparam CLKS_PER_BLK = RS_K * SYM_SIZE * COL_LEN / DATA_WID;
     localparam CLKS_PER_BIT = COL_LEN / DATA_WID;
 
+    localparam DATA_BYTE_WID = DATA_WID/8;
+
+    // signals.
     logic [$clog2(CLKS_PER_BLK)-1:0] index;
-    logic [$clog2(CLKS_PER_BLK)-1:0] blk_size;
+    logic [$clog2(CLKS_PER_BLK):0] blk_size; // in words.
     logic pad_en;
+
+    fec_meta_t meta;
+
+
+    assign blk_size = ( data_in.meta.fec_blk_size + (DATA_WID/8)-1 ) / (DATA_WID/8);  // in words (rounded up).
 
     always_ff @(posedge clk)
         if (srst) begin
@@ -30,13 +36,13 @@ module rs_acc_pad
                 if (data_in.valid && data_in.ready) begin
                     if (index == CLKS_PER_BLK-1) begin
                         index  <= '0;
-                    end else if (index == data_in.blk_size) begin
+                    end else if (index == blk_size-1) begin
                         index  <= index+1;
                         pad_en <= 1;
                     end else begin
                         index  <= index+1;
                     end
-                    blk_size <= (index == 0) ? data_in.blk_size : blk_size;
+                    meta <= (index == 0) ? data_in.meta : meta;
                 end
             end else if (pad_en) begin
                 if (data_out.ready) begin
@@ -52,20 +58,32 @@ module rs_acc_pad
 
     generate begin
         if (MODE == INSERT) begin
-            assign data_in.ready     = pad_en ? '0 : data_out.ready;
-            assign data_out.valid    = pad_en ? '1 : data_in.valid;
-            assign data_out.data     = pad_en ? '0 : data_in.data;
-            assign data_out.blk_size = pad_en ? blk_size : data_in.blk_size;
+            always_comb begin
+                data_in.ready  = pad_en ?   '0 : data_out.ready;
+                data_out.valid = pad_en ?   '1 : data_in.valid;
+                data_out.data  = pad_en ?   '0 : data_in.data;
+                data_out.meta  = pad_en ? meta : data_in.meta;
 
+                data_out.meta.fec_blk_size = FEC_BLK_SIZE;
+                data_out.meta.keep = DATA_BYTE_WID;
+            end
         end else if (MODE == DELETE) begin
-            assign data_in.ready  = pad_en ? '1 : data_out.ready;
-            assign data_out.valid = pad_en ? '0 : data_in.valid;
-            assign data_out.data  = pad_en ? '0 : data_in.data;
-            assign data_out.blk_size = pad_en ? blk_size : data_in.blk_size;
+            always_comb begin
+                data_in.ready  = pad_en ?   '1 : data_out.ready;
+                data_out.valid = pad_en ?   '0 : data_in.valid;
+                data_out.data  = pad_en ?   '0 : data_in.data;
+                data_out.meta  = pad_en ? meta : data_in.meta;
 
+                data_out.meta.eos = ((index % CLKS_PER_BIT) == CLKS_PER_BIT-1) | (index == blk_size-1);
+
+                if (index != blk_size-1)
+                    data_out.meta.keep = DATA_BYTE_WID;
+                else if (data_in.meta.fec_blk_size % DATA_BYTE_WID == 0)
+                    data_out.meta.keep = DATA_BYTE_WID;
+                else
+                    data_out.meta.keep = data_in.meta.fec_blk_size % DATA_BYTE_WID;
+            end
         end
     end endgenerate
-
-    assign data_out.eos = ((index % CLKS_PER_BIT) == CLKS_PER_BIT-1) | (index == data_in.blk_size);
 
 endmodule  // rs_acc_pad
