@@ -132,7 +132,7 @@ _compile_pre: .pre
 
 _compile_sim: .subcomponents_compile $(SIM_LIB)
 
-_compile_synth: .subcomponents_synth _synth_sources _synth_constraints
+_compile_synth: .subcomponents_synth $(SYNTH_SOURCES_OBJ) _synth_constraints
 
 _compile_clean: .subcomponents_clean
 	@[ ! -d $(OBJ_DIR) ] && [ ! -d $(COMPONENT_OUT_SYNTH_PATH) ] || (echo "Cleaning $(COMPONENT_NAME)..." && rm -rf $(OBJ_DIR) && rm -rf $(COMPONENT_OUT_SYNTH_PATH))
@@ -164,7 +164,7 @@ $(SIM_LIB): $(SRCS) $(HDRS) $(SUBCOMPONENT_OBJS) | $(OBJ_DIR)
 	@echo
 	@echo "Done."
 
-_synth_sources: $(SRCS) $(HDRS) | $(COMPONENT_OUT_SYNTH_PATH)
+$(SYNTH_SOURCES_OBJ): $(SRCS) $(HDRS) | $(COMPONENT_OUT_SYNTH_PATH)
 	@-rm -rf $(COMPONENT_OUT_SYNTH_PATH)/*.f
 	@echo "# =====================================================" > $(SYNTH_SOURCES_TMP)
 	@echo "# Source listing for $(COMPONENT_NAME)" >> $(SYNTH_SOURCES_TMP)
@@ -322,7 +322,7 @@ _synth_constraints: | $(COMPONENT_OUT_SYNTH_PATH)
 	 echo "\tread_xdc -quiet -unmanaged -ref bus_pipe_slr $(abspath $(LIB_ROOT)/src/bus/build/bus_pipe_slr/synth.xdc)" >> $(SYNTH_CONSTRAINTS_OBJ); \
 	 echo "}" >> $(SYNTH_CONSTRAINTS_OBJ);
 
-.PHONY: _synth_sources _synth_constraints
+.PHONY: _synth_constraints
 
 # -----------------------------------------------
 # Info targets
