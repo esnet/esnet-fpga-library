@@ -11,7 +11,7 @@ variables:
   RANDOMIZE_SEED: 0
 
 .common:
-  image: $CI_REGISTRY/ht/xilinx-tools-docker:94583-g1be5826a
+  image: $CI_REGISTRY/ht/xilinx-tools-docker:100594-g31ff8c4d
   before_script:
     - git clone https://gitlab.es.net/ht/open-nic-shell.git
     - make -s config BOARD_REPO=$CI_PROJECT_DIR/open-nic-shell/board_files/Xilinx
