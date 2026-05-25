@@ -149,7 +149,7 @@ $(COMPONENT_OUT_SYNTH_PATH):
 	@mkdir -p $@
 
 # Compile sim library from source
-$(SIM_LIB): $(SRCS) $(HDRS) $(SUBCOMPONENT_OBJS) | $(OBJ_DIR)
+$(SIM_LIB): $(SRCS) $(HDRS) $(SUBCOMPONENT_OBJS) Makefile | $(OBJ_DIR)
 	@echo "----------------------------------------------------------"
 	@echo "Compiling simulation library '$(COMPONENT_NAME)' ..."
 	@echo
@@ -164,7 +164,7 @@ $(SIM_LIB): $(SRCS) $(HDRS) $(SUBCOMPONENT_OBJS) | $(OBJ_DIR)
 	@echo
 	@echo "Done."
 
-$(SYNTH_SOURCES_OBJ): $(SRCS) $(HDRS) | $(COMPONENT_OUT_SYNTH_PATH)
+$(SYNTH_SOURCES_OBJ): $(SRCS) $(HDRS) Makefile | $(COMPONENT_OUT_SYNTH_PATH)
 	@-rm -rf $(COMPONENT_OUT_SYNTH_PATH)/*.f
 	@echo "# =====================================================" > $(SYNTH_SOURCES_TMP)
 	@echo "# Source listing for $(COMPONENT_NAME)" >> $(SYNTH_SOURCES_TMP)
