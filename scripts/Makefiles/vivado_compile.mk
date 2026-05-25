@@ -90,6 +90,22 @@ HDRS = $(SV_HDR_FILES) $(V_HDR_FILES)
 SUBCOMPONENT_OBJS := $(addsuffix .rlx,$(join $(addsuffix /$(SIMLIB_DIRNAME)/,$(SUBCOMPONENT_PATHS)),$(SUBCOMPONENT_NAMES)))
 SUBCOMPONENT_SYNTH_OBJS := $(addsuffix /synth/sources.tcl,$(SUBCOMPONENT_PATHS))
 
+# Generate explicit rules for each subcomponent artifact so that Make can
+# both bootstrap missing files and track freshness through the dependency
+# chain — without relying on PHONY shell loops whose ordering relative to
+# freshness decisions is undefined.
+define SUBCOMPONENT_SYNTH_RULE
+$(call get_lib_component_out_path_from_ref,$(1),$(LIB_OUTPUT_ROOT))/synth/sources.tcl:
+	@$(MAKE) -s -C $(SRC_ROOT) synth COMPONENT=$(1) $(COMMON_ENV) $(LIB_ENV) $(USER_ENV)
+endef
+$(foreach ref,$(SUBCOMPONENT_REFS),$(eval $(call SUBCOMPONENT_SYNTH_RULE,$(ref))))
+
+define SUBCOMPONENT_SIM_RULE
+$(call get_lib_component_out_path_from_ref,$(1),$(LIB_OUTPUT_ROOT))/$(SIMLIB_DIRNAME)/$(call get_component_name_from_ref,$(call get_ref_without_lib,$(1))).rlx:
+	@$(MAKE) -s -C $(SRC_ROOT) compile COMPONENT=$(1) $(COMMON_ENV) $(LIB_ENV) $(USER_ENV)
+endef
+$(foreach ref,$(SUBCOMPONENT_REFS),$(eval $(call SUBCOMPONENT_SIM_RULE,$(ref))))
+
 # -----------------------------------------------
 # Synthesize include (-i) references
 # -----------------------------------------------
@@ -130,9 +146,9 @@ SV_COMPILE_CMD_LOG = $(if $(DO_SV_COMPILE), $(shell echo $(SV_COMPILE_CMD) > $(O
 # -----------------------------------------------
 _compile_pre: .pre
 
-_compile_sim: .subcomponents_compile $(SIM_LIB)
+_compile_sim: $(SIM_LIB)
 
-_compile_synth: .subcomponents_synth $(SYNTH_SOURCES_OBJ) _synth_constraints
+_compile_synth: $(SYNTH_SOURCES_OBJ) _synth_constraints
 
 _compile_clean: .subcomponents_clean
 	@[ ! -d $(OBJ_DIR) ] && [ ! -d $(COMPONENT_OUT_SYNTH_PATH) ] || (echo "Cleaning $(COMPONENT_NAME)..." && rm -rf $(OBJ_DIR) && rm -rf $(COMPONENT_OUT_SYNTH_PATH))
@@ -164,7 +180,7 @@ $(SIM_LIB): $(SRCS) $(HDRS) $(SUBCOMPONENT_OBJS) Makefile | $(OBJ_DIR)
 	@echo
 	@echo "Done."
 
-$(SYNTH_SOURCES_OBJ): $(SRCS) $(HDRS) Makefile | $(COMPONENT_OUT_SYNTH_PATH)
+$(SYNTH_SOURCES_OBJ): $(SRCS) $(HDRS) Makefile $(SUBCOMPONENT_SYNTH_OBJS) | $(COMPONENT_OUT_SYNTH_PATH)
 	@-rm -rf $(COMPONENT_OUT_SYNTH_PATH)/*.f
 	@echo "# =====================================================" > $(SYNTH_SOURCES_TMP)
 	@echo "# Source listing for $(COMPONENT_NAME)" >> $(SYNTH_SOURCES_TMP)
