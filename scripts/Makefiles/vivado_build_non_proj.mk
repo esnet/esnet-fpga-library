@@ -30,6 +30,7 @@ CONSTRAINTS_XDC_IMPL  ?=
 IMPL_HOOK_TCL_FILES   ?=
 IP_REPO_PATHS         ?=
 BUILD_STAGES          ?= synth
+STAGE_DEPS            ?=
 
 # -----------------------------------------------
 # Import base Vivado definitions (must precede
@@ -89,6 +90,7 @@ __NP_PREV_SENTINEL :=
 define NP_STAGE_RULE
 $(__NP_SENTINEL_DIR)/$(stage): \
     $(__NP_PREV_SENTINEL) \
+    $(if $(strip $(__NP_PREV_SENTINEL)),,$(STAGE_DEPS)) \
     $(if $(strip $(__NP_PREV_SENTINEL)),,| _pre_synth)
 	@echo "----------------------------------------------------------"
 	@echo "Non-project build: running $(stage) for '$(TOP)' ..."
