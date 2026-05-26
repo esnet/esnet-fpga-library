@@ -17,6 +17,7 @@ REG_BLOCK_YAML = \
     sar_segmentation.yaml
 
 REG_DECODER_YAML = \
+REG_TOP_YAML =
     sar_reassembly_htable_decoder.yaml \
     sar_reassembly_cache_decoder.yaml \
     sar_reassembly_state_decoder.yaml \

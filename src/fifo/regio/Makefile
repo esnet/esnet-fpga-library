@@ -16,6 +16,7 @@ REG_BLOCK_YAML = \
     fifo_rd_mon.yaml
 
 REG_DECODER_YAML = \
+REG_TOP_YAML =
     fifo_decoder.yaml
 
 # ----------------------------------------------------

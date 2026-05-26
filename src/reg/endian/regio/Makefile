@@ -14,6 +14,7 @@ REG_BLOCK_YAML = \
     reg_endian_check.yaml
 
 REG_DECODER_YAML =
+REG_TOP_YAML =
 
 # ----------------------------------------------------
 # Options

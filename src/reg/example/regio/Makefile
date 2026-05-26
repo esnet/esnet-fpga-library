@@ -14,6 +14,7 @@ REG_BLOCK_YAML = \
     example.yaml
 
 REG_DECODER_YAML = \
+REG_TOP_YAML =
     example_decoder.yaml
 
 # ----------------------------------------------------

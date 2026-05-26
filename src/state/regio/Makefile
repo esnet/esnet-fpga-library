@@ -16,6 +16,7 @@ REG_BLOCK_YAML = \
     state_cache.yaml
 
 REG_DECODER_YAML = \
+REG_TOP_YAML =
     state_decoder.yaml \
     state_cache_decoder.yaml
 
