@@ -5,6 +5,7 @@
 #       make REGRESSION=1
 #       make waves=ON
 #       make SEED=29 waves=ON
+#       make SIM=verilator
 # -----------------------------------------------
 REGRESSION = 0
 SEED ?= 0

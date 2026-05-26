@@ -32,7 +32,7 @@ SUBCOMPONENTS =
 # ----------------------------------------------------
 # Targets
 # ----------------------------------------------------
-all: opt validate
+all: validate
 
 pre_synth: _pre_synth
 synth:     _build_core_synth
