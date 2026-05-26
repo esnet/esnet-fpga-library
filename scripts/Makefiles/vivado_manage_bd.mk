@@ -235,6 +235,11 @@ _bd_dcp_files.intermediate: $(BD_FILES) | $(PROJ_XPR)
 
 .INTERMEDIATE: _bd_dcp_files.intermediate
 
+# Include compile targets here (before the BD-specific SYNTH_SOURCES_OBJ rule)
+# so that SYNTH_SOURCES_OBJ is defined and the BD-specific rule below overrides
+# the generic vivado_compile.mk recipe.
+include $(SCRIPTS_ROOT)/Makefiles/vivado_compile.mk
+
 $(SYNTH_SOURCES_OBJ): $(BD_FILES) Makefile | $(COMPONENT_OUT_SYNTH_PATH)
 	@echo "# =====================================================" > $@
 	@echo "# Source listing for $(COMPONENT_NAME)" >> $@
@@ -316,7 +321,3 @@ _bd_info: _bd_config_info _compile_info
 
 .PHONY: _bd_config_info _bd_info
 
-# -----------------------------------------------
-# Include compile targets
-# -----------------------------------------------
-include $(SCRIPTS_ROOT)/Makefiles/vivado_compile.mk
