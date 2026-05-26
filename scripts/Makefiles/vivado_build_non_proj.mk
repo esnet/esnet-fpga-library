@@ -66,7 +66,7 @@ BUILD_NP_OPTIONS = \
     $(foreach tcl,$(CONSTRAINTS_TCL_AUTO),-constraints_tcl $(tcl)) \
     $(foreach xdc,$(CONSTRAINTS_XDC_SYNTH),-constraints_xdc_synth $(xdc)) \
     $(foreach repo,$(IP_REPO_PATHS),-ip_repo $(repo)) \
-    -top_dcp $(TOP_DCP_FILE) \
+    $(if $(strip $(TOP_DCP_FILE)),-top_dcp $(TOP_DCP_FILE)) \
     $(__CELL_DCP_ARGS) \
     $(foreach xdc,$(CONSTRAINTS_XDC_IMPL),-constraints_xdc $(xdc)) \
     $(foreach hook,$(IMPL_HOOK_TCL_FILES),-hook_tcl $(hook)) \

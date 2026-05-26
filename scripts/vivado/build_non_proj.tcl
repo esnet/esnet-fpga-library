@@ -104,8 +104,13 @@ while {$i < $argc} {
             incr i 2
         }
         default {
-            puts "WARNING: Ignoring unknown argument: $arg"
-            incr i 2
+            if {[string index $arg 0] eq "-"} {
+                puts "WARNING: Ignoring unknown flag and its value: $arg [lindex $argv [expr {$i+1}]]"
+                incr i 2
+            } else {
+                puts "WARNING: Ignoring unexpected positional argument: $arg"
+                incr i 1
+            }
         }
     }
 }
