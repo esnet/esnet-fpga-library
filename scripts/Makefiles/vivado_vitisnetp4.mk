@@ -215,22 +215,24 @@ $(IP_XCI_PROXY_DIR)/.vitisnetp4_refreshed: $(VITISNETP4_TCL_FILE) $(IP_XCI_PROXY
 
 _vitisnetp4_dpi_drv: $(VITISNETP4_DPI_DRV_FILE)
 
-_vitisnetp4_pre: _ip_pre | $(COMPONENT_OUT_SRCS_PATH)
-	@rm -rf $(COMPONENT_OUT_SRCS_PATH)/sv_pkg_srcs.f
-	@echo $(abspath $(VITISNETP4_PKG_FILE)) > $(COMPONENT_OUT_SRCS_PATH)/sv_pkg_srcs.f
+$(COMPONENT_OUT_SRCS_PATH)/sv_pkg_srcs.f: Makefile | $(COMPONENT_OUT_SRCS_PATH)
+	@echo $(abspath $(VITISNETP4_PKG_FILE)) > $@
+
+_vitisnetp4_pre: _ip_pre $(COMPONENT_OUT_SRCS_PATH)/sv_pkg_srcs.f
 
 _vitisnetp4_compile: _vitisnetp4_dpi_drv _ip_compile
 
-_vitisnetp4_synth: _ip_synth | $(COMPONENT_OUT_SYNTH_PATH)
-	@rm -rf $(COMPONENT_OUT_SYNTH_PATH)/sv_pkg_srcs.f
-	@echo $(abspath $(VITISNETP4_PKG_FILE)) > $(COMPONENT_OUT_SYNTH_PATH)/sv_pkg_srcs.f
+$(COMPONENT_OUT_SYNTH_PATH)/sv_pkg_srcs.f: $(SYNTH_SOURCES_OBJ) Makefile
+	@echo $(abspath $(VITISNETP4_PKG_FILE)) > $@
+
+_vitisnetp4_synth: _ip_synth $(COMPONENT_OUT_SYNTH_PATH)/sv_pkg_srcs.f
 
 _vitisnetp4_clean: _ip_clean
 	@rm -f $(VITISNETP4_TCL_FILE)
 
 .PHONY: _vitisnetp4_ip _vitisnetp4_pre _vitisnetp4_compile _vitisnetp4_synth _vitisnetp4_clean
 
-$(VITISNETP4_TCL_FILE): $(P4_FILE)
+$(VITISNETP4_TCL_FILE): $(P4_FILE) Makefile
 	@mkdir -p $(IP_SRC_DIR)
 	@echo "create_ip -force -name vitis_net_p4 -vendor xilinx.com -library ip -module_name $(VITISNETP4_IP_NAME) -dir . -force" > $@
 	@echo "set_property -dict [concat [list CONFIG.P4_FILE $(P4_FILE)] [list $(P4_OPTS)]] [get_ips $(VITISNETP4_IP_NAME)]" >> $@
