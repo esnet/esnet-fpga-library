@@ -15,8 +15,9 @@ REG_BLOCK_YAML = \
     axi4s_split_join.yaml
 
 REG_DECODER_YAML = \
-REG_TOP_YAML =
     axi4s_split_join_decoder.yaml
+
+REG_TOP_YAML =
 
 # ----------------------------------------------------
 # Options

@@ -16,9 +16,10 @@ REG_BLOCK_YAML = \
     packet_counters.yaml
 
 REG_DECODER_YAML = \
-REG_TOP_YAML =
     packet_playback_decoder.yaml \
     packet_capture_decoder.yaml
+
+REG_TOP_YAML =
 
 # ----------------------------------------------------
 # Options

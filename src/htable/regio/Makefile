@@ -15,8 +15,9 @@ REG_BLOCK_YAML = \
     htable_fast_update.yaml
 
 REG_DECODER_YAML = \
-REG_TOP_YAML =
     htable_cuckoo_fast_update_decoder.yaml
+
+REG_TOP_YAML =
 
 # ----------------------------------------------------
 # Options
