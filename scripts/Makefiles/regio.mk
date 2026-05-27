@@ -182,7 +182,7 @@ $(REGIO_RTL_SIM_OBJ): \
 	@$(MAKE) -s -C $(REGIO_RTL_OUTPUT_DIR) compile
 
 $(REGIO_VERIF_SIM_OBJ): \
-		$(REG_VERIF_HEADER_OBJS) Makefile | $(REGIO_VERIF_OUTPUT_DIR)
+		$(REG_VERIF_PACKAGE_OBJ) Makefile | $(REGIO_VERIF_OUTPUT_DIR)
 	@$(MAKE) -s -C $(REGIO_VERIF_OUTPUT_DIR) compile
 
 _reg_compile_clean:
