@@ -240,6 +240,11 @@ _ip_dcp_files.intermediate: $(IP_XCI_FILES) | $(PROJ_XPR)
 
 .INTERMEDIATE: _ip_dcp_files.intermediate
 
+# Include compile targets here (before the IP-specific SYNTH_SOURCES_OBJ rule)
+# so that SYNTH_SOURCES_OBJ is defined and the IP-specific rule below overrides
+# the generic vivado_compile.mk recipe.
+include $(SCRIPTS_ROOT)/Makefiles/vivado_compile.mk
+
 $(SYNTH_SOURCES_OBJ): $(IP_XCI_FILES) Makefile | $(COMPONENT_OUT_SYNTH_PATH)
 	@echo "# =====================================================" > $@
 	@echo "# Source listing for $(COMPONENT_NAME)" >> $@
@@ -339,7 +344,3 @@ _ip_info: _ip_config_info _compile_info
 
 .PHONY: _ip_config_info _ip_info
 
-# -----------------------------------------------
-# Include compile targets
-# -----------------------------------------------
-include $(SCRIPTS_ROOT)/Makefiles/vivado_compile.mk
