@@ -180,6 +180,9 @@ $(SIM_LIB): $(SRCS) $(HDRS) $(SUBCOMPONENT_OBJS) Makefile | $(OBJ_DIR)
 	@echo
 	@echo "Done."
 
+# vivado_manage_ip.mk and vivado_manage_bd.mk set this flag and define their own
+# recipe before including this file; the guard prevents a duplicate-recipe warning.
+ifndef SYNTH_SOURCES_OBJ_RECIPE_DEFINED
 $(SYNTH_SOURCES_OBJ): $(SRCS) $(HDRS) Makefile $(SUBCOMPONENT_SYNTH_OBJS) | $(COMPONENT_OUT_SYNTH_PATH)
 	@-rm -rf $(COMPONENT_OUT_SYNTH_PATH)/*.f
 	@echo "# =====================================================" > $(SYNTH_SOURCES_TMP)
@@ -304,6 +307,7 @@ $(SYNTH_SOURCES_OBJ): $(SRCS) $(HDRS) Makefile $(SUBCOMPONENT_SYNTH_OBJS) | $(CO
 	@test -e $(COMPONENT_OUT_SYNTH_PATH)/ip_dcps.f && echo "Wrote synthesized DCP source file manifest." || true
 	@cmp -s $(SYNTH_SOURCES_TMP) $(SYNTH_SOURCES_OBJ) 2>/dev/null || mv $(SYNTH_SOURCES_TMP) $(SYNTH_SOURCES_OBJ)
 	@rm -f $(SYNTH_SOURCES_TMP)
+endif # SYNTH_SOURCES_OBJ_RECIPE_DEFINED
 
 _synth_constraints: | $(COMPONENT_OUT_SYNTH_PATH)
 	@echo "# ======================================================" > $(SYNTH_CONSTRAINTS_OBJ)
