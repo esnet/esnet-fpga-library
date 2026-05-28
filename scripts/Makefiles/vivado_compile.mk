@@ -90,18 +90,27 @@ HDRS = $(SV_HDR_FILES) $(V_HDR_FILES)
 SUBCOMPONENT_OBJS := $(addsuffix .rlx,$(join $(addsuffix /$(SIMLIB_DIRNAME)/,$(SUBCOMPONENT_PATHS)),$(SUBCOMPONENT_NAMES)))
 SUBCOMPONENT_SYNTH_OBJS := $(addsuffix /synth/sources.tcl,$(SUBCOMPONENT_PATHS))
 
-# Generate explicit rules for each subcomponent artifact so that Make can
-# both bootstrap missing files and track freshness through the dependency
-# chain — without relying on PHONY shell loops whose ordering relative to
-# freshness decisions is undefined.
+# FORCE is a conventional empty target with no file on disk — any target
+# that lists it as a prerequisite always has its recipe run.  Used below to
+# ensure the sub-make is invoked on every build so it can check its own
+# dependency chain.  Cascade to further dependents is mtime-based: GNU Make
+# re-reads the artifact's mtime after the recipe runs; if the sub-make did
+# not actually rebuild the file (nothing was stale), the mtime is unchanged
+# and downstream targets are not re-made.
+.PHONY: FORCE
+FORCE:
+
+# Generate explicit rules for each subcomponent artifact.  FORCE ensures the
+# sub-make is always called so staleness is checked at every level; the
+# sub-make itself decides whether to update the artifact.
 define SUBCOMPONENT_SYNTH_RULE
-$(call get_lib_component_out_path_from_ref,$(1),$(LIB_OUTPUT_ROOT))/synth/sources.tcl:
+$(call get_lib_component_out_path_from_ref,$(1),$(LIB_OUTPUT_ROOT))/synth/sources.tcl: FORCE
 	@$(MAKE) -s -C $(SRC_ROOT) synth COMPONENT=$(1) $(COMMON_ENV) $(LIB_ENV) $(USER_ENV)
 endef
 $(foreach ref,$(SUBCOMPONENT_REFS),$(eval $(call SUBCOMPONENT_SYNTH_RULE,$(ref))))
 
 define SUBCOMPONENT_SIM_RULE
-$(call get_lib_component_out_path_from_ref,$(1),$(LIB_OUTPUT_ROOT))/$(SIMLIB_DIRNAME)/$(call get_component_name_from_ref,$(call get_ref_without_lib,$(1))).rlx:
+$(call get_lib_component_out_path_from_ref,$(1),$(LIB_OUTPUT_ROOT))/$(SIMLIB_DIRNAME)/$(call get_component_name_from_ref,$(call get_ref_without_lib,$(1))).rlx: FORCE
 	@$(MAKE) -s -C $(SRC_ROOT) compile COMPONENT=$(1) $(COMMON_ENV) $(LIB_ENV) $(USER_ENV)
 endef
 $(foreach ref,$(SUBCOMPONENT_REFS),$(eval $(call SUBCOMPONENT_SIM_RULE,$(ref))))
