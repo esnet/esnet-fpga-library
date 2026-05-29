@@ -80,11 +80,4 @@ include $(SCRIPTS_ROOT)/Makefiles/svunit.mk
 # ----------------------------------------------------
 # Import sim targets (backend selected by SIM variable)
 # ----------------------------------------------------
-ifeq ($(SIM),verilator)
-# For verilator, ensure _build_test (which generates .svunit.f) runs before
-# _verilate attempts to expand the source list.
-_sim: _build_test
-include $(SCRIPTS_ROOT)/Makefiles/verilator.mk
-else
-include $(SCRIPTS_ROOT)/Makefiles/vivado_sim.mk
-endif
+include $(SCRIPTS_ROOT)/Makefiles/sim.mk
