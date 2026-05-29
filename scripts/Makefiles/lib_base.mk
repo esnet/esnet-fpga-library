@@ -154,7 +154,7 @@ $(foreach target,$(LIB_OPS),$(eval $(LIB_OP_RULE)))
 
 _clean_all:
 	@echo -n "Removing all output products... "
-	@-rm -rf $(LIB_OUTPUT_ROOT)
+	@$(call __lib_rm_rf,$(LIB_OUTPUT_ROOT))
 	@echo "Done."
 
 .PHONY: _clean_all
