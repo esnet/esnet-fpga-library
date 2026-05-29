@@ -64,7 +64,7 @@ else
 endif
 
 _clean_test:
-	@rm -rf $(SVUNIT_DIR)
+	@$(call __rm_rf,$(SVUNIT_DIR))
 
 $(SVUNIT_DIR):
 	@mkdir -p $(SVUNIT_DIR)

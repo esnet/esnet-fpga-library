@@ -68,7 +68,7 @@ _elab: _compile_sim | $(RUN_DIR)
 	$(ELAB_CMD)
 
 _elab_clean: _compile_clean
-	@rm -rf $(RUN_DIR)
+	@$(call __rm_rf,$(RUN_DIR))
 
 .PHONY: _elab _elab_clean
 

@@ -54,6 +54,18 @@ COMPONENT_OUT_PATH := $(abspath $(call get_component_out_path_from_ref,$(COMPONE
 COMPONENT_OUT_SRCS_PATH := $(COMPONENT_OUT_PATH)/srcs
 COMPONENT_OUT_SYNTH_PATH := $(COMPONENT_OUT_PATH)/synth
 
+# Safe removal helpers — centralise all rm -rf use.
+#
+# __rm_rf(path): remove a path known at Make parse time.
+#   Errors if the expanded path is empty.
+__rm_rf = $(if $(strip $(1)),,$(error __rm_rf called with empty path))rm -rf $(1)
+
+# __rm_rf_sh(shell_var, path): remove a path whose final component is a
+#   shell variable (evaluated at recipe runtime).  Guards against an empty
+#   variable expanding to something unexpected.
+#   Usage (in a recipe, note the leading tab): $(call __rm_rf_sh,$$ip,$(COMPONENT_OUT_PATH)/$$ip)
+__rm_rf_sh = [ -n "$(1)" ] && rm -rf $(2) || true
+
 # ----------------------------------------------------
 # Info target
 # ----------------------------------------------------

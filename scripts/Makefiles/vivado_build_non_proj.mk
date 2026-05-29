@@ -120,7 +120,7 @@ XSA_FILE = $(COMPONENT_OUT_PATH)/$(TOP).xsa
 _build_np_synth_lib: | $(COMPONENT_OUT_SYNTH_PATH)
 	@echo "----------------------------------------------------------"
 	@echo "Compiling synthesis library '$(COMPONENT_NAME)' ..."
-	@-rm -rf $(COMPONENT_OUT_SYNTH_PATH)/*.f
+	@$(call __rm_rf,$(COMPONENT_OUT_SYNTH_PATH)/*.f)
 	@echo $(abspath $(SYNTH_DCP_FILE)) > $(COMPONENT_OUT_SYNTH_PATH)/dcp_srcs.f
 	@echo "Done."
 
@@ -135,7 +135,7 @@ _pre_synth: _compile_synth
 # Clean
 # -----------------------------------------------
 _build_clean: _vivado_clean_logs
-	@rm -rf $(COMPONENT_OUT_PATH) $(__NP_SENTINEL_DIR)
+	@$(call __rm_rf,$(COMPONENT_OUT_PATH)) && $(call __rm_rf,$(__NP_SENTINEL_DIR))
 
 .PHONY: _build_clean
 

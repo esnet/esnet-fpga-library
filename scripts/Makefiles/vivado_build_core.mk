@@ -65,7 +65,7 @@ _build_core_synth_lib: | $(COMPONENT_OUT_SYNTH_PATH)
 	@echo "----------------------------------------------------------"
 	@echo "Compiling synthesis library '$(COMPONENT_NAME)' ..."
 	@echo
-	@-rm -rf $(COMPONENT_OUT_SYNTH_PATH)/*.f
+	@$(call __rm_rf,$(COMPONENT_OUT_SYNTH_PATH)/*.f)
 	@echo $(abspath $(SYNTH_DCP_FILE)) > $(COMPONENT_OUT_SYNTH_PATH)/dcp_srcs.f
 	@echo "Done."
 

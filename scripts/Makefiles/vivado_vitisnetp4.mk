@@ -180,7 +180,7 @@ $(IP_XCI_PROXY_DIR)/.vitisnetp4_refreshed: $(VITISNETP4_TCL_FILE) $(IP_XCI_PROXY
 	@echo "----------------------------------------------------------"
 	@echo "Create/update IP ($(COMPONENT_NAME)) ..."
 	@if [ -d $(IP_XCI_PROXY_DIR)/$(VITISNETP4_IP_NAME) ]; then \
-		rm -rf $(IP_XCI_PROXY_DIR)/$(VITISNETP4_IP_NAME).old && \
+		$(call __rm_rf,$(IP_XCI_PROXY_DIR)/$(VITISNETP4_IP_NAME).old) && \
 			mv $(IP_XCI_PROXY_DIR)/$(VITISNETP4_IP_NAME) $(IP_XCI_PROXY_DIR)/$(VITISNETP4_IP_NAME).old; \
 	fi;
 	@cd $(IP_XCI_PROXY_DIR) && $(VIVADO_MANAGE_IP_CMD) -tclargs create_ip $(BUILD_OPTIONS) -ip_tcl $(VITISNETP4_TCL_FILE)
@@ -196,14 +196,14 @@ $(IP_XCI_PROXY_DIR)/.vitisnetp4_refreshed: $(VITISNETP4_TCL_FILE) $(IP_XCI_PROXY
 			resultString="$$resultString No change.\n";;\
 		1) \
 			cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_IP_CMD) -tclargs remove_ip $(BUILD_OPTIONS) -ip_xci $(VITISNETP4_XCI_FILE); \
-			rm -rf $(COMPONENT_OUT_PATH)/$(VITISNETP4_IP_NAME); \
+			$(call __rm_rf,$(COMPONENT_OUT_PATH)/$(VITISNETP4_IP_NAME)); \
 			mkdir -p $(COMPONENT_OUT_PATH)/$(VITISNETP4_IP_NAME); \
 			cp $(VITISNETP4_XCI_PROXY_FILE) $(VITISNETP4_XCI_FILE); \
 			resultString="$$resultString XCI and/or P4 updated.\n";; \
 		2) \
 			if [ -f $(VITISNETP4_XCI_FILE) ]; then \
 				cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_IP_CMD) -tclargs remove_ip $(BUILD_OPTIONS) -ip_xci $(VITISNETP4_XCI_FILE); \
-				rm -rf $(COMPONENT_OUT_PATH)/$(VITISNETP4_IP_NAME); \
+				$(call __rm_rf,$(COMPONENT_OUT_PATH)/$(VITISNETP4_IP_NAME)); \
 			fi; \
 			mkdir -p $(COMPONENT_OUT_PATH)/$(VITISNETP4_IP_NAME); \
 			cp $(VITISNETP4_XCI_PROXY_FILE) $(VITISNETP4_XCI_FILE); \

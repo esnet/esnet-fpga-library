@@ -92,7 +92,7 @@ _reg_rtl: $(REG_BLOCK_OBJS) $(REG_DECODER_OBJS)
 _reg_verif: $(REG_VERIF_PACKAGE_OBJ)
 
 _reg_clean: _reg_compile_clean
-	@-rm -rf $(COMPONENT_OUT_PATH)
+	@$(call __rm_rf,$(COMPONENT_OUT_PATH))
 	@-rm -f $(REGIO_COMPONENT_ROOT)/config.mk
 	@[ ! -d $(LIB_OUTPUT_ROOT) ] || find $(LIB_OUTPUT_ROOT) -type d -empty -delete 2>/dev/null
 

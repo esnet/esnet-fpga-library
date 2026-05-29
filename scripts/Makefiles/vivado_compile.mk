@@ -160,7 +160,7 @@ _compile_sim: $(SIM_LIB)
 _compile_synth: $(SYNTH_SOURCES_OBJ) _synth_constraints
 
 _compile_clean: .subcomponents_clean
-	@[ ! -d $(OBJ_DIR) ] && [ ! -d $(COMPONENT_OUT_SYNTH_PATH) ] || (echo "Cleaning $(COMPONENT_NAME)..." && rm -rf $(OBJ_DIR) && rm -rf $(COMPONENT_OUT_SYNTH_PATH))
+	@[ ! -d $(OBJ_DIR) ] && [ ! -d $(COMPONENT_OUT_SYNTH_PATH) ] || (echo "Cleaning $(COMPONENT_NAME)..." && $(call __rm_rf,$(OBJ_DIR)) && $(call __rm_rf,$(COMPONENT_OUT_SYNTH_PATH)))
 	@-find $(LIB_OUTPUT_ROOT) -type d -empty -delete 2>/dev/null
 	@rm -f xvlog.pb
 
@@ -178,7 +178,7 @@ $(SIM_LIB): $(SRCS) $(HDRS) $(SUBCOMPONENT_OBJS) Makefile | $(OBJ_DIR)
 	@echo "----------------------------------------------------------"
 	@echo "Compiling simulation library '$(COMPONENT_NAME)' ..."
 	@echo
-	@rm -rf $(SIM_LIB)
+	@$(call __rm_rf,$(SIM_LIB))
 	$(V_COMPILE)
 	@$(V_COMPILE_CMD_LOG)
 	$(SV_COMPILE)
@@ -193,7 +193,7 @@ $(SIM_LIB): $(SRCS) $(HDRS) $(SUBCOMPONENT_OBJS) Makefile | $(OBJ_DIR)
 # recipe before including this file; the guard prevents a duplicate-recipe warning.
 ifndef SYNTH_SOURCES_OBJ_RECIPE_DEFINED
 $(SYNTH_SOURCES_OBJ): $(SRCS) $(HDRS) Makefile $(SUBCOMPONENT_SYNTH_OBJS) | $(COMPONENT_OUT_SYNTH_PATH)
-	@-rm -rf $(COMPONENT_OUT_SYNTH_PATH)/*.f
+	@$(call __rm_rf,$(COMPONENT_OUT_SYNTH_PATH)/*.f)
 	@echo "# =====================================================" > $(SYNTH_SOURCES_TMP)
 	@echo "# Source listing for $(COMPONENT_NAME)" >> $(SYNTH_SOURCES_TMP)
 	@echo "#" >> $(SYNTH_SOURCES_TMP)

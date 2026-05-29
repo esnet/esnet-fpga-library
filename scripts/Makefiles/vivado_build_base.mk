@@ -34,7 +34,7 @@ _proj : | $(PROJ_XPR)
 	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_BUILD_CMD_GUI) -tclargs gui $(TOP) $(BUILD_OPTIONS) &
 
 _proj_clean:
-	@rm -rf $(PROJ_DIR)
+	@$(call __rm_rf,$(PROJ_DIR))
 
 .PHONY: _proj _proj_clean
 
@@ -72,7 +72,7 @@ $(foreach stage,$(BUILD_STAGES),$(eval $(BUILD_STAGE_RULE)))
 
 # Remove build output directory
 _build_clean: _vivado_clean_logs
-	@rm -rf $(COMPONENT_OUT_PATH)
+	@$(call __rm_rf,$(COMPONENT_OUT_PATH))
 
 .PHONY: _build_clean
 

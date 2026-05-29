@@ -73,7 +73,7 @@ _bd_proj: $(PROJ_XPR)
 	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_BD_CMD_GUI) -tclargs gui $(BUILD_OPTIONS) &
 
 _bd_proj_clean: _vivado_clean_logs
-	@rm -rf $(PROJ_DIR)
+	@$(call __rm_rf,$(PROJ_DIR))
 
 .PHONY: _bd_proj_create _bd_proj _bd_proj_clean
 
@@ -138,7 +138,7 @@ $(BD_PROXY_DIR)/.refreshed: $(BD_PROXY_REFRESH_FILES) | $(PROJ_XPR) $(BD_PROXY_D
 	@echo "Create/update BD ($(COMPONENT_NAME)) ..."
 	@for bd in $(subst .refresh__,,$(notdir $?)); do \
 		if [ -d $(BD_PROXY_DIR)/$$bd ]; then \
-			rm -rf $(BD_PROXY_DIR)/$$bd.old && \
+			$(call __rm_rf_sh,$$bd,$(BD_PROXY_DIR)/$$bd.old) && \
 				mv $(BD_PROXY_DIR)/$$bd $(BD_PROXY_DIR)/$$bd.old; \
 		fi; \
 	done
@@ -153,14 +153,14 @@ $(BD_PROXY_DIR)/.refreshed: $(BD_PROXY_REFRESH_FILES) | $(PROJ_XPR) $(BD_PROXY_D
 				resultString="$$resultString No change.\n";;\
 			1) \
 				cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_BD_CMD) -tclargs remove_bd $(BUILD_OPTIONS) -bd_file $(COMPONENT_OUT_PATH)/$$bd/$$bd.bd; \
-				rm -rf $(COMPONENT_OUT_PATH)/$$bd; \
+				$(call __rm_rf_sh,$$bd,$(COMPONENT_OUT_PATH)/$$bd); \
 				mkdir -p $(COMPONENT_OUT_PATH)/$$bd; \
 				cp $(BD_PROXY_DIR)/$$bd/$$bd.bd $(COMPONENT_OUT_PATH)/$$bd/$$bd.bd; \
 				resultString="$$resultString BD updated.\n";; \
 			2) \
 				if [ -f $(COMPONENT_OUT_PATH)/$$bd/$$bd.bd ]; then \
 					cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_BD_CMD) -tclargs remove_bd $(BUILD_OPTIONS) -bd_file $(COMPONENT_OUT_PATH)/$$bd/$$bd.bd; \
-					rm -rf $(COMPONENT_OUT_PATH)/$$bd; \
+					$(call __rm_rf_sh,$$bd,$(COMPONENT_OUT_PATH)/$$bd); \
 				fi; \
 				mkdir -p $(COMPONENT_OUT_PATH)/$$bd; \
 				cp $(BD_PROXY_DIR)/$$bd/$$bd.bd $(COMPONENT_OUT_PATH)/$$bd/$$bd.bd; \
@@ -179,7 +179,7 @@ $(BD_FILES): $(BD_PROXY_DIR)/.refreshed
 		if [ ! -f $(COMPONENT_OUT_PATH)/$$bd/$$bd.bd ]; then \
 			echo "----------------------------------------------------------"; \
 			echo "Repairing BD ($(COMPONENT_NAME):$$bd) ..."; \
-			rm -rf $(COMPONENT_OUT_PATH)/$$bd; \
+			$(call __rm_rf_sh,$$bd,$(COMPONENT_OUT_PATH)/$$bd); \
 			mkdir -p $(COMPONENT_OUT_PATH)/$$bd; \
 			cp $(BD_PROXY_DIR)/$$bd/$$bd.bd $(COMPONENT_OUT_PATH)/$$bd/$$bd.bd; \
 			echo; \
@@ -214,7 +214,7 @@ _bd_synth: $(BD_DCP_FILES) _bd_synth_sources
 
 # Clean IP
 _bd_clean: _vivado_clean_logs _bd_proj_clean _compile_clean
-	@rm -rf $(COMPONENT_OUT_PATH)
+	@$(call __rm_rf,$(COMPONENT_OUT_PATH))
 	@-find $(LIB_OUTPUT_ROOT) -type d -empty -delete 2>/dev/null
 
 .PHONY: _bd_reset _bd_status _bd_compile _bd_synth _bd_clean
@@ -250,7 +250,7 @@ $(SYNTH_SOURCES_OBJ): $(BD_FILES) Makefile | $(COMPONENT_OUT_SYNTH_PATH)
 	@echo >> $@
 	@echo "# Xilinx BD source listing" >> $@
 	@echo "# ------------------------" >> $@
-	@rm -rf $(COMPONENT_OUT_SYNTH_PATH)/*.f
+	@$(call __rm_rf,$(COMPONENT_OUT_SYNTH_PATH)/*.f)
 	@-for bdfile in $(abspath $(BD_FILES)); do \
 		echo $$bdfile >> $(COMPONENT_OUT_SYNTH_PATH)/bd_srcs.f; \
 		echo "read_bd -quiet $$bdfile" >> $@; \

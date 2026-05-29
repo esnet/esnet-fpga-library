@@ -73,7 +73,7 @@ _ip_proj: $(PROJ_XPR)
 	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_IP_CMD_GUI) -tclargs gui $(BUILD_OPTIONS) &
 
 _ip_proj_clean: _vivado_clean_logs
-	@rm -rf $(PROJ_DIR)
+	@$(call __rm_rf,$(PROJ_DIR))
 
 .PHONY: _ip_proj_create _ip_proj _ip_proj_clean
 
@@ -138,7 +138,7 @@ $(IP_XCI_PROXY_DIR)/.refreshed: $(IP_XCI_PROXY_REFRESH_FILES) | $(PROJ_XPR) $(IP
 	@echo "Create/update IP ($(COMPONENT_NAME)) ..."
 	@for ip in $(subst .refresh__,,$(notdir $?)); do \
 		if [ -d $(IP_XCI_PROXY_DIR)/$$ip ]; then \
-			rm -rf $(IP_XCI_PROXY_DIR)/$$ip.old && \
+			$(call __rm_rf_sh,$$ip,$(IP_XCI_PROXY_DIR)/$$ip.old) && \
 				mv $(IP_XCI_PROXY_DIR)/$$ip $(IP_XCI_PROXY_DIR)/$$ip.old; \
 		fi; \
 	done
@@ -153,14 +153,14 @@ $(IP_XCI_PROXY_DIR)/.refreshed: $(IP_XCI_PROXY_REFRESH_FILES) | $(PROJ_XPR) $(IP
 				resultString="$$resultString No change.\n";;\
 			1) \
 				cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_IP_CMD) -tclargs remove_ip $(BUILD_OPTIONS) -ip_xci $(COMPONENT_OUT_PATH)/$$ip/$$ip.xci; \
-				rm -rf $(COMPONENT_OUT_PATH)/$$ip; \
+				$(call __rm_rf_sh,$$ip,$(COMPONENT_OUT_PATH)/$$ip); \
 				mkdir -p $(COMPONENT_OUT_PATH)/$$ip; \
 				cp $(IP_XCI_PROXY_DIR)/$$ip/$$ip.xci $(COMPONENT_OUT_PATH)/$$ip/$$ip.xci; \
 				resultString="$$resultString XCI updated.\n";; \
 			2) \
 				if [ -f $(COMPONENT_OUT_PATH)/$$ip/$$ip.xci ]; then \
 					cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_IP_CMD) -tclargs remove_ip $(BUILD_OPTIONS) -ip_xci $(COMPONENT_OUT_PATH)/$$ip/$$ip.xci; \
-					rm -rf $(COMPONENT_OUT_PATH)/$$ip; \
+					$(call __rm_rf_sh,$$ip,$(COMPONENT_OUT_PATH)/$$ip); \
 				fi; \
 				mkdir -p $(COMPONENT_OUT_PATH)/$$ip; \
 				cp $(IP_XCI_PROXY_DIR)/$$ip/$$ip.xci $(COMPONENT_OUT_PATH)/$$ip/$$ip.xci; \
@@ -179,7 +179,7 @@ $(IP_XCI_FILES): $(IP_XCI_PROXY_DIR)/.refreshed
 		if [ ! -f $(COMPONENT_OUT_PATH)/$$ip/$$ip.xci ]; then \
 			echo "----------------------------------------------------------"; \
 			echo "Repairing IP ($(COMPONENT_NAME):$$ip) ..."; \
-			rm -rf $(COMPONENT_OUT_PATH)/$$ip; \
+			$(call __rm_rf_sh,$$ip,$(COMPONENT_OUT_PATH)/$$ip); \
 			mkdir -p $(COMPONENT_OUT_PATH)/$$ip; \
 			cp $(IP_XCI_PROXY_DIR)/$$ip/$$ip.xci $(COMPONENT_OUT_PATH)/$$ip/$$ip.xci; \
 			echo; \
@@ -219,7 +219,7 @@ _ip_synth: $(IP_DCP_FILES) _ip_synth_sources
 
 # Clean IP
 _ip_clean: _vivado_clean_logs _ip_proj_clean _compile_clean
-	@rm -rf $(COMPONENT_OUT_PATH)
+	@$(call __rm_rf,$(COMPONENT_OUT_PATH))
 	@-find $(LIB_OUTPUT_ROOT) -type d -empty -delete 2>/dev/null
 
 .PHONY: _ip_exdes _ip_reset _ip_status _ip_upgrade _ip_pre _ip_compile _ip_synth _ip_clean
@@ -255,7 +255,7 @@ $(SYNTH_SOURCES_OBJ): $(IP_XCI_FILES) Makefile | $(COMPONENT_OUT_SYNTH_PATH)
 	@echo >> $@
 	@echo "# Xilinx IP source listing" >> $@
 	@echo "# ------------------------" >> $@
-	@rm -rf $(COMPONENT_OUT_SYNTH_PATH)/*.f
+	@$(call __rm_rf,$(COMPONENT_OUT_SYNTH_PATH)/*.f)
 	@-for xcifile in $(abspath $(IP_XCI_FILES)); do \
 		echo $$xcifile >> $(COMPONENT_OUT_SYNTH_PATH)/ip_srcs.f; \
 		echo "read_ip -quiet $$xcifile" >> $@; \
