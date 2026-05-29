@@ -311,6 +311,8 @@ switch $PHASE {
         source_hooks $HOOK_TCL "*write_device_image.pre*"
         write_device_image -force $OUT_DIR/${TOP}.pdi
         puts "Wrote: $OUT_DIR/${TOP}.pdi"
+        write_debug_probes -force $OUT_DIR/${TOP}.ltx
+        puts "Wrote: $OUT_DIR/${TOP}.ltx"
     }
 
     xsa {
