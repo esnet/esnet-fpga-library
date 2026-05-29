@@ -3,6 +3,15 @@
 #
 # - assumes PROJ_ROOT is defined by calling Makefile
 # -----------------------------------------------
+
+# Guard: PROJ_ROOT must be set and must not resolve to the filesystem root.
+ifeq ($(PROJ_ROOT),)
+$(error PROJ_ROOT is not set — it must be defined before including proj_config_base.mk)
+endif
+ifeq ($(abspath $(PROJ_ROOT)),/)
+$(error PROJ_ROOT resolves to the filesystem root — check your project configuration)
+endif
+
 SRC_ROOT ?= $(abspath $(PROJ_ROOT)/src)
 
 # -----------------------------------------------
@@ -33,6 +42,19 @@ endif
 # Set config
 CFG_ROOT    ?= $(CFG_ROOT__LOCAL)
 OUTPUT_ROOT ?= $(OUTPUT_ROOT__LOCAL)
+
+# Guard: OUTPUT_ROOT must be non-empty, must not be the filesystem root, and
+# must resolve to a path inside PROJ_ROOT.  A misconfigured OUTPUT_ROOT would
+# cause 'make clean' to rm -rf an arbitrary directory on the user's system.
+ifeq ($(OUTPUT_ROOT),)
+$(error OUTPUT_ROOT is empty — refusing to continue to avoid unsafe clean targets)
+endif
+ifeq ($(abspath $(OUTPUT_ROOT)),/)
+$(error OUTPUT_ROOT resolves to the filesystem root — check your project configuration)
+endif
+ifneq ($(filter $(abspath $(PROJ_ROOT))/%,$(abspath $(OUTPUT_ROOT))),$(abspath $(OUTPUT_ROOT)))
+$(error OUTPUT_ROOT ($(abspath $(OUTPUT_ROOT))) is not inside PROJ_ROOT ($(abspath $(PROJ_ROOT))) — refusing to continue to avoid unsafe clean targets)
+endif
 
 _proj_print_paths = @echo "--------------------------------------------"; \
                echo  "Project paths"; \
