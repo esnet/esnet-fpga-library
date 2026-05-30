@@ -314,6 +314,8 @@ $(SYNTH_SOURCES_OBJ): $(SRCS) $(HDRS) Makefile $(SUBCOMPONENT_SYNTH_OBJS) | $(CO
 		echo "}" >> $(SYNTH_SOURCES_TMP); \
 	fi
 	@test -e $(COMPONENT_OUT_SYNTH_PATH)/ip_dcps.f && echo "Wrote synthesized DCP source file manifest." || true
+	@{ for f in $(SRCS) $(HDRS) Makefile $(SUBCOMPONENT_SYNTH_OBJS); do md5sum "$$f" 2>/dev/null; done; } \
+	    | md5sum | awk '{print "# content-hash: " $$1}' >> $(SYNTH_SOURCES_TMP)
 	@cmp -s $(SYNTH_SOURCES_TMP) $(SYNTH_SOURCES_OBJ) 2>/dev/null || mv $(SYNTH_SOURCES_TMP) $(SYNTH_SOURCES_OBJ)
 	@rm -f $(SYNTH_SOURCES_TMP)
 endif # SYNTH_SOURCES_OBJ_RECIPE_DEFINED
