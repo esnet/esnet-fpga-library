@@ -61,7 +61,7 @@ module mem_wr_mux #(
                 to_peripheral.addr = addr[sel];
                 to_peripheral.data = data[sel];
                 for (int i = 0; i < N; i++) begin
-                    if (sel == SEL'(i)) rdy[i] = to_peripheral.rdy;
+                    if (sel == SEL_WID'(i)) rdy[i] = to_peripheral.rdy;
                     else                rdy[i] = 1'b0;
                 end
             end
@@ -86,7 +86,7 @@ module mem_wr_mux #(
             // Response demux
             always_comb begin
                 for (int i = 0; i < N; i++) begin
-                    if (sel_out == SEL'(i)) ack[i] = to_peripheral.ack;
+                    if (sel_out == SEL_WID'(i)) ack[i] = to_peripheral.ack;
                     else                    ack[i] = 1'b0;
                 end
             end
