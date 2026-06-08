@@ -93,7 +93,7 @@ interface axi4_intf
         output arid, araddr, arlen, arsize, arburst, arlock, arcache, arprot,
                arqos, arregion, aruser;
         inout  awvalid, wvalid, bready, arvalid, rready;
-        input  awready, bid, bresp, buser, bvalid;
+        input  awready, wready, bid, bresp, buser, bvalid;
         input  arready, rid, rdata, rresp, rlast, ruser, rvalid;
     endclocking
 
