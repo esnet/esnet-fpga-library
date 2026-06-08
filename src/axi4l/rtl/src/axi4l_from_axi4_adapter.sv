@@ -76,7 +76,7 @@ module axi4l_from_axi4_adapter
 
     // Synchronous state register
     initial wr_state = WR_IDLE;
-    always_ff @(posedge aclk) begin
+    always @(posedge aclk) begin
         if (!aresetn) wr_state <= WR_IDLE;
         else          wr_state <= wr_nxt_state;
     end
@@ -153,7 +153,7 @@ module axi4l_from_axi4_adapter
 
     // Synchronous state register
     initial rd_state = RD_IDLE;
-    always_ff @(posedge aclk) begin
+    always @(posedge aclk) begin
         if (!aresetn) rd_state <= RD_IDLE;
         else          rd_state <= rd_nxt_state;
     end

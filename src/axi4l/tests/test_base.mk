@@ -27,6 +27,7 @@ SIM ?= xsim
 SUBCOMPONENTS = \
     axi4l.rtl \
     axi4l.verif \
+    axi4.verif \
     reg.rtl \
     reg.proxy.rtl \
     reg.proxy.verif \
