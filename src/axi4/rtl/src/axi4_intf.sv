@@ -79,6 +79,200 @@ interface axi4_intf
     logic                          rvalid;
     logic                          rready;
 
+    // (Local) parameters
+    localparam int DEFAULT_WR_TIMEOUT = 256;
+    localparam int DEFAULT_RD_TIMEOUT = 256;
+
+    // ------------------------------------------------------------------
+    // Clocking block — controller perspective
+    // ------------------------------------------------------------------
+    clocking cb @(posedge aclk);
+        output awid, awaddr, awlen, awsize, awburst, awlock, awcache, awprot,
+               awqos, awregion, awuser;
+        output wdata, wstrb, wlast, wuser;
+        output arid, araddr, arlen, arsize, arburst, arlock, arcache, arprot,
+               arqos, arregion, aruser;
+        inout  awvalid, wvalid, bready, arvalid, rready;
+        input  awready, bid, bresp, buser, bvalid;
+        input  arready, rid, rdata, rresp, rlast, ruser, rvalid;
+    endclocking
+
+    // ------------------------------------------------------------------
+    // Tasks
+    // ------------------------------------------------------------------
+
+    task idle_controller();
+        cb.awvalid  <= 1'b0;
+        cb.awid     <= '0;
+        cb.awaddr   <= '0;
+        cb.awlen    <= 8'h0;
+        cb.awsize   <= SIZE_4BYTES;
+        cb.awburst  <= BURST_INCR;
+        cb.awlock   <= LOCK_NORMAL;
+        cb.awcache  <= '0;
+        cb.awprot   <= '0;
+        cb.awqos    <= '0;
+        cb.awregion <= '0;
+        cb.awuser   <= '0;
+        cb.wvalid   <= 1'b0;
+        cb.wdata    <= '0;
+        cb.wstrb    <= '0;
+        cb.wlast    <= 1'b0;
+        cb.wuser    <= '0;
+        cb.bready   <= 1'b0;
+        cb.arvalid  <= 1'b0;
+        cb.arid     <= '0;
+        cb.araddr   <= '0;
+        cb.arlen    <= 8'h0;
+        cb.arsize   <= SIZE_4BYTES;
+        cb.arburst  <= BURST_INCR;
+        cb.arlock   <= LOCK_NORMAL;
+        cb.arcache  <= '0;
+        cb.arprot   <= '0;
+        cb.arqos    <= '0;
+        cb.arregion <= '0;
+        cb.aruser   <= '0;
+        cb.rready   <= 1'b0;
+        @(cb);
+    endtask
+
+    task _wait(input int cycles);
+        repeat (cycles) @(cb);
+    endtask
+
+    // Single-beat read — no timeout guard, call read() from testbenches.
+    task _read(
+            input  bit [ADDR_WID-1:0]             addr,
+            input  bit [ID_WID-1:0]               id,
+            input  bit [2:0]                       prot,
+            output bit [DATA_BYTE_WID-1:0][7:0]   data,
+            output bit [1:0]                       resp
+        );
+        cb.arvalid  <= 1'b1;
+        cb.arid     <= id;
+        cb.araddr   <= addr;
+        cb.arlen    <= 8'h0;
+        cb.arsize   <= SIZE_4BYTES;
+        cb.arburst  <= BURST_INCR;
+        cb.arlock   <= LOCK_NORMAL;
+        cb.arprot   <= prot;
+        cb.rready   <= 1'b0;
+        @(cb);
+        wait(cb.arvalid && cb.arready);
+        cb.arvalid <= 1'b0;
+        cb.araddr  <= 'x;
+        cb.rready  <= 1'b1;
+        @(cb);
+        wait(cb.rvalid && cb.rready);
+        cb.rready <= 1'b0;
+        resp = cb.rresp;
+        data = cb.rdata;
+    endtask
+
+    task read(
+            input  bit [ADDR_WID-1:0]             addr,
+            output bit [DATA_BYTE_WID-1:0][7:0]   data,
+            output bit [1:0]                       resp,
+            output bit                             timeout,
+            input  int                             RD_TIMEOUT = DEFAULT_RD_TIMEOUT
+        );
+        automatic bit [DATA_BYTE_WID-1:0][7:0] _data    = '0;
+        automatic bit [1:0]                    _resp    = RESP_SLVERR;
+        automatic bit                          _timeout = 1'b0;
+        fork
+            begin
+                fork
+                    _read(addr, '0, '0, _data, _resp);
+                    begin
+                        if (RD_TIMEOUT > 0) begin
+                            _wait(RD_TIMEOUT);
+                            _timeout = 1'b1;
+                        end else forever _wait(1);
+                    end
+                join_any
+                disable fork;
+            end
+        join
+        if (_timeout) idle_controller();
+        data    = _data;
+        resp    = _resp;
+        timeout = _timeout;
+    endtask
+
+    // Single-beat write — no timeout guard, call write() from testbenches.
+    task _write(
+            input  bit [ADDR_WID-1:0]             addr,
+            input  bit [DATA_BYTE_WID-1:0][7:0]   data,
+            input  bit [DATA_BYTE_WID-1:0]         strb,
+            input  bit [ID_WID-1:0]               id,
+            input  bit [2:0]                       prot,
+            output bit [1:0]                       resp
+        );
+        // AW and W channels are independent — issue concurrently.
+        fork
+            begin
+                cb.awvalid  <= 1'b1;
+                cb.awid     <= id;
+                cb.awaddr   <= addr;
+                cb.awlen    <= 8'h0;
+                cb.awsize   <= SIZE_4BYTES;
+                cb.awburst  <= BURST_INCR;
+                cb.awlock   <= LOCK_NORMAL;
+                cb.awprot   <= prot;
+                @(cb);
+                wait(cb.awvalid && cb.awready);
+                cb.awvalid <= 1'b0;
+                cb.awaddr  <= 'x;
+            end
+            begin
+                cb.wvalid <= 1'b1;
+                cb.wdata  <= data;
+                cb.wstrb  <= strb;
+                cb.wlast  <= 1'b1;
+                @(cb);
+                wait(cb.wvalid && cb.wready);
+                cb.wvalid <= 1'b0;
+                cb.wdata  <= 'x;
+                cb.wstrb  <= 'x;
+                cb.wlast  <= 1'b0;
+            end
+        join
+        cb.bready <= 1'b1;
+        @(cb);
+        wait(cb.bvalid && cb.bready);
+        cb.bready <= 1'b0;
+        resp = cb.bresp;
+    endtask
+
+    task write(
+            input  bit [ADDR_WID-1:0]             addr,
+            input  bit [DATA_BYTE_WID-1:0][7:0]   data,
+            input  bit [DATA_BYTE_WID-1:0]         strb,
+            output bit [1:0]                       resp,
+            output bit                             timeout,
+            input  int                             WR_TIMEOUT = DEFAULT_WR_TIMEOUT
+        );
+        automatic bit [1:0] _resp    = RESP_SLVERR;
+        automatic bit       _timeout = 1'b0;
+        fork
+            begin
+                fork
+                    _write(addr, data, strb, '0, '0, _resp);
+                    begin
+                        if (WR_TIMEOUT > 0) begin
+                            _wait(WR_TIMEOUT);
+                            _timeout = 1'b1;
+                        end else forever _wait(1);
+                    end
+                join_any
+                disable fork;
+            end
+        join
+        if (_timeout) idle_controller();
+        resp    = _resp;
+        timeout = _timeout;
+    endtask
+
     modport controller (
         input  aclk,
         output awid, awaddr, awlen, awsize, awburst, awlock, awcache, awprot,
