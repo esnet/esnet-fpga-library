@@ -185,17 +185,12 @@ switch $PHASE {
             }
         }
 
-        # Generate BD output products with OOC_per_BD so the CIPS/NOC
-        # partition context is embedded in the BD's own checkpoint.
+        # Pre-generate BD output products before synthesis.
         set bd_files [get_files -quiet \
             -of_objects [get_filesets sources_1] \
             -filter {FILE_TYPE == "Block Designs"}]
         set bd_files [lsearch -all -inline -not -regexp $bd_files {/ip/}]
         if {[llength $bd_files] > 0} {
-            puts "Setting SYNTH_CHECKPOINT_MODE Hierarchical on [llength $bd_files] BD(s)..."
-            foreach bd $bd_files {
-                set_property SYNTH_CHECKPOINT_MODE "Hierarchical" $bd
-            }
             puts "Pre-generating BD output products..."
             generate_target all $bd_files
         }
