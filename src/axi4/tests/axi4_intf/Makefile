@@ -1,31 +1,17 @@
 # -----------------------------------------------
 # Configuration
-# Note: these parameters can also be provided
-#       at the command line, e.g.:
-#       make REGRESSION=1
-#       make waves=ON
-#       make SEED=29 waves=ON
 # -----------------------------------------------
-REGRESSION = 1
+REGRESSION = 0
 SEED ?= 0
 waves ?= OFF
 
 # ----------------------------------------------------
 # Defines
-#   List macro definitions.
-#   Macros listed here will add to any defines set at
-#   command line, as e.g.:
-#     make DEFINES="DEBUG FAST=TRUE"
 # ----------------------------------------------------
 override DEFINES +=
 
 # ----------------------------------------------------
 # Run-time arguments
-#   List runtime arguments passed to simulator as
-#   plusarg (+ARG) references.
-#   Arguments listed here will add to any arguments
-#   set at the command line, as e.g.:
-#   make PLUSARGS="FAST_SIM MODE=1"
 # ----------------------------------------------------
 override PLUSARGS +=
 
@@ -35,12 +21,6 @@ override PLUSARGS +=
 COMPILE_OPTS =
 ELAB_OPTS =
 SIM_OPTS =
-
-# Additional dependencies for axi4l_from_axi4_adapter test
-SUBCOMPONENTS += \
-    axi4.pkg \
-    axi4.rtl \
-    axi4.verif
 
 # -----------------------------------------------
 # Use common testcase Makefile

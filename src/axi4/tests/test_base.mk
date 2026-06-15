@@ -7,12 +7,6 @@ include $(COMPONENT_ROOT)/config.mk
 
 # -----------------------------------------------
 # Configuration
-# Note: these parameters can also be provided
-#       at the command line, e.g.:
-#       make REGRESSION=1
-#       make waves=ON
-#       make SEED=29 waves=ON
-#       make SIM=verilator
 # -----------------------------------------------
 REGRESSION ?= 0
 SEED ?= 0
@@ -21,39 +15,21 @@ SIM ?= xsim
 
 # ----------------------------------------------------
 # Dependencies
-#   List subcomponent and external library dependencies
-#   (see $SCRIPTS_ROOT/Makefiles/templates/dependencies.mk for details)
 # ----------------------------------------------------
 SUBCOMPONENTS = \
-    axi4l.rtl \
-    axi4l.verif \
+    axi4.rtl \
     axi4.verif \
-    reg.rtl \
-    reg.proxy.rtl \
-    reg.proxy.verif \
-    reg.example.rtl \
-    reg.example.regio.rtl \
-    reg.example.regio.verif \
-    apb.rtl
+    std.rtl
 
 EXT_LIBS =
 
 # ----------------------------------------------------
 # Defines
-#   List macro definitions.
-#   Macros listed here will add to any defines set at
-#   command line, as e.g.:
-#     make DEFINES="DEBUG FAST=TRUE"
 # ----------------------------------------------------
 override DEFINES +=
 
 # ----------------------------------------------------
 # Run-time arguments
-#   List runtime arguments passed to simulator as
-#   plusarg (+ARG) references.
-#   Arguments listed here will add to any arguments
-#   set at the command line, as e.g.:
-#   make PLUSARGS="FAST_SIM MODE=1"
 # ----------------------------------------------------
 override PLUSARGS +=
 

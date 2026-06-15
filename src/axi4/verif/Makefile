@@ -7,11 +7,6 @@ include $(COMPONENT_ROOT)/config.mk
 
 # ----------------------------------------------------
 # Sources
-#   List source files and include directories for component.
-#   (see $(SCRIPTS_ROOT)/Makefiles/templates/sources.mk)
-#   NOTE: along with explicitly-listed sources, all
-#   source files from ./src are added automatically, and
-#   .include is added as an include directory automatically.
 # ----------------------------------------------------
 SRC_FILES =
 INC_DIRS =
@@ -19,25 +14,16 @@ SRC_LIST_FILES =
 
 # ----------------------------------------------------
 # Dependencies
-#   List subcomponent and external library dependencies
-#   (see $SCRIPTS_ROOT/Makefiles/templates/dependencies.mk)
 # ----------------------------------------------------
 SUBCOMPONENTS = \
-    bus.rtl \
-    sync.rtl \
-    reg.rtl \
-    reg.proxy.rtl \
-    mem.rtl \
-    util.rtl \
-    apb.rtl \
-    axi4.pkg \
-    axi4.rtl
+    axi4.rtl \
+    std.verif \
+    reg.verif
 
 EXT_LIBS =
 
 # ----------------------------------------------------
 # Defines
-#   List macro definitions.
 # ----------------------------------------------------
 DEFINES =
 
@@ -49,15 +35,14 @@ COMPILE_OPTS =
 # ----------------------------------------------------
 # Targets
 # ----------------------------------------------------
-all: compile synth
+all: compile
 
 pre:     _compile_pre
 compile: _compile_sim
-synth:   _compile_synth
 info:    _compile_info
 clean:   _compile_clean
 
-.PHONY: all pre compile synth info clean
+.PHONY: all pre compile info clean
 
 # ----------------------------------------------------
 # Import Vivado compile targets
