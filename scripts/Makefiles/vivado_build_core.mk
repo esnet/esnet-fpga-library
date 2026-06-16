@@ -9,8 +9,12 @@
 # -----------------------------------------------
 # Configure default user sources/constraints for OOC flow
 # -----------------------------------------------
-SOURCES_TCL_USER ?= $(abspath sources.tcl)
-CONSTRAINTS_XDC_USER ?= $(abspath timing_ooc.xdc place_ooc.xdc)
+SOURCES_TCL_USER += $(wildcard sources.tcl)
+CONSTRAINTS_XDC_USER += $(wildcard timing_ooc.xdc place_ooc.xdc)
+
+# Uniquify, convert to absolute paths
+__SOURCES_TCL_USER := $(sort $(abspath $(SOURCES_TCL_USER)))
+__CONSTRAINTS_XDC_USER := $(sort $(abspath $(CONSTRAINTS_XDC_USER)))
 
 # -----------------------------------------------
 # Command
@@ -38,8 +42,8 @@ BUILD_OPTIONS = \
     -jobs $(BUILD_JOBS) \
     -sources_tcl_auto $(SOURCES_TCL_AUTO) \
     -constraints_tcl_auto $(CONSTRAINTS_TCL_AUTO) \
-    $(foreach sources_tcl,$(SOURCES_TCL_USER),-sources_tcl $(sources_tcl)) \
-    $(foreach constraints_xdc,$(CONSTRAINTS_XDC_USER),-constraints_xdc $(constraints_xdc)) \
+    $(foreach sources_tcl,$(__SOURCES_TCL_USER),-sources_tcl $(sources_tcl)) \
+    $(foreach constraints_xdc,$(__CONSTRAINTS_XDC_USER),-constraints_xdc $(constraints_xdc)) \
     $(foreach define,$(DEFINES),-define $(define))
 
 # -----------------------------------------------
@@ -88,6 +92,8 @@ _vivado_build_core_info: _vivado_info
 	@echo "OOC build configuration"
 	@echo "------------------------------------------------------"
 	@echo "TOP                 : $(TOP)"
+	@echo "SOURCES_TCL_USER    : $(__SOURCES_TCL_USER)"
+	@echo "CONSTRAINTS_XDC_USER: $(__CONSTRAINTS_XDC_USER)"
 
 _build_core_info: _vivado_build_core_info _compile_info
 
