@@ -245,6 +245,8 @@ switch $PHASE {
             validate_bd_design -quiet
         }
 
+        source_hooks $HOOK_TCL "*link.post*"
+
         # Load implementation-only constraints
         foreach xdc $CONSTRAINTS_XDC {
             if {[file exists $xdc]} {
@@ -295,6 +297,7 @@ switch $PHASE {
         phys_opt_design
         write_checkpoint -force $OUT_DIR/${TOP}.route_opt.dcp
         puts "Wrote: $OUT_DIR/${TOP}.route_opt.dcp"
+        source_hooks $HOOK_TCL "*route_opt.post*"
     }
 
     device_image {
