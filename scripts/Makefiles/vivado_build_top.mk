@@ -9,11 +9,17 @@
 # -----------------------------------------------
 # Configure default user sources/constraints for top-level flow
 # -----------------------------------------------
-SOURCES_TCL_USER ?= $(abspath sources.tcl)
-CONSTRAINTS_XDC_USER ?= $(abspath timing.xdc pins.xdc general.xdc)
+SOURCES_TCL_USER += $(wildcard sources.tcl)
+CONSTRAINTS_XDC_USER += $(wildcard timing.xdc pins.xdc general.xdc)
 CONSTRAINTS_XDC_IMPL ?=
 IMPL_HOOK_TCL_FILES ?=
 IP_REPO_PATHS ?=
+
+# Uniquify, convert to absolute paths
+__SOURCES_TCL_USER := $(sort $(abspath $(SOURCES_TCL_USER)))
+__CONSTRAINTS_XDC_USER := $(sort $(abspath $(CONSTRAINTS_XDC_USER)))
+
+
 # -----------------------------------------------
 # Command
 # -----------------------------------------------
@@ -43,8 +49,8 @@ BUILD_OPTIONS = \
     -jobs $(BUILD_JOBS) \
     -sources_tcl_auto $(SOURCES_TCL_AUTO) \
     -constraints_tcl_auto $(CONSTRAINTS_TCL_AUTO) \
-    $(foreach sources_tcl,$(SOURCES_TCL_USER),-sources_tcl $(sources_tcl)) \
-    $(foreach constraints_xdc,$(CONSTRAINTS_XDC_USER),-constraints_xdc $(constraints_xdc)) \
+    $(foreach sources_tcl,$(__SOURCES_TCL_USER),-sources_tcl $(sources_tcl)) \
+    $(foreach constraints_xdc,$(__CONSTRAINTS_XDC_USER),-constraints_xdc $(constraints_xdc)) \
     $(foreach xdc_impl,$(CONSTRAINTS_XDC_IMPL),-constraints_xdc_impl $(xdc_impl)) \
     $(foreach hook_tcl,$(IMPL_HOOK_TCL_FILES),-hook_tcl $(hook_tcl)) \
     $(foreach iprepo,$(IP_REPO_PATHS),-ip_repo $(iprepo)) \
@@ -91,6 +97,8 @@ _vivado_build_info: _vivado_info
 	@echo "BUILD_TIMESTAMP     : $(BUILD_TIMESTAMP)"
 	@echo "BUILD_ID            : $(BUILD_ID)"
 	@echo "TOP                 : $(TOP)"
+	@echo "SOURCES_TCL_USER    : $(__SOURCES_TCL_USER)"
+	@echo "CONSTRAINTS_XDC_USER: $(__CONSTRAINTS_XDC_USER)"
 
 _build_info: _vivado_build_info _compile_info
 
