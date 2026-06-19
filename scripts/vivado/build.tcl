@@ -184,6 +184,9 @@ if {$PHASE == "create_proj"} {
     set_msg_config -id {[Synth 8-295]} -new_severity ERROR
 
     # Load constraints
+    # Project flow saves the .xpr — keep constraints unmanaged so XDC absolute
+    # paths are not written into the project fileset.
+    set CONSTR_MGMT_TYPE {-unmanaged}
     if {[file exists $CONSTRAINTS_TCL_AUTO]} {
         source $CONSTRAINTS_TCL_AUTO
     } else {

@@ -335,7 +335,7 @@ _synth_constraints: | $(COMPONENT_OUT_SYNTH_PATH)
 	@echo "# ------------------------" >> $(SYNTH_CONSTRAINTS_OBJ)
 	@-for syncmodule in $(SYNC_MODULE_NAMES); do \
 		echo "if {[lsearch [get_files -compile_order sources -used_in synthesis] *sync/rtl/src/$$syncmodule.sv] >= 0} {" >> $(SYNTH_CONSTRAINTS_OBJ); \
-		echo "\tread_xdc -quiet -unmanaged -ref $$syncmodule $(abspath $(LIB_ROOT)/src/sync/build/$$syncmodule/synth.xdc)" >> $(SYNTH_CONSTRAINTS_OBJ); \
+		echo '\tread_xdc -quiet {*}$$CONSTR_MGMT_TYPE -ref '$$syncmodule' $(abspath $(LIB_ROOT)/src/sync/build/'$$syncmodule'/synth.xdc)' >> $(SYNTH_CONSTRAINTS_OBJ); \
 		echo "}" >> $(SYNTH_CONSTRAINTS_OBJ); \
 	done
 	@echo >> $(SYNTH_CONSTRAINTS_OBJ)
@@ -343,14 +343,14 @@ _synth_constraints: | $(COMPONENT_OUT_SYNTH_PATH)
 	@echo "# ---------------" >> $(SYNTH_CONSTRAINTS_OBJ)
 	@-for rammodule in $(RAM_MODULE_NAMES); do \
 		echo "if {[lsearch [get_files -compile_order sources -used_in synthesis] *ram/rtl/src/$$rammodule.sv] >= 0} {" >> $(SYNTH_CONSTRAINTS_OBJ); \
-		echo "\tread_xdc -quiet -unmanaged -ref $$rammodule $(abspath $(LIB_ROOT)/src/xilinx/ram/build/$$rammodule/synth.xdc)" >> $(SYNTH_CONSTRAINTS_OBJ); \
+		echo '\tread_xdc -quiet {*}$$CONSTR_MGMT_TYPE -ref '$$rammodule' $(abspath $(LIB_ROOT)/src/xilinx/ram/build/'$$rammodule'/synth.xdc)' >> $(SYNTH_CONSTRAINTS_OBJ); \
 		echo "}" >> $(SYNTH_CONSTRAINTS_OBJ); \
 	done
 	@echo >> $(SYNTH_CONSTRAINTS_OBJ)
 	@echo "# SLR crossing constraints" >> $(SYNTH_CONSTRAINTS_OBJ)
 	@echo "#-------------------------" >> $(SYNTH_CONSTRAINTS_OBJ)
 	@echo "if {[lsearch [get_files -compile_order sources -used_in synthesis] *bus/rtl/src/bus_pipe_slr.sv] >= 0} {" >> $(SYNTH_CONSTRAINTS_OBJ); \
-	 echo "\tread_xdc -quiet -unmanaged -ref bus_pipe_slr $(abspath $(LIB_ROOT)/src/bus/build/bus_pipe_slr/synth.xdc)" >> $(SYNTH_CONSTRAINTS_OBJ); \
+	 echo '\tread_xdc -quiet {*}$$CONSTR_MGMT_TYPE -ref bus_pipe_slr $(abspath $(LIB_ROOT)/src/bus/build/bus_pipe_slr/synth.xdc)' >> $(SYNTH_CONSTRAINTS_OBJ); \
 	 echo "}" >> $(SYNTH_CONSTRAINTS_OBJ);
 
 .PHONY: _synth_constraints

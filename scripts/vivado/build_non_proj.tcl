@@ -168,6 +168,10 @@ switch $PHASE {
         }
 
         # Load synthesis constraints TCL (auto-generated ref-XDC, etc.)
+        # Non-project flow uses create_project -in_memory (never saved) so
+        # constraints can be managed — they embed into the synth DCP and
+        # propagate through link and implementation automatically.
+        set CONSTR_MGMT_TYPE {}
         foreach tcl $CONSTRAINTS_TCL {
             if {[file exists $tcl]} {
                 puts "Loading constraints: $tcl"
