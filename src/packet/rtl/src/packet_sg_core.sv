@@ -174,11 +174,16 @@ module packet_sg_core
     );
 
     // Packet counters — input interfaces
+    // packet_scatter emits OK, ERR, LONG, OFLOW, and SHORT (only when
+    // MIN_PKT_SIZE > 0).  STATUS_UNDEFINED is never reached so OTHER is off.
     // Instantiate counters for active ports; terminate AXI-L for unused slots.
     generate
         for (genvar g = 0; g < 4; g++) begin : g__input_cnt
             if (g < NUM_INPUT_IFS) begin : g__active
-                packet_counters i_packet_counters (
+                packet_counters #(
+                    .COUNT_SHORT ( MIN_PKT_SIZE > 0 ),
+                    .COUNT_OTHER ( 1'b0 )
+                ) i_packet_counters (
                     .clk,
                     .axil_if  ( axil_if__input_cnt[g] ),
                     .event_if ( event_in_if[g] )
@@ -192,10 +197,16 @@ module packet_sg_core
     endgenerate
 
     // Packet counters — output interfaces
+    // packet_gather emits only OK or ERR; OFLOW/SHORT/LONG/OTHER are unused.
     generate
         for (genvar g = 0; g < 4; g++) begin : g__output_cnt
             if (g < NUM_OUTPUT_IFS) begin : g__active
-                packet_counters i_packet_counters (
+                packet_counters #(
+                    .COUNT_OFLOW ( 1'b0 ),
+                    .COUNT_SHORT ( 1'b0 ),
+                    .COUNT_LONG  ( 1'b0 ),
+                    .COUNT_OTHER ( 1'b0 )
+                ) i_packet_counters (
                     .clk,
                     .axil_if  ( axil_if__output_cnt[g] ),
                     .event_if ( event_out_if[g] )
