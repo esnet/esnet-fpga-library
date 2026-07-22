@@ -91,6 +91,10 @@ module packet_sg_core
     packet_event_intf event_in_if  [NUM_INPUT_IFS]  (.clk);
     packet_event_intf event_out_if [NUM_OUTPUT_IFS] (.clk);
 
+    axi4l_intf axil_if__alloc ();
+    axi4l_intf axil_if__input_cnt  [4] ();
+    axi4l_intf axil_if__output_cnt [4] ();
+
     // -----------------------------
     // Signals
     // -----------------------------
@@ -122,6 +126,20 @@ module packet_sg_core
     // -----------------------------
     // Scatter-gather controller
     // -----------------------------
+    // AXI-L decoder: one alloc slot + 4 input + 4 output counter slots
+    packet_sg_core_decoder i_packet_sg_core_decoder (
+        .axil_if              ( axil_if ),
+        .alloc_axil_if        ( axil_if__alloc ),
+        .input_cnt_0_axil_if  ( axil_if__input_cnt[0] ),
+        .input_cnt_1_axil_if  ( axil_if__input_cnt[1] ),
+        .input_cnt_2_axil_if  ( axil_if__input_cnt[2] ),
+        .input_cnt_3_axil_if  ( axil_if__input_cnt[3] ),
+        .output_cnt_0_axil_if ( axil_if__output_cnt[0] ),
+        .output_cnt_1_axil_if ( axil_if__output_cnt[1] ),
+        .output_cnt_2_axil_if ( axil_if__output_cnt[2] ),
+        .output_cnt_3_axil_if ( axil_if__output_cnt[3] )
+    );
+
     alloc_axil_sg_core #(
         .SCATTER_CONTEXTS ( NUM_INPUT_IFS ),
         .GATHER_CONTEXTS  ( NUM_OUTPUT_IFS*N_GATHER ),
@@ -152,8 +170,43 @@ module packet_sg_core
         .frame_error,
         .frame_ptr,
         .frame_size,
-        .axil_if
+        .axil_if ( axil_if__alloc )
     );
+
+    // Packet counters — input interfaces
+    // Instantiate counters for active ports; terminate AXI-L for unused slots.
+    generate
+        for (genvar g = 0; g < 4; g++) begin : g__input_cnt
+            if (g < NUM_INPUT_IFS) begin : g__active
+                packet_counters i_packet_counters (
+                    .clk,
+                    .axil_if  ( axil_if__input_cnt[g] ),
+                    .event_if ( event_in_if[g] )
+                );
+            end else begin : g__inactive
+                axi4l_intf_peripheral_term i_axi4l_intf_peripheral_term (
+                    .axi4l_if ( axil_if__input_cnt[g] )
+                );
+            end
+        end
+    endgenerate
+
+    // Packet counters — output interfaces
+    generate
+        for (genvar g = 0; g < 4; g++) begin : g__output_cnt
+            if (g < NUM_OUTPUT_IFS) begin : g__active
+                packet_counters i_packet_counters (
+                    .clk,
+                    .axil_if  ( axil_if__output_cnt[g] ),
+                    .event_if ( event_out_if[g] )
+                );
+            end else begin : g__inactive
+                axi4l_intf_peripheral_term i_axi4l_intf_peripheral_term (
+                    .axi4l_if ( axil_if__output_cnt[g] )
+                );
+            end
+        end
+    endgenerate
 
     // Arbitrate recycle requests from all scatter instances to the single
     // allocator recycle port. Each scatter holds its request until granted.
