@@ -82,6 +82,7 @@ module packet_q_core
     localparam int META_WID = $bits(meta_t);
 
     // Signals
+    logic                      packet_sg_core__init_done;
     logic [NUM_OUTPUT_IFS-1:0] packet_q_manager__init_done;
     logic [Q_SEL_WID-1:0] desc_in_q_demux [NUM_OUTPUT_IFS][NUM_INPUT_IFS];
     logic [Q_SEL_WID-1:0] desc_out_q [NUM_OUTPUT_IFS];
