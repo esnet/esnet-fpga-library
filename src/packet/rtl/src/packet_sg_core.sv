@@ -62,6 +62,8 @@ module packet_sg_core
     localparam int  MEM_RD_DATA_WID = mem_wr_if[0].DATA_WID;
     localparam int  MEM_RD_DATA_BYTE_WID = MEM_RD_DATA_WID / 8;
 
+    localparam int  INPUT_IF_SEL_WID = NUM_INPUT_IFS > 1 ? $clog2(NUM_INPUT_IFS) : 1;
+
     // -----------------------------
     // Parameter checking
     // -----------------------------
@@ -94,11 +96,17 @@ module packet_sg_core
     // -----------------------------
     logic  init_done__alloc_sg;
 
-    // -- Recycle interface
+    // -- Recycle interface (to allocator)
     logic               recycle_req;
     logic               recycle_rdy;
     logic [PTR_WID-1:0] recycle_ptr;
     logic               recycle_ack;
+
+    // -- Per-scatter recycle requests
+    logic [NUM_INPUT_IFS-1:0] scatter_recycle_req;
+    logic [PTR_WID-1:0]       scatter_recycle_ptr [NUM_INPUT_IFS];
+    logic [INPUT_IF_SEL_WID-1: 0] recycle_sel;
+    logic [NUM_INPUT_IFS-1:0]     recycle_grant;
 
     // -- Frame completion
     logic                    frame_valid [NUM_INPUT_IFS];
@@ -147,8 +155,23 @@ module packet_sg_core
         .axil_if
     );
 
-    // Currently there is no method for flushing packets other than dequeuing them...
-    assign recycle_req = 1'b0;
+    // Arbitrate recycle requests from all scatter instances to the single
+    // allocator recycle port. Each scatter holds its request until granted.
+    arb_rr #(
+        .N    ( NUM_INPUT_IFS ),
+        .MODE ( arb_pkg::WCRR )
+    ) i_arb_rr__recycle (
+        .clk,
+        .srst,
+        .en    ( recycle_rdy ),
+        .req   ( scatter_recycle_req ),
+        .grant ( recycle_grant ),
+        .ack   ( '1 ),
+        .sel   ( recycle_sel )
+    );
+
+    assign recycle_req = |scatter_recycle_req;
+    assign recycle_ptr = scatter_recycle_ptr[recycle_sel];
 
     generate
         // Memory write controller
@@ -162,13 +185,16 @@ module packet_sg_core
                 .MAX_PKT_SIZE  ( MAX_PKT_SIZE ),
                 .NUM_BUFFERS   ( NUM_BUFFERS ),
                 .BUFFER_SIZE   ( BUFFER_SIZE )
-            ) i_packet_scatter ( 
+            ) i_packet_scatter (
                 .clk,
                 .srst,
                 .packet_if     ( packet_in_if [g_if] ),
                 .scatter_if    ( scatter_if   [g_if] ),
                 .descriptor_if ( desc_in_if   [g_if] ),
                 .frame_valid   ( frame_valid  [g_if] ),
+                .recycle_req   ( scatter_recycle_req [g_if] ),
+                .recycle_ptr   ( scatter_recycle_ptr [g_if] ),
+                .recycle_rdy   ( recycle_grant       [g_if] ),
                 .event_if      ( event_in_if  [g_if] ),
                 .mem_wr_if     ( mem_wr_if    [g_if] ),
                 .mem_init_done
