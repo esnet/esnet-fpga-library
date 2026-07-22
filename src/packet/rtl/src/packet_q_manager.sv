@@ -97,14 +97,13 @@ module packet_q_manager
 
     // (Local) typedefs
     typedef enum logic[1:0] {
-    DEQ_RESET,
+        DEQ_RESET,
         DEQ_IDLE,
-        DEQ_REQ,
         DEQ_LOAD_REQ
     } deq_state_t;
 
     // Signals
-    logic                     alloc_ll_init_done;
+    logic                     alloc_init_done;
     logic [SEL_WID-1:0]       sel;
 
     logic [NUM_INPUT_IFS-1:0] enq_req;
@@ -249,8 +248,8 @@ module packet_q_manager
                 if (deq_req) nxt_deq_state = DEQ_LOAD_REQ;
             end
             DEQ_LOAD_REQ : begin
-                load_req = 1'b1;
-                if (load_rdy) nxt_deq_state = DEQ_IDLE;
+                load_req = desc_fifo_wr_rdy;
+                if (load_rdy && desc_fifo_wr_rdy) nxt_deq_state = DEQ_IDLE;
             end
             default : begin
                 nxt_deq_state = DEQ_RESET;
@@ -287,8 +286,8 @@ module packet_q_manager
     assign desc_out_if.err  = desc_fifo_rd_data.desc.err;
     assign desc_out_q = desc_fifo_rd_data.q;
 
-    assign deq_ack  = load_ack && desc_fifo_wr_rdy;
-    assign deq_nack = load_nack || (load_ack && !desc_fifo_wr_rdy);
+    assign deq_ack  = load_ack;
+    assign deq_nack = load_nack;
     assign deq_size = load_meta.size;
     assign deq_src  = load_meta.src;
 
