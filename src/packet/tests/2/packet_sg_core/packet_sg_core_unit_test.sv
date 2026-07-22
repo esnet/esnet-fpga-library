@@ -277,6 +277,17 @@ module packet_sg_core_unit_test #(
         env.inbox.put(packet);
     endtask
 
+    // Send one errored packet directly to the driver only (not the model),
+    // so the scoreboard has no expectation for it.
+    task one_errored_packet(int id=0, int len=$urandom_range(64, 511));
+        packet_raw#(META_T) packet;
+        void'(std::randomize(meta));
+        packet = new($sformatf("pkt_err_%0d", id), len, meta);
+        packet.randomize();
+        packet.mark_as_errored();
+        env.driver.inbox.put(packet);
+    endtask
+
     task packet_stream();
        for (int i = 0; i < 100; i++) begin
            one_packet(i);
@@ -383,6 +394,40 @@ module packet_sg_core_unit_test #(
             driver.set_stall_rate(0.1);
             packet_stream();
             check(100, 100us);
+        `SVTEST_END
+
+        // Send one errored packet, confirm it is dropped (not received),
+        // then confirm the buffer pool is healthy by sending a good packet.
+        `SVTEST(recycle_single_errored)
+            one_errored_packet(0);
+            packet_in_if[0]._wait(500);
+            `FAIL_UNLESS_EQUAL(env.scoreboard.got_processed(), 0);
+            one_packet(1);
+            check(1, 10us);
+        `SVTEST_END
+
+        // Send N errored packets back-to-back before any good packet.
+        // Exercises the recycle stall path: each scatter instance must
+        // wait for its recycle_req to be acknowledged before accepting
+        // the next packet. Confirms pool liveness after the run.
+        `SVTEST(recycle_consecutive_errored)
+            for (int i = 0; i < 16; i++)
+                one_errored_packet(i);
+            packet_in_if[0]._wait(2000);
+            `FAIL_UNLESS_EQUAL(env.scoreboard.got_processed(), 0);
+            one_packet(16);
+            check(1, 20us);
+        `SVTEST_END
+
+        // Alternate errored and good packets in a stream.
+        // Confirms that recycled buffers are returned to the pool promptly
+        // enough that good packets never stall for pool exhaustion.
+        `SVTEST(recycle_interleaved)
+            for (int i = 0; i < 50; i++) begin
+                one_errored_packet(2*i);
+                one_packet(2*i+1);
+            end
+            check(50, 200us);
         `SVTEST_END
 
         `SVTEST(finalize)
