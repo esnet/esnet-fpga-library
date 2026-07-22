@@ -17,7 +17,8 @@ REG_BLOCK_YAML = \
 
 REG_DECODER_YAML = \
     packet_playback_decoder.yaml \
-    packet_capture_decoder.yaml
+    packet_capture_decoder.yaml \
+    packet_sg_core_decoder.yaml
 
 REG_TOP_YAML =
 

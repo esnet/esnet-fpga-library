@@ -1,0 +1,46 @@
+name: packet_sg_core
+visible: true
+
+blocks:
+  alloc: &alloc
+    !include src/alloc/regio/alloc.yaml
+  counters: &counters
+    !include src/packet/regio/packet_counters.yaml
+
+interfaces:
+  - block: *alloc
+    width: 8
+    address: 0x0000
+    name: alloc
+  - block: *counters
+    width: 8
+    address: 0x0100
+    name: input_cnt_0
+  - block: *counters
+    width: 8
+    address: 0x0200
+    name: input_cnt_1
+  - block: *counters
+    width: 8
+    address: 0x0300
+    name: input_cnt_2
+  - block: *counters
+    width: 8
+    address: 0x0400
+    name: input_cnt_3
+  - block: *counters
+    width: 8
+    address: 0x0500
+    name: output_cnt_0
+  - block: *counters
+    width: 8
+    address: 0x0600
+    name: output_cnt_1
+  - block: *counters
+    width: 8
+    address: 0x0700
+    name: output_cnt_2
+  - block: *counters
+    width: 8
+    address: 0x0800
+    name: output_cnt_3
