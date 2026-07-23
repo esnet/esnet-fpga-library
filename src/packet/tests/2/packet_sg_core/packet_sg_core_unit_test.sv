@@ -518,15 +518,17 @@ module packet_sg_core_unit_test #(
         input longint unsigned exp_out_err
     );
         longint unsigned cnt;
-        longint unsigned long_cnt;
+        longint unsigned info_cnt;
         reg_agent.get_input_pkt_ok_count(0, cnt);
         if (DEBUG) $display("[check_counters] input  pkt_ok  : got %0d, expected %0d", cnt, exp_in_ok);
         `FAIL_UNLESS_EQUAL(cnt, exp_in_ok);
         reg_agent.get_input_pkt_err_count(0, cnt);
         if (DEBUG) $display("[check_counters] input  pkt_err : got %0d, expected %0d", cnt, exp_in_err);
         `FAIL_UNLESS_EQUAL(cnt, exp_in_err);
-        reg_agent.get_input_pkt_long_count(0, long_cnt);
-        if (DEBUG) $display("[check_counters] input  pkt_long: got %0d", long_cnt);
+        reg_agent.get_input_pkt_long_count(0, info_cnt);
+        if (DEBUG) $display("[check_counters] input  pkt_long : got %0d", info_cnt);
+        reg_agent.get_input_pkt_short_count(0, info_cnt);
+        if (DEBUG) $display("[check_counters] input  pkt_short: got %0d", info_cnt);
         reg_agent.get_output_pkt_ok_count(0, cnt);
         if (DEBUG) $display("[check_counters] output pkt_ok  : got %0d, expected %0d", cnt, exp_out_ok);
         `FAIL_UNLESS_EQUAL(cnt, exp_out_ok);
