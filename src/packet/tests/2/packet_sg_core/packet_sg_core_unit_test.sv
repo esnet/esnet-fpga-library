@@ -200,7 +200,8 @@ module packet_sg_core_unit_test #(
     // Assign AXI-L clock (125MHz)
     `SVUNIT_CLK_GEN(axil_if.aclk, 4ns);
 
-    axi4l_intf_controller_term i_axi4l_intf_controller_term (.axi4l_if (axil_if ));
+    axi4l_verif_pkg::axi4l_reg_agent axil_reg_agent;
+    packet_sg_reg_agent reg_agent;
 
     //===================================
     // Build
@@ -223,6 +224,10 @@ module packet_sg_core_unit_test #(
         env = new("env", driver, monitor, model, scoreboard);
         env.reset_vif = reset_if;
         env.build();
+
+        axil_reg_agent = new();
+        axil_reg_agent.axil_vif = axil_if;
+        reg_agent = new("reg_agent", axil_reg_agent, 0, NUM_INPUT_IFS, NUM_OUTPUT_IFS);
     endfunction
 
     //===================================
@@ -236,6 +241,7 @@ module packet_sg_core_unit_test #(
 
         // Start environment
         env.run();
+        reg_agent.idle();
     endtask
 
 
@@ -302,6 +308,7 @@ module packet_sg_core_unit_test #(
         `SVTEST(one_packet_good)
             one_packet();
             check(1, 10us);
+            check_counters(.exp_in_ok(1), .exp_in_err(0), .exp_out_ok(1), .exp_out_err(0));
         `SVTEST_END
 
         `SVTEST(one_packet_bad)
@@ -331,12 +338,14 @@ module packet_sg_core_unit_test #(
             monitor.set_stall_rate(0.5);
             one_packet();
             check(1, 10us);
+            check_counters(.exp_in_ok(1), .exp_in_err(0), .exp_out_ok(1), .exp_out_err(0));
         `SVTEST_END
 
         `SVTEST(one_packet_tx_stall)
             driver.set_stall_rate(0.5);
             one_packet();
             check(1, 10us);
+            check_counters(.exp_in_ok(1), .exp_in_err(0), .exp_out_ok(1), .exp_out_err(0));
         `SVTEST_END
 
        `SVTEST(one_packet_tx_rx_stall)
@@ -344,12 +353,14 @@ module packet_sg_core_unit_test #(
             driver.set_stall_rate(0.5);
             one_packet();
             check(1, 10us);
+            check_counters(.exp_in_ok(1), .exp_in_err(0), .exp_out_ok(1), .exp_out_err(0));
         `SVTEST_END
 
         `SVTEST(one_jumbo_packet)
             len = $urandom_range(2049, 9000);
             one_packet(.len(len));
             check(1, 10us);
+            check_counters(.exp_in_ok(1), .exp_in_err(0), .exp_out_ok(1), .exp_out_err(0));
         `SVTEST_END
 
         `SVTEST(packet_size_walk)
@@ -370,23 +381,27 @@ module packet_sg_core_unit_test #(
             one_packet(idx, 1536 + offset);
             idx++;
             check(192-60+1+4, 100us);
+            check_counters(.exp_in_ok(192-60+1+4), .exp_in_err(0), .exp_out_ok(192-60+1+4), .exp_out_err(0));
         `SVTEST_END
 
         `SVTEST(packet_stream_no_stall)
             packet_stream();
             check(100, 100us);
+            check_counters(.exp_in_ok(100), .exp_in_err(0), .exp_out_ok(100), .exp_out_err(0));
         `SVTEST_END
 
         `SVTEST(packet_stream_rx_stall)
             monitor.set_stall_rate(0.1);
             packet_stream();
             check(100, 100us);
+            check_counters(.exp_in_ok(100), .exp_in_err(0), .exp_out_ok(100), .exp_out_err(0));
         `SVTEST_END
 
         `SVTEST(packet_stream_tx_stall)
             driver.set_stall_rate(0.1);
             packet_stream();
             check(100, 100us);
+            check_counters(.exp_in_ok(100), .exp_in_err(0), .exp_out_ok(100), .exp_out_err(0));
         `SVTEST_END
 
         `SVTEST(packet_stream_tx_rx_stall)
@@ -394,6 +409,7 @@ module packet_sg_core_unit_test #(
             driver.set_stall_rate(0.1);
             packet_stream();
             check(100, 100us);
+            check_counters(.exp_in_ok(100), .exp_in_err(0), .exp_out_ok(100), .exp_out_err(0));
         `SVTEST_END
 
         // Send one errored packet, confirm it is dropped (not received),
@@ -404,6 +420,7 @@ module packet_sg_core_unit_test #(
             `FAIL_UNLESS_EQUAL(env.scoreboard.got_processed(), 0);
             one_packet(1);
             check(1, 10us);
+            check_counters(.exp_in_ok(1), .exp_in_err(1), .exp_out_ok(1), .exp_out_err(0));
         `SVTEST_END
 
         // Send N errored packets back-to-back before any good packet.
@@ -417,6 +434,7 @@ module packet_sg_core_unit_test #(
             `FAIL_UNLESS_EQUAL(env.scoreboard.got_processed(), 0);
             one_packet(16);
             check(1, 20us);
+            check_counters(.exp_in_ok(1), .exp_in_err(16), .exp_out_ok(1), .exp_out_err(0));
         `SVTEST_END
 
         // Alternate errored and good packets in a stream.
@@ -428,6 +446,7 @@ module packet_sg_core_unit_test #(
                 one_packet(2*i+1);
             end
             check(50, 200us);
+            check_counters(.exp_in_ok(50), .exp_in_err(50), .exp_out_ok(50), .exp_out_err(0));
         `SVTEST_END
 
         `SVTEST(finalize)
@@ -435,6 +454,24 @@ module packet_sg_core_unit_test #(
         `SVTEST_END
 
     `SVUNIT_TESTS_END
+
+    // Read packet counters for interface 0 and assert expected ok/err values.
+    task check_counters(
+        input longint unsigned exp_in_ok,
+        input longint unsigned exp_in_err,
+        input longint unsigned exp_out_ok,
+        input longint unsigned exp_out_err
+    );
+        longint unsigned cnt;
+        reg_agent.get_input_pkt_ok_count(0, cnt);
+        `FAIL_UNLESS_EQUAL(cnt, exp_in_ok);
+        reg_agent.get_input_pkt_err_count(0, cnt);
+        `FAIL_UNLESS_EQUAL(cnt, exp_in_err);
+        reg_agent.get_output_pkt_ok_count(0, cnt);
+        `FAIL_UNLESS_EQUAL(cnt, exp_out_ok);
+        reg_agent.get_output_pkt_err_count(0, cnt);
+        `FAIL_UNLESS_EQUAL(cnt, exp_out_err);
+    endtask
 
     task check(input int EXPECTED, input time TIMEOUT);
         fork
