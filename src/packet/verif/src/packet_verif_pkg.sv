@@ -17,6 +17,7 @@ package packet_verif_pkg;
     `include "packet_intf_monitor.svh"
     `include "packet_playback_driver.svh"
     `include "packet_capture_monitor.svh"
+    `include "packet_counters_reg_agent.svh"
 
 endpackage : packet_verif_pkg
 
