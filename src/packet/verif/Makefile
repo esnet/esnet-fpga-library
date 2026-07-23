@@ -31,6 +31,7 @@ SUBCOMPONENTS = \
     std.verif \
     pcap.pkg \
     mem.proxy.verif \
+    alloc.verif \
     reg.verif
 
 EXT_LIBS =

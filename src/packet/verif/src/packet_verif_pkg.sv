@@ -1,6 +1,7 @@
 package packet_verif_pkg;
     import packet_reg_verif_pkg::*;
     import mem_proxy_verif_pkg::*;
+    import alloc_verif_pkg::*;
 
     `include "packet.svh"
     `include "packet_raw.svh"
@@ -18,6 +19,7 @@ package packet_verif_pkg;
     `include "packet_playback_driver.svh"
     `include "packet_capture_monitor.svh"
     `include "packet_counters_reg_agent.svh"
+    `include "packet_sg_reg_agent.svh"
 
 endpackage : packet_verif_pkg
 
