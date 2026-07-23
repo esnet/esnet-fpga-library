@@ -302,6 +302,16 @@ module packet_sg_core_unit_test #(
        end
     endtask
 
+    // Send an oversized packet directly to the driver (bypassing the model)
+    // so the scatter classifies it as LONG and recycles it without delivery.
+    task one_long_packet(int id=0, int len=MAX_PKT_SIZE+64);
+        packet_raw#(META_T) packet;
+        void'(std::randomize(meta));
+        packet = new($sformatf("pkt_long_%0d", id), len, meta);
+        packet.randomize();
+        env.driver.inbox.put(packet);
+    endtask
+
     `SVUNIT_TESTS_BEGIN
 
         `SVTEST(reset)
@@ -412,6 +422,22 @@ module packet_sg_core_unit_test #(
             packet_stream();
             check(100, 100us);
             check_counters(.exp_in_ok(100), .exp_in_err(0), .exp_out_ok(100), .exp_out_err(0));
+        `SVTEST_END
+
+        // Send one oversized packet; scatter classifies it as LONG and recycles
+        // the buffer.  Confirm no delivery, then confirm pool liveness with a
+        // good packet and verify the long counter incremented.
+        `SVTEST(long_packet)
+            longint unsigned cnt;
+            one_long_packet(0);
+            packet_in_if[0]._wait(500);
+            `FAIL_UNLESS_EQUAL(env.scoreboard.got_processed(), 0);
+            one_packet(1);
+            check(1, 10us);
+            check_counters(.exp_in_ok(1), .exp_in_err(0), .exp_out_ok(1), .exp_out_err(0));
+            reg_agent.get_input_pkt_long_count(0, cnt);
+            if (DEBUG) $display("[long_packet] input pkt_long: got %0d, expected 1", cnt);
+            `FAIL_UNLESS_EQUAL(cnt, 1);
         `SVTEST_END
 
         // Send one errored packet, confirm it is dropped (not received),
