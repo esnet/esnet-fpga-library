@@ -79,6 +79,7 @@ module packet_sg_core_unit_test #(
     packet_sg_core     #(
         .NUM_INPUT_IFS  ( NUM_INPUT_IFS ),
         .NUM_OUTPUT_IFS ( NUM_OUTPUT_IFS ),
+        .MIN_PKT_SIZE   ( 60 ),
         .MAX_PKT_SIZE   ( MAX_PKT_SIZE ),
         .NUM_BUFFERS    ( NUM_BUFFERS ),
         .BUFFER_SIZE    ( BUFFER_SIZE ),
@@ -302,6 +303,16 @@ module packet_sg_core_unit_test #(
        end
     endtask
 
+    // Send an undersized packet directly to the driver (bypassing the model)
+    // so the scatter classifies it as SHORT and recycles it without delivery.
+    task one_short_packet(int id=0, int len=32);
+        packet_raw#(META_T) packet;
+        void'(std::randomize(meta));
+        packet = new($sformatf("pkt_short_%0d", id), len, meta);
+        packet.randomize();
+        env.driver.inbox.put(packet);
+    endtask
+
     // Send an oversized packet directly to the driver (bypassing the model)
     // so the scatter classifies it as LONG and recycles it without delivery.
     task one_long_packet(int id=0, int len=MAX_PKT_SIZE+64);
@@ -422,6 +433,22 @@ module packet_sg_core_unit_test #(
             packet_stream();
             check(100, 100us);
             check_counters(.exp_in_ok(100), .exp_in_err(0), .exp_out_ok(100), .exp_out_err(0));
+        `SVTEST_END
+
+        // Send one undersized packet (< MIN_PKT_SIZE=60); scatter classifies it
+        // as SHORT and recycles the buffer.  Confirm no delivery, then confirm
+        // pool liveness with a good packet and verify the short counter.
+        `SVTEST(short_packet)
+            longint unsigned cnt;
+            one_short_packet(0);
+            packet_in_if[0]._wait(500);
+            `FAIL_UNLESS_EQUAL(env.scoreboard.got_processed(), 0);
+            one_packet(1);
+            check(1, 10us);
+            check_counters(.exp_in_ok(1), .exp_in_err(0), .exp_out_ok(1), .exp_out_err(0));
+            reg_agent.get_input_pkt_short_count(0, cnt);
+            if (DEBUG) $display("[short_packet] input pkt_short: got %0d, expected 1", cnt);
+            `FAIL_UNLESS_EQUAL(cnt, 1);
         `SVTEST_END
 
         // Send one oversized packet; scatter classifies it as LONG and recycles
