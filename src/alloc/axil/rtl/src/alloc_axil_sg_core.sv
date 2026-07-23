@@ -7,9 +7,7 @@ module alloc_axil_sg_core #(
     parameter int  BUFFER_SIZE = 1,
     parameter int  MAX_FRAME_SIZE = 16384,
     parameter int  META_WID = 1,
-    parameter int  STORE_Q_DEPTH = 64,
     parameter bit  STORE_FC = 1'b1, // Can flow control store interface
-    parameter int  LOAD_Q_DEPTH = 32,
     parameter bit  LOAD_FC = 1'b1,    // Can flow control dealloc interface
     parameter int  N_ALLOC = 1,
     parameter int  MEM_WR_LATENCY = 8,
@@ -82,9 +80,7 @@ module alloc_axil_sg_core #(
         .BUFFER_SIZE      ( BUFFER_SIZE ),
         .MAX_FRAME_SIZE   ( MAX_FRAME_SIZE ),
         .META_WID         ( META_WID ),
-        .STORE_Q_DEPTH    ( STORE_Q_DEPTH ),
         .STORE_FC         ( STORE_FC ),
-        .LOAD_Q_DEPTH     ( LOAD_Q_DEPTH ),
         .LOAD_FC          ( LOAD_FC ),
         .N_ALLOC          ( N_ALLOC ),
         .MEM_WR_LATENCY   ( MEM_WR_LATENCY ),

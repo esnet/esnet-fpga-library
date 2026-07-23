@@ -89,6 +89,8 @@ module alloc_bv_core #(
         std_pkg::param_check(mem_rd_if.DATA_WID, NUM_COLS, "mem_if.DATA_WID");
         std_pkg::param_check_gt(mem_wr_if.ADDR_WID, ROW_WID, "mem_if.ADDR_WID");
         std_pkg::param_check_gt(mem_wr_if.ADDR_WID, ROW_WID, "mem_if.ADDR_WID");
+        std_pkg::param_check_gt(PTR_WID, 1, "PTR_WID");
+        std_pkg::param_check_lt(ALLOC_Q_DEPTH, 2**PTR_WID, "ALLOC_Q_DEPTH");
     end
 
     // -----------------------------
@@ -133,6 +135,8 @@ module alloc_bv_core #(
     // -----------------------------
     state_t state;
     state_t nxt_state;
+
+    logic __en;
 
     logic wr;
     logic wr_rdy;
@@ -210,7 +214,7 @@ module alloc_bv_core #(
     // -----------------------------
     fifo_sync    #(
         .DATA_WID ( PTR_WID ),
-        .DEPTH    ( ALLOC_Q_DEPTH ),
+        .DEPTH    ( ALLOC_Q_DEPTH-1 ),
         .FWFT     ( 1 )
     ) i_alloc_q   (
         .clk,
@@ -229,26 +233,6 @@ module alloc_bv_core #(
         .uflow   ( )
     );
 
-    // Maintain next pointer to be allocated in register to
-    // achieve finer control over enable/disable; allows
-    // pointers to be pre-fetched even while allocator is disabled
-    initial alloc_rdy = 1'b0;
-    always @(posedge clk) begin
-        if (srst) alloc_rdy <= 1'b0;
-        else begin
-            if (en && __alloc_rdy) alloc_rdy <= 1'b1;
-            else if (alloc_req)    alloc_rdy <= 1'b0;
-        end
-    end
-
-    assign __alloc_req = en && (alloc_req || !alloc_rdy);
-
-    always_ff @(posedge clk) if (__alloc_req && __alloc_rdy) alloc_ptr <= __alloc_ptr;
-
-    assign alloc = alloc_req && alloc_rdy;
-    assign alloc_fail = ALLOC_FC ? 1'b0 : alloc_req && !alloc_rdy;
-    assign alloc_q_wr_data = {'0, __nxt_alloc_ptr};
-
     // Declare init_done when initial prefetch is complete
     // - this supports well-defined sequencing of dependent comoponents,
     //   i.e. those components can hold off operations that depend on
@@ -258,6 +242,30 @@ module alloc_bv_core #(
         if (srst)              init_done <= 1'b0;
         else if (alloc_q_full) init_done <= 1'b1;
     end
+    // Gate internal enable by init_done to ensure no dequeue happens
+    // during initial prefetch.
+    assign __en = en && init_done;
+
+    // Maintain next pointer to be allocated in register to
+    // achieve finer control over enable/disable; allows
+    // pointers to be pre-fetched even while allocator is disabled
+    initial alloc_rdy = 1'b0;
+    always @(posedge clk) begin
+        if (srst) alloc_rdy <= 1'b0;
+        else begin
+            if (__en && __alloc_rdy) alloc_rdy <= 1'b1;
+            else if (alloc_req)      alloc_rdy <= 1'b0;
+        end
+    end
+
+    assign __alloc_req = __en && (alloc_req || !alloc_rdy);
+
+    always_ff @(posedge clk) if (__alloc_req && __alloc_rdy) alloc_ptr <= __alloc_ptr;
+
+    assign alloc = alloc_req && alloc_rdy;
+    assign alloc_fail = ALLOC_FC ? 1'b0 : alloc_req && !alloc_rdy;
+    assign alloc_q_wr_data = {'0, __nxt_alloc_ptr};
+
 
     // -----------------------------
     // Deallocation queue

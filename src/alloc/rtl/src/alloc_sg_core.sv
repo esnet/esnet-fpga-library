@@ -5,12 +5,10 @@ module alloc_sg_core #(
     parameter int  BUFFER_SIZE = 1,
     parameter int  MAX_FRAME_SIZE = 16384,
     parameter int  META_WID = 1,
-    parameter int  STORE_Q_DEPTH = 64,
     parameter bit  STORE_FC = 1'b1, // Can flow control store interface
-    parameter int  LOAD_Q_DEPTH = 32,
     parameter bit  LOAD_FC = 1'b1,   // Can flow control dealloc interface
     parameter int  N_ALLOC = 1,      // (powers of 2 only) Controls parallelism of allocator logic; can be
-                                             // used to increase allocation throughput. See alloc_bv for details.
+                                     // used to increase allocation throughput. See alloc_bv for details.
     parameter int  MEM_WR_LATENCY = 8,
     // Derived parameters (don't override)
     parameter int  FRAME_SIZE_WID = $clog2(MAX_FRAME_SIZE+1),
@@ -80,6 +78,15 @@ module alloc_sg_core #(
             end
         end : g__gather_ctxt
     endgenerate
+
+    // -----------------------------
+    // Parameters
+    // -----------------------------
+    localparam int STORE_Q_DEPTH = (2**PTR_WID)/N_ALLOC  > 32 ? 32 : (2**PTR_WID)/N_ALLOC; // Configure for 32 entries, BUT
+                                                                                           // don't allow store q depth to
+                                                                                           // exceed number of (per-slice)
+                                                                                           // pointers.
+    localparam int LOAD_Q_DEPTH  = 2**PTR_WID > 32 ? 32 : 2**PTR_WID;
 
     // -----------------------------
     // Signals

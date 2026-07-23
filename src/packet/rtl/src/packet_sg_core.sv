@@ -147,8 +147,6 @@ module packet_sg_core
         .BUFFER_SIZE      ( BUFFER_SIZE ),
         .MAX_FRAME_SIZE   ( MAX_PKT_SIZE ),
         .META_WID         ( META_WID ),
-        .STORE_Q_DEPTH    ( 32 ),
-        .LOAD_Q_DEPTH     ( 32 ),
         .N_ALLOC          ( N_ALLOC ),
         .SIM__FAST_INIT   ( SIM__FAST_INIT ),
         .SIM__RAM_MODEL   ( SIM__RAM_MODEL )
