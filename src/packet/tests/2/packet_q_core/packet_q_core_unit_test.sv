@@ -256,7 +256,8 @@ module packet_q_core_unit_test #(
     // Assign AXI-L clock (125MHz)
     `SVUNIT_CLK_GEN(axil_if.aclk, 4ns);
 
-    axi4l_intf_controller_term i_axi4l_intf_controller_term (.axi4l_if (axil_if ));
+    axi4l_verif_pkg::axi4l_reg_agent axil_reg_agent;
+    packet_verif_pkg::packet_q_core_reg_agent reg_agent;
 
     //===================================
     // Build
@@ -279,6 +280,10 @@ module packet_q_core_unit_test #(
         env = new("env", driver, monitor, model, scoreboard);
         env.reset_vif = reset_if;
         env.build();
+
+        axil_reg_agent = new();
+        axil_reg_agent.axil_vif = axil_if;
+        reg_agent = new("reg_agent", axil_reg_agent, 0, NUM_INPUT_IFS, NUM_OUTPUT_IFS);
     endfunction
 
     //===================================
@@ -297,6 +302,7 @@ module packet_q_core_unit_test #(
 
         // Start environment
         env.run();
+        reg_agent.idle();
     endtask
 
 

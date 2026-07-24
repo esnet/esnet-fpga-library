@@ -20,6 +20,7 @@ package packet_verif_pkg;
     `include "packet_capture_monitor.svh"
     `include "packet_counters_reg_agent.svh"
     `include "packet_sg_reg_agent.svh"
+    `include "packet_q_core_reg_agent.svh"
 
 endpackage : packet_verif_pkg
 
