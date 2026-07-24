@@ -408,7 +408,7 @@ module packet_scatter #(
     ) i_fifo_ctxt__pkt_good_pending (
         .clk,
         .srst,
-        .wr      ( pkt_done ),
+        .wr      ( pkt_done && !oflow ),
         .wr_rdy  ( ),
         .wr_data ( pkt_good ),
         .rd      ( frame_valid ),
