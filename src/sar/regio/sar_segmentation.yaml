@@ -32,12 +32,19 @@ regs:
           desc:  (soft) block reset
           width: 1
           init:  0
+        - name:  enable
+          desc:  (soft) block enable
+          width: 1
+          init:  1
 
   - name: status
     access: ro
     fields:
         - name:  reset_mon
           desc:  block reset monitor
+          width: 1
+        - name:  enable_mon
+          desc:  block enable monitor
           width: 1
         - name:  ready_mon
           desc:  block ready monitor
@@ -50,4 +57,35 @@ regs:
           desc: segment length (in bytes)
           width: 16
           init: 512
+
+  - name: dbg_status
+    desc: (Debug) status monitor.
+    access: ro
+    fields:
+        - name: state
+          desc: FSM state.
+          width: 8
+          enum:
+              00 : RESET
+              01 : READY
+              02 : PROCESSING
+              03 : DONE
+
+  - name: dbg_control
+    access: rw
+    fields:
+        - name:  clear_counts
+          desc:  clear all debug counters.
+          width: 1
+          init:  0
+
+  - name: dbg_cnt_frames_in
+    access: ro
+    desc: Count of frames accepted for segmentation.
+    width: 32
+
+  - name: dbg_cnt_segments_out
+    access: ro
+    desc: Count of segments produced.
+    width: 32
 
