@@ -143,6 +143,8 @@ module sar_reassembly_cache_unit_test;
         env.reset_dut();
 
         en = 1'b1;
+
+        agent.wait_ready();
     endtask
 
     //===================================

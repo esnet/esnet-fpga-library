@@ -128,6 +128,7 @@ module sar_reassembly_unit_test;
 
         en <= 1'b1;
 
+        agent.wait_ready();
     endtask
 
     //===================================
