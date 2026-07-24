@@ -93,22 +93,26 @@ class packet_intf_monitor #(
         debug_msg("receive_raw: Waiting for data...");
 
         while (!eop) begin
-            packet_vif.receive(_data, eop, mty, __err, meta);
-            trace_msg($sformatf("receive_raw: Received word %0d.", word_idx));
-            while (byte_idx < DATA_BYTE_WID) begin
-                if (!eop || (byte_idx < DATA_BYTE_WID - mty)) begin
-                    __data.push_back(_data[byte_idx]);
-                    byte_idx++;
-                end else break;
+            if (stall()) begin
+                packet_vif.idle_rx();
+                packet_vif._wait(1);
+            end else begin
+                packet_vif.receive(_data, eop, mty, __err, meta);
+                trace_msg($sformatf("receive_raw: Received word %0d.", word_idx));
+                while (byte_idx < DATA_BYTE_WID) begin
+                    if (!eop || (byte_idx < DATA_BYTE_WID - mty)) begin
+                        __data.push_back(_data[byte_idx]);
+                        byte_idx++;
+                    end else break;
+                end
+                byte_cnt += byte_idx;
+                if (byte_cnt > this.get_max_pkt_size()) begin
+                    error_msg($sformatf("Received packet exceeded MAX_PKT_SIZE limit (%0d)", this.get_max_pkt_size()));
+                    $fatal(2, "Received packet exceeded MAX_PKT_SIZE limit.");
+                end
+                byte_idx = 0;
+                word_idx++;
             end
-            byte_cnt += byte_idx;
-            if (byte_cnt > this.get_max_pkt_size()) begin
-                error_msg($sformatf("Received packet exceeded MAX_PKT_SIZE limit (%0d)", this.get_max_pkt_size()));
-                $fatal(2, "Received packet exceeded MAX_PKT_SIZE limit.");
-            end
-            byte_idx = 0;
-            word_idx++;
-            while (stall()) packet_vif._wait(1);
         end
         data = __data;
         err = __err;
