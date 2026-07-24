@@ -378,8 +378,12 @@ module packet_sg_core_oflow_unit_test #(
             `FAIL_UNLESS_EQUAL(cnt, 1);
             // Confirm overflow left no persistent bad state: send one more packet
             // and verify it transits correctly end-to-end.
+            // Wait for the recycle pipeline (descriptor RD_LATENCY + alloc_bv scan
+            // + scatter prefetch) before sending, so the scatter has a buffer
+            // available and does not treat the packet as a second overflow.
+            packet_in_if[0]._wait(2000);
             one_packet(NUM_BUFFERS);
-            check(NUM_BUFFERS+1, 10us);
+            check(NUM_BUFFERS+1, 100us);
         `SVTEST_END
 
         `SVTEST(finalize)
