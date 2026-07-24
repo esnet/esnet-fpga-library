@@ -92,6 +92,7 @@ module alloc_sg_core #(
     // Signals
     // -----------------------------
     logic               alloc_init_done;
+    logic               scatter_init_done;
 
     logic               alloc_req;
     logic               alloc_rdy;
@@ -109,7 +110,7 @@ module alloc_sg_core #(
     // -----------------------------
     // Status
     // -----------------------------
-    assign init_done = alloc_init_done && desc_mem_init_done;
+    assign init_done = alloc_init_done && scatter_init_done && desc_mem_init_done;
 
     // -----------------------------
     // Buffer pointer allocator (bit-vector allocator, on-chip)
@@ -152,6 +153,7 @@ module alloc_sg_core #(
         .MEM_WR_LATENCY ( MEM_WR_LATENCY ),
         .SIM__FAST_INIT ( SIM__FAST_INIT )
     ) i_alloc_scatter_core (
+        .init_done ( scatter_init_done ),
         .*
     );
 
