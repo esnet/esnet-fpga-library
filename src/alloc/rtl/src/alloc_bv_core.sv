@@ -78,8 +78,8 @@ module alloc_bv_core #(
     localparam int NUM_COLS = mem_wr_if.DATA_WID;
     localparam int NUM_ROWS = MAX_PTRS/NUM_COLS;
 
-    localparam int COL_WID = $clog2(NUM_COLS);
-    localparam int ROW_WID = $clog2(NUM_ROWS);
+    localparam int COL_WID = NUM_COLS > 1 ? $clog2(NUM_COLS) : 1;
+    localparam int ROW_WID = NUM_ROWS > 1 ? $clog2(NUM_ROWS) : 1;
     localparam int CNT_WID  = PTR_WID + 1;
 
     // -----------------------------
@@ -89,6 +89,8 @@ module alloc_bv_core #(
         std_pkg::param_check(mem_rd_if.DATA_WID, NUM_COLS, "mem_if.DATA_WID");
         std_pkg::param_check_gt(mem_wr_if.ADDR_WID, ROW_WID, "mem_if.ADDR_WID");
         std_pkg::param_check_gt(mem_wr_if.ADDR_WID, ROW_WID, "mem_if.ADDR_WID");
+        std_pkg::param_check_gt(NUM_COLS, 2, "NUM_COLS");
+        std_pkg::param_check_gt(NUM_ROWS, 2, "NUM_ROWS");
         std_pkg::param_check_gt(PTR_WID, 1, "PTR_WID");
         std_pkg::param_check_lt(ALLOC_Q_DEPTH, 2**PTR_WID, "ALLOC_Q_DEPTH");
     end

@@ -62,16 +62,16 @@ module alloc_bv #(
     localparam int MAX_PTRS = 2**PTR_WID;
 
     localparam int SLICE_MAX_PTRS = MAX_PTRS/NUM_SLICES;
-    localparam int SLICE_PTR_WID = $clog2(SLICE_MAX_PTRS);
+    localparam int SLICE_PTR_WID = SLICE_MAX_PTRS > 1 ? $clog2(SLICE_MAX_PTRS) : 1;
 
 
     localparam int NUM_COLS = SLICE_MAX_PTRS > 256*1024 ? 64 :
                               SLICE_MAX_PTRS > 64*1024  ? SLICE_MAX_PTRS / 4096 :
-                              SLICE_MAX_PTRS > 16    ? 16 : 1;
+                              SLICE_MAX_PTRS > 16    ? 16 : 2;
     localparam int NUM_ROWS = SLICE_MAX_PTRS / NUM_COLS;
 
-    localparam int COL_WID = $clog2(NUM_COLS);
-    localparam int ROW_WID = $clog2(NUM_ROWS);
+    localparam int COL_WID = NUM_COLS > 1 ? $clog2(NUM_COLS) : 1;
+    localparam int ROW_WID = NUM_ROWS > 1 ? $clog2(NUM_ROWS) : 1;
 
     localparam mem_pkg::spec_t MEM_SPEC = '{
         ADDR_WID: ROW_WID,
@@ -225,7 +225,7 @@ module alloc_bv #(
             );
 
             assign alloc_q_wr     = __alloc_rdy[alloc_slice_sel];
-            assign alloc_q_wr_ptr = __alloc_ptr[alloc_slice_sel] << SLICE_SEL_WID | alloc_slice_sel;
+            assign alloc_q_wr_ptr = {__alloc_ptr[alloc_slice_sel], alloc_slice_sel};
             assign __alloc_req = alloc_slice_grant & {NUM_SLICES{alloc_q_wr_rdy}};
 
             assign alloc = alloc_req && alloc_rdy;
@@ -306,8 +306,8 @@ module alloc_bv #(
             always @(posedge clk) if (alloc_dealloc_sel_n) mon_slice_sel <= mon_slice_sel + 1;
 
             always_comb begin
-                if (alloc_dealloc_sel_n) err_ptr = alloc_err_ptr  [mon_slice_sel] << SLICE_SEL_WID | mon_slice_sel;
-                else                     err_ptr = dealloc_err_ptr[mon_slice_sel] << SLICE_SEL_WID | mon_slice_sel;
+                if (alloc_dealloc_sel_n) err_ptr = {alloc_err_ptr  [mon_slice_sel], mon_slice_sel};
+                else                     err_ptr = {dealloc_err_ptr[mon_slice_sel], mon_slice_sel};
             end
 
             always_ff @(posedge clk) begin
