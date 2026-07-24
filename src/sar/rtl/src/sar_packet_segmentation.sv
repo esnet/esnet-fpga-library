@@ -89,8 +89,8 @@ module sar_packet_segmentation #(
     // -------------------------------------------------
     packet_counters #(
         .MAX_PKT_SIZE ( MAX_PKT_SIZE ),
-        .COUNT_ERR    ( 0 ),
-        .COUNT_OFLOW  ( 0 )
+        .COUNT_ERR    ( 1 ),
+        .COUNT_OFLOW  ( 1 )
     ) i_packet_counters (
         .clk,
         .axil_if  ( axil_if__packets ),
@@ -140,6 +140,7 @@ module sar_packet_segmentation #(
     ) i_sar_segmentation (
         .clk,
         .srst,
+        .en         ( 1'b1 ),
         .init_done  ( init_done__sar_segmentation ),
         .frame_ready,
         .frame_valid,

@@ -61,4 +61,56 @@ class sar_reassembly_cache_reg_agent#(type BUF_ID_T = bit, type OFFSET_T = bit, 
         size = reg_info_size;
     endtask
 
+    task clear_dbg_counts();
+        sar_reassembly_cache_reg_pkg::reg_dbg_control_t reg_dbg_control;
+        reg_dbg_control.clear_counts = 1;
+        this.write_dbg_control(reg_dbg_control);
+    endtask
+
+    task get_seg_rx_cnt(output int cnt);
+        sar_reassembly_cache_reg_pkg::reg_dbg_cnt_seg_rx_t reg_cnt;
+        this.read_dbg_cnt_seg_rx(reg_cnt);
+        cnt = reg_cnt;
+    endtask
+
+    task get_frag_create_cnt(output int cnt);
+        sar_reassembly_cache_reg_pkg::reg_dbg_cnt_frag_create_t reg_cnt;
+        this.read_dbg_cnt_frag_create(reg_cnt);
+        cnt = reg_cnt;
+    endtask
+
+    task get_frag_append_cnt(output int cnt);
+        sar_reassembly_cache_reg_pkg::reg_dbg_cnt_frag_append_t reg_cnt;
+        this.read_dbg_cnt_frag_append(reg_cnt);
+        cnt = reg_cnt;
+    endtask
+
+    task get_frag_prepend_cnt(output int cnt);
+        sar_reassembly_cache_reg_pkg::reg_dbg_cnt_frag_prepend_t reg_cnt;
+        this.read_dbg_cnt_frag_prepend(reg_cnt);
+        cnt = reg_cnt;
+    endtask
+
+    task get_frag_merge_cnt(output int cnt);
+        sar_reassembly_cache_reg_pkg::reg_dbg_cnt_frag_merge_t reg_cnt;
+        this.read_dbg_cnt_frag_merge(reg_cnt);
+        cnt = reg_cnt;
+    endtask
+
+    task get_alloc_drop_cnt(output int cnt);
+        sar_reassembly_cache_reg_pkg::reg_dbg_cnt_alloc_drop_t reg_cnt;
+        this.read_dbg_cnt_alloc_drop(reg_cnt);
+        cnt = reg_cnt;
+    endtask
+
+    task get_lookup_error_cnt(output int cnt);
+        sar_reassembly_cache_reg_pkg::reg_dbg_cnt_lookup_error_t reg_cnt;
+        this.read_dbg_cnt_lookup_error(reg_cnt);
+        cnt = reg_cnt;
+    endtask
+
+    task read_dbg_flags(output sar_reassembly_cache_reg_pkg::reg_dbg_flags_t flags);
+        this.read_dbg_flags(flags);
+    endtask
+
 endclass : sar_reassembly_cache_reg_agent
