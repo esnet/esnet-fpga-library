@@ -5,6 +5,8 @@ module packet_descriptor_fifo #(
     packet_descriptor_intf.rx from_tx,
     input logic               from_tx_srst,
 
+    input logic               en = 1'b1,
+
     packet_descriptor_intf.tx to_rx,
     input logic               to_rx_srst
 );
@@ -39,6 +41,7 @@ module packet_descriptor_fifo #(
     // Signals
     // -----------------------------
     desc_t desc_in;
+    logic  desc_out_vld;
     desc_t desc_out;
 
     // -----------------------------
@@ -71,8 +74,8 @@ module packet_descriptor_fifo #(
         .wr_oflow  ( ),
         .rd_clk    ( to_rx.clk ),
         .rd_srst   ( to_rx_srst ),
-        .rd        ( to_rx.rdy ),
-        .rd_ack    ( to_rx.vld ),
+        .rd        ( en && to_rx.rdy ),
+        .rd_ack    ( desc_out_vld ),
         .rd_data   ( desc_out ),
         .rd_count  ( ),
         .rd_empty  ( ),
@@ -81,6 +84,7 @@ module packet_descriptor_fifo #(
         .rd_mon_if ( rd_mon_if__unused )
     );
 
+    assign to_rx.vld  = en && desc_out_vld;
     assign to_rx.addr = desc_out.addr;
     assign to_rx.size = desc_out.size;
     assign to_rx.meta = desc_out.meta;
