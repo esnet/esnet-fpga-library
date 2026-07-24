@@ -350,10 +350,11 @@ module packet_sg_core_oflow_unit_test #(
             );
         `SVTEST_END
 
-        // Fill all NUM_BUFFERS buffers with good packets while the output is
-        // fully stalled, then send one more packet.  With no buffer available
+        // Fill all NUM_BUFFERS buffers with good packets while the descriptor
+        // gate is held, then send one more packet.  With no buffer available
         // the scatter (IGNORE_RDY_IN=1) classifies it as OFLOW and drops it.
-        // Release the stall, drain the good packets, and verify counters.
+        // Release the gate, drain the good packets, verify counters, then send
+        // one final packet to confirm the overflow left no persistent bad state.
         `SVTEST(oflow)
             longint unsigned cnt;
             // Gate descriptors so scatter → gather handoff is under test control;
@@ -375,6 +376,10 @@ module packet_sg_core_oflow_unit_test #(
             reg_agent.get_input_pkt_oflow_count(0, cnt);
             if (DEBUG) $display("[oflow] input pkt_oflow: got %0d, expected 1", cnt);
             `FAIL_UNLESS_EQUAL(cnt, 1);
+            // Confirm overflow left no persistent bad state: send one more packet
+            // and verify it transits correctly end-to-end.
+            one_packet(NUM_BUFFERS);
+            check(NUM_BUFFERS+1, 10us);
         `SVTEST_END
 
         `SVTEST(finalize)
