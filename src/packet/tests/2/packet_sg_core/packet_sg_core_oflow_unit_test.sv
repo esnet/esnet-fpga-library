@@ -386,6 +386,32 @@ module packet_sg_core_oflow_unit_test #(
             check(NUM_BUFFERS+1, 100us);
         `SVTEST_END
 
+        // Fill all NUM_BUFFERS buffers with good packets while the descriptor
+        // gate is held, then send a random burst of N (50-100) overflow packets.
+        // Confirm all N are counted by the overflow counter, drain the good
+        // packets, then send a recovery packet to confirm no persistent bad state.
+        `SVTEST(oflow_burst)
+            longint unsigned cnt;
+            int n_oflow;
+            n_oflow = $urandom_range(50, 100);
+            desc_en = 1'b0;
+            for (int i = 0; i < NUM_BUFFERS; i++)
+                one_packet(i);
+            packet_in_if[0]._wait(5000);
+            for (int i = 0; i < n_oflow; i++)
+                one_overflow_packet(i);
+            packet_in_if[0]._wait(1000);
+            desc_en = 1'b1;
+            check(NUM_BUFFERS, 100us);
+            check_counters(.exp_in_ok(NUM_BUFFERS), .exp_in_err(0), .exp_out_ok(NUM_BUFFERS), .exp_out_err(0));
+            reg_agent.get_input_pkt_oflow_count(0, cnt);
+            if (DEBUG) $display("[oflow_burst] input pkt_oflow: got %0d, expected %0d", cnt, n_oflow);
+            `FAIL_UNLESS_EQUAL(cnt, n_oflow);
+            packet_in_if[0]._wait(2000);
+            one_packet(NUM_BUFFERS);
+            check(NUM_BUFFERS+1, 100us);
+        `SVTEST_END
+
         `SVTEST(finalize)
             env.finalize();
         `SVTEST_END
