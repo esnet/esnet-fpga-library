@@ -107,6 +107,7 @@ module packet_q_core_unit_test #(
         .NUM_OUTPUT_IFS ( NUM_OUTPUT_IFS ),
         .NUM_QS         ( NUM_QS ),
         .Q_DEPTH        ( Q_DEPTH ),
+        .MIN_PKT_SIZE   ( 60 ),
         .MAX_PKT_SIZE   ( MAX_PKT_SIZE ),
         .NUM_BUFFERS    ( NUM_BUFFERS ),
         .BUFFER_SIZE    ( BUFFER_SIZE ),
@@ -332,6 +333,8 @@ module packet_q_core_unit_test #(
     //   `SVTEST_END
     //===================================
 
+    localparam bit DEBUG = 0;
+
     META_T meta;
     string msg;
     int len;
@@ -352,6 +355,26 @@ module packet_q_core_unit_test #(
         packet = new($sformatf("pkt_err_%0d", id), len, meta);
         packet.randomize();
         packet.mark_as_errored();
+        env.driver.inbox.put(packet);
+    endtask
+
+    // Send an undersized packet directly to the driver (bypassing the model)
+    // so the scatter classifies it as SHORT and recycles it without delivery.
+    task one_short_packet(int id=0, int len=32);
+        packet_raw#(META_T) packet;
+        void'(std::randomize(meta));
+        packet = new($sformatf("pkt_short_%0d", id), len, meta);
+        packet.randomize();
+        env.driver.inbox.put(packet);
+    endtask
+
+    // Send an oversized packet directly to the driver (bypassing the model)
+    // so the scatter classifies it as LONG and recycles it without delivery.
+    task one_long_packet(int id=0, int len=MAX_PKT_SIZE+64);
+        packet_raw#(META_T) packet;
+        void'(std::randomize(meta));
+        packet = new($sformatf("pkt_long_%0d", id), len, meta);
+        packet.randomize();
         env.driver.inbox.put(packet);
     endtask
 
@@ -497,11 +520,70 @@ module packet_q_core_unit_test #(
             check(50, 500us);
         `SVTEST_END
 
+        // Send one undersized packet (< MIN_PKT_SIZE=60); scatter classifies it
+        // as SHORT and recycles the buffer.  Confirm no delivery, then confirm
+        // pool liveness with a good packet and verify the short counter.
+        `SVTEST(short_packet)
+            longint unsigned cnt;
+            one_short_packet(0);
+            packet_in_if[0]._wait(500);
+            `FAIL_UNLESS_EQUAL(env.scoreboard.got_processed(), 0);
+            one_packet(1);
+            check(1, 10us);
+            check_counters(.exp_in_ok(1), .exp_in_err(0), .exp_out_ok(1), .exp_out_err(0));
+            reg_agent.get_input_pkt_short_count(0, cnt);
+            if (DEBUG) $display("[short_packet] input pkt_short: got %0d, expected 1", cnt);
+            `FAIL_UNLESS_EQUAL(cnt, 1);
+        `SVTEST_END
+
+        // Send one oversized packet; scatter classifies it as LONG and recycles
+        // the buffer.  Confirm no delivery, then confirm pool liveness with a
+        // good packet and verify the long counter incremented.
+        `SVTEST(long_packet)
+            longint unsigned cnt;
+            one_long_packet(0);
+            packet_in_if[0]._wait(500);
+            `FAIL_UNLESS_EQUAL(env.scoreboard.got_processed(), 0);
+            one_packet(1);
+            check(1, 10us);
+            check_counters(.exp_in_ok(1), .exp_in_err(0), .exp_out_ok(1), .exp_out_err(0));
+            reg_agent.get_input_pkt_long_count(0, cnt);
+            if (DEBUG) $display("[long_packet] input pkt_long: got %0d, expected 1", cnt);
+            `FAIL_UNLESS_EQUAL(cnt, 1);
+        `SVTEST_END
+
         `SVTEST(finalize)
             env.finalize();
         `SVTEST_END
 
     `SVUNIT_TESTS_END
+
+    // Read packet counters for interface 0 and assert expected ok/err values.
+    task check_counters(
+        input longint unsigned exp_in_ok,
+        input longint unsigned exp_in_err,
+        input longint unsigned exp_out_ok,
+        input longint unsigned exp_out_err
+    );
+        longint unsigned cnt;
+        longint unsigned info_cnt;
+        reg_agent.get_input_pkt_ok_count(0, cnt);
+        if (DEBUG) $display("[check_counters] input  pkt_ok  : got %0d, expected %0d", cnt, exp_in_ok);
+        `FAIL_UNLESS_EQUAL(cnt, exp_in_ok);
+        reg_agent.get_input_pkt_err_count(0, cnt);
+        if (DEBUG) $display("[check_counters] input  pkt_err : got %0d, expected %0d", cnt, exp_in_err);
+        `FAIL_UNLESS_EQUAL(cnt, exp_in_err);
+        reg_agent.get_input_pkt_long_count(0, info_cnt);
+        if (DEBUG) $display("[check_counters] input  pkt_long : got %0d", info_cnt);
+        reg_agent.get_input_pkt_short_count(0, info_cnt);
+        if (DEBUG) $display("[check_counters] input  pkt_short: got %0d", info_cnt);
+        reg_agent.get_output_pkt_ok_count(0, cnt);
+        if (DEBUG) $display("[check_counters] output pkt_ok  : got %0d, expected %0d", cnt, exp_out_ok);
+        `FAIL_UNLESS_EQUAL(cnt, exp_out_ok);
+        reg_agent.get_output_pkt_err_count(0, cnt);
+        if (DEBUG) $display("[check_counters] output pkt_err : got %0d, expected %0d", cnt, exp_out_err);
+        `FAIL_UNLESS_EQUAL(cnt, exp_out_err);
+    endtask
 
     task check(input int EXPECTED, input time TIMEOUT);
         fork
