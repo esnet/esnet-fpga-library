@@ -163,10 +163,6 @@ module packet_scatter #(
 
     logic        frame_valid_out;
 
-    logic        packet_event;
-    logic[31:0]  packet_event_size;
-    status_t     packet_event_status;
-
     logic [PTR_WID-1:0] recycle_ptr_r;
 
     // -----------------------------

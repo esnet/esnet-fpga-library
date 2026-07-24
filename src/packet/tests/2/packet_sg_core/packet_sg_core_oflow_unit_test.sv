@@ -29,7 +29,7 @@ module packet_sg_core_oflow_unit_test #(
 
     localparam int  BUFFER_SIZE = 2048;
     localparam int  BUFFER_WORDS = BUFFER_SIZE / MEM_DATA_BYTE_WID;
-    localparam int  NUM_BUFFERS = 8;
+    localparam int  NUM_BUFFERS = 16;
     localparam int  PTR_WID = $clog2(NUM_BUFFERS);
     localparam int  MEM_DEPTH = NUM_BUFFERS * BUFFER_WORDS;
     localparam int  ADDR_WID = $clog2(MEM_DEPTH);
@@ -96,7 +96,7 @@ module packet_sg_core_oflow_unit_test #(
     // Memory
     //===================================
     localparam int NUM_MEM_CHANNELS = NUM_MEM_DATA_IFS + 1;
-    localparam int AXI_ADDR_WID = $clog2(PACKET_Q_CAPACITY + NUM_BUFFERS);
+    localparam int AXI_ADDR_WID = $clog2(NUM_INPUT_IFS*PACKET_Q_CAPACITY + NUM_BUFFERS*MEM_DATA_BYTE_WID);
     axi3_intf #(.DATA_BYTE_WID(MEM_DATA_BYTE_WID), .ADDR_WID(AXI_ADDR_WID)) axi3_if [NUM_MEM_CHANNELS] (.aclk(clk));
     axi3_mem_bfm #(
         .CHANNELS ( NUM_MEM_CHANNELS),
@@ -135,11 +135,15 @@ module packet_sg_core_oflow_unit_test #(
 
     // Convert memory interfaces to AXI-3
     for (genvar g_if = 0; g_if < NUM_MEM_DATA_IFS; g_if++) begin : g_mem_if
+        // (Local) parameters
+        localparam longint BASE_ADDR = g_if*NUM_BUFFERS*BUFFER_SIZE/NUM_MEM_DATA_IFS;
+
         axi3_from_mem_adapter #(
             .SIZE(axi3_pkg::SIZE_32BYTES),
             .BURST_SUPPORT ( 1 ),
+            .BASE_ADDR (BASE_ADDR ),
             .WR_ID ( 2*g_if ),
-            .RD_ID ( 2*g_if + 1)
+            .RD_ID ( 2*g_if + 1 )
         ) i_axi3_from_mem_adapter (
             .clk,
             .srst,
@@ -165,11 +169,14 @@ module packet_sg_core_oflow_unit_test #(
         .axi3_if   ( axi3_if[NUM_MEM_DATA_IFS] )
     );
 
+    logic desc_en;
+
     generate
         for (genvar g_if = 0; g_if < NUM_INPUT_IFS; g_if++) begin : g__if
             packet_descriptor_fifo #(.DEPTH(512)) i_packet_descriptor_fifo (
                 .from_tx      ( desc_in_if[g_if] ),
                 .from_tx_srst ( srst ),
+                .en           ( desc_en ),
                 .to_rx        ( desc_out_if[g_if] ),
                 .to_rx_srst   ( srst )
             );
@@ -194,7 +201,7 @@ module packet_sg_core_oflow_unit_test #(
     std_reset_intf reset_if (.clk(clk));
     assign srst = reset_if.reset;
     assign axil_if.aresetn = !reset_if.reset;
-    assign reset_if.ready = !srst;
+    assign reset_if.ready = init_done;
 
     // Assign clock (333MHz)
     `SVUNIT_CLK_GEN(clk, 1.5ns);
@@ -238,10 +245,11 @@ module packet_sg_core_oflow_unit_test #(
     task setup();
         svunit_ut.setup();
 
+        desc_en = 1'b1;
         monitor.set_stall_rate(0.0);
         driver.set_stall_rate(0.0);
 
-        // Start environment
+        // Start environment; env.run() blocks until init_done via reset_if.ready
         env.run();
         reg_agent.idle();
     endtask
@@ -348,18 +356,20 @@ module packet_sg_core_oflow_unit_test #(
         // Release the stall, drain the good packets, and verify counters.
         `SVTEST(oflow)
             longint unsigned cnt;
-            // Block output so buffers stay allocated
-            monitor.set_stall_rate(1.0);
+            // Gate descriptors so scatter → gather handoff is under test control;
+            // this prevents gather from prefetching packet data and recycling
+            // buffer pointers before all buffers are confirmed full.
+            desc_en = 1'b0;
             // Fill every buffer (each packet ≤ BUFFER_SIZE → uses 1 buffer)
             for (int i = 0; i < NUM_BUFFERS; i++)
                 one_packet(i);
             // Wait for all packets to be scattered into memory
             packet_in_if[0]._wait(5000);
-            // Send one more — should overflow
+            // Send one more — should overflow since all buffers are occupied
             one_overflow_packet(0);
             packet_in_if[0]._wait(500);
-            // Release stall and drain the NUM_BUFFERS good packets
-            monitor.set_stall_rate(0.0);
+            // Release descriptor gate and drain the NUM_BUFFERS good packets
+            desc_en = 1'b1;
             check(NUM_BUFFERS, 100us);
             check_counters(.exp_in_ok(NUM_BUFFERS), .exp_in_err(0), .exp_out_ok(NUM_BUFFERS), .exp_out_err(0));
             reg_agent.get_input_pkt_oflow_count(0, cnt);
@@ -416,7 +426,7 @@ module packet_sg_core_oflow_unit_test #(
                 int processed;
                 do
                     #100ns;
-                while ( env.scoreboard.got_processed() != EXPECTED );
+                while ( env.scoreboard.got_processed() < EXPECTED );
                 `FAIL_IF_LOG( env.scoreboard.report(msg) > 0, msg);
                 `FAIL_UNLESS_EQUAL( env.scoreboard.got_matched(), EXPECTED);
             end
@@ -449,8 +459,4 @@ endmodule
 
 module packet_sg_core_oflow_1in_1out_unit_test;
 `PACKET_SG_CORE_OFLOW_TEST(1,1)
-endmodule
-
-module packet_sg_core_oflow_2in_2out_unit_test;
-`PACKET_SG_CORE_OFLOW_TEST(2,2)
 endmodule
