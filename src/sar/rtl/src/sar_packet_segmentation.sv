@@ -127,7 +127,7 @@ module sar_packet_segmentation #(
     assign packet_size   = __packet_if_meta.size;
     assign packet_last   = __packet_if_meta.last;
 
-    assign rd_descriptor.addr = rd_descriptor_meta.buf_id + rd_descriptor_meta.offset;
+    assign rd_descriptor.addr = {rd_descriptor_meta.buf_id, rd_descriptor_meta.offset[OFFSET_WID-1 : $clog2(DATA_BYTE_WID)]};
     assign rd_descriptor_meta.size = rd_descriptor.size;
     assign rd_descriptor.meta = rd_descriptor_meta;
     assign rd_descriptor.err = 1'b0;

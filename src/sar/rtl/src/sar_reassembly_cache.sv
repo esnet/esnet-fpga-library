@@ -146,6 +146,7 @@ module sar_reassembly_cache #(
 
     logic                        __frag_valid;
     logic                        __frag_init;
+    logic                        __frag_last;
     fragment_action_t            __frag_action;
     logic [FRAGMENT_PTR_WID-1:0] __frag_ptr;
     logic [OFFSET_WID-1:0]       __frag_offset_start;
@@ -423,6 +424,7 @@ module sar_reassembly_cache #(
     always_comb begin
         __frag_valid = 1'b0;
         __frag_init = 1'b0;
+        __frag_last = lookup_ctxt_out.last;
         __frag_action = FRAGMENT_CREATE;
         __frag_ptr = '0;
         __frag_offset_start = '0;
@@ -454,6 +456,8 @@ module sar_reassembly_cache #(
                     __frag_ptr = lookup_if__prepend_value.ptr;
                     __frag_offset_start = lookup_ctxt_out.offset_start;
                     __frag_offset_end = lookup_if__prepend_value.offset;
+                    // offset==0 in the prepend table is the sentinel for last=1
+                    __frag_last = lookup_ctxt_out.last | (lookup_if__prepend_value.offset == 0);
                 end
                 2'b11 : begin
                     __frag_action = FRAGMENT_MERGE;
@@ -463,6 +467,8 @@ module sar_reassembly_cache #(
                     __frag_offset_end = lookup_if__prepend_value.offset;
                     __frag_merged = 1'b1;
                     __frag_merged_ptr = lookup_if__append_value.ptr;
+                    // offset==0 in the prepend table is the sentinel for last=1
+                    __frag_last = lookup_ctxt_out.last | (lookup_if__prepend_value.offset == 0);
                 end
             endcase
         end
@@ -482,7 +488,7 @@ module sar_reassembly_cache #(
     always_ff @(posedge clk) begin
         frag_buf_id        <= lookup_ctxt_out.buf_id;
         frag_init          <= __frag_init;
-        frag_last          <= lookup_ctxt_out.last;
+        frag_last          <= __frag_last;
         frag_ptr           <= __frag_ptr;
         frag_offset_start  <= __frag_offset_start;
         frag_offset_end    <= __frag_offset_end;
@@ -524,7 +530,7 @@ module sar_reassembly_cache #(
                     update_if__append_key.offset = lookup_ctxt_out.offset_end;
                     update_if__append_value.ptr = __frag_ptr;
                     update_if__append_value.offset = lookup_ctxt_out.offset_start;
-                    
+
                     update_if__prepend.req = (lookup_ctxt_out.offset_start > 0);
                     update_if__prepend.valid = 1'b1; // Insert
                     update_if__prepend_key.offset = lookup_ctxt_out.offset_start;
@@ -556,11 +562,11 @@ module sar_reassembly_cache #(
                     update_if__prepend.valid = 1'b1; // Insert
                     update_if__prepend_key.offset = lookup_ctxt_out.offset_start;
                     update_if__prepend_value.ptr = __frag_ptr;
-                    update_if__prepend_value.offset = __frag_offset_end;
+                    update_if__prepend_value.offset = __frag_last ? 0 : __frag_offset_end;
                     delete_q__prepend__wr = 1'b1;
                 end
                 FRAGMENT_MERGE : begin
-                    update_if__append.req = (__frag_offset_end > 0);
+                    update_if__append.req = (__frag_offset_end > 0) && !__frag_last;
                     update_if__append.valid = 1'b1; // Insert
                     update_if__append_key.offset = __frag_offset_end;
                     update_if__append_value.ptr = __frag_ptr;
@@ -571,7 +577,7 @@ module sar_reassembly_cache #(
                     update_if__prepend.valid = 1'b1; // Insert
                     update_if__prepend_key.offset = __frag_offset_start;
                     update_if__prepend_value.ptr = __frag_ptr;
-                    update_if__prepend_value.offset = __frag_offset_end;
+                    update_if__prepend_value.offset = __frag_last ? 0 : __frag_offset_end;
                     delete_q__prepend__wr = 1'b1;
                 end
                 default : begin

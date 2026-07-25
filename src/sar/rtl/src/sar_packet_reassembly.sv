@@ -136,7 +136,7 @@ module sar_packet_reassembly #(
     );
 
     assign nxt_descriptor.vld  = 1'b1;
-    assign nxt_descriptor.addr = packet_buf_id + packet_offset;
+    assign nxt_descriptor.addr = {packet_buf_id, packet_offset[OFFSET_WID-1 : $clog2(DATA_BYTE_WID)]};
     assign nxt_descriptor.size = MAX_PKT_SIZE;
     assign nxt_descriptor.err  = 1'b0;
     assign nxt_descriptor.meta = '0;
