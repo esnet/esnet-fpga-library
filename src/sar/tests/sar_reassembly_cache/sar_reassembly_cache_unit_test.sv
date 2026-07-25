@@ -218,20 +218,19 @@ module sar_reassembly_cache_unit_test;
         BUF_ID_T _buf;
         OFFSET_T _offset;
         SEGMENT_LEN_T _len;
-        // Randomize inputs
+        int cnt;
         void'(std::randomize(_buf));
         void'(std::randomize(_offset));
         void'(std::randomize(_len));
-        send_seg(
-            .buf_id(_buf),
-            .offset(_offset),
-            .len(_len)
-        );
-        do
-            @(posedge clk);
-        while (!frag_valid);
+        send_seg(.buf_id(_buf), .offset(_offset), .len(_len));
+        do @(posedge clk); while (!frag_valid);
         `FAIL_UNLESS_EQUAL(frag_buf_id, _buf);
         `FAIL_UNLESS_EQUAL(frag_init, 1'b1);
+        // Counter checks
+        agent.get_seg_rx_cnt(cnt);     `FAIL_UNLESS_EQUAL(cnt, 1);
+        agent.get_frag_create_cnt(cnt);`FAIL_UNLESS_EQUAL(cnt, 1);
+        agent.get_frag_append_cnt(cnt);`FAIL_UNLESS_EQUAL(cnt, 0);
+        agent.get_frag_merge_cnt(cnt); `FAIL_UNLESS_EQUAL(cnt, 0);
     `SVTEST_END
 
     `SVTEST(fragment_append)
@@ -239,71 +238,57 @@ module sar_reassembly_cache_unit_test;
         OFFSET_T _offset_start;
         OFFSET_T _offset;
         SEGMENT_LEN_T _len;
-        // Randomize inputs
+        int cnt;
         void'(std::randomize(_buf));
         void'(std::randomize(_offset_start));
         void'(std::randomize(_len));
-        send_seg(
-            .buf_id(_buf),
-            .offset(_offset_start),
-            .len(_len)
-        );
-        do
-            @(posedge clk);
-        while (!frag_valid);
+        send_seg(.buf_id(_buf), .offset(_offset_start), .len(_len));
+        do @(posedge clk); while (!frag_valid);
         `FAIL_UNLESS_EQUAL(frag_buf_id, _buf);
         `FAIL_UNLESS_EQUAL(frag_init, 1'b1);
         `FAIL_UNLESS_EQUAL(frag_offset_start, _offset_start);
         `FAIL_UNLESS_EQUAL(frag_offset_end, _offset_start + _len);
 
         _offset = _offset_start + _len;
-
         void'(std::randomize(_len));
-        send_seg(
-            .buf_id(_buf),
-            .offset(_offset),
-            .len(_len)
-        );
-        do
-            @(posedge clk);
-        while (!frag_valid);
+        send_seg(.buf_id(_buf), .offset(_offset), .len(_len));
+        do @(posedge clk); while (!frag_valid);
         `FAIL_UNLESS_EQUAL(frag_buf_id, _buf);
         `FAIL_UNLESS_EQUAL(frag_init, 1'b0);
         `FAIL_UNLESS_EQUAL(frag_offset_start, _offset_start);
         `FAIL_UNLESS_EQUAL(frag_offset_end, _offset + _len);
+        // Counter checks
+        agent.get_seg_rx_cnt(cnt);      `FAIL_UNLESS_EQUAL(cnt, 2);
+        agent.get_frag_create_cnt(cnt); `FAIL_UNLESS_EQUAL(cnt, 1);
+        agent.get_frag_append_cnt(cnt); `FAIL_UNLESS_EQUAL(cnt, 1);
+        agent.get_frag_prepend_cnt(cnt);`FAIL_UNLESS_EQUAL(cnt, 0);
+        agent.get_frag_merge_cnt(cnt);  `FAIL_UNLESS_EQUAL(cnt, 0);
     `SVTEST_END
 
     `SVTEST(fragment_prepend)
         BUF_ID_T _buf;
         OFFSET_T _offset;
         SEGMENT_LEN_T _len;
-        // Randomize inputs
+        int cnt;
         void'(std::randomize(_buf));
         void'(std::randomize(_offset));
         void'(std::randomize(_len));
-        send_seg(
-            .buf_id(_buf),
-            .offset(_offset),
-            .len(_len)
-        );
-        do
-            @(posedge clk);
-        while (!frag_valid);
+        send_seg(.buf_id(_buf), .offset(_offset), .len(_len));
+        do @(posedge clk); while (!frag_valid);
         `FAIL_UNLESS_EQUAL(frag_buf_id, _buf);
         `FAIL_UNLESS_EQUAL(frag_init, 1'b1);
 
         void'(std::randomize(_len));
         _offset = _offset - _len;
-        send_seg(
-            .buf_id(_buf),
-            .offset(_offset),
-            .len(_len)
-        );
-        do
-            @(posedge clk);
-        while (!frag_valid);
+        send_seg(.buf_id(_buf), .offset(_offset), .len(_len));
+        do @(posedge clk); while (!frag_valid);
         `FAIL_UNLESS_EQUAL(frag_buf_id, _buf);
         `FAIL_UNLESS_EQUAL(frag_init, 1'b0);
+        // Counter checks
+        agent.get_frag_create_cnt(cnt);  `FAIL_UNLESS_EQUAL(cnt, 1);
+        agent.get_frag_prepend_cnt(cnt); `FAIL_UNLESS_EQUAL(cnt, 1);
+        agent.get_frag_append_cnt(cnt);  `FAIL_UNLESS_EQUAL(cnt, 0);
+        agent.get_frag_merge_cnt(cnt);   `FAIL_UNLESS_EQUAL(cnt, 0);
     `SVTEST_END
 
     `SVTEST(fragment_merge)
@@ -312,18 +297,12 @@ module sar_reassembly_cache_unit_test;
         OFFSET_T _offset_middle;
         SEGMENT_LEN_T _len;
         SEGMENT_LEN_T _len_middle;
-        // Randomize inputs
+        int cnt;
         void'(std::randomize(_buf));
         void'(std::randomize(_offset));
         void'(std::randomize(_len));
-        send_seg(
-            .buf_id(_buf),
-            .offset(_offset),
-            .len(_len)
-        );
-        do
-            @(posedge clk);
-        while (!frag_valid);
+        send_seg(.buf_id(_buf), .offset(_offset), .len(_len));
+        do @(posedge clk); while (!frag_valid);
         `FAIL_UNLESS_EQUAL(frag_buf_id, _buf);
         `FAIL_UNLESS_EQUAL(frag_init, 1'b1);
 
@@ -332,27 +311,53 @@ module sar_reassembly_cache_unit_test;
         void'(std::randomize(_len));
 
         _offset = _offset_middle + _len_middle;
-        send_seg(
-            .buf_id(_buf),
-            .offset(_offset),
-            .len(_len)
-        );
-        do
-            @(posedge clk);
-        while (!frag_valid);
+        send_seg(.buf_id(_buf), .offset(_offset), .len(_len));
+        do @(posedge clk); while (!frag_valid);
         `FAIL_UNLESS_EQUAL(frag_buf_id, _buf);
         `FAIL_UNLESS_EQUAL(frag_init, 1'b1);
 
-        send_seg(
-            .buf_id(_buf),
-            .offset(_offset_middle),
-            .len(_len_middle)
-        );
-        do
-            @(posedge clk);
-        while (!frag_valid);
+        send_seg(.buf_id(_buf), .offset(_offset_middle), .len(_len_middle));
+        do @(posedge clk); while (!frag_valid);
         `FAIL_UNLESS_EQUAL(frag_buf_id, _buf);
         `FAIL_UNLESS_EQUAL(frag_init, 1'b0);
+        // Counter checks: 2 creates + 1 merge
+        agent.get_frag_create_cnt(cnt); `FAIL_UNLESS_EQUAL(cnt, 2);
+        agent.get_frag_merge_cnt(cnt);  `FAIL_UNLESS_EQUAL(cnt, 1);
+        agent.get_frag_append_cnt(cnt); `FAIL_UNLESS_EQUAL(cnt, 0);
+    `SVTEST_END
+
+    //===================================
+    // Test: allocator_exhaustion
+    //
+    // Desc: Fill the allocator to capacity
+    //       and send one extra segment;
+    //       verify it is silently dropped
+    //       and counted by dbg_cnt_alloc_drop.
+    //===================================
+    `SVTEST(allocator_exhaustion)
+        int cnt;
+        // Use consecutive offsets on buf_id 0 so each segment creates
+        // a new fragment (no append/prepend matches)
+        for (int i = 0; i < MAX_FRAGMENTS; i++) begin
+            send_seg(.buf_id(0), .offset(OFFSET_T'(i * 10)), .len(1));
+            do @(posedge clk); while (!frag_valid);
+        end
+        // Allocator should now be full
+        agent.allocator.get_active_cnt(cnt);
+        `FAIL_UNLESS_EQUAL(cnt, MAX_FRAGMENTS);
+
+        // One more segment — expect it to be accepted by the lookup pipeline
+        // but silently dropped (no fragment pointer available)
+        send_seg(.buf_id(0), .offset(OFFSET_T'(MAX_FRAGMENTS * 10)), .len(1));
+        repeat (20) @(posedge clk);
+
+        // Allocator count should be unchanged
+        agent.allocator.get_active_cnt(cnt);
+        `FAIL_UNLESS_EQUAL(cnt, MAX_FRAGMENTS);
+
+        // Drop counter should be exactly 1
+        agent.get_alloc_drop_cnt(cnt);
+        `FAIL_UNLESS_EQUAL(cnt, 1);
     `SVTEST_END
 
 
