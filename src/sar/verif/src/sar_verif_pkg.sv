@@ -7,6 +7,7 @@ package sar_verif_pkg;
     import alloc_verif_pkg::*;
     import state_reg_verif_pkg::*;
 
+    `include "sar_segmentation_reg_agent.svh"
     `include "sar_reassembly_htable_reg_agent.svh"
     `include "sar_reassembly_cache_reg_agent.svh"
     `include "sar_reassembly_state_check_reg_agent.svh"
