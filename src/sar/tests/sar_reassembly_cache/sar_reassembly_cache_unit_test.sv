@@ -9,6 +9,7 @@ module sar_reassembly_cache_unit_test;
     import svunit_pkg::svunit_testcase;
     import sar_pkg::*;
     import sar_verif_pkg::*;
+    import db_pkg::*;
 
     string name = "sar_reassembly_cache_ut";
     svunit_testcase svunit_ut;
@@ -361,6 +362,50 @@ module sar_reassembly_cache_unit_test;
     `SVTEST_END
 
 
+    //===================================
+    // Test:
+    //   cache_cleanup_after_expiry
+    //
+    // Desc: Create a fragment, then issue
+    //       ctrl_if deletes for both its
+    //       append and prepend hash table
+    //       entries (simulating what the
+    //       expiry path does). Verify that
+    //       a subsequent segment at the same
+    //       offset creates a new fragment
+    //       (frag_init=1) rather than appending
+    //       to a stale entry.
+    //===================================
+    `SVTEST(cache_cleanup_after_expiry)
+        BUF_ID_T _buf;
+        OFFSET_T _offset;
+        SEGMENT_LEN_T _len;
+        int cnt;
+        void'(std::randomize(_buf));
+        _offset = 100;  // non-zero so both append and prepend table entries are created
+        _len = 500;
+
+        // Create a fragment: append key = {buf, offset+len}, prepend key = {buf, offset}
+        send_seg(.buf_id(_buf), .offset(_offset), .len(_len));
+        do @(posedge clk); while (!frag_valid);
+        `FAIL_UNLESS_EQUAL(frag_init, 1'b1);
+
+        // Simulate expiry cleanup: delete both hash table entries
+        cache_delete_append (_buf, OFFSET_T'(_offset + _len));
+        cache_delete_prepend(_buf, _offset);
+
+        // Re-send at the same offset; a stale append entry would cause FRAGMENT_APPEND
+        // (the new segment's offset matches the old fragment's end), not FRAGMENT_CREATE
+        repeat (5) @(posedge clk);
+        send_seg(.buf_id(_buf), .offset(OFFSET_T'(_offset + _len)), .len(_len));
+        do @(posedge clk); while (!frag_valid);
+        `FAIL_UNLESS_EQUAL(frag_init, 1'b1);
+
+        // Two creates total, no appends
+        agent.get_frag_create_cnt(cnt); `FAIL_UNLESS_EQUAL(cnt, 2);
+        agent.get_frag_append_cnt(cnt); `FAIL_UNLESS_EQUAL(cnt, 0);
+    `SVTEST_END
+
     `SVUNIT_TESTS_END
 
     //===================================
@@ -371,6 +416,26 @@ module sar_reassembly_cache_unit_test;
         frag_ptr_dealloc_req <= 1'b0;
         ctrl_if__append.req = 1'b0;
         ctrl_if__prepend.req = 1'b0;
+    endtask
+
+    // Issue COMMAND_UNSET on the append ctrl interface for {buf_id, offset}
+    task cache_delete_append(input BUF_ID_T buf_id, input OFFSET_T offset);
+        KEY_T key;
+        bit _error;
+        key.buf_id = buf_id;
+        key.offset = offset;
+        ctrl_if__append._set_key(key);
+        ctrl_if__append.transact(COMMAND_UNSET, _error);
+    endtask
+
+    // Issue COMMAND_UNSET on the prepend ctrl interface for {buf_id, offset}
+    task cache_delete_prepend(input BUF_ID_T buf_id, input OFFSET_T offset);
+        KEY_T key;
+        bit _error;
+        key.buf_id = buf_id;
+        key.offset = offset;
+        ctrl_if__prepend._set_key(key);
+        ctrl_if__prepend.transact(COMMAND_UNSET, _error);
     endtask
 
     task send_seg(
