@@ -36,6 +36,12 @@ COMPILE_OPTS =
 ELAB_OPTS =
 SIM_OPTS =
 
+# Additional dependencies for axi4l_from_axi4_adapter test
+SUBCOMPONENTS += \
+    axi4.pkg \
+    axi4.rtl \
+    axi4.verif
+
 # -----------------------------------------------
 # Use common testcase Makefile
 # -----------------------------------------------

@@ -59,7 +59,7 @@ SIM_CMD_LOG = sim.sh
 # -----------------------------------------------
 # Simulator command
 # -----------------------------------------------
-VERILATE_BASE_CMD = verilator -Mdir $(RUN_DIR) --binary --timing $(if $(filter ON,$(waves)),--trace) --timescale-override $(TIMESCALE) --top $(TOP) -j 0
+VERILATE_BASE_CMD = verilator -Mdir $(RUN_DIR) --binary --timing $(if $(filter ON,$(waves)),--trace-fst) --timescale-override $(TIMESCALE) --top $(TOP) -j 0
 EXECUTE_BASE_CMD = $(PLUSARG_REFS) +verilator+seed+$(SEED)
 
 # -----------------------------------------------
@@ -70,7 +70,7 @@ _verilate: .pre
 
 _sim: _verilate
 	@cd $(RUN_DIR) && \
-	$(SIM_BASE_CMD) ./V$(TOP)
+	./V$(TOP) $(EXECUTE_BASE_CMD)
 
 _clean_sim:
 	@echo -n "Removing run directories... "

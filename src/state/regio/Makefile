@@ -19,6 +19,8 @@ REG_DECODER_YAML = \
     state_decoder.yaml \
     state_cache_decoder.yaml
 
+REG_TOP_YAML =
+
 # ----------------------------------------------------
 # Options
 # ----------------------------------------------------

@@ -11,6 +11,7 @@
 # -----------------------------------------------
 SOURCES_TCL_USER += $(wildcard sources.tcl)
 CONSTRAINTS_XDC_USER += $(wildcard timing_ooc.xdc place_ooc.xdc)
+IP_REPO_PATHS ?=
 
 # Uniquify, convert to absolute paths
 __SOURCES_TCL_USER := $(sort $(abspath $(SOURCES_TCL_USER)))
@@ -44,7 +45,8 @@ BUILD_OPTIONS = \
     -constraints_tcl_auto $(CONSTRAINTS_TCL_AUTO) \
     $(foreach sources_tcl,$(__SOURCES_TCL_USER),-sources_tcl $(sources_tcl)) \
     $(foreach constraints_xdc,$(__CONSTRAINTS_XDC_USER),-constraints_xdc $(constraints_xdc)) \
-    $(foreach define,$(DEFINES),-define $(define))
+    $(foreach define,$(DEFINES),-define $(define)) \
+    $(foreach iprepo,$(IP_REPO_PATHS),-ip_repo $(iprepo))
 
 # -----------------------------------------------
 # Output files
@@ -67,7 +69,7 @@ _build_core_synth_lib: | $(COMPONENT_OUT_SYNTH_PATH)
 	@echo "----------------------------------------------------------"
 	@echo "Compiling synthesis library '$(COMPONENT_NAME)' ..."
 	@echo
-	@-rm -rf $(COMPONENT_OUT_SYNTH_PATH)/*.f
+	@$(call __rm_rf,$(COMPONENT_OUT_SYNTH_PATH)/*.f)
 	@echo $(abspath $(SYNTH_DCP_FILE)) > $(COMPONENT_OUT_SYNTH_PATH)/dcp_srcs.f
 	@echo "Done."
 

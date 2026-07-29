@@ -19,6 +19,8 @@ REG_DECODER_YAML = \
     packet_playback_decoder.yaml \
     packet_capture_decoder.yaml
 
+REG_TOP_YAML =
+
 # ----------------------------------------------------
 # Options
 # ----------------------------------------------------

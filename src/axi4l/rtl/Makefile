@@ -29,7 +29,9 @@ SUBCOMPONENTS = \
     reg.proxy.rtl \
     mem.rtl \
     util.rtl \
-    apb.rtl
+    apb.rtl \
+    axi4.pkg \
+    axi4.rtl
 
 EXT_LIBS =
 

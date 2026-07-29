@@ -1,8 +1,15 @@
 # -----------------------------------------------
 # Configure project path defaults
 #
-# - assumes PROJ_ROOT is defined by calling Makefile
+# PROJ_ROOT should be set by the calling Makefile to the root of the
+# project source tree.  It is used to derive SRC_ROOT and to locate
+# the optional parent config file (.$(proj).mk).
+#
+# Path safety for clean targets is enforced at the point of use by the
+# __rm_rf / __lib_rm_rf helpers in component_config_base.mk and
+# lib_config_base.mk respectively.
 # -----------------------------------------------
+
 SRC_ROOT ?= $(abspath $(PROJ_ROOT)/src)
 
 # -----------------------------------------------
@@ -33,6 +40,7 @@ endif
 # Set config
 CFG_ROOT    ?= $(CFG_ROOT__LOCAL)
 OUTPUT_ROOT ?= $(OUTPUT_ROOT__LOCAL)
+
 
 _proj_print_paths = @echo "--------------------------------------------"; \
                echo  "Project paths"; \

@@ -15,6 +15,7 @@ REG_BLOCK_YAML = \
     timer_expiry.yaml
 
 REG_DECODER_YAML =
+REG_TOP_YAML =
 
 # ----------------------------------------------------
 # Options

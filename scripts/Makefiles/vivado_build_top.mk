@@ -11,10 +11,14 @@
 # -----------------------------------------------
 SOURCES_TCL_USER += $(wildcard sources.tcl)
 CONSTRAINTS_XDC_USER += $(wildcard timing.xdc pins.xdc general.xdc)
+CONSTRAINTS_XDC_IMPL ?=
+IMPL_HOOK_TCL_FILES ?=
+IP_REPO_PATHS ?=
 
 # Uniquify, convert to absolute paths
 __SOURCES_TCL_USER := $(sort $(abspath $(SOURCES_TCL_USER)))
 __CONSTRAINTS_XDC_USER := $(sort $(abspath $(CONSTRAINTS_XDC_USER)))
+
 
 # -----------------------------------------------
 # Command
@@ -27,7 +31,7 @@ VIVADO_BUILD_CMD_GUI = $(VIVADO_BUILD_CMD_BASE) -mode gui
 # -----------------------------------------------
 # Configure build flow
 # -----------------------------------------------
-BUILD_STAGES = synth opt place place_opt route route_opt bitstream flash
+BUILD_STAGES ?= synth opt place place_opt route route_opt bitstream flash
 
 # -----------------------------------------------
 # Configure build options
@@ -47,6 +51,9 @@ BUILD_OPTIONS = \
     -constraints_tcl_auto $(CONSTRAINTS_TCL_AUTO) \
     $(foreach sources_tcl,$(__SOURCES_TCL_USER),-sources_tcl $(sources_tcl)) \
     $(foreach constraints_xdc,$(__CONSTRAINTS_XDC_USER),-constraints_xdc $(constraints_xdc)) \
+    $(foreach xdc_impl,$(CONSTRAINTS_XDC_IMPL),-constraints_xdc_impl $(xdc_impl)) \
+    $(foreach hook_tcl,$(IMPL_HOOK_TCL_FILES),-hook_tcl $(hook_tcl)) \
+    $(foreach iprepo,$(IP_REPO_PATHS),-ip_repo $(iprepo)) \
     $(foreach define,$(DEFINES),-define $(define)) \
     -timestamp $(BUILD_TIMESTAMP) \
     -userid $(BITSTREAM_USERID) \

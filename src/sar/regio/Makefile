@@ -24,6 +24,8 @@ REG_DECODER_YAML = \
     sar_packet_reassembly_decoder.yaml \
     sar_packet_segmentation_decoder.yaml
 
+REG_TOP_YAML =
+
 # ----------------------------------------------------
 # Options
 # ----------------------------------------------------

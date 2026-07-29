@@ -180,7 +180,7 @@ $(IP_XCI_PROXY_DIR)/.vitisnetp4_refreshed: $(VITISNETP4_TCL_FILE) $(IP_XCI_PROXY
 	@echo "----------------------------------------------------------"
 	@echo "Create/update IP ($(COMPONENT_NAME)) ..."
 	@if [ -d $(IP_XCI_PROXY_DIR)/$(VITISNETP4_IP_NAME) ]; then \
-		rm -rf $(IP_XCI_PROXY_DIR)/$(VITISNETP4_IP_NAME).old && \
+		$(call __rm_rf,$(IP_XCI_PROXY_DIR)/$(VITISNETP4_IP_NAME).old) && \
 			mv $(IP_XCI_PROXY_DIR)/$(VITISNETP4_IP_NAME) $(IP_XCI_PROXY_DIR)/$(VITISNETP4_IP_NAME).old; \
 	fi;
 	@cd $(IP_XCI_PROXY_DIR) && $(VIVADO_MANAGE_IP_CMD) -tclargs create_ip $(BUILD_OPTIONS) -ip_tcl $(VITISNETP4_TCL_FILE)
@@ -196,14 +196,14 @@ $(IP_XCI_PROXY_DIR)/.vitisnetp4_refreshed: $(VITISNETP4_TCL_FILE) $(IP_XCI_PROXY
 			resultString="$$resultString No change.\n";;\
 		1) \
 			cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_IP_CMD) -tclargs remove_ip $(BUILD_OPTIONS) -ip_xci $(VITISNETP4_XCI_FILE); \
-			rm -rf $(COMPONENT_OUT_PATH)/$(VITISNETP4_IP_NAME); \
+			$(call __rm_rf,$(COMPONENT_OUT_PATH)/$(VITISNETP4_IP_NAME)); \
 			mkdir -p $(COMPONENT_OUT_PATH)/$(VITISNETP4_IP_NAME); \
 			cp $(VITISNETP4_XCI_PROXY_FILE) $(VITISNETP4_XCI_FILE); \
 			resultString="$$resultString XCI and/or P4 updated.\n";; \
 		2) \
 			if [ -f $(VITISNETP4_XCI_FILE) ]; then \
 				cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_IP_CMD) -tclargs remove_ip $(BUILD_OPTIONS) -ip_xci $(VITISNETP4_XCI_FILE); \
-				rm -rf $(COMPONENT_OUT_PATH)/$(VITISNETP4_IP_NAME); \
+				$(call __rm_rf,$(COMPONENT_OUT_PATH)/$(VITISNETP4_IP_NAME)); \
 			fi; \
 			mkdir -p $(COMPONENT_OUT_PATH)/$(VITISNETP4_IP_NAME); \
 			cp $(VITISNETP4_XCI_PROXY_FILE) $(VITISNETP4_XCI_FILE); \
@@ -215,22 +215,24 @@ $(IP_XCI_PROXY_DIR)/.vitisnetp4_refreshed: $(VITISNETP4_TCL_FILE) $(IP_XCI_PROXY
 
 _vitisnetp4_dpi_drv: $(VITISNETP4_DPI_DRV_FILE)
 
-_vitisnetp4_pre: _ip_pre | $(COMPONENT_OUT_SRCS_PATH)
-	@rm -rf $(COMPONENT_OUT_SRCS_PATH)/sv_pkg_srcs.f
-	@echo $(abspath $(VITISNETP4_PKG_FILE)) > $(COMPONENT_OUT_SRCS_PATH)/sv_pkg_srcs.f
+$(COMPONENT_OUT_SRCS_PATH)/sv_pkg_srcs.f: Makefile | $(COMPONENT_OUT_SRCS_PATH)
+	@echo $(abspath $(VITISNETP4_PKG_FILE)) > $@
+
+_vitisnetp4_pre: _ip_pre $(COMPONENT_OUT_SRCS_PATH)/sv_pkg_srcs.f
 
 _vitisnetp4_compile: _vitisnetp4_dpi_drv _ip_compile
 
-_vitisnetp4_synth: _ip_synth | $(COMPONENT_OUT_SYNTH_PATH)
-	@rm -rf $(COMPONENT_OUT_SYNTH_PATH)/sv_pkg_srcs.f
-	@echo $(abspath $(VITISNETP4_PKG_FILE)) > $(COMPONENT_OUT_SYNTH_PATH)/sv_pkg_srcs.f
+$(COMPONENT_OUT_SYNTH_PATH)/sv_pkg_srcs.f: $(SYNTH_SOURCES_OBJ) Makefile
+	@echo $(abspath $(VITISNETP4_PKG_FILE)) > $@
+
+_vitisnetp4_synth: _ip_synth $(COMPONENT_OUT_SYNTH_PATH)/sv_pkg_srcs.f
 
 _vitisnetp4_clean: _ip_clean
 	@rm -f $(VITISNETP4_TCL_FILE)
 
 .PHONY: _vitisnetp4_ip _vitisnetp4_pre _vitisnetp4_compile _vitisnetp4_synth _vitisnetp4_clean
 
-$(VITISNETP4_TCL_FILE): $(P4_FILE)
+$(VITISNETP4_TCL_FILE): $(P4_FILE) Makefile
 	@mkdir -p $(IP_SRC_DIR)
 	@echo "create_ip -force -name vitis_net_p4 -vendor xilinx.com -library ip -module_name $(VITISNETP4_IP_NAME) -dir . -force" > $@
 	@echo "set_property -dict [concat [list CONFIG.P4_FILE $(P4_FILE)] [list $(P4_OPTS)]] [get_ips $(VITISNETP4_IP_NAME)]" >> $@

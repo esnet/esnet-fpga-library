@@ -14,6 +14,7 @@ REG_BLOCK_YAML = \
     mem_proxy.yaml
 
 REG_DECODER_YAML =
+REG_TOP_YAML =
 
 # ----------------------------------------------------
 # Options

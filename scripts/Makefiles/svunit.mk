@@ -33,7 +33,14 @@ SVUNIT_BUILD_CMD := buildSVUnit -o $(SVUNIT_DIR)
 
 SVUNIT_VIVADO_WORKAROUND_CMD := $(abspath $(SCRIPTS_ROOT))/svunit/svunit_vivado.sh $(SVUNIT_DIR)
 
+# SIM selects the backend (xsim or verilator); the Vivado workaround is only
+# needed for xsim — verilator doesn't require patching the generated file list.
+SIM ?= xsim
+ifeq ($(SIM),xsim)
 SVUNIT_CMD := $(SVUNIT_ENV_SETUP); $(SVUNIT_BUILD_CMD); $(SVUNIT_VIVADO_WORKAROUND_CMD)
+else
+SVUNIT_CMD := $(SVUNIT_ENV_SETUP); $(SVUNIT_BUILD_CMD)
+endif
 
 
 # ----------------------------------------------------
@@ -57,7 +64,7 @@ else
 endif
 
 _clean_test:
-	@rm -rf $(SVUNIT_DIR)
+	@$(call __rm_rf,$(SVUNIT_DIR))
 
 $(SVUNIT_DIR):
 	@mkdir -p $(SVUNIT_DIR)

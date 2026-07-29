@@ -12,6 +12,7 @@ include $(COMPONENT_ROOT)/config.mk
 # -----------------------------------------------
 REG_BLOCK_YAML =
 REG_DECODER_YAML =
+REG_TOP_YAML =
 
 # ----------------------------------------------------
 # Options

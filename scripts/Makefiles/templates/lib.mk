@@ -23,7 +23,7 @@ driver:  _driver
 build:   _build
 clean:   _clean
 
-.PHONY: reg ip info pre compile synth clean
+.PHONY: help reg ip info pre compile synth opt driver build clean clean_all refresh
 
 # Remove all output products for all library components
 clean_all: _clean_all

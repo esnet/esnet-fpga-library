@@ -92,7 +92,7 @@ _reg_rtl: $(REG_BLOCK_OBJS) $(REG_DECODER_OBJS)
 _reg_verif: $(REG_VERIF_PACKAGE_OBJ)
 
 _reg_clean: _reg_compile_clean
-	@-rm -rf $(COMPONENT_OUT_PATH)
+	@$(call __rm_rf,$(COMPONENT_OUT_PATH))
 	@-rm -f $(REGIO_COMPONENT_ROOT)/config.mk
 	@[ ! -d $(LIB_OUTPUT_ROOT) ] || find $(LIB_OUTPUT_ROOT) -type d -empty -delete 2>/dev/null
 
@@ -171,13 +171,18 @@ _reg_pre: reg
 
 _reg_compile: $(REGIO_RTL_SIM_OBJ) $(REGIO_VERIF_SIM_OBJ)
 
-_reg_synth: reg
+$(REGIO_RTL_OUTPUT_DIR)/synth/sources.tcl: \
+		$(REG_BLOCK_OBJS) $(REG_DECODER_OBJS) Makefile | $(REGIO_RTL_OUTPUT_DIR)
 	@$(MAKE) -s -C $(REGIO_RTL_OUTPUT_DIR) synth
 
-$(REGIO_RTL_SIM_OBJ): reg | $(REGIO_RTL_OUTPUT_DIR)
+_reg_synth: $(REGIO_RTL_OUTPUT_DIR)/synth/sources.tcl
+
+$(REGIO_RTL_SIM_OBJ): \
+		$(REG_BLOCK_OBJS) $(REG_DECODER_OBJS) Makefile | $(REGIO_RTL_OUTPUT_DIR)
 	@$(MAKE) -s -C $(REGIO_RTL_OUTPUT_DIR) compile
 
-$(REGIO_VERIF_SIM_OBJ): reg | $(REGIO_VERIF_OUTPUT_DIR)
+$(REGIO_VERIF_SIM_OBJ): \
+		$(REG_VERIF_PACKAGE_OBJ) Makefile | $(REGIO_VERIF_OUTPUT_DIR)
 	@$(MAKE) -s -C $(REGIO_VERIF_OUTPUT_DIR) compile
 
 _reg_compile_clean:

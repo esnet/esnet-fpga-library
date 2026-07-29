@@ -143,6 +143,8 @@ namespace eval vivadoProcs {
         if {$phase == "bitstream"} {
             write_bitstream -force $out_dir/$top.bit
             write_debug_probes -force $out_dir/$top.ltx
+        } elseif {$phase == "device_image"} {
+            write_device_image -force $out_dir/$top.pdi
         } elseif {$phase == "mcs"} {
             write_cfgmem -force -format mcs -size 128 -interface SPIx4 -loadbit "up 0x1002000 $out_dir/$top.bit" -file "$out_dir/$top.mcs"
         } else {
@@ -242,7 +244,7 @@ namespace eval vivadoProcs {
     # Configure implementation run
     proc config_impl_run {{run_name "impl_1"} {ooc 0}} {
         set_property strategy {Vivado Implementation Defaults} [get_runs $run_name]
-        set_property report_strategy {UltraFast Design Methodology Reports} [get_runs $run_name]
+        catch {set_property report_strategy {UltraFast Design Methodology Reports} [get_runs $run_name]}
         set_property STEPS.POST_ROUTE_PHYS_OPT_DESIGN.IS_ENABLED true [get_runs $run_name]
         # Report CDC
         create_report_config -report_name ${run_name}_init_report_cdc_0 -step init_design -report_type report_cdc -run $run_name
