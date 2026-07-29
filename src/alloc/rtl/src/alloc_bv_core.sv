@@ -25,7 +25,7 @@
 
 module alloc_bv_core #(
     parameter int  PTR_WID = 1,
-    parameter int  ALLOC_Q_DEPTH = 64,   // Scan process finds unallocated pointers and fills queue;
+    parameter int  ALLOC_Q_DEPTH = 32,   // Scan process finds unallocated pointers and fills queue;
                                          // scan is a 'background' task and is 'slow', and therefore
                                          // allocation requests can be received faster than they can
                                          // be serviced. The size of the allocation queue determines
@@ -82,6 +82,8 @@ module alloc_bv_core #(
     localparam int ROW_WID = NUM_ROWS > 1 ? $clog2(NUM_ROWS) : 1;
     localparam int CNT_WID  = PTR_WID + 1;
 
+    localparam int __ALLOC_Q_DEPTH = ALLOC_Q_DEPTH < 2**PTR_WID ? ALLOC_Q_DEPTH : 2**PTR_WID;
+
     // -----------------------------
     // Parameter checks
     // -----------------------------
@@ -92,7 +94,6 @@ module alloc_bv_core #(
         std_pkg::param_check_gt(NUM_COLS, 2, "NUM_COLS");
         std_pkg::param_check_gt(NUM_ROWS, 2, "NUM_ROWS");
         std_pkg::param_check_gt(PTR_WID, 1, "PTR_WID");
-        std_pkg::param_check_lt(ALLOC_Q_DEPTH, 2**PTR_WID, "ALLOC_Q_DEPTH");
     end
 
     // -----------------------------
@@ -216,7 +217,7 @@ module alloc_bv_core #(
     // -----------------------------
     fifo_sync    #(
         .DATA_WID ( PTR_WID ),
-        .DEPTH    ( ALLOC_Q_DEPTH-1 ),
+        .DEPTH    ( __ALLOC_Q_DEPTH-1 ),
         .FWFT     ( 1 )
     ) i_alloc_q   (
         .clk,
