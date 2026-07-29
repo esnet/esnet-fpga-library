@@ -1,7 +1,7 @@
 #!/bin/sh
 # ******************************************************************************
 #
-# File: svunit_vivado.sh
+# File: svunit_postprocess.sh
 #
 # Description:
 #
