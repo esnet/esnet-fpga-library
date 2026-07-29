@@ -112,7 +112,7 @@ module alloc_axil_sg_core_unit_test #(
     // Assign reset interface
     assign srst = reset_if.reset;
     assign reset_if.ready = init_done;
-    assign en = init_done;
+    assign en = 1'b1;
 
     initial axil_if.aresetn = 1'b0;
     always @(posedge axil_if.aclk or posedge srst) axil_if.aresetn <= !srst;

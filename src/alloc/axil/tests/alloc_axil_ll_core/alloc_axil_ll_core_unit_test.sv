@@ -93,7 +93,7 @@ module alloc_axil_ll_core_unit_test #(
     // Assign reset interface
     assign srst = reset_if.reset;
     assign reset_if.ready = init_done;
-    assign en = init_done;
+    assign en = 1'b1;
 
     //===================================
     // Build
