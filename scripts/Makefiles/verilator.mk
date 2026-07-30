@@ -59,8 +59,8 @@ SIM_CMD_LOG = sim.sh
 # -----------------------------------------------
 # Simulator command
 # -----------------------------------------------
-VERILATE_BASE_CMD = verilator -Mdir $(RUN_DIR) --binary --timing $(if $(filter ON,$(waves)),--trace-fst) --timescale-override $(TIMESCALE) --top $(TOP) -j 0
-EXECUTE_BASE_CMD = $(PLUSARG_REFS) +verilator+seed+$(SEED)
+VERILATE_BASE_CMD = verilator -Mdir $(RUN_DIR) --binary --timing $(if $(filter ON,$(waves)),--trace-fst) --timescale-override $(TIMESCALE) --top $(TOP) -j 0 --Wno-fatal
+EXECUTE_BASE_CMD = $(PLUSARG_REFS) +verilator+seed+$(if $(filter 0,$(SEED)),1,$(SEED))
 
 # -----------------------------------------------
 # Targets
