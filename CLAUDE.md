@@ -218,6 +218,88 @@ are compiled into the BD component library via `xil_defaultlib` entries in
 
 ---
 
+## Verilator Simulation (`SIM=verilator`)
+
+Partial Verilator support is present.  Run any test with
+`make SIM=verilator` to use the Verilator backend instead of xsim.
+
+### What works
+
+- `arb` regression passes cleanly under Verilator.
+- `sim.mk` dispatches to `verilator.mk` when `SIM=verilator`; xsim is the
+  default and is unaffected.
+- `svunit_postprocess.sh` runs unconditionally (not xsim-only) and patches
+  the SVUnit-generated file list for simulator-agnostic compatibility.
+
+### Known Verilator limitations / required RTL patterns
+
+The following constructs are accepted by xsim/VCS but rejected or mishandled
+by Verilator.  RTL or testbench code that uses them will need to be rewritten
+before those components can run under Verilator.
+
+#### 1. Parameterized class type access (`pkg::class#(...)::type`)
+
+Verilator cannot resolve a type accessed through a parameterized class
+specialisation in a single expression:
+
+```sv
+// NOT supported by Verilator:
+localparam type DESC_T = alloc_pkg::alloc#(SIZE, PTR_WID, META_WID)::desc_t;
+```
+
+**Workaround:** split into two `typedef` steps so Verilator resolves the
+class alias first, then the nested type:
+
+```sv
+typedef alloc_pkg::alloc#(SIZE, PTR_WID, META_WID) ALLOC_T;
+typedef ALLOC_T::desc_t DESC_T;
+```
+
+This resolves the parse error but Verilator may still fail to evaluate
+`$bits(DESC_T)` or use `DESC_T` in `localparam` initialisers (see #2).
+
+#### 2. `$bits()` / struct aggregate `localparam` on class-derived types
+
+Verilator triggers an internal elaboration error (`V3Simulate.h: No value
+found for node`) when a `localparam` is initialised with a struct aggregate
+literal (`'{field: val, ...}`) whose fields depend on a type derived from a
+parameterised class, or when `$bits()` is called on such a type.
+
+This affects `mem_pkg::spec_t MEM_SPEC = '{ADDR_WID: ..., DATA_WID: DESC_WID,
+...}` wherever `DESC_WID` traces back to a parameterised class type.
+
+**Required fix:** compute the width explicitly from the struct field widths
+rather than via `$bits(DESC_T)`, and avoid using those values in struct
+aggregate `localparam` initialisers.  In some cases passing width parameters
+directly to modules rather than computing them locally may be needed.
+
+#### 3. Ports with default values not auto-connected by `.*`
+
+Verilator requires a signal declaration in the testbench for every port
+matched by `.*`, even if the RTL port has a default value.  xsim silently
+leaves such ports undriven at their default.
+
+**Fix:** declare the signal explicitly in the testbench and initialise it to
+the desired value (usually the port's default):
+
+```sv
+logic [PTR_WID:0] BUFFERS = 0;  // matches alloc_sg_core port default
+```
+
+#### 4. Testbench NBA vs blocking assignment scheduling
+
+Verilator's scheduler is stricter than xsim's about when blocking assignments
+in testbenches take effect relative to RTL NBA flushes.  A blocking `req = 0`
+immediately after `@(posedge clk)` can cause comb logic to re-evaluate
+(clearing `sel`) before `sel_r <= sel` commits, leading to wrong values being
+captured.
+
+**Fix:** use non-blocking assignments (`<=`) for testbench stimulus signals,
+or use a clocking block with `output #1` skew, so that stimulus changes land
+after the NBA flush.
+
+---
+
 ## regio (Register Map Generator)
 
 `*.regio.rtl` and `*.regio.verif` components are auto-generated.  The build
