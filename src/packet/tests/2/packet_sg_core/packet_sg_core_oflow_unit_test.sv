@@ -1,13 +1,13 @@
 `include "svunit_defines.svh"
 
-module packet_q_core_unit_test #(
+module packet_sg_core_oflow_unit_test #(
     parameter int NUM_INPUT_IFS = 1,
     parameter int NUM_OUTPUT_IFS = 1
 );
     import svunit_pkg::svunit_testcase;
     import packet_verif_pkg::*;
 
-    string name = $sformatf("packet_q_core_%0din_%0dout_ut", NUM_INPUT_IFS, NUM_OUTPUT_IFS);
+    string name = $sformatf("packet_sg_core_oflow_%0din_%0dout_ut", NUM_INPUT_IFS, NUM_OUTPUT_IFS);
     svunit_testcase svunit_ut;
 
     //===================================
@@ -29,7 +29,7 @@ module packet_q_core_unit_test #(
 
     localparam int  BUFFER_SIZE = 2048;
     localparam int  BUFFER_WORDS = BUFFER_SIZE / MEM_DATA_BYTE_WID;
-    localparam int  NUM_BUFFERS = 1024;
+    localparam int  NUM_BUFFERS = 16;
     localparam int  PTR_WID = $clog2(NUM_BUFFERS);
     localparam int  MEM_DEPTH = NUM_BUFFERS * BUFFER_WORDS;
     localparam int  ADDR_WID = $clog2(MEM_DEPTH);
@@ -76,9 +76,11 @@ module packet_q_core_unit_test #(
 
     logic mem_init_done;
 
-    packet_q_core      #(
+    packet_sg_core     #(
         .NUM_INPUT_IFS  ( NUM_INPUT_IFS ),
         .NUM_OUTPUT_IFS ( NUM_OUTPUT_IFS ),
+        .IGNORE_RDY_IN  ( 1 ),
+        .MIN_PKT_SIZE   ( 60 ),
         .MAX_PKT_SIZE   ( MAX_PKT_SIZE ),
         .NUM_BUFFERS    ( NUM_BUFFERS ),
         .BUFFER_SIZE    ( BUFFER_SIZE ),
@@ -94,7 +96,7 @@ module packet_q_core_unit_test #(
     // Memory
     //===================================
     localparam int NUM_MEM_CHANNELS = NUM_MEM_DATA_IFS + 1;
-    localparam int AXI_ADDR_WID = $clog2(PACKET_Q_CAPACITY + NUM_BUFFERS);
+    localparam int AXI_ADDR_WID = $clog2(NUM_INPUT_IFS*PACKET_Q_CAPACITY + NUM_BUFFERS*MEM_DATA_BYTE_WID);
     axi3_intf #(.DATA_BYTE_WID(MEM_DATA_BYTE_WID), .ADDR_WID(AXI_ADDR_WID)) axi3_if [NUM_MEM_CHANNELS] (.aclk(clk));
     axi3_mem_bfm #(
         .CHANNELS ( NUM_MEM_CHANNELS),
@@ -133,11 +135,15 @@ module packet_q_core_unit_test #(
 
     // Convert memory interfaces to AXI-3
     for (genvar g_if = 0; g_if < NUM_MEM_DATA_IFS; g_if++) begin : g_mem_if
+        // (Local) parameters
+        localparam longint BASE_ADDR = g_if*NUM_BUFFERS*BUFFER_SIZE/NUM_MEM_DATA_IFS;
+
         axi3_from_mem_adapter #(
             .SIZE(axi3_pkg::SIZE_32BYTES),
             .BURST_SUPPORT ( 1 ),
+            .BASE_ADDR (BASE_ADDR ),
             .WR_ID ( 2*g_if ),
-            .RD_ID ( 2*g_if + 1)
+            .RD_ID ( 2*g_if + 1 )
         ) i_axi3_from_mem_adapter (
             .clk,
             .srst,
@@ -163,11 +169,14 @@ module packet_q_core_unit_test #(
         .axi3_if   ( axi3_if[NUM_MEM_DATA_IFS] )
     );
 
+    logic desc_en;
+
     generate
         for (genvar g_if = 0; g_if < NUM_INPUT_IFS; g_if++) begin : g__if
             packet_descriptor_fifo #(.DEPTH(512)) i_packet_descriptor_fifo (
                 .from_tx      ( desc_in_if[g_if] ),
                 .from_tx_srst ( srst ),
+                .en           ( desc_en ),
                 .to_rx        ( desc_out_if[g_if] ),
                 .to_rx_srst   ( srst )
             );
@@ -192,7 +201,7 @@ module packet_q_core_unit_test #(
     std_reset_intf reset_if (.clk(clk));
     assign srst = reset_if.reset;
     assign axil_if.aresetn = !reset_if.reset;
-    assign reset_if.ready = !srst;
+    assign reset_if.ready = init_done;
 
     // Assign clock (333MHz)
     `SVUNIT_CLK_GEN(clk, 1.5ns);
@@ -200,7 +209,8 @@ module packet_q_core_unit_test #(
     // Assign AXI-L clock (125MHz)
     `SVUNIT_CLK_GEN(axil_if.aclk, 4ns);
 
-    axi4l_intf_controller_term i_axi4l_intf_controller_term (.axi4l_if (axil_if ));
+    axi4l_verif_pkg::axi4l_reg_agent axil_reg_agent;
+    packet_sg_reg_agent reg_agent;
 
     //===================================
     // Build
@@ -223,6 +233,10 @@ module packet_q_core_unit_test #(
         env = new("env", driver, monitor, model, scoreboard);
         env.reset_vif = reset_if;
         env.build();
+
+        axil_reg_agent = new();
+        axil_reg_agent.axil_vif = axil_if;
+        reg_agent = new("reg_agent", axil_reg_agent, 0, NUM_INPUT_IFS, NUM_OUTPUT_IFS);
     endfunction
 
     //===================================
@@ -231,11 +245,13 @@ module packet_q_core_unit_test #(
     task setup();
         svunit_ut.setup();
 
+        desc_en = 1'b1;
         monitor.set_stall_rate(0.0);
         driver.set_stall_rate(0.0);
 
-        // Start environment
+        // Start environment; env.run() blocks until init_done via reset_if.ready
         env.run();
+        reg_agent.idle();
     endtask
 
 
@@ -265,6 +281,8 @@ module packet_q_core_unit_test #(
     //   `SVTEST_END
     //===================================
 
+    localparam bit DEBUG = 0;
+
     META_T meta;
     string msg;
     int len;
@@ -277,10 +295,25 @@ module packet_q_core_unit_test #(
         env.inbox.put(packet);
     endtask
 
-    task packet_stream();
-       for (int i = 0; i < 100; i++) begin
-           one_packet(i);
-       end
+    // Send one errored packet directly to the driver only (not the model),
+    // so the scoreboard has no expectation for it.
+    task one_errored_packet(int id=0, int len=$urandom_range(64, 511));
+        packet_raw#(META_T) packet;
+        void'(std::randomize(meta));
+        packet = new($sformatf("pkt_err_%0d", id), len, meta);
+        packet.randomize();
+        packet.mark_as_errored();
+        env.driver.inbox.put(packet);
+    endtask
+
+    // Send a packet that is expected to overflow (driver only — no model
+    // expectation, since it will be dropped by the scatter).
+    task one_overflow_packet(int id=0);
+        packet_raw#(META_T) packet;
+        void'(std::randomize(meta));
+        packet = new($sformatf("pkt_oflow_%0d", id), 128, meta);
+        packet.randomize();
+        env.driver.inbox.put(packet);
     endtask
 
     `SVUNIT_TESTS_BEGIN
@@ -291,6 +324,7 @@ module packet_q_core_unit_test #(
         `SVTEST(one_packet_good)
             one_packet();
             check(1, 10us);
+            check_counters(.exp_in_ok(1), .exp_in_err(0), .exp_out_ok(1), .exp_out_err(0));
         `SVTEST_END
 
         `SVTEST(one_packet_bad)
@@ -316,73 +350,66 @@ module packet_q_core_unit_test #(
             );
         `SVTEST_END
 
-        `SVTEST(one_packet_rx_stall)
-            monitor.set_stall_rate(0.5);
-            one_packet();
-            check(1, 10us);
+        // Fill all NUM_BUFFERS buffers with good packets while the descriptor
+        // gate is held, then send one more packet.  With no buffer available
+        // the scatter (IGNORE_RDY_IN=1) classifies it as OFLOW and drops it.
+        // Release the gate, drain the good packets, verify counters, then send
+        // one final packet to confirm the overflow left no persistent bad state.
+        `SVTEST(oflow)
+            longint unsigned cnt;
+            // Gate descriptors so scatter → gather handoff is under test control;
+            // this prevents gather from prefetching packet data and recycling
+            // buffer pointers before all buffers are confirmed full.
+            desc_en = 1'b0;
+            // Fill every buffer (each packet ≤ BUFFER_SIZE → uses 1 buffer)
+            for (int i = 0; i < NUM_BUFFERS; i++)
+                one_packet(i);
+            // Wait for all packets to be scattered into memory
+            packet_in_if[0]._wait(5000);
+            // Send one more — should overflow since all buffers are occupied
+            one_overflow_packet(0);
+            packet_in_if[0]._wait(500);
+            // Release descriptor gate and drain the NUM_BUFFERS good packets
+            desc_en = 1'b1;
+            check(NUM_BUFFERS, 100us);
+            check_counters(.exp_in_ok(NUM_BUFFERS), .exp_in_err(0), .exp_out_ok(NUM_BUFFERS), .exp_out_err(0));
+            reg_agent.get_input_pkt_oflow_count(0, cnt);
+            if (DEBUG) $display("[oflow] input pkt_oflow: got %0d, expected 1", cnt);
+            `FAIL_UNLESS_EQUAL(cnt, 1);
+            // Confirm overflow left no persistent bad state: send one more packet
+            // and verify it transits correctly end-to-end.
+            // Wait for the recycle pipeline (descriptor RD_LATENCY + alloc_bv scan
+            // + scatter prefetch) before sending, so the scatter has a buffer
+            // available and does not treat the packet as a second overflow.
+            packet_in_if[0]._wait(2000);
+            one_packet(NUM_BUFFERS);
+            check(NUM_BUFFERS+1, 100us);
         `SVTEST_END
 
-        `SVTEST(one_packet_tx_stall)
-            driver.set_stall_rate(0.5);
-            one_packet();
-            check(1, 10us);
-        `SVTEST_END
-
-       `SVTEST(one_packet_tx_rx_stall)
-            monitor.set_stall_rate(0.5);
-            driver.set_stall_rate(0.5);
-            one_packet();
-            check(1, 10us);
-        `SVTEST_END
-
-        `SVTEST(one_jumbo_packet)
-            len = $urandom_range(2049, 9000);
-            one_packet(.len(len));
-            check(1, 10us);
-        `SVTEST_END
-
-        `SVTEST(packet_size_walk)
-            int idx = 0;
-            int offset = $urandom() % 64;
-            monitor.set_stall_rate(0.1);
-            driver.set_stall_rate(0.1);
-            for (int len = 60; len <= 192; len++) begin
-                one_packet(idx, len);
-                idx++;
-            end
-            one_packet(idx, 256 + offset);
-            idx++;
-            one_packet(idx, 512 + offset);
-            idx++;
-            one_packet(idx, 1024 + offset);
-            idx++;
-            one_packet(idx, 1536 + offset);
-            idx++;
-            check(192-60+1+4, 100us);
-        `SVTEST_END
-
-        `SVTEST(packet_stream_no_stall)
-            packet_stream();
-            check(100, 100us);
-        `SVTEST_END
-
-        `SVTEST(packet_stream_rx_stall)
-            monitor.set_stall_rate(0.1);
-            packet_stream();
-            check(100, 100us);
-        `SVTEST_END
-
-        `SVTEST(packet_stream_tx_stall)
-            driver.set_stall_rate(0.1);
-            packet_stream();
-            check(100, 100us);
-        `SVTEST_END
-
-        `SVTEST(packet_stream_tx_rx_stall)
-            monitor.set_stall_rate(0.1);
-            driver.set_stall_rate(0.1);
-            packet_stream();
-            check(100, 100us);
+        // Fill all NUM_BUFFERS buffers with good packets while the descriptor
+        // gate is held, then send a random burst of N (50-100) overflow packets.
+        // Confirm all N are counted by the overflow counter, drain the good
+        // packets, then send a recovery packet to confirm no persistent bad state.
+        `SVTEST(oflow_burst)
+            longint unsigned cnt;
+            int n_oflow;
+            n_oflow = $urandom_range(50, 100);
+            desc_en = 1'b0;
+            for (int i = 0; i < NUM_BUFFERS; i++)
+                one_packet(i);
+            packet_in_if[0]._wait(5000);
+            for (int i = 0; i < n_oflow; i++)
+                one_overflow_packet(i);
+            packet_in_if[0]._wait(1000);
+            desc_en = 1'b1;
+            check(NUM_BUFFERS, 100us);
+            check_counters(.exp_in_ok(NUM_BUFFERS), .exp_in_err(0), .exp_out_ok(NUM_BUFFERS), .exp_out_err(0));
+            reg_agent.get_input_pkt_oflow_count(0, cnt);
+            if (DEBUG) $display("[oflow_burst] input pkt_oflow: got %0d, expected %0d", cnt, n_oflow);
+            `FAIL_UNLESS_EQUAL(cnt, n_oflow);
+            packet_in_if[0]._wait(2000);
+            one_packet(NUM_BUFFERS);
+            check(NUM_BUFFERS+1, 100us);
         `SVTEST_END
 
         `SVTEST(finalize)
@@ -390,6 +417,35 @@ module packet_q_core_unit_test #(
         `SVTEST_END
 
     `SVUNIT_TESTS_END
+
+    // Read packet counters for interface 0 and assert expected ok/err values.
+    task check_counters(
+        input longint unsigned exp_in_ok,
+        input longint unsigned exp_in_err,
+        input longint unsigned exp_out_ok,
+        input longint unsigned exp_out_err
+    );
+        longint unsigned cnt;
+        longint unsigned info_cnt;
+        reg_agent.get_input_pkt_ok_count(0, cnt);
+        if (DEBUG) $display("[check_counters] input  pkt_ok  : got %0d, expected %0d", cnt, exp_in_ok);
+        `FAIL_UNLESS_EQUAL(cnt, exp_in_ok);
+        reg_agent.get_input_pkt_err_count(0, cnt);
+        if (DEBUG) $display("[check_counters] input  pkt_err : got %0d, expected %0d", cnt, exp_in_err);
+        `FAIL_UNLESS_EQUAL(cnt, exp_in_err);
+        reg_agent.get_input_pkt_oflow_count(0, info_cnt);
+        if (DEBUG) $display("[check_counters] input  pkt_oflow: got %0d", info_cnt);
+        reg_agent.get_input_pkt_long_count(0, info_cnt);
+        if (DEBUG) $display("[check_counters] input  pkt_long : got %0d", info_cnt);
+        reg_agent.get_input_pkt_short_count(0, info_cnt);
+        if (DEBUG) $display("[check_counters] input  pkt_short: got %0d", info_cnt);
+        reg_agent.get_output_pkt_ok_count(0, cnt);
+        if (DEBUG) $display("[check_counters] output pkt_ok  : got %0d, expected %0d", cnt, exp_out_ok);
+        `FAIL_UNLESS_EQUAL(cnt, exp_out_ok);
+        reg_agent.get_output_pkt_err_count(0, cnt);
+        if (DEBUG) $display("[check_counters] output pkt_err : got %0d, expected %0d", cnt, exp_out_err);
+        `FAIL_UNLESS_EQUAL(cnt, exp_out_err);
+    endtask
 
     task check(input int EXPECTED, input time TIMEOUT);
         fork
@@ -405,7 +461,7 @@ module packet_q_core_unit_test #(
                 int processed;
                 do
                     #100ns;
-                while ( env.scoreboard.got_processed() != EXPECTED );
+                while ( env.scoreboard.got_processed() < EXPECTED );
                 `FAIL_IF_LOG( env.scoreboard.report(msg) > 0, msg);
                 `FAIL_UNLESS_EQUAL( env.scoreboard.got_matched(), EXPECTED);
             end
@@ -418,12 +474,12 @@ endmodule
 
 // 'Boilerplate' unit test wrapper code
 //  Builds unit test for a parameterized
-//  packet_q_core instance that maintains
+//  packet_sg_core instance that maintains
 //  SVUnit compatibility
-`define PACKET_Q_CORE_TEST(INPUT_IFS,OUTPUT_IFS)\
+`define PACKET_SG_CORE_OFLOW_TEST(INPUT_IFS,OUTPUT_IFS)\
   import svunit_pkg::svunit_testcase;\
   svunit_testcase svunit_ut;\
-  packet_q_core_unit_test #(INPUT_IFS,OUTPUT_IFS) test();\
+  packet_sg_core_oflow_unit_test #(INPUT_IFS,OUTPUT_IFS) test();\
   function void build();\
     test.build();\
     svunit_ut = test.svunit_ut;\
@@ -436,10 +492,6 @@ endmodule
   endtask
 
 
-module packet_q_core_1in_1out_unit_test;
-`PACKET_Q_CORE_TEST(1,1)
-endmodule
-
-module packet_q_core_2in_2out_unit_test;
-`PACKET_Q_CORE_TEST(2,2)
+module packet_sg_core_oflow_1in_1out_unit_test;
+`PACKET_SG_CORE_OFLOW_TEST(1,1)
 endmodule

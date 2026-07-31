@@ -52,6 +52,7 @@ module packet_gather #(
 
     localparam int  MAX_PKT_WORDS = MAX_PKT_SIZE % DATA_BYTE_WID == 0 ? MAX_PKT_SIZE / DATA_BYTE_WID : MAX_PKT_SIZE / DATA_BYTE_WID + 1;
     localparam int  PKT_WORD_CNT_WID = $clog2(MAX_PKT_WORDS+1);
+    localparam int  PKT_SIZE_WID = $clog2(MAX_PKT_SIZE+1);
 
     localparam int  BUFFER_WORDS = BUFFER_SIZE / DATA_BYTE_WID;
     localparam int  BUFFER_WORD_CNT_WID = $clog2(BUFFER_WORDS);
@@ -136,6 +137,8 @@ module packet_gather #(
 
     logic          prefetch_ctxt_rdy;
     logic          prefetch_rdy;
+
+    logic [PKT_SIZE_WID-1:0] byte_cnt;
 
     rd_ctxt_t      rd_ctxt_in;
     rd_ctxt_t      rd_ctxt_out;
@@ -413,10 +416,20 @@ module packet_gather #(
         end : g__obey_rdy
     endgenerate
 
+    // Accumulate byte count across words; reset at EOP so byte_cnt holds the
+    // running total for all words *before* the current one at EOP time.
+    always_ff @(posedge clk) begin
+        if (srst) byte_cnt <= '0;
+        else if (packet_if.vld && (packet_if.rdy || IGNORE_RDY)) begin
+            if (packet_if.eop) byte_cnt <= '0;
+            else               byte_cnt <= byte_cnt + PKT_SIZE_WID'(DATA_BYTE_WID);
+        end
+    end
+
     // Drive event interface
-    assign event_if.evt = packet_if.vld && (packet_if.rdy || IGNORE_RDY) && packet_if.eop;
-    assign event_if.size = 0; // TODO
-    assign event_if.status = STATUS_OK;
+    assign event_if.evt    = packet_if.vld && (packet_if.rdy || IGNORE_RDY) && packet_if.eop;
+    assign event_if.size   = 32'(byte_cnt) + 32'(DATA_BYTE_WID - packet_if.mty);
+    assign event_if.status = packet_if.err ? STATUS_ERR : STATUS_OK;
 
 endmodule : packet_gather
 

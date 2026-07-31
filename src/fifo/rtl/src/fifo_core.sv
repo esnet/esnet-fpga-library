@@ -48,7 +48,7 @@ module fifo_core
     // -----------------------------
     // Parameters
     // -----------------------------
-    localparam int PTR_WID = $clog2(DEPTH);
+    localparam int PTR_WID = DEPTH > 1 ? $clog2(DEPTH) : 1;
     localparam int MEM_DEPTH = 2**PTR_WID;
     localparam int __CNT_WID = $clog2(DEPTH+1);
 

@@ -224,7 +224,7 @@ module axi3_from_mem_adapter
     // Write address
     // -----------------------------
     assign axi3_if.awvalid = wr_burst_sop && wr_burst_ctxt_vld && wr_data_valid;
-    assign axi3_if.awaddr = BASE_ADDR + (wr_burst_ctxt_out.addr << BYTE_SEL_WID);
+    assign axi3_if.awaddr = BASE_ADDR + (BYTE_ADDR_WID'(wr_burst_ctxt_out.addr) << BYTE_SEL_WID);
 
     // Write metadata
     // -----------------------------
@@ -350,7 +350,7 @@ module axi3_from_mem_adapter
 
     // Read address
     // -----------------------------
-    assign axi3_if.araddr = BASE_ADDR + (rd_burst_ctxt_out.addr << BYTE_SEL_WID);
+    assign axi3_if.araddr = BASE_ADDR + (BYTE_ADDR_WID'(rd_burst_ctxt_out.addr) << BYTE_SEL_WID);
   
     // Read metadata
     // -----------------------------

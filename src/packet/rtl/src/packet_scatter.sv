@@ -33,8 +33,9 @@ module packet_scatter #(
     input  logic                frame_valid,
 
     // Descriptor 'recycle' interface
-    // output logic                recycle_req,
-    // output logic [PTR_WID-1:0]  recycle_ptr,
+    output logic                recycle_req,
+    output logic [PTR_WID-1:0]  recycle_ptr,
+    input  logic                recycle_rdy,
 
     // Packet reporting interface
     packet_event_intf.publisher event_if,
@@ -152,6 +153,8 @@ module packet_scatter #(
     logic        pkt_done;
     status_t     pkt_status;
     logic        pkt_good;
+    logic        pkt_good_pending;
+    logic        pkt_good_pending_vld;
 
     logic            pkt_desc_ctxt_wr_rdy;
     pkt_desc_ctxt_t  pkt_desc_ctxt_in;
@@ -160,12 +163,7 @@ module packet_scatter #(
 
     logic        frame_valid_out;
 
-    logic        packet_event;
-    logic[31:0]  packet_event_size;
-    status_t     packet_event_status;
-
-    logic               recycle_req;
-    logic [PTR_WID-1:0] recycle_ptr;
+    logic [PTR_WID-1:0] recycle_ptr_r;
 
     // -----------------------------
     // Packet write FSM
@@ -190,7 +188,7 @@ module packet_scatter #(
                 if (mem_init_done) nxt_state = SOP;
             end
             SOP: begin
-                buffer_rdy = scatter_if.rdy && pkt_desc_ctxt_wr_rdy;
+                buffer_rdy = scatter_if.rdy && pkt_desc_ctxt_wr_rdy && !recycle_req;
                 rdy = wr_rdy && buffer_rdy;
                 if (packet_if.vld && packet_if.rdy) begin
                     if (IGNORE_RDY && !rdy) begin
@@ -397,6 +395,29 @@ module packet_scatter #(
     //  Descriptor chain write completions are signaled on frame_valid input;
     //  ensure that descriptor and data have been written before publishing
     //  new packet descriptor)
+    // Track per-packet good/bad in arrival order.  frame_valid arrives after
+    // memory write latency, long after the one-cycle pkt_done pulse, and
+    // multiple packets may be in flight simultaneously, so a single register
+    // is not sufficient — use a small FIFO indexed by pkt_done, dequeued by
+    // frame_valid, so we can tell in order whether each completion is good.
+    fifo_ctxt #(
+        .DATA_WID ( 1 ),
+        .DEPTH    ( 8 ),
+        .REPORT_OFLOW ( 1 ),
+        .REPORT_UFLOW ( 1 )
+    ) i_fifo_ctxt__pkt_good_pending (
+        .clk,
+        .srst,
+        .wr      ( pkt_done && !oflow ),
+        .wr_rdy  ( ),
+        .wr_data ( pkt_good ),
+        .rd      ( frame_valid ),
+        .rd_vld  ( pkt_good_pending_vld ),
+        .rd_data ( pkt_good_pending ),
+        .oflow   ( ),
+        .uflow   ( )
+    );
+
     fifo_ctxt #(
         .DATA_WID ( 1 ),
         .DEPTH    ( 8 ),
@@ -404,7 +425,7 @@ module packet_scatter #(
     ) i_fifo_ctxt__frame_valid (
         .clk,
         .srst,
-        .wr      ( frame_valid ),
+        .wr      ( frame_valid && pkt_good_pending ),
         .wr_rdy  ( ),
         .wr_data ( 1'b0 ),
         .rd      ( pkt_desc_ctxt_out_vld && descriptor_if.rdy ),
@@ -440,9 +461,20 @@ module packet_scatter #(
     assign descriptor_if.meta = pkt_desc_ctxt_out.meta;
     assign descriptor_if.err  = pkt_desc_ctxt_out.err;
 
-    // Recycle descriptors for 'bad' packets
-    assign recycle_req = pkt_ptr_vld && pkt_done && !pkt_good;
-    assign recycle_ptr = pkt_ptr;
+    // Recycle descriptors for 'bad' packets.
+    // Hold recycle_req high until the allocator acknowledges (recycle_rdy).
+    always_ff @(posedge clk) begin
+        if (srst) begin
+            recycle_req   <= 1'b0;
+            recycle_ptr_r <= '0;
+        end else if (pkt_ptr_vld && pkt_done && !pkt_good) begin
+            recycle_req   <= 1'b1;
+            recycle_ptr_r <= pkt_ptr;
+        end else if (recycle_rdy) begin
+            recycle_req   <= 1'b0;
+        end
+    end
+    assign recycle_ptr = recycle_ptr_r;
 
     // Report packet event
     assign event_if.evt = pkt_done;

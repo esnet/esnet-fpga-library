@@ -25,7 +25,7 @@
 
 module alloc_bv_core #(
     parameter int  PTR_WID = 1,
-    parameter int  ALLOC_Q_DEPTH = 64,   // Scan process finds unallocated pointers and fills queue;
+    parameter int  ALLOC_Q_DEPTH = 32,   // Scan process finds unallocated pointers and fills queue;
                                          // scan is a 'background' task and is 'slow', and therefore
                                          // allocation requests can be received faster than they can
                                          // be serviced. The size of the allocation queue determines
@@ -41,8 +41,10 @@ module alloc_bv_core #(
                                          // (used for sizing context FIFO)
 ) (
     // Clock/reset
-    input logic                clk,
-    input logic                srst,
+    input  logic               clk,
+    input  logic               srst,
+
+    output logic               init_done,
 
     // Control
     input  logic               en,
@@ -76,9 +78,11 @@ module alloc_bv_core #(
     localparam int NUM_COLS = mem_wr_if.DATA_WID;
     localparam int NUM_ROWS = MAX_PTRS/NUM_COLS;
 
-    localparam int COL_WID = $clog2(NUM_COLS);
-    localparam int ROW_WID = $clog2(NUM_ROWS);
+    localparam int COL_WID = NUM_COLS > 1 ? $clog2(NUM_COLS) : 1;
+    localparam int ROW_WID = NUM_ROWS > 1 ? $clog2(NUM_ROWS) : 1;
     localparam int CNT_WID  = PTR_WID + 1;
+
+    localparam int __ALLOC_Q_DEPTH = ALLOC_Q_DEPTH < 2**PTR_WID ? ALLOC_Q_DEPTH : 2**PTR_WID;
 
     // -----------------------------
     // Parameter checks
@@ -87,6 +91,9 @@ module alloc_bv_core #(
         std_pkg::param_check(mem_rd_if.DATA_WID, NUM_COLS, "mem_if.DATA_WID");
         std_pkg::param_check_gt(mem_wr_if.ADDR_WID, ROW_WID, "mem_if.ADDR_WID");
         std_pkg::param_check_gt(mem_wr_if.ADDR_WID, ROW_WID, "mem_if.ADDR_WID");
+        std_pkg::param_check_gt(NUM_COLS, 2, "NUM_COLS");
+        std_pkg::param_check_gt(NUM_ROWS, 2, "NUM_ROWS");
+        std_pkg::param_check_gt(PTR_WID, 1, "PTR_WID");
     end
 
     // -----------------------------
@@ -132,6 +139,8 @@ module alloc_bv_core #(
     state_t state;
     state_t nxt_state;
 
+    logic __en;
+
     logic wr;
     logic wr_rdy;
     logic wr_ack;
@@ -158,14 +167,19 @@ module alloc_bv_core #(
     logic               alloc_q_wr;
     logic               alloc_q_wr_rdy;
     logic [PTR_WID-1:0] alloc_q_wr_data;
+    logic               alloc_q_full;
 
     logic               alloc;
     logic               alloc_fail;
     logic               alloc_err;
     logic [PTR_WID-1:0] alloc_err_ptr;
 
+    logic               __alloc_req;
+    logic               __alloc_rdy;
+    logic [PTR_WID-1:0] __alloc_ptr;
+
     logic       __alloc;
-    ptr_addr_t  __alloc_ptr;
+    ptr_addr_t  __nxt_alloc_ptr;
 
     // Dealloc FIFO
     logic               dealloc_q_rd;
@@ -203,7 +217,7 @@ module alloc_bv_core #(
     // -----------------------------
     fifo_sync    #(
         .DATA_WID ( PTR_WID ),
-        .DEPTH    ( ALLOC_Q_DEPTH ),
+        .DEPTH    ( __ALLOC_Q_DEPTH-1 ),
         .FWFT     ( 1 )
     ) i_alloc_q   (
         .clk,
@@ -212,19 +226,49 @@ module alloc_bv_core #(
         .wr      ( alloc_q_wr ),
         .wr_data ( alloc_q_wr_data ),
         .wr_count( ),
-        .full    ( ),
+        .full    ( alloc_q_full ),
         .oflow   ( ),
-        .rd      ( alloc_req ),
-        .rd_ack  ( alloc_rdy ),
-        .rd_data ( alloc_ptr ),
+        .rd      ( __alloc_req ),
+        .rd_ack  ( __alloc_rdy ),
+        .rd_data ( __alloc_ptr ),
         .rd_count( ),
         .empty   ( ),
         .uflow   ( )
     );
 
+    // Declare init_done when initial prefetch is complete
+    // - this supports well-defined sequencing of dependent comoponents,
+    //   i.e. those components can hold off operations that depend on
+    //        pointer allocation until pointers are available
+    initial init_done = 1'b0;
+    always @(posedge clk) begin
+        if (srst)              init_done <= 1'b0;
+        else if (alloc_q_full) init_done <= 1'b1;
+    end
+    // Gate internal enable by init_done to ensure no dequeue happens
+    // during initial prefetch.
+    assign __en = en && init_done;
+
+    // Maintain next pointer to be allocated in register to
+    // achieve finer control over enable/disable; allows
+    // pointers to be pre-fetched even while allocator is disabled
+    initial alloc_rdy = 1'b0;
+    always @(posedge clk) begin
+        if (srst) alloc_rdy <= 1'b0;
+        else begin
+            if (__en && __alloc_rdy) alloc_rdy <= 1'b1;
+            else if (alloc_req)      alloc_rdy <= 1'b0;
+        end
+    end
+
+    assign __alloc_req = __en && (alloc_req || !alloc_rdy);
+
+    always_ff @(posedge clk) if (__alloc_req && __alloc_rdy) alloc_ptr <= __alloc_ptr;
+
     assign alloc = alloc_req && alloc_rdy;
     assign alloc_fail = ALLOC_FC ? 1'b0 : alloc_req && !alloc_rdy;
-    assign alloc_q_wr_data = {'0, __alloc_ptr};
+    assign alloc_q_wr_data = {'0, __nxt_alloc_ptr};
+
 
     // -----------------------------
     // Deallocation queue
@@ -320,7 +364,7 @@ module alloc_bv_core #(
             end
             IDLE : begin
                 if (dealloc_q_rd_rdy) nxt_state = DEALLOC;
-                else if (en && alloc_q_wr_rdy && scan_done) nxt_state = ALLOC;
+                else if (alloc_q_wr_rdy && scan_done) nxt_state = ALLOC;
             end
             DEALLOC : begin
                 dealloc_q_rd = 1'b1;
@@ -369,7 +413,7 @@ module alloc_bv_core #(
         end else if (state == ALLOC) begin
             __alloc   <= 1'b1;
             __dealloc <= 1'b0;
-            ptr       <= __alloc_ptr;
+            ptr       <= __nxt_alloc_ptr;
         end
     end
 
@@ -478,8 +522,8 @@ module alloc_bv_core #(
     always_ff @(posedge clk) if (scan_check) scan_col <= __scan_col;
 
     // Assign next pointer to be allocated from scan result
-    assign __alloc_ptr.row = scan_row;
-    assign __alloc_ptr.col = scan_col;
+    assign __nxt_alloc_ptr.row = scan_row;
+    assign __nxt_alloc_ptr.col = scan_col;
 
     // ----------------------------------
     // Monitoring

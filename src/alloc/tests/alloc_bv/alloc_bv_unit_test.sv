@@ -68,7 +68,7 @@ module alloc_bv_unit_test #(
     assign srst = reset_if.reset;
     assign reset_if.ready = init_done;
     assign en = init_done;
-    assign scan_en = init_done;
+    assign scan_en = 1'b1;
 
     //===================================
     // Build

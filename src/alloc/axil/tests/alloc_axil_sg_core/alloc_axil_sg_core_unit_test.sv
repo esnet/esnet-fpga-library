@@ -28,7 +28,6 @@ module alloc_axil_sg_core_unit_test #(
     localparam type FRAME_SIZE_T = logic[$clog2(MAX_FRAME_SIZE+1)-1:0];
     localparam type META_T = logic;
     localparam int  CONTEXTS = 1;
-    localparam int  Q_DEPTH = 8;
     localparam int  PREALLOC_DEPTH = CONTEXTS * CONTEXTS;
 
     localparam int  META_WID = $bits(META_T);
@@ -82,8 +81,6 @@ module alloc_axil_sg_core_unit_test #(
         .BUFFER_SIZE      ( BUFFER_SIZE ),
         .MAX_FRAME_SIZE   ( MAX_FRAME_SIZE ),
         .META_WID         ( META_WID ),
-        .STORE_Q_DEPTH    ( Q_DEPTH ),
-        .LOAD_Q_DEPTH     ( Q_DEPTH ),
         .N_ALLOC          ( N_ALLOC ),
         .MEM_WR_LATENCY   ( MEM_WR_LATENCY )
     ) DUT (.*);
@@ -115,7 +112,7 @@ module alloc_axil_sg_core_unit_test #(
     // Assign reset interface
     assign srst = reset_if.reset;
     assign reset_if.ready = init_done;
-    assign en = init_done;
+    assign en = 1'b1;
 
     initial axil_if.aresetn = 1'b0;
     always @(posedge axil_if.aclk or posedge srst) axil_if.aresetn <= !srst;

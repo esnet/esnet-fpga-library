@@ -18,6 +18,9 @@ module alloc_scatter_core #(
     // Control
     input  logic           en,
 
+    // Status
+    output logic           init_done,
+
     // Scatter interface
     alloc_intf.store_rx    scatter_if [CONTEXTS],
 
@@ -96,6 +99,7 @@ module alloc_scatter_core #(
     logic [FRAME_SIZE_WID-1:0]  _frame_size [CONTEXTS];
     logic                       _frame_error[CONTEXTS];
 
+    logic [CONTEXTS-1:0]  alloc_ptr_valid;
     logic [CONTEXTS-1:0]  desc_valid;
     logic [PTR_WID-1:0]   desc_ptr [CONTEXTS];
     DESC_T                desc     [CONTEXTS];
@@ -154,8 +158,9 @@ module alloc_scatter_core #(
 
             // Ready for next buffer request when a buffer is available
             // and there is somewhere to hold on to the request
-            assign scatter_if[g_ctxt].rdy = __alloc_ptr_valid;
-            assign scatter_if[g_ctxt].ptr = __alloc_ptr;
+            assign scatter_if[g_ctxt].rdy  = __alloc_ptr_valid;
+            assign scatter_if[g_ctxt].ptr  = __alloc_ptr;
+            assign alloc_ptr_valid[g_ctxt] = __alloc_ptr_valid;
 
             // Track SOF
             initial __scatter_if_sof = 1'b1;
@@ -271,6 +276,14 @@ module alloc_scatter_core #(
                 nxt_state = RESET;
             end
         endcase
+    end
+
+    // Assert init_done once the FSM has left RESET and every context
+    // has at least one pre-allocated pointer queued and ready.
+    initial init_done = 1'b0;
+    always @(posedge clk) begin
+        if (srst)                                     init_done <= 1'b0;
+        else if (state != RESET && &alloc_ptr_valid)  init_done <= 1'b1;
     end
 
     // Work-conserving round-robin arbiter

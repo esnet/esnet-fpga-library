@@ -208,3 +208,31 @@ module packet_descriptor_intf_delay #(
     assign from_tx.rdy = to_rx.rdy;
 
 endmodule : packet_descriptor_intf_delay
+
+
+// Packet descriptor interface connector with meta rewrite
+module packet_descriptor_intf_set_meta #(
+    parameter int META_WID = 1
+) (
+    packet_descriptor_intf.rx  from_tx,
+    packet_descriptor_intf.tx  to_rx,
+    input logic [META_WID-1:0] meta
+);
+    // Parameter check
+    initial begin
+        std_pkg::param_check(to_rx.ADDR_WID, from_tx.ADDR_WID, "to_rx.ADDR_WID");
+        std_pkg::param_check(to_rx.META_WID, META_WID, "to_rx.META_WID");
+        std_pkg::param_check_gt(to_rx.MAX_PKT_SIZE, from_tx.MAX_PKT_SIZE, "to_rx.MAX_PKT_SIZE");
+    end
+
+    // Connect signals (tx -> rx)
+    assign to_rx.vld  = from_tx.vld;
+    assign to_rx.addr = from_tx.addr;
+    assign to_rx.size = from_tx.size;
+    assign to_rx.err  = from_tx.err;
+    assign to_rx.meta = meta;
+
+    // Connect signals (rx -> tx)
+    assign from_tx.rdy = to_rx.rdy;
+
+endmodule : packet_descriptor_intf_set_meta

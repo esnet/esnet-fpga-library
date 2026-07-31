@@ -3,7 +3,7 @@
 //
 // See alloc_bv_core module for details.
 module alloc_axil_bv #(
-    parameter int  PTR_WID = 1,
+    parameter int  PTR_WID = 2,
     parameter int  ALLOC_Q_DEPTH = 64,   // Scan process finds unallocated pointers and fills queue;
                                          // scan is a 'background' task and is 'slow', and therefore
                                          // allocation requests can be received faster than they can

@@ -93,7 +93,7 @@ module sar_reassembly_unit_test;
 
     // Drive srst from reset interface
     assign srst = reset_if.reset;
-    assign reset_if.ready = !srst;
+    assign reset_if.ready = init_done;
 
     assign axil_if.aresetn = !srst;
 
@@ -128,7 +128,6 @@ module sar_reassembly_unit_test;
 
         en <= 1'b1;
 
-        axil_if._wait(50); // Allow time for initial ID allocation
     endtask
 
     //===================================

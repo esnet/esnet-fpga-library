@@ -107,6 +107,9 @@ module sar_segmentation
         else                              __srst <= 1'b0;
     end
 
+    // init_done: ready as soon as reset deasserts (no sub-component init)
+    assign init_done = !__srst;
+
     // Segment length config
     always @(posedge clk) begin
         if (state == READY) cfg_seg_len <= reg_if._config.seg_len[SEGMENT_LEN_WID-1:0];

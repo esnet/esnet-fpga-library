@@ -2,6 +2,8 @@ module packet_q_core
 #(
     parameter int  NUM_INPUT_IFS = 1,
     parameter int  NUM_OUTPUT_IFS = 1,
+    parameter int  NUM_QS = 8,
+    parameter int  Q_DEPTH = 1024,
     parameter bit  IGNORE_RDY_IN = 0,
     parameter bit  IGNORE_RDY_OUT = 0,
     parameter bit  DROP_ERRORED = 1,
@@ -13,202 +15,231 @@ module packet_q_core
     parameter int  MAX_BURST_LEN = 1,
     parameter int  N_ALLOC = 1,
     parameter int  N_GATHER = 1,
+    // Derived parameters (don't override)
+    parameter int  PKT_SIZE_WID = $clog2(MAX_PKT_SIZE+1),
+    parameter int  INPUT_SEL_WID = NUM_INPUT_IFS > 1 ? $clog2(NUM_INPUT_IFS) : 1,
+    parameter int  OUTPUT_SEL_WID = NUM_OUTPUT_IFS > 1 ? $clog2(NUM_OUTPUT_IFS) : 1,
+    parameter int  Q_SEL_WID = NUM_QS > 1 ? $clog2(NUM_QS) : 1,
     // Simulation-only
     parameter bit  SIM__FAST_INIT = 1,
     parameter bit  SIM__RAM_MODEL = 1
  ) (
-    input  logic                clk,
-    input  logic                srst,
+    input  logic                      clk,
+    input  logic                      srst,
 
-    output logic                init_done,
+    output logic                      init_done,
 
-    // Packet input (synchronous to packet_in_if.clk)
-    packet_intf.rx              packet_in_if [NUM_INPUT_IFS],
+    // Packet input
+    packet_intf.rx                    packet_in_if   [NUM_INPUT_IFS],
+    input  logic [OUTPUT_SEL_WID-1:0] packet_in_dest [NUM_INPUT_IFS],
+    input  logic [Q_SEL_WID-1:0]      packet_in_q    [NUM_INPUT_IFS],
 
-    mem_wr_intf.controller      desc_mem_wr_if,
-    mem_wr_intf.controller      mem_wr_if [NUM_INPUT_IFS],
+    mem_wr_intf.controller            packet_desc_mem_wr_if,
+    mem_wr_intf.controller            packet_data_mem_wr_if [NUM_INPUT_IFS],
 
-    // Packet completion interface (to/from queue controller)
-    packet_descriptor_intf.tx   desc_in_if [NUM_INPUT_IFS],
-    packet_descriptor_intf.rx   desc_out_if[NUM_OUTPUT_IFS],
-    
-    // Packet output (synchronous to packet_out_if.clk)
-    packet_intf.tx              packet_out_if [NUM_OUTPUT_IFS],
+    // Packet enqueue status interface
+    output logic                      enq_ack  [NUM_OUTPUT_IFS],
+    output logic                      enq_nack [NUM_OUTPUT_IFS],
+    output logic [INPUT_SEL_WID-1:0]  enq_src  [NUM_OUTPUT_IFS],
+    output logic [Q_SEL_WID-1:0]      enq_q    [NUM_OUTPUT_IFS],
+    output logic [PKT_SIZE_WID-1:0]   enq_size [NUM_OUTPUT_IFS],
 
-    mem_rd_intf.controller      desc_mem_rd_if,
-    mem_rd_intf.controller      mem_rd_if [NUM_OUTPUT_IFS],
+    // Dequeue control interface
+    input  logic                      deq_req  [NUM_OUTPUT_IFS],
+    output logic                      deq_rdy  [NUM_OUTPUT_IFS],
+    input  logic [Q_SEL_WID-1:0]      deq_q    [NUM_OUTPUT_IFS],
+    output logic                      deq_ack  [NUM_OUTPUT_IFS],
+    output logic                      deq_nack [NUM_OUTPUT_IFS],
+    output logic [INPUT_SEL_WID-1:0]  deq_src  [NUM_OUTPUT_IFS],
+    output logic [PKT_SIZE_WID-1:0]   deq_size [NUM_OUTPUT_IFS],
 
-    input logic                 mem_init_done,
+    // Q management memory interfaces
+    mem_wr_intf.controller            q_mem_wr_if [NUM_OUTPUT_IFS],
+    mem_rd_intf.controller            q_mem_rd_if [NUM_OUTPUT_IFS],
 
-    axi4l_intf.peripheral       axil_if
+    // Packet output
+    packet_intf.tx                    packet_out_if  [NUM_OUTPUT_IFS],
+    output logic [INPUT_SEL_WID-1:0]  packet_out_src [NUM_OUTPUT_IFS],
+    output logic [Q_SEL_WID-1:0]      packet_out_q   [NUM_OUTPUT_IFS],
+
+    mem_rd_intf.controller            packet_desc_mem_rd_if,
+    mem_rd_intf.controller            packet_data_mem_rd_if [NUM_OUTPUT_IFS],
+
+    input logic                       mem_init_done,
+
+    axi4l_intf.peripheral             axil_if
 );
+    localparam int PTR_WID = $clog2(NUM_BUFFERS);
+    localparam int META_OPAQUE_WID = packet_in_if[0].META_WID;
+    localparam int DATA_BYTE_WID = packet_in_if[0].DATA_BYTE_WID;
 
-    // -----------------------------
-    // Parameters
-    // -----------------------------
-    localparam int  PTR_WID = $clog2(NUM_BUFFERS);
+    typedef struct packed {
+        logic [META_OPAQUE_WID-1:0] opaque;
+        logic [Q_SEL_WID-1:0]       q;
+        logic [OUTPUT_SEL_WID-1:0]  dest;
+        logic [INPUT_SEL_WID-1:0]   src;
+    } meta_t;
+    localparam int META_WID = $bits(meta_t);
 
-    localparam int  SIZE_WID = $clog2(BUFFER_SIZE);
+    // Signals
+    logic                      packet_sg_core__init_done;
+    logic [NUM_OUTPUT_IFS-1:0] packet_q_manager__init_done;
+    logic [Q_SEL_WID-1:0] desc_in_q_demux [NUM_OUTPUT_IFS][NUM_INPUT_IFS];
+    logic [Q_SEL_WID-1:0] desc_out_q [NUM_OUTPUT_IFS];
 
-    localparam int  PKT_SIZE_WID = $clog2(MAX_PKT_SIZE+1);
+    // Interfaces
+    packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_WID(META_WID)) __packet_in_if [NUM_INPUT_IFS] (.clk);
+    packet_descriptor_intf #(.ADDR_WID(PTR_WID), .META_WID(META_WID), .MAX_PKT_SIZE(MAX_PKT_SIZE)) desc_in_if [NUM_INPUT_IFS] (.clk);
+    packet_descriptor_intf #(.ADDR_WID(PTR_WID), .META_WID(META_WID), .MAX_PKT_SIZE(MAX_PKT_SIZE)) desc_in_if_demux [NUM_OUTPUT_IFS][NUM_INPUT_IFS] (.clk);
+    packet_descriptor_intf #(.ADDR_WID(PTR_WID), .META_WID(META_WID), .MAX_PKT_SIZE(MAX_PKT_SIZE)) desc_out_if [NUM_OUTPUT_IFS] (.clk);
+    packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_WID(META_WID)) __packet_out_if [NUM_OUTPUT_IFS] (.clk);
 
-    localparam int  META_WID = packet_in_if[0].META_WID;
+    axi4l_intf packet_sg_core__axil_if ();
+    axi4l_intf packet_q_manager__axil_if [NUM_OUTPUT_IFS] ();
 
-    localparam int  DATA_IN_BYTE_WID = packet_in_if[0].DATA_BYTE_WID;
-    localparam int  MEM_WR_DATA_WID = mem_wr_if[0].DATA_WID;
-    localparam int  MEM_WR_DATA_BYTE_WID = MEM_WR_DATA_WID / 8;
+    // Init done
+    assign init_done = packet_sg_core__init_done && &packet_q_manager__init_done;
 
-    localparam int  DATA_OUT_BYTE_WID = packet_out_if[0].DATA_BYTE_WID;
-    localparam int  MEM_RD_DATA_WID = mem_wr_if[0].DATA_WID;
-    localparam int  MEM_RD_DATA_BYTE_WID = MEM_RD_DATA_WID / 8;
-
-    // -----------------------------
-    // Parameter checking
-    // -----------------------------
     generate
-        for (genvar i = 0; i < NUM_INPUT_IFS; i++) begin
-            initial std_pkg::param_check(packet_in_if[i].META_WID, META_WID, $sformatf("packet_in_if[%0d].META_WID", i));
-            initial std_pkg::param_check(packet_in_if[i].DATA_BYTE_WID, DATA_IN_BYTE_WID, $sformatf("packet_in_if[%0d].DATA_BYTE_WID", i));
-            initial std_pkg::param_check(desc_in_if[i].META_WID, META_WID, $sformatf("desc_in_if[%0d].META_WID", i));
-            initial std_pkg::param_check(mem_wr_if[i].DATA_WID, DATA_IN_BYTE_WID*8, $sformatf("mem_wr_if[%0d].DATA_WID", i));
-        end
-        for (genvar i = 0; i < NUM_OUTPUT_IFS; i++) begin
-            initial std_pkg::param_check(packet_out_if[i].META_WID, META_WID, $sformatf("packet_out_if[%0d].META_WID", i));
-            initial std_pkg::param_check(packet_out_if[i].DATA_BYTE_WID, DATA_OUT_BYTE_WID, $sformatf("packet_out_if[%0d].DATA_BYTE_WID", i));
-            initial std_pkg::param_check(desc_out_if[i].META_WID, META_WID, $sformatf("desc_out_if[%0d].META_WID", i));
-            initial std_pkg::param_check(mem_rd_if[i].DATA_WID, DATA_OUT_BYTE_WID*8, $sformatf("mem_rd_if[%0d].DATA_WID", i));
-        end
+        for (genvar g_in_if = 0; g_in_if < NUM_INPUT_IFS; g_in_if++) begin : g__input_if
+            // (Local) signals
+            meta_t __meta;
+            meta_t __desc_meta;
+            logic [NUM_OUTPUT_IFS-1:0] desc_in_if__rdy;
+
+            // Pack output port and queue selection into metadata
+            assign __meta.opaque = packet_in_if[g_in_if].meta;
+            assign __meta.q = packet_in_q[g_in_if];
+            assign __meta.dest = packet_in_dest[g_in_if];
+            assign __meta.src = g_in_if;
+            packet_intf_set_meta #(
+                .META_WID ( META_WID )
+            ) i_packet_intf_set_meta (
+                .from_tx ( packet_in_if[g_in_if] ),
+                .to_rx   ( __packet_in_if[g_in_if] ),
+                .meta    ( __meta )
+            );
+
+            // Demux descriptors to physical output ports
+            assign __desc_meta = desc_in_if[g_in_if].meta;
+            for (genvar g_out_if = 0; g_out_if < NUM_OUTPUT_IFS; g_out_if++) begin : g__output_if
+                // (Local) signals
+                meta_t __desc_in_meta;
+                // (Local) interfaces
+                packet_descriptor_intf #(.ADDR_WID(PTR_WID), .META_WID(META_WID), .MAX_PKT_SIZE(MAX_PKT_SIZE)) __desc_in_if (.clk);
+
+                assign __desc_in_if.vld  = desc_in_if[g_in_if].vld && (__desc_meta.dest == g_out_if);
+                assign __desc_in_if.addr = desc_in_if[g_in_if].addr;
+                assign __desc_in_if.size = desc_in_if[g_in_if].size;
+                assign __desc_in_if.err  = desc_in_if[g_in_if].err;
+                assign __desc_in_if.meta = desc_in_if[g_in_if].meta;
+                assign desc_in_if__rdy[g_out_if] = __desc_in_if.rdy;
+
+                packet_descriptor_fifo #(
+                    .DEPTH ( 512 )
+                ) i_packet_descriptor_fifo (
+                    .from_tx      ( __desc_in_if ),
+                    .from_tx_srst ( srst ),
+                    .to_rx        ( desc_in_if_demux[g_out_if][g_in_if] ),
+                    .to_rx_srst   ( srst )
+                );
+                assign __desc_in_meta = desc_in_if_demux[g_out_if][g_in_if].meta;
+                assign desc_in_q_demux[g_out_if][g_in_if] = __desc_in_meta.q;
+            end : g__output_if
+            always_comb begin
+                desc_in_if[g_in_if].rdy = 1'b0;
+                if (desc_in_if[g_in_if].vld) desc_in_if[g_in_if].rdy = desc_in_if__rdy[__desc_meta.dest];
+            end
+        end : g__input_if
     endgenerate
 
-    // -----------------------------
-    // Interfaces
-    // -----------------------------
-    alloc_intf #(.BUFFER_SIZE(BUFFER_SIZE), .PTR_WID(PTR_WID), .META_WID(META_WID)) scatter_if [NUM_INPUT_IFS]  (.clk);
-    alloc_intf #(.BUFFER_SIZE(BUFFER_SIZE), .PTR_WID(PTR_WID), .META_WID(META_WID)) gather_if  [NUM_OUTPUT_IFS*N_GATHER] (.clk);
+    // Connect AXI-L interface
+    axi4l_intf_connector i_axi4l_intf_connector (.axi4l_if_from_controller(axil_if), .axi4l_if_to_peripheral(packet_sg_core__axil_if));
 
-    packet_event_intf event_in_if  [NUM_INPUT_IFS]  (.clk);
-    packet_event_intf event_out_if [NUM_OUTPUT_IFS] (.clk);
-
-    // -----------------------------
-    // Signals
-    // -----------------------------
-    logic  init_done__alloc_sg;
-
-    // -- Recycle interface
-    logic               recycle_req;
-    logic               recycle_rdy;
-    logic [PTR_WID-1:0] recycle_ptr;
-    logic               recycle_ack;
-
-    // -- Frame completion
-    logic                    frame_valid [NUM_INPUT_IFS];
-    logic                    frame_error;
-    logic [PTR_WID-1:0]      frame_ptr;
-    logic [PKT_SIZE_WID-1:0] frame_size;
-
-    // -----------------------------
-    // Status
-    // -----------------------------
-    assign init_done = mem_init_done && init_done__alloc_sg;
-
-    // -----------------------------
-    // Scatter-gather controller
-    // -----------------------------
-    alloc_axil_sg_core #(
-        .SCATTER_CONTEXTS ( NUM_INPUT_IFS ),
-        .GATHER_CONTEXTS  ( NUM_OUTPUT_IFS*N_GATHER ),
-        .PTR_WID          ( PTR_WID ),
-        .BUFFER_SIZE      ( BUFFER_SIZE ),
-        .MAX_FRAME_SIZE   ( MAX_PKT_SIZE ),
-        .META_WID         ( META_WID ),
-        .STORE_Q_DEPTH    ( 32 ),
-        .LOAD_Q_DEPTH     ( 32 ),
-        .N_ALLOC          ( N_ALLOC ),
-        .SIM__FAST_INIT   ( SIM__FAST_INIT ),
-        .SIM__RAM_MODEL   ( SIM__RAM_MODEL )
-    ) i_alloc_axil_sg_core (
+    // Packet scatter-gather core
+    packet_sg_core     #(
+        .NUM_INPUT_IFS  ( NUM_INPUT_IFS ),
+        .NUM_OUTPUT_IFS ( NUM_OUTPUT_IFS ),
+        .IGNORE_RDY_IN  ( IGNORE_RDY_IN ),
+        .IGNORE_RDY_OUT ( IGNORE_RDY_OUT ),
+        .DROP_ERRORED   ( DROP_ERRORED ),
+        .MIN_PKT_SIZE   ( MIN_PKT_SIZE ),
+        .MAX_PKT_SIZE   ( MAX_PKT_SIZE ),
+        .NUM_BUFFERS    ( NUM_BUFFERS ),
+        .BUFFER_SIZE    ( BUFFER_SIZE ),
+        .MAX_RD_LATENCY ( MAX_RD_LATENCY ),
+        .MAX_BURST_LEN  ( MAX_BURST_LEN ),
+        .N_ALLOC        ( N_ALLOC ),
+        .N_GATHER       ( N_GATHER )
+    ) i_packet_sg_core  (
         .clk,
         .srst,
-        .en ( 1'b1 ),
-        .init_done ( init_done__alloc_sg ),
-        .scatter_if,
-        .gather_if,
-        .recycle_req,
-        .recycle_rdy,
-        .recycle_ptr,
-        .recycle_ack,
-        .desc_mem_wr_if,
-        .desc_mem_rd_if,
-        .desc_mem_init_done ( mem_init_done ),
-        .frame_valid,
-        .frame_error,
-        .frame_ptr,
-        .frame_size,
-        .axil_if
+        .init_done ( packet_sg_core__init_done ),
+        .packet_in_if   ( __packet_in_if ),
+        .desc_mem_wr_if ( packet_desc_mem_wr_if ),
+        .mem_wr_if      ( packet_data_mem_wr_if ),
+        .desc_in_if     ( desc_in_if ),
+        .desc_out_if    ( desc_out_if ),
+        .packet_out_if  ( __packet_out_if ),
+        .desc_mem_rd_if ( packet_desc_mem_rd_if ),
+        .mem_rd_if      ( packet_data_mem_rd_if ),
+        .mem_init_done,
+        .axil_if        ( packet_sg_core__axil_if )
     );
 
-    // Currently there is no method for flushing packets other than dequeuing them...
-    assign recycle_req = 1'b0;
-
     generate
-        // Memory write controller
-        // - 'Scatter' packets into memory
-        for (genvar g_if = 0; g_if < NUM_INPUT_IFS; g_if++) begin : g__input_if
-            // Scatter controller
-            packet_scatter    #(
-                .IGNORE_RDY    ( IGNORE_RDY_IN ),
-                .DROP_ERRORED  ( DROP_ERRORED ),
-                .MIN_PKT_SIZE  ( MIN_PKT_SIZE ),
+        for (genvar g_out_if = 0; g_out_if < NUM_OUTPUT_IFS; g_out_if++) begin : g__output_if
+            // (Local) signals
+            meta_t __meta;
+            meta_t __desc_meta;
+
+            // Packet queue manager
+            // (one per physical output port)
+            packet_q_manager #(
+                .NUM_INPUT_IFS ( NUM_INPUT_IFS ),
+                .NUM_QS        ( NUM_QS ),
+                .Q_DEPTH       ( Q_DEPTH ),
                 .MAX_PKT_SIZE  ( MAX_PKT_SIZE ),
-                .NUM_BUFFERS   ( NUM_BUFFERS ),
-                .BUFFER_SIZE   ( BUFFER_SIZE )
-            ) i_packet_scatter ( 
+                .NUM_TRANSACTIONS ( MAX_RD_LATENCY )
+            ) i_packet_q_manager (
                 .clk,
                 .srst,
-                .packet_if     ( packet_in_if [g_if] ),
-                .scatter_if    ( scatter_if   [g_if] ),
-                .descriptor_if ( desc_in_if   [g_if] ),
-                .frame_valid   ( frame_valid  [g_if] ),
-                .event_if      ( event_in_if  [g_if] ),
-                .mem_wr_if     ( mem_wr_if    [g_if] ),
-                .mem_init_done
+                .init_done         ( packet_q_manager__init_done [g_out_if] ),
+                .desc_in_q         ( desc_in_q_demux [g_out_if] ),
+                .desc_in_if        ( desc_in_if_demux[g_out_if] ),
+                .enq_ack           ( enq_ack[g_out_if] ),
+                .enq_nack          ( enq_nack[g_out_if] ),
+                .enq_src           ( enq_src [g_out_if] ),
+                .enq_q             ( enq_q   [g_out_if] ),
+                .enq_size          ( enq_size[g_out_if] ),
+                .deq_req           ( deq_req [g_out_if] ),
+                .deq_rdy           ( deq_rdy [g_out_if] ),
+                .deq_q             ( deq_q   [g_out_if] ),
+                .deq_ack           ( deq_ack [g_out_if] ),
+                .deq_nack          ( deq_nack[g_out_if] ),
+                .deq_src           ( deq_src [g_out_if] ),
+                .deq_size          ( deq_size[g_out_if] ),
+                .desc_out_if       ( desc_out_if[g_out_if] ),
+                .desc_out_q        ( desc_out_q [g_out_if] ),
+                .mem_init_done,
+                .q_mem_wr_if       ( q_mem_wr_if[g_out_if] ),
+                .q_mem_rd_if       ( q_mem_rd_if[g_out_if] ),
+                .axil_if           ( packet_q_manager__axil_if[g_out_if] )
             );
 
-        end : g__input_if
+            axi4l_intf_controller_term i_axi4l_intf_controller_term (.axi4l_if(packet_q_manager__axil_if[g_out_if]));
 
-        // Memory read controller
-        // - 'Gather' packets from memory
-        for (genvar g_if = 0; g_if < NUM_OUTPUT_IFS; g_if++) begin : g__output_if
-            // (Local) interfaces
-            alloc_intf #(.BUFFER_SIZE(BUFFER_SIZE), .PTR_WID(PTR_WID), .META_WID(META_WID)) __gather_if [N_GATHER] (.clk);
-
-            packet_gather      #(
-                .IGNORE_RDY     ( IGNORE_RDY_OUT ),
-                .MAX_PKT_SIZE   ( MAX_PKT_SIZE ),
-                .NUM_BUFFERS    ( NUM_BUFFERS ),
-                .BUFFER_SIZE    ( BUFFER_SIZE  ),
-                .MAX_RD_LATENCY ( MAX_RD_LATENCY ),
-                .MAX_BURST_LEN  ( MAX_BURST_LEN ),
-                .N              ( N_GATHER )
-            ) i_packet_gather   (
-                .clk,
-                .srst,
-                .packet_if      ( packet_out_if [g_if] ),
-                .gather_if      ( __gather_if          ),
-                .descriptor_if  ( desc_out_if   [g_if] ),
-                .event_if       ( event_out_if  [g_if] ),
-                .mem_rd_if      ( mem_rd_if     [g_if] ),
-                .mem_init_done
+            // Unpack input port and queue selection from metadata
+            assign __meta = __packet_out_if[g_out_if].meta;
+            assign packet_out_q  [g_out_if] = __meta.q;
+            assign packet_out_src[g_out_if] = __meta.src;
+            packet_intf_set_meta #(
+                .META_WID ( META_OPAQUE_WID)
+            ) i_packet_intf_set_meta (
+                .from_tx ( __packet_out_if[g_out_if] ),
+                .to_rx   ( packet_out_if[g_out_if] ),
+                .meta    ( __meta.opaque )
             );
-
-            for (genvar g_gather_if = 0; g_gather_if < N_GATHER; g_gather_if++) begin : g__gather_if
-                alloc_intf_load_connector i_alloc_intf_load_connector (
-                    .from_tx ( __gather_if[g_gather_if] ),
-                    .to_rx   ( gather_if[g_if+NUM_OUTPUT_IFS*g_gather_if] )
-                );
-            end : g__gather_if
-
         end : g__output_if
     endgenerate
-
 endmodule : packet_q_core

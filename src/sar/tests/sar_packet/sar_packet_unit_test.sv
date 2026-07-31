@@ -147,7 +147,7 @@ module sar_packet_unit_test;
     // Reset
     std_reset_intf reset_if (.clk(clk));
     assign srst = reset_if.reset;
-    assign reset_if.ready = !srst;
+    assign reset_if.ready = init_done__segmentation && init_done__reassembly;
     assign axil_aresetn = !srst;
 
     assign axil_if__reassembly.aresetn = axil_aresetn;
