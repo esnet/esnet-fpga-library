@@ -34,7 +34,7 @@ module alloc_bv_unit_test #(
     logic   en;
     logic   scan_en;
 
-    //logic [PTR_WID:0] PTRS = MAX_PTRS;
+    logic [PTR_WID:0] PTRS = 0;
 
     logic   init_done;
 
