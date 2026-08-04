@@ -239,10 +239,16 @@ module sar_packet_unit_test;
     endtask
 
     task packet_stream();
-       for (int i = 0; i < 100; i++) begin
-           one_packet(i);
-           packet_buf_id_in++;
-       end
+        packet_raw#(META_T) pkt;
+        for (int i = 0; i < 100; i++) begin
+            pkt = new($sformatf("stream_pkt_%0d", i), 512);
+            pkt.randomize();
+            packet_buf_id_in = i % NUM_FRAME_BUFFERS;
+            // Tell model to expect this packet, then drive it synchronously
+            // so buf_id is stable for the entire packet duration
+            env.model.inbox.put(pkt);
+            driver.send(pkt);
+        end
     endtask
 
     `SVUNIT_TESTS_BEGIN
@@ -255,23 +261,28 @@ module sar_packet_unit_test;
             #50us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
         `SVTEST_END
 
-        `SVTEST(one_packet_tpause_2)
-            //env.monitor.set_tpause(2);
+        `SVTEST(one_packet_stall_monitor)
+            monitor.set_stall_rate(0.5);
             one_packet();
             #50us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
         `SVTEST_END
 
-        `SVTEST(one_packet_twait_2)
-            //env.driver.set_twait(2);
+        `SVTEST(one_packet_gap_driver)
+            driver.set_min_gap(2);
             one_packet();
             #50us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
         `SVTEST_END
 
-        `SVTEST(one_packet_tpause_2_twait_2)
-            //env.monitor.set_tpause(2);
-            //env.driver.set_twait(2);
+        `SVTEST(one_packet_stall_and_gap)
+            monitor.set_stall_rate(0.5);
+            driver.set_min_gap(2);
             one_packet();
             #50us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
+        `SVTEST_END
+
+        `SVTEST(packet_stream_100)
+            packet_stream();
+            #500us `FAIL_IF_LOG( scoreboard.report(msg) > 0, msg );
         `SVTEST_END
 
         `SVTEST(one_packet_bad)

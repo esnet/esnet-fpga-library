@@ -146,6 +146,7 @@ module sar_reassembly_cache #(
 
     logic                        __frag_valid;
     logic                        __frag_init;
+    logic                        __frag_last;
     fragment_action_t            __frag_action;
     logic [FRAGMENT_PTR_WID-1:0] __frag_ptr;
     logic [OFFSET_WID-1:0]       __frag_offset_start;
@@ -159,12 +160,32 @@ module sar_reassembly_cache #(
     logic               delete_q__append__rd;
     segment_table_key_t delete_q__append__rd_data;
     logic               delete_q__append__empty;
-    
+
     logic               delete_q__prepend__wr;
     segment_table_key_t delete_q__prepend__wr_data;
     logic               delete_q__prepend__rd;
     segment_table_key_t delete_q__prepend__rd_data;
     logic               delete_q__prepend__empty;
+
+    // Debug counter/flag signals
+    logic        dbg_cnt_clear;
+    logic [31:0] dbg_cnt_seg_rx;
+    logic [31:0] dbg_cnt_frag_create;
+    logic [31:0] dbg_cnt_frag_append;
+    logic [31:0] dbg_cnt_frag_prepend;
+    logic [31:0] dbg_cnt_frag_merge;
+    logic [31:0] dbg_cnt_alloc_drop;
+    logic [31:0] dbg_cnt_lookup_error;
+
+    logic ctxt_fifo_oflow;
+    logic ctxt_fifo_uflow;
+    logic delete_q_append_oflow;
+    logic delete_q_prepend_oflow;
+
+    logic dbg_flag_ctxt_fifo_oflow;
+    logic dbg_flag_ctxt_fifo_uflow;
+    logic dbg_flag_delete_q_append_oflow;
+    logic dbg_flag_delete_q_prepend_oflow;
     
     // -------------------------------------------------
     // AXI-L control
@@ -192,12 +213,80 @@ module sar_reassembly_cache #(
 
     assign reg_if.info_size_nxt = MAX_FRAGMENTS;
     assign reg_if.info_size_nxt_v = 1'b1;
-    
+
     // Status
     assign reg_if.status_nxt_v = 1'b1;
     assign reg_if.status_nxt.reset_mon = __srst;
     assign reg_if.status_nxt.enable_mon = __en;
     assign reg_if.status_nxt.ready_mon = init_done;
+
+    // Debug counter clear
+    initial dbg_cnt_clear = 1'b1;
+    always @(posedge clk) begin
+        if (__srst || reg_if.dbg_control.clear_counts) dbg_cnt_clear <= 1'b1;
+        else                                           dbg_cnt_clear <= 1'b0;
+    end
+
+    // Debug counters
+    always @(posedge clk) begin
+        if (dbg_cnt_clear)                  dbg_cnt_seg_rx <= '0;
+        else if (seg_valid && seg_ready)    dbg_cnt_seg_rx <= dbg_cnt_seg_rx + 1;
+    end
+
+    always @(posedge clk) begin
+        if (dbg_cnt_clear) begin
+            dbg_cnt_frag_create  <= '0;
+            dbg_cnt_frag_append  <= '0;
+            dbg_cnt_frag_prepend <= '0;
+            dbg_cnt_frag_merge   <= '0;
+            dbg_cnt_alloc_drop   <= '0;
+            dbg_cnt_lookup_error <= '0;
+        end else begin
+            if (__frag_valid && __frag_action == FRAGMENT_CREATE)  dbg_cnt_frag_create  <= dbg_cnt_frag_create  + 1;
+            if (__frag_valid && __frag_action == FRAGMENT_APPEND)  dbg_cnt_frag_append  <= dbg_cnt_frag_append  + 1;
+            if (__frag_valid && __frag_action == FRAGMENT_PREPEND) dbg_cnt_frag_prepend <= dbg_cnt_frag_prepend + 1;
+            if (__frag_valid && __frag_action == FRAGMENT_MERGE)   dbg_cnt_frag_merge   <= dbg_cnt_frag_merge   + 1;
+            if (lookup_done && !lookup_if__append.valid && !lookup_if__prepend.valid && !frag_ptr_alloc_rdy)
+                dbg_cnt_alloc_drop <= dbg_cnt_alloc_drop + 1;
+            if (lookup_error)                                      dbg_cnt_lookup_error <= dbg_cnt_lookup_error + 1;
+        end
+    end
+
+    assign reg_if.dbg_cnt_seg_rx_nxt_v      = 1'b1;
+    assign reg_if.dbg_cnt_seg_rx_nxt        = dbg_cnt_seg_rx;
+    assign reg_if.dbg_cnt_frag_create_nxt_v = 1'b1;
+    assign reg_if.dbg_cnt_frag_create_nxt   = dbg_cnt_frag_create;
+    assign reg_if.dbg_cnt_frag_append_nxt_v = 1'b1;
+    assign reg_if.dbg_cnt_frag_append_nxt   = dbg_cnt_frag_append;
+    assign reg_if.dbg_cnt_frag_prepend_nxt_v = 1'b1;
+    assign reg_if.dbg_cnt_frag_prepend_nxt  = dbg_cnt_frag_prepend;
+    assign reg_if.dbg_cnt_frag_merge_nxt_v  = 1'b1;
+    assign reg_if.dbg_cnt_frag_merge_nxt    = dbg_cnt_frag_merge;
+    assign reg_if.dbg_cnt_alloc_drop_nxt_v  = 1'b1;
+    assign reg_if.dbg_cnt_alloc_drop_nxt    = dbg_cnt_alloc_drop;
+    assign reg_if.dbg_cnt_lookup_error_nxt_v = 1'b1;
+    assign reg_if.dbg_cnt_lookup_error_nxt  = dbg_cnt_lookup_error;
+
+    // Sticky debug flags (clear-on-read via rd_evt)
+    always @(posedge clk) begin
+        if (__srst || reg_if.dbg_flags_rd_evt) begin
+            dbg_flag_ctxt_fifo_oflow        <= 1'b0;
+            dbg_flag_ctxt_fifo_uflow        <= 1'b0;
+            dbg_flag_delete_q_append_oflow  <= 1'b0;
+            dbg_flag_delete_q_prepend_oflow <= 1'b0;
+        end else begin
+            dbg_flag_ctxt_fifo_oflow        <= dbg_flag_ctxt_fifo_oflow        || ctxt_fifo_oflow;
+            dbg_flag_ctxt_fifo_uflow        <= dbg_flag_ctxt_fifo_uflow        || ctxt_fifo_uflow;
+            dbg_flag_delete_q_append_oflow  <= dbg_flag_delete_q_append_oflow  || delete_q_append_oflow;
+            dbg_flag_delete_q_prepend_oflow <= dbg_flag_delete_q_prepend_oflow || delete_q_prepend_oflow;
+        end
+    end
+
+    assign reg_if.dbg_flags_nxt_v = 1'b1;
+    assign reg_if.dbg_flags_nxt.ctxt_fifo_oflow        = dbg_flag_ctxt_fifo_oflow;
+    assign reg_if.dbg_flags_nxt.ctxt_fifo_uflow        = dbg_flag_ctxt_fifo_uflow;
+    assign reg_if.dbg_flags_nxt.delete_q_append_oflow  = dbg_flag_delete_q_append_oflow;
+    assign reg_if.dbg_flags_nxt.delete_q_prepend_oflow = dbg_flag_delete_q_prepend_oflow;
 
     // Block reset
     initial __srst = 1'b1;
@@ -300,7 +389,7 @@ module sar_reassembly_cache #(
     assign lookup_if__prepend.next = 1'b0;
     assign lookup_if__prepend_value = lookup_if__prepend.value;
 
-    assign seg_ready = lookup_if__append.rdy && lookup_if__prepend.rdy;
+    assign seg_ready = init_done && __en && lookup_if__append.rdy && lookup_if__prepend.rdy;
 
     // Context buffer
     assign lookup_ctxt_in.buf_id       = seg_buf_id;
@@ -327,14 +416,15 @@ module sar_reassembly_cache #(
         .rd      ( lookup_done ),
         .rd_vld  ( ),
         .rd_data ( lookup_ctxt_out ),
-        .oflow   ( ),
-        .uflow   ( )
+        .oflow   ( ctxt_fifo_oflow ),
+        .uflow   ( ctxt_fifo_uflow )
     );
 
     // Process result
     always_comb begin
         __frag_valid = 1'b0;
         __frag_init = 1'b0;
+        __frag_last = lookup_ctxt_out.last;
         __frag_action = FRAGMENT_CREATE;
         __frag_ptr = '0;
         __frag_offset_start = '0;
@@ -366,6 +456,8 @@ module sar_reassembly_cache #(
                     __frag_ptr = lookup_if__prepend_value.ptr;
                     __frag_offset_start = lookup_ctxt_out.offset_start;
                     __frag_offset_end = lookup_if__prepend_value.offset;
+                    // offset==0 in the prepend table is the sentinel for last=1
+                    __frag_last = lookup_ctxt_out.last | (lookup_if__prepend_value.offset == 0);
                 end
                 2'b11 : begin
                     __frag_action = FRAGMENT_MERGE;
@@ -375,6 +467,8 @@ module sar_reassembly_cache #(
                     __frag_offset_end = lookup_if__prepend_value.offset;
                     __frag_merged = 1'b1;
                     __frag_merged_ptr = lookup_if__append_value.ptr;
+                    // offset==0 in the prepend table is the sentinel for last=1
+                    __frag_last = lookup_ctxt_out.last | (lookup_if__prepend_value.offset == 0);
                 end
             endcase
         end
@@ -394,7 +488,7 @@ module sar_reassembly_cache #(
     always_ff @(posedge clk) begin
         frag_buf_id        <= lookup_ctxt_out.buf_id;
         frag_init          <= __frag_init;
-        frag_last          <= lookup_ctxt_out.last;
+        frag_last          <= __frag_last;
         frag_ptr           <= __frag_ptr;
         frag_offset_start  <= __frag_offset_start;
         frag_offset_end    <= __frag_offset_end;
@@ -436,7 +530,7 @@ module sar_reassembly_cache #(
                     update_if__append_key.offset = lookup_ctxt_out.offset_end;
                     update_if__append_value.ptr = __frag_ptr;
                     update_if__append_value.offset = lookup_ctxt_out.offset_start;
-                    
+
                     update_if__prepend.req = (lookup_ctxt_out.offset_start > 0);
                     update_if__prepend.valid = 1'b1; // Insert
                     update_if__prepend_key.offset = lookup_ctxt_out.offset_start;
@@ -468,11 +562,11 @@ module sar_reassembly_cache #(
                     update_if__prepend.valid = 1'b1; // Insert
                     update_if__prepend_key.offset = lookup_ctxt_out.offset_start;
                     update_if__prepend_value.ptr = __frag_ptr;
-                    update_if__prepend_value.offset = __frag_offset_end;
+                    update_if__prepend_value.offset = __frag_last ? 0 : __frag_offset_end;
                     delete_q__prepend__wr = 1'b1;
                 end
                 FRAGMENT_MERGE : begin
-                    update_if__append.req = (__frag_offset_end > 0);
+                    update_if__append.req = (__frag_offset_end > 0) && !__frag_last;
                     update_if__append.valid = 1'b1; // Insert
                     update_if__append_key.offset = __frag_offset_end;
                     update_if__append_value.ptr = __frag_ptr;
@@ -483,7 +577,7 @@ module sar_reassembly_cache #(
                     update_if__prepend.valid = 1'b1; // Insert
                     update_if__prepend_key.offset = __frag_offset_start;
                     update_if__prepend_value.ptr = __frag_ptr;
-                    update_if__prepend_value.offset = __frag_offset_end;
+                    update_if__prepend_value.offset = __frag_last ? 0 : __frag_offset_end;
                     delete_q__prepend__wr = 1'b1;
                 end
                 default : begin
@@ -518,7 +612,7 @@ module sar_reassembly_cache #(
         .wr      ( delete_q__append__wr ),
         .wr_data ( delete_q__append__wr_data ),
         .full    ( ),
-        .oflow   ( ),
+        .oflow   ( delete_q_append_oflow ),
         .rd      ( delete_q__append__rd ),
         .rd_data ( delete_q__append__rd_data ),
         .empty   ( delete_q__append__empty ),
@@ -538,7 +632,7 @@ module sar_reassembly_cache #(
         .wr      ( delete_q__prepend__wr ),
         .wr_data ( delete_q__prepend__wr_data ),
         .full    ( ),
-        .oflow   ( ),
+        .oflow   ( delete_q_prepend_oflow ),
         .rd      ( delete_q__prepend__rd ),
         .rd_data ( delete_q__prepend__rd_data ),
         .empty   ( delete_q__prepend__empty ),

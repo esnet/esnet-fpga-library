@@ -13,6 +13,8 @@ module sar_segmentation
     input  logic                       clk,
     input  logic                       srst,
 
+    input  logic                       en,
+
     output logic                       init_done,
 
     // Frame (input) interface
@@ -51,6 +53,11 @@ module sar_segmentation
     // Signals
     // -------------------------------------------------
     logic __srst;
+    logic __en;
+
+    logic dbg_cnt_clear;
+    logic [31:0] dbg_cnt_frames_in;
+    logic [31:0] dbg_cnt_segments_out;
 
     state_t state;
     state_t nxt_state;
@@ -98,6 +105,7 @@ module sar_segmentation
     // Status
     assign reg_if.status_nxt_v = 1'b1;
     assign reg_if.status_nxt.reset_mon = __srst;
+    assign reg_if.status_nxt.enable_mon = __en;
     assign reg_if.status_nxt.ready_mon = init_done;
 
     // Block reset
@@ -109,6 +117,41 @@ module sar_segmentation
 
     // init_done: ready as soon as reset deasserts (no sub-component init)
     assign init_done = !__srst;
+
+    // Block enable
+    initial __en = 1'b0;
+    always @(posedge clk) begin
+        if (__srst)                       __en <= 1'b0;
+        else if (en && reg_if.control.enable) __en <= 1'b1;
+        else                              __en <= 1'b0;
+    end
+
+    // Debug status
+    assign reg_if.dbg_status_nxt_v = 1'b1;
+    assign reg_if.dbg_status_nxt.state = sar_segmentation_reg_pkg::fld_dbg_status_state_t'({6'b0, state});
+
+    // Debug counter clear
+    initial dbg_cnt_clear = 1'b1;
+    always @(posedge clk) begin
+        if (__srst || reg_if.dbg_control.clear_counts) dbg_cnt_clear <= 1'b1;
+        else                                           dbg_cnt_clear <= 1'b0;
+    end
+
+    // Debug counters
+    always @(posedge clk) begin
+        if (dbg_cnt_clear)                    dbg_cnt_frames_in <= '0;
+        else if (frame_valid && frame_ready)  dbg_cnt_frames_in <= dbg_cnt_frames_in + 1;
+    end
+
+    always @(posedge clk) begin
+        if (dbg_cnt_clear)                    dbg_cnt_segments_out <= '0;
+        else if (seg_valid && seg_ready)      dbg_cnt_segments_out <= dbg_cnt_segments_out + 1;
+    end
+
+    assign reg_if.dbg_cnt_frames_in_nxt_v   = 1'b1;
+    assign reg_if.dbg_cnt_frames_in_nxt     = dbg_cnt_frames_in;
+    assign reg_if.dbg_cnt_segments_out_nxt_v = 1'b1;
+    assign reg_if.dbg_cnt_segments_out_nxt  = dbg_cnt_segments_out;
 
     // Segment length config
     always @(posedge clk) begin
@@ -134,8 +177,8 @@ module sar_segmentation
                 nxt_state = READY;
             end
             READY : begin
-                frame_ready = 1'b1;
-                if (frame_valid) nxt_state = PROCESSING;
+                frame_ready = (cfg_seg_len != '0);  // refuse frames if seg_len unconfigured
+                if (frame_valid && frame_ready) nxt_state = PROCESSING;
             end
             PROCESSING : begin
                 seg_valid = 1'b1;
@@ -164,7 +207,7 @@ module sar_segmentation
         if (reset_offset) begin
             offset <= '0;
             last <= (frame_len <= cfg_seg_len);
-            len_last <= cfg_seg_len;
+            len_last <= frame_len;  // correct length for single-segment frames
         end else if (seg_valid && seg_ready) begin
             offset <= offset + cfg_seg_len;
             last <= (offset_last - offset) < cfg_seg_len;

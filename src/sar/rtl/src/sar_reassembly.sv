@@ -73,6 +73,27 @@ module sar_reassembly
     logic init_done__cache;
     logic init_done__state;
 
+    // Debug signals from sar_reassembly_state
+    logic [3:0] dbg_fsm_state;
+    logic       dbg_q_done_oflow;
+    logic       dbg_q_expired_oflow;
+    logic       dbg_q_merged_oflow;
+    logic       dbg_q_done_rd;
+    logic       dbg_q_expired_rd;
+    logic       dbg_q_merged_rd;
+    logic       dbg_dealloc_done;
+
+    // Debug counter/flag signals
+    logic        dbg_cnt_clear;
+    logic [31:0] dbg_cnt_merge_ops;
+    logic [31:0] dbg_cnt_done_ops;
+    logic [31:0] dbg_cnt_expired_ops;
+    logic [31:0] dbg_cnt_dealloc_ops;
+
+    logic dbg_flag_q_done_oflow;
+    logic dbg_flag_q_expired_oflow;
+    logic dbg_flag_q_merged_oflow;
+
     logic                         frag_valid;
     logic                         frag_init;
     logic [BUF_ID_WID-1:0]        frag_buf_id;
@@ -124,6 +145,13 @@ module sar_reassembly
         .reg_blk_if ( reg_if )
     );
 
+    // Info
+    assign reg_if.info_nxt_v = 1'b1;
+    assign reg_if.info_nxt.num_frame_buffers = NUM_FRAME_BUFFERS[15:0];
+    assign reg_if.info_nxt.max_fragments = MAX_FRAGMENTS[15:0];
+    assign reg_if.info_frame_nxt_v = 1'b1;
+    assign reg_if.info_frame_nxt.max_size = MAX_FRAME_SIZE;
+
     // Status
     assign reg_if.status_nxt_v = 1'b1;
     assign reg_if.status_nxt.reset_mon = __srst;
@@ -143,6 +171,65 @@ module sar_reassembly
         if (en && reg_if.control.enable) __en <= 1'b1;
         else                             __en <= 1'b0;
     end
+
+    // Debug status (deletion FSM state)
+    assign reg_if.dbg_status_nxt_v = 1'b1;
+    assign reg_if.dbg_status_nxt.state = sar_reassembly_reg_pkg::fld_dbg_status_state_t'({4'b0, dbg_fsm_state});
+
+    // Debug counter clear
+    initial dbg_cnt_clear = 1'b1;
+    always @(posedge clk) begin
+        if (__srst || reg_if.dbg_control.clear_counts) dbg_cnt_clear <= 1'b1;
+        else                                           dbg_cnt_clear <= 1'b0;
+    end
+
+    // Debug counters
+    always @(posedge clk) begin
+        if (dbg_cnt_clear)     dbg_cnt_merge_ops   <= '0;
+        else if (dbg_q_merged_rd) dbg_cnt_merge_ops <= dbg_cnt_merge_ops + 1;
+    end
+
+    always @(posedge clk) begin
+        if (dbg_cnt_clear)    dbg_cnt_done_ops    <= '0;
+        else if (dbg_q_done_rd) dbg_cnt_done_ops  <= dbg_cnt_done_ops + 1;
+    end
+
+    always @(posedge clk) begin
+        if (dbg_cnt_clear)       dbg_cnt_expired_ops  <= '0;
+        else if (dbg_q_expired_rd) dbg_cnt_expired_ops <= dbg_cnt_expired_ops + 1;
+    end
+
+    always @(posedge clk) begin
+        if (dbg_cnt_clear)      dbg_cnt_dealloc_ops  <= '0;
+        else if (dbg_dealloc_done) dbg_cnt_dealloc_ops <= dbg_cnt_dealloc_ops + 1;
+    end
+
+    assign reg_if.dbg_cnt_merge_ops_nxt_v   = 1'b1;
+    assign reg_if.dbg_cnt_merge_ops_nxt     = dbg_cnt_merge_ops;
+    assign reg_if.dbg_cnt_done_ops_nxt_v    = 1'b1;
+    assign reg_if.dbg_cnt_done_ops_nxt      = dbg_cnt_done_ops;
+    assign reg_if.dbg_cnt_expired_ops_nxt_v = 1'b1;
+    assign reg_if.dbg_cnt_expired_ops_nxt   = dbg_cnt_expired_ops;
+    assign reg_if.dbg_cnt_dealloc_ops_nxt_v = 1'b1;
+    assign reg_if.dbg_cnt_dealloc_ops_nxt   = dbg_cnt_dealloc_ops;
+
+    // Sticky debug flags (clear-on-read)
+    always @(posedge clk) begin
+        if (__srst || reg_if.dbg_flags_rd_evt) begin
+            dbg_flag_q_done_oflow    <= 1'b0;
+            dbg_flag_q_expired_oflow <= 1'b0;
+            dbg_flag_q_merged_oflow  <= 1'b0;
+        end else begin
+            dbg_flag_q_done_oflow    <= dbg_flag_q_done_oflow    || dbg_q_done_oflow;
+            dbg_flag_q_expired_oflow <= dbg_flag_q_expired_oflow || dbg_q_expired_oflow;
+            dbg_flag_q_merged_oflow  <= dbg_flag_q_merged_oflow  || dbg_q_merged_oflow;
+        end
+    end
+
+    assign reg_if.dbg_flags_nxt_v = 1'b1;
+    assign reg_if.dbg_flags_nxt.q_done_oflow    = dbg_flag_q_done_oflow;
+    assign reg_if.dbg_flags_nxt.q_expired_oflow = dbg_flag_q_expired_oflow;
+    assign reg_if.dbg_flags_nxt.q_merged_oflow  = dbg_flag_q_merged_oflow;
 
     // -------------------------------------------------
     // Control
@@ -218,7 +305,15 @@ module sar_reassembly
         .frag_ptr_dealloc_value ( frag_ptr_dealloc_value ),
         .ctrl_if__append        ( ctrl_if__append ),
         .ctrl_if__prepend       ( ctrl_if__prepend ),
-        .axil_if                ( axil_if__state )
+        .axil_if                ( axil_if__state ),
+        .dbg_fsm_state          ( dbg_fsm_state ),
+        .dbg_q_done_oflow       ( dbg_q_done_oflow ),
+        .dbg_q_expired_oflow    ( dbg_q_expired_oflow ),
+        .dbg_q_merged_oflow     ( dbg_q_merged_oflow ),
+        .dbg_q_done_rd          ( dbg_q_done_rd ),
+        .dbg_q_expired_rd       ( dbg_q_expired_rd ),
+        .dbg_q_merged_rd        ( dbg_q_merged_rd ),
+        .dbg_dealloc_done       ( dbg_dealloc_done )
     );
 
 endmodule : sar_reassembly

@@ -53,4 +53,38 @@ class sar_reassembly_reg_agent#(type BUF_ID_T = bit, type OFFSET_T = bit, type F
         wait_ready();
     endtask
 
+    task clear_dbg_counts();
+        sar_reassembly_reg_pkg::reg_dbg_control_t reg_dbg_control;
+        reg_dbg_control.clear_counts = 1;
+        this.write_dbg_control(reg_dbg_control);
+    endtask
+
+    task get_merge_cnt(output int cnt);
+        sar_reassembly_reg_pkg::reg_dbg_cnt_merge_ops_t reg_cnt;
+        this.read_dbg_cnt_merge_ops(reg_cnt);
+        cnt = reg_cnt;
+    endtask
+
+    task get_done_cnt(output int cnt);
+        sar_reassembly_reg_pkg::reg_dbg_cnt_done_ops_t reg_cnt;
+        this.read_dbg_cnt_done_ops(reg_cnt);
+        cnt = reg_cnt;
+    endtask
+
+    task get_expired_cnt(output int cnt);
+        sar_reassembly_reg_pkg::reg_dbg_cnt_expired_ops_t reg_cnt;
+        this.read_dbg_cnt_expired_ops(reg_cnt);
+        cnt = reg_cnt;
+    endtask
+
+    task get_dealloc_cnt(output int cnt);
+        sar_reassembly_reg_pkg::reg_dbg_cnt_dealloc_ops_t reg_cnt;
+        this.read_dbg_cnt_dealloc_ops(reg_cnt);
+        cnt = reg_cnt;
+    endtask
+
+    task read_dbg_flags(output sar_reassembly_reg_pkg::reg_dbg_flags_t flags);
+        this.read_dbg_flags(flags);
+    endtask
+
 endclass : sar_reassembly_reg_agent

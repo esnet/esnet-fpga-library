@@ -89,8 +89,8 @@ module sar_packet_segmentation #(
     // -------------------------------------------------
     packet_counters #(
         .MAX_PKT_SIZE ( MAX_PKT_SIZE ),
-        .COUNT_ERR    ( 0 ),
-        .COUNT_OFLOW  ( 0 )
+        .COUNT_ERR    ( 1 ),
+        .COUNT_OFLOW  ( 1 )
     ) i_packet_counters (
         .clk,
         .axil_if  ( axil_if__packets ),
@@ -127,7 +127,7 @@ module sar_packet_segmentation #(
     assign packet_size   = __packet_if_meta.size;
     assign packet_last   = __packet_if_meta.last;
 
-    assign rd_descriptor.addr = rd_descriptor_meta.buf_id + rd_descriptor_meta.offset;
+    assign rd_descriptor.addr = {rd_descriptor_meta.buf_id, rd_descriptor_meta.offset[OFFSET_WID-1 : $clog2(DATA_BYTE_WID)]};
     assign rd_descriptor_meta.size = rd_descriptor.size;
     assign rd_descriptor.meta = rd_descriptor_meta;
     assign rd_descriptor.err = 1'b0;
@@ -140,6 +140,7 @@ module sar_packet_segmentation #(
     ) i_sar_segmentation (
         .clk,
         .srst,
+        .en         ( 1'b1 ),
         .init_done  ( init_done__sar_segmentation ),
         .frame_ready,
         .frame_valid,

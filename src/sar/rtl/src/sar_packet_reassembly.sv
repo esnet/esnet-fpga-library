@@ -38,7 +38,7 @@ module sar_packet_reassembly #(
     output logic [BUF_ID_WID-1:0]     frame_buf_id,
     output logic [FRAME_SIZE_WID-1:0] frame_len,
 
-    // Memory read interface
+    // Memory write interface
     mem_wr_intf.controller            mem_wr_if,
     input logic                       mem_init_done
 );
@@ -94,8 +94,8 @@ module sar_packet_reassembly #(
     // -------------------------------------------------
     packet_counters #(
         .MAX_PKT_SIZE ( MAX_PKT_SIZE ),
-        .COUNT_ERR    ( 0 ),
-        .COUNT_OFLOW  ( 0 )
+        .COUNT_ERR    ( 1 ),
+        .COUNT_OFLOW  ( 1 )
     ) i_packet_counters (
         .clk,
         .axil_if  ( axil_if__packets ),
@@ -136,7 +136,7 @@ module sar_packet_reassembly #(
     );
 
     assign nxt_descriptor.vld  = 1'b1;
-    assign nxt_descriptor.addr = packet_buf_id + packet_offset;
+    assign nxt_descriptor.addr = {packet_buf_id, packet_offset[OFFSET_WID-1 : $clog2(DATA_BYTE_WID)]};
     assign nxt_descriptor.size = MAX_PKT_SIZE;
     assign nxt_descriptor.err  = 1'b0;
     assign nxt_descriptor.meta = '0;

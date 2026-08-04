@@ -48,7 +48,17 @@ module sar_reassembly_state #(
     db_ctrl_intf.controller             ctrl_if__prepend,
 
     // AXI-L control
-    axi4l_intf.peripheral               axil_if
+    axi4l_intf.peripheral               axil_if,
+
+    // Debug outputs (wired to parent register block)
+    output logic [3:0]  dbg_fsm_state,
+    output logic        dbg_q_done_oflow,
+    output logic        dbg_q_expired_oflow,
+    output logic        dbg_q_merged_oflow,
+    output logic        dbg_q_done_rd,
+    output logic        dbg_q_expired_rd,
+    output logic        dbg_q_merged_rd,
+    output logic        dbg_dealloc_done
 );
     // -------------------------------------------------
     // Imports
@@ -176,6 +186,12 @@ module sar_reassembly_state #(
     fsm_state_t fsm_state;
     fsm_state_t nxt_fsm_state;
 
+    // Reaped state captured after DELETE_STATE_PENDING (used for cache cleanup)
+    state_t reaped_state;
+
+    // Set when FSM is processing an expired fragment (needs cache cleanup)
+    logic is_expired_cleanup;
+
     // -------------------------------------------------
     // AXI-L control
     // -------------------------------------------------
@@ -277,7 +293,7 @@ module sar_reassembly_state #(
         .wr      ( q_done__wr ),
         .wr_data ( q_done__wr_data ),
         .full    ( ),
-        .oflow   ( ),
+        .oflow   ( dbg_q_done_oflow ),
         .rd      ( q_done__rd ),
         .rd_data ( q_done__rd_data ),
         .empty   ( q_done__empty ),
@@ -300,7 +316,7 @@ module sar_reassembly_state #(
         .wr      ( q_expired__wr ),
         .wr_data ( q_expired__wr_data ),
         .full    ( ),
-        .oflow   ( ),
+        .oflow   ( dbg_q_expired_oflow ),
         .rd      ( q_expired__rd ),
         .rd_data ( q_expired__rd_data ),
         .empty   ( q_expired__empty ),
@@ -321,7 +337,7 @@ module sar_reassembly_state #(
         .wr      ( q_merged__wr ),
         .wr_data ( q_merged__wr_data ),
         .full    ( ),
-        .oflow   ( ),
+        .oflow   ( dbg_q_merged_oflow ),
         .rd      ( q_merged__rd ),
         .rd_data ( q_merged__rd_data ),
         .empty   ( q_merged__empty ),
@@ -347,6 +363,15 @@ module sar_reassembly_state #(
         ctrl_if.req = 1'b0;
         frag_ptr_dealloc_req = 1'b0;
         frame_valid = 1'b0;
+        // Default: idle the cache ctrl interfaces
+        ctrl_if__append.req     = 1'b0;
+        ctrl_if__append.command = db_pkg::COMMAND_NOP;
+        ctrl_if__append.key     = '0;
+        ctrl_if__append.set_value = '0;
+        ctrl_if__prepend.req     = 1'b0;
+        ctrl_if__prepend.command = db_pkg::COMMAND_NOP;
+        ctrl_if__prepend.key     = '0;
+        ctrl_if__prepend.set_value = '0;
         case (fsm_state)
             RESET : begin
                 nxt_fsm_state = IDLE;
@@ -366,23 +391,32 @@ module sar_reassembly_state #(
             end
             PROCESS_EXPIRED : begin
                 q_expired__rd = 1'b1;
-                nxt_fsm_state = APPEND_CACHE_DELETE_REQ;
+                nxt_fsm_state = DELETE_STATE_REQ;  // state delete first; reaped state then drives cache cleanup
             end
             NOTIFY_DONE : begin
                 frame_valid = 1'b1;
                 if (frame_ready) nxt_fsm_state = DELETE_STATE_REQ;
             end
+            // Cache cleanup states: only exercised on the expired path (is_expired_cleanup set)
             APPEND_CACHE_DELETE_REQ : begin
-                nxt_fsm_state = DELETE_STATE_REQ;
+                // Delete from append hash table: key = {buf_id, offset_end}
+                ctrl_if__append.req     = 1'b1;
+                ctrl_if__append.command = db_pkg::COMMAND_UNSET;
+                ctrl_if__append.key     = {reaped_state.buf_id, reaped_state.offset_end};
+                if (ctrl_if__append.rdy) nxt_fsm_state = APPEND_CACHE_DELETE_PENDING;
             end
             APPEND_CACHE_DELETE_PENDING : begin
-                nxt_fsm_state = IDLE;
+                if (ctrl_if__append.ack) nxt_fsm_state = PREPEND_CACHE_DELETE_REQ;
             end
             PREPEND_CACHE_DELETE_REQ : begin
-                nxt_fsm_state = IDLE;
+                // Delete from prepend hash table: key = {buf_id, offset_start}
+                ctrl_if__prepend.req     = 1'b1;
+                ctrl_if__prepend.command = db_pkg::COMMAND_UNSET;
+                ctrl_if__prepend.key     = {reaped_state.buf_id, reaped_state.offset_start};
+                if (ctrl_if__prepend.rdy) nxt_fsm_state = PREPEND_CACHE_DELETE_PENDING;
             end
             PREPEND_CACHE_DELETE_PENDING : begin
-                nxt_fsm_state = IDLE;
+                if (ctrl_if__prepend.ack) nxt_fsm_state = DEALLOC_PTR;
             end
             DELETE_STATE_REQ : begin
                 ctrl_if.req = 1'b1;
@@ -390,7 +424,8 @@ module sar_reassembly_state #(
             end
             DELETE_STATE_PENDING : begin
                 if (ctrl_if.ack) begin
-                    nxt_fsm_state = DEALLOC_PTR;
+                    // After state reap: if expired, clean up cache entries; otherwise deallocate
+                    nxt_fsm_state = is_expired_cleanup ? APPEND_CACHE_DELETE_REQ : DEALLOC_PTR;
                 end
             end
             DEALLOC_PTR : begin
@@ -402,13 +437,29 @@ module sar_reassembly_state #(
 
     // Drive control interface in reap mode; each state element is set to clear on a reap operation
     assign ctrl_if.ctxt = UPDATE_CTXT_REAP;
-    assign ctrl_if.update = 'x; 
+    assign ctrl_if.update = '0;
+
+    // Fragment pointer deallocation value: use the latched ctrl_if.id
+    assign frag_ptr_dealloc_value = ctrl_if.id;
 
     // Latch fragment ptr for deletion
     always_ff @(posedge clk) begin
         if      (q_done__rd)    ctrl_if.id <= q_done__rd_data.id;
         else if (q_expired__rd) ctrl_if.id <= q_expired__rd_data;
         else if (q_merged__rd)  ctrl_if.id <= q_merged__rd_data;
+    end
+
+    // Latch reaped state (buf_id, offset_start, offset_end) for cache cleanup on expiry
+    always_ff @(posedge clk) begin
+        if (ctrl_if.ack) reaped_state <= ctrl_if.state;
+    end
+
+    // Track whether the current deletion is for an expired fragment
+    initial is_expired_cleanup = 1'b0;
+    always @(posedge clk) begin
+        if (srst)              is_expired_cleanup <= 1'b0;
+        else if (q_expired__rd) is_expired_cleanup <= 1'b1;
+        else if (fsm_state == DEALLOC_PTR && frag_ptr_dealloc_rdy) is_expired_cleanup <= 1'b0;
     end
 
     // Latch key for deletion from append cache
@@ -420,6 +471,12 @@ module sar_reassembly_state #(
             frame_len <= q_done__rd_data.ctxt.offset_end;
         end
     end
-        
+
+    // Debug outputs
+    assign dbg_fsm_state   = fsm_state[3:0];
+    assign dbg_q_done_rd   = q_done__rd;
+    assign dbg_q_expired_rd = q_expired__rd;
+    assign dbg_q_merged_rd = q_merged__rd;
+    assign dbg_dealloc_done = frag_ptr_dealloc_req && frag_ptr_dealloc_rdy;
 
 endmodule : sar_reassembly_state
