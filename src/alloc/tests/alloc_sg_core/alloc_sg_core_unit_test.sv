@@ -63,6 +63,8 @@ module alloc_sg_core_unit_test #(
     alloc_intf #(.BUFFER_SIZE(BUFFER_SIZE), .PTR_WID(PTR_WID), .META_WID(META_WID)) scatter_if [CONTEXTS] (.clk);
     alloc_intf #(.BUFFER_SIZE(BUFFER_SIZE), .PTR_WID(PTR_WID), .META_WID(META_WID)) gather_if  [CONTEXTS] (.clk);
 
+    logic [PTR_WID:0] BUFFERS = 0;
+
     logic   recycle_req;
     logic   recycle_rdy;
     PTR_T   recycle_ptr;

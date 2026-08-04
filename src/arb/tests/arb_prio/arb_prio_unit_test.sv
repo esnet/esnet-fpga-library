@@ -28,6 +28,11 @@ module arb_prio_unit_test;
     //===================================
     `SVUNIT_CLK_GEN(clk, 5ns);
 
+    default clocking cb @(posedge clk);
+        default input #1step output #1;
+        output srst, en, req, ack;
+    endclocking
+
     //===================================
     // Build
     //===================================
@@ -42,10 +47,9 @@ module arb_prio_unit_test;
     task setup();
         svunit_ut.setup();
 
-        en = 1'b1;
-
-        req = '0;
-        ack = '0;
+        cb.en  <= 1'b1;
+        cb.req <= '0;
+        cb.ack <= '0;
 
         reset();
 
@@ -79,7 +83,7 @@ module arb_prio_unit_test;
 
         `SVTEST(_grant)
             int IF = $urandom % N;
-            req[IF] = 1'b1;
+            cb.req[IF] <= 1'b1;
             wait(grant[IF]);
             `FAIL_UNLESS_EQUAL(grant, 1 << IF);
             `FAIL_UNLESS_EQUAL(sel, IF);
@@ -87,42 +91,42 @@ module arb_prio_unit_test;
 
         `SVTEST(no_hold)
             int IF = $urandom % N;
-            req[IF] = 1'b1;
-            ack[IF] = 1'b1;
+            cb.req[IF] <= 1'b1;
+            cb.ack[IF] <= 1'b1;
             wait(grant[IF]);
             `FAIL_UNLESS_EQUAL(grant, 1 << IF);
             `FAIL_UNLESS_EQUAL(sel, IF);
-            @(posedge clk);
-            req[IF] = 1'b0;
-            @(negedge clk);
+            ##1;
+            cb.req[IF] <= 1'b0;
+            ##1;
             `FAIL_UNLESS_EQUAL(grant, 0);
         `SVTEST_END
 
         `SVTEST(hold)
             int IF = $urandom % N;
-            req[IF] = 1'b1;
+            cb.req[IF] <= 1'b1;
             wait(grant[IF]);
             `FAIL_UNLESS_EQUAL(grant, 1 << IF);
             `FAIL_UNLESS_EQUAL(sel, IF);
-            @(posedge clk);
-            req[IF] = 1'b0;
+            ##1;
+            cb.req[IF] <= 1'b0;
+            ##1;
             `FAIL_UNLESS_EQUAL(grant, 1 << IF);
             `FAIL_UNLESS_EQUAL(sel, IF);
-            @(posedge clk);
+            ##1;
             `FAIL_UNLESS_EQUAL(grant, 1 << IF);
             `FAIL_UNLESS_EQUAL(sel, IF);
-            ack[IF] = 1'b1;
-            @(posedge clk);
-            @(negedge clk);
+            cb.ack[IF] <= 1'b1;
+            ##2;
             `FAIL_UNLESS_EQUAL(grant, 0);
         `SVTEST_END
 
     `SVUNIT_TESTS_END
 
     task reset();
-        srst <= 1'b1;
-        repeat (8) @(posedge clk);
-        srst <= 1'b0;
+        cb.srst <= 1'b1;
+        ##8;
+        cb.srst <= 1'b0;
     endtask
 
 endmodule
