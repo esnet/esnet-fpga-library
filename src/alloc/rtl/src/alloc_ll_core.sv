@@ -162,6 +162,8 @@ module alloc_ll_core #(
     logic [PTR_WID-1:0] ptr;
     logic               ptr_ack;
 
+    logic [PTR_WID-1:0] mem_wr_addr;
+
     logic [1:0]         sel;
 
     init_state_t        init_state;
@@ -490,9 +492,9 @@ module alloc_ll_core #(
     end
 
     always_ff @(posedge clk) begin
-        store_rd_ctxt <= store_ctxt_rd_data;
-        store_wr_ctxt <= store_ctxt_wr_data;
-        mem_wr_if.addr <= store_ctxt_rd_data.tail;
+        store_rd_ctxt  <= store_ctxt_rd_data;
+        store_wr_ctxt  <= store_ctxt_wr_data;
+        mem_wr_addr    <= store_ctxt_rd_data.tail;
     end
 
     // Latch store context
@@ -505,7 +507,7 @@ module alloc_ll_core #(
 
     assign mem_wr_if.rst  = 1'b0;
     assign mem_wr_if.en   = 1'b1;
-    assign mem_wr_if.addr = store_wr_ctxt.tail;
+    assign mem_wr_if.addr = mem_wr_addr;
 
     // Construct list item for store
     assign mem_wr_data.ctxt = __store_list_sel;
