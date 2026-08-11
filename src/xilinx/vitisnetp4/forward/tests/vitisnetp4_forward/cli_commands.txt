@@ -1,0 +1,5 @@
+# forwardIPv4: route 10.0.0.0/8 to port 1
+table_add forwardIPv4 forwardPacket 0x0a000000/8 => 0x01 0
+
+# forwardIPv6: route 2001:db8::/32 to port 1
+table_add forwardIPv6 forwardPacket 0x20010db8000000000000000000000000/32 => 0x01 0
