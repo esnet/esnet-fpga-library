@@ -94,8 +94,37 @@ module packet_q_core
     packet_descriptor_intf #(.ADDR_WID(PTR_WID), .META_WID(META_WID), .MAX_PKT_SIZE(MAX_PKT_SIZE)) desc_out_if [NUM_OUTPUT_IFS] (.clk);
     packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_WID(META_WID)) __packet_out_if [NUM_OUTPUT_IFS] (.clk);
 
+    localparam int PACKET_Q_DECODER_NUM_OUTPUT_IFS = 4;
+
     axi4l_intf packet_sg_core__axil_if ();
     axi4l_intf packet_q_manager__axil_if [NUM_OUTPUT_IFS] ();
+    axi4l_intf packet_q_decoder__q_mgr_axil_if [PACKET_Q_DECODER_NUM_OUTPUT_IFS] ();
+
+    // AXI-L decoder: sg at 0x0, q_mgr_0..3 at 0x1000..0x4000
+    packet_q_decoder i_packet_q_decoder (
+        .axil_if         ( axil_if ),
+        .sg_axil_if      ( packet_sg_core__axil_if ),
+        .q_mgr_0_axil_if ( packet_q_decoder__q_mgr_axil_if[0] ),
+        .q_mgr_1_axil_if ( packet_q_decoder__q_mgr_axil_if[1] ),
+        .q_mgr_2_axil_if ( packet_q_decoder__q_mgr_axil_if[2] ),
+        .q_mgr_3_axil_if ( packet_q_decoder__q_mgr_axil_if[3] )
+    );
+
+    generate
+        for (genvar g = 0; g < PACKET_Q_DECODER_NUM_OUTPUT_IFS; g++) begin : g__q_mgr_axil
+            if (g < NUM_OUTPUT_IFS) begin : g__connect
+                axi4l_intf_connector i_axi4l_intf_connector (
+                    .axi4l_if_from_controller ( packet_q_decoder__q_mgr_axil_if[g] ),
+                    .axi4l_if_to_peripheral   ( packet_q_manager__axil_if[g] )
+                );
+            end : g__connect
+            else begin : g__tieoff
+                axi4l_intf_peripheral_term i_axi4l_intf_peripheral_term (
+                    .axi4l_if ( packet_q_decoder__q_mgr_axil_if[g] )
+                );
+            end : g__tieoff
+        end : g__q_mgr_axil
+    endgenerate
 
     // Init done
     assign init_done = packet_sg_core__init_done && &packet_q_manager__init_done;
@@ -152,9 +181,6 @@ module packet_q_core
             end
         end : g__input_if
     endgenerate
-
-    // Connect AXI-L interface
-    axi4l_intf_connector i_axi4l_intf_connector (.axi4l_if_from_controller(axil_if), .axi4l_if_to_peripheral(packet_sg_core__axil_if));
 
     // Packet scatter-gather core
     packet_sg_core     #(
@@ -226,8 +252,6 @@ module packet_q_core
                 .q_mem_rd_if       ( q_mem_rd_if[g_out_if] ),
                 .axil_if           ( packet_q_manager__axil_if[g_out_if] )
             );
-
-            axi4l_intf_controller_term i_axi4l_intf_controller_term (.axi4l_if(packet_q_manager__axil_if[g_out_if]));
 
             // Unpack input port and queue selection from metadata
             assign __meta = __packet_out_if[g_out_if].meta;

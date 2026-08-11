@@ -1,0 +1,36 @@
+name: packet_q
+visible: true
+
+decoders:
+  packet_sg_core: &packet_sg_core
+    !include src/packet/regio/packet_sg_core_decoder.yaml
+
+blocks:
+  alloc: &alloc
+    !include src/alloc/regio/alloc.yaml
+
+interfaces:
+  - decoder: *packet_sg_core
+    address: 0x0000
+    width: 12
+    name: sg
+
+  - block: *alloc
+    address: 0x1000
+    width: 10
+    name: q_mgr_0
+
+  - block: *alloc
+    address: 0x1400
+    width: 10
+    name: q_mgr_1
+
+  - block: *alloc
+    address: 0x1800
+    width: 10
+    name: q_mgr_2
+
+  - block: *alloc
+    address: 0x1C00
+    width: 10
+    name: q_mgr_3
