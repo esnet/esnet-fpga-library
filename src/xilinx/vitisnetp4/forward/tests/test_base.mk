@@ -42,7 +42,7 @@ COMPILE_OPTS =
 SIM_OPTS =
 
 ifeq ($(SIM),xsim)
-ELAB_OPTS = --debug typical
+ELAB_OPTS = --relax --debug typical
 endif
 
 # ----------------------------------------------------
