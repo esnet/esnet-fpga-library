@@ -9,6 +9,8 @@ package std_verif_pkg;
     `include "monitor.svh"
     `include "model.svh"
     `include "predictor.svh"
+    `include "sequencer.svh"
+    `include "collector.svh"
     `include "scoreboard.svh"
     `include "env.svh"
 
