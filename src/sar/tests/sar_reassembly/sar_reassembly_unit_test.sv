@@ -31,10 +31,13 @@ module sar_reassembly_unit_test;
     localparam type BUF_ID_T       = logic[BUF_ID_WID-1:0];       // (Type) Reassembly buffer (context) pointer
     localparam type OFFSET_T       = logic[OFFSET_WID-1:0];       // (Type) Offset in bytes describing location of segment within frame
     localparam type FRAME_SIZE_T   = logic[FRAME_SIZE_WID-1:0];   // (Type) Byte length of frame
-    localparam type SEGMENT_LEN_T  = logic[SEGMENT_LEN_WID-1:0];  // (Type) Length in bytes of current segment 
+    localparam type SEGMENT_LEN_T  = logic[SEGMENT_LEN_WID-1:0];  // (Type) Length in bytes of current segment
     localparam type FRAGMENT_PTR_T = logic[FRAGMENT_PTR_WID-1:0]; // (Type) Coalesced fragment record pointer
     localparam type TIMER_T        = logic[TIMER_WID-1:0];        // (Type) Frame expiry timer
     localparam int  BURST_SIZE     = 8;
+
+    typedef sar_frame_transaction#(BUF_ID_T)             FRAME_T;
+    typedef sar_segment_transaction#(BUF_ID_T, OFFSET_T) SEGMENT_T;
 
     //===================================
     // DUT
@@ -82,6 +85,9 @@ module sar_reassembly_unit_test;
     axi4l_verif_pkg::axi4l_reg_agent reg_agent;
     sar_reassembly_reg_agent #(BUF_ID_T, OFFSET_T, FRAGMENT_PTR_T, TIMER_T) agent;
 
+    // SAR sequencer: segment-length configuration used by send_frame()
+    sar_sequencer#(BUF_ID_T, OFFSET_T) sequencer;
+
     // Assign clock (200MHz)
     `SVUNIT_CLK_GEN(clk, 2.5ns);
 
@@ -113,6 +119,9 @@ module sar_reassembly_unit_test;
 
         agent = new("reassembly_reg_agent", MAX_FRAGMENTS, reg_agent, 0);
 
+        // SAR sequencer: provides segment-length configuration for send_frame()
+        sequencer = new("sar_sequencer");
+
     endfunction
 
     //===================================
@@ -129,6 +138,7 @@ module sar_reassembly_unit_test;
         en <= 1'b1;
 
         agent.wait_ready();
+
     endtask
 
     //===================================
@@ -137,7 +147,6 @@ module sar_reassembly_unit_test;
     //===================================
     task teardown();
         svunit_ut.teardown();
-        /* Place Teardown Code Here */
     endtask
 
     //===================================
@@ -183,16 +192,15 @@ module sar_reassembly_unit_test;
     `SVTEST(single_segment_buffer)
         BUF_ID_T _buf;
         SEGMENT_LEN_T _len;
+        FRAME_T _frame;
         int cnt;
         // Randomize inputs
         void'(std::randomize(_buf));
-        void'(std::randomize(_len));
-        send_segment(
-            .buf_id(_buf),
-            .offset(0),
-            .len(_len),
-            .last(1)
-        );
+        _len = $urandom_range(1, 1000);
+        // Send as a single-segment frame via the sequencer
+        _frame = new("frame", _buf, int'(_len));
+        sequencer.set_seg_len(int'(_len));  // seg_len >= frame size → exactly one segment
+        send_frame(_frame);
         // Expect completed frame
         do
             @(posedge clk);
@@ -527,21 +535,47 @@ module sar_reassembly_unit_test;
         `FAIL_UNLESS_EQUAL(cnt, 1);
     endtask
 
+    // Primitive: drive one sar_segment_transaction onto the DUT's segment input
+    task drive_segment(input SEGMENT_T seg);
+        seg_valid  <= 1'b1;
+        seg_buf_id <= seg.buf_id;
+        seg_offset <= seg.offset;
+        seg_len    <= SEGMENT_LEN_T'(seg.data.size());
+        seg_last   <= seg.last;
+        do @(posedge clk); while (!seg_ready);
+        seg_valid  <= 1'b0;
+    endtask
+
+    // Convenience wrapper: construct a segment transaction from raw fields and drive it
     task send_segment(
-        input BUF_ID_T  buf_id,
-        input OFFSET_T offset,
+        input BUF_ID_T      buf_id,
+        input OFFSET_T      offset,
         input SEGMENT_LEN_T len,
-        input logic last
+        input logic         last
     );
-        seg_valid <= 1'b1;
-        seg_buf_id <= buf_id;
-        seg_offset <= offset;
-        seg_len <= len;
-        seg_last <= last;
-        do 
-            @(posedge clk);
-        while (!seg_ready);
-        seg_valid <= 1'b0;
+        SEGMENT_T seg;
+        seg = new("seg", buf_id, offset, last, int'(len));
+        drive_segment(seg);
+    endtask
+
+    // Frame-level drive: decompose a frame into segments using the sequencer's seg_len
+    // configuration, then drive each segment onto the DUT.
+    task send_frame(input FRAME_T frame);
+        int frame_len  = frame.data.size();
+        int seg_len_cfg = sequencer.get_seg_len();
+        int offset = 0;
+        while (offset < frame_len) begin
+            SEGMENT_T seg;
+            int sl   = frame_len - offset;
+            bit last;
+            if (sl > seg_len_cfg) sl = seg_len_cfg;
+            last = (offset + sl >= frame_len);
+            seg  = new("seg", frame.buf_id, OFFSET_T'(offset), last, sl);
+            for (int i = 0; i < sl; i++)
+                seg.data[i] = frame.data[offset + i];
+            drive_segment(seg);
+            offset += sl;
+        end
     endtask
 
     task tick();
