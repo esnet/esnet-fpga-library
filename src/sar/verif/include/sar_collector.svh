@@ -1,6 +1,27 @@
+// Per-frame reassembly context — stored as a queue inside sar_collector.
+// Defined at package scope so its type is non-parameterized; this avoids
+// a Vivado xelab code-generation SIGSEGV that occurs when associative
+// arrays (including associative arrays of dynamic arrays) appear inside
+// a parameterized class body.
+class sar_collector_ctx;
+    int    buf_id_key;
+    byte   data[];
+    int    rcvd_len;
+    int    total_len;
+    bit    got_last;
+
+    function new(input int key);
+        this.buf_id_key = key;
+        this.data       = new[0];
+        this.rcvd_len   = 0;
+        this.total_len  = 0;
+        this.got_last   = 1'b0;
+    endfunction
+endclass : sar_collector_ctx
+
 // SAR collector
 // - reassembles sar_segment_transaction objects into sar_frame_transaction objects
-// - keyed by buf_id; handles in-order and out-of-order segment arrival
+// - keyed by buf_id (as int); handles in-order and out-of-order segment arrival
 // - a frame is complete when the segment with last=1 has arrived and all bytes
 //   from offset 0 to total_len-1 have been received
 class sar_collector #(
@@ -20,12 +41,11 @@ class sar_collector #(
     typedef sar_segment_transaction#(BUF_ID_T, OFFSET_T) SEGMENT_T;
 
     //===================================
-    // Properties (per-frame reassembly state, keyed by buf_id)
+    // Properties
+    // Queue of non-parameterized context objects avoids the xelab SIGSEGV
+    // triggered by associative arrays inside parameterized class bodies.
     //===================================
-    local FRAME_T __pending[BUF_ID_T];   // partially assembled frames
-    local int     __rcvd_len[BUF_ID_T];  // bytes received so far per frame
-    local int     __total_len[BUF_ID_T]; // total frame length (known when last=1 arrives)
-    local bit     __got_last[BUF_ID_T];  // whether the last segment has arrived
+    local sar_collector_ctx __pending[$];
 
     //===================================
     // Methods
@@ -34,12 +54,9 @@ class sar_collector #(
     function new(input string name="sar_collector");
         super.new(name);
         // WORKAROUND-INIT-PROPS {
-        this.inbox     = null;
-        this.outbox    = null;
+        this.inbox    = null;
+        this.outbox   = null;
         __pending   = '{};
-        __rcvd_len  = '{};
-        __total_len = '{};
-        __got_last  = '{};
         // } WORKAROUND-INIT-PROPS
     endfunction
 
@@ -47,9 +64,6 @@ class sar_collector #(
     // [[ implements std_verif_pkg::base.destroy() ]]
     virtual function automatic void destroy();
         __pending.delete();
-        __rcvd_len.delete();
-        __total_len.delete();
-        __got_last.delete();
         super.destroy();
     endfunction
 
@@ -63,64 +77,85 @@ class sar_collector #(
     // [[ overrides std_verif_pkg::collector._reset() ]]
     virtual protected function automatic void _reset();
         __pending.delete();
-        __rcvd_len.delete();
-        __total_len.delete();
-        __got_last.delete();
         super._reset();
     endfunction
 
+    // Find (or create) the context entry for the given int key
+    local function automatic sar_collector_ctx __get_ctx(input int key);
+        foreach (__pending[i]) begin
+            if (__pending[i].buf_id_key == key) return __pending[i];
+        end
+        begin
+            sar_collector_ctx ctx = new(key);
+            __pending.push_back(ctx);
+            return ctx;
+        end
+    endfunction
+
+    // Remove context entry for the given key
+    local function automatic void __del_ctx(input int key);
+        for (int i = 0; i < __pending.size(); i++) begin
+            if (__pending[i].buf_id_key == key) begin
+                __pending.delete(i);
+                return;
+            end
+        end
+    endfunction
+
+    // Collector run loop — drives inbox→_process→_enqueue cycle.
+    // [[ overrides std_verif_pkg::collector._run() ]]
+    // WORKAROUND: xsim fails to access private base-class fields (__cnt_in, __cnt_out)
+    // of parameterized collector specialisations when _run() executes in a forked thread.
+    // Overriding _run() here keeps all field accesses in sar_collector itself.
+    protected task _run();
+        SEGMENT_T transaction;
+        forever begin
+            inbox.get(transaction);
+            _process(transaction);
+        end
+    endtask
+
     // Accumulate segment into in-progress frame; emit frame when complete
     // [[ implements std_verif_pkg::collector._process() ]]
-    protected task _process(input SEGMENT_T seg);
-        BUF_ID_T key = seg.buf_id;
+    protected task _process(input SEGMENT_T transaction);
+        int key = int'(transaction.buf_id);
+        sar_collector_ctx ctx;
 
         trace_msg("_process()");
         debug_msg($sformatf("Received segment buf_id=0x%0x, offset=%0d, last=%0b, len=%0d.",
-            seg.buf_id, seg.offset, seg.last, seg.data.size()));
+            transaction.buf_id, transaction.offset, transaction.last, transaction.data.size()));
 
-        // Allocate pending frame entry on first segment for this buf_id
-        if (!__pending.exists(key)) begin
-            __pending[key]   = new($sformatf("frame_buf%0x", key), key, 0);
-            __rcvd_len[key]  = 0;
-            __got_last[key]  = 1'b0;
-            __total_len[key] = 0;
-        end
+        ctx = __get_ctx(key);
 
-        // Grow frame data buffer to accommodate this segment if needed
+        // Grow byte buffer to accommodate this segment if needed
         begin
-            int needed = int'(seg.offset) + seg.data.size();
-            if (needed > __pending[key].data.size()) begin
+            int needed = int'(transaction.offset) + transaction.data.size();
+            if (needed > ctx.data.size()) begin
                 byte tmp[];
-                tmp = new[needed](__pending[key].data);
-                __pending[key].data = tmp;
+                tmp = new[needed](ctx.data);
+                ctx.data = tmp;
             end
         end
 
-        // Copy segment bytes into the frame at the correct offset
-        for (int i = 0; i < seg.data.size(); i++)
-            __pending[key].data[int'(seg.offset) + i] = seg.data[i];
-        __rcvd_len[key] += seg.data.size();
+        // Copy segment bytes into buffer at the correct offset
+        for (int i = 0; i < transaction.data.size(); i++)
+            ctx.data[int'(transaction.offset) + i] = transaction.data[i];
+        ctx.rcvd_len += transaction.data.size();
 
         // Record total length from the last segment's offset + size
-        if (seg.last) begin
-            __got_last[key]  = 1'b1;
-            __total_len[key] = int'(seg.offset) + seg.data.size();
+        if (transaction.last) begin
+            ctx.got_last  = 1'b1;
+            ctx.total_len = int'(transaction.offset) + transaction.data.size();
         end
 
         // Emit complete frame when all bytes and the last flag have been received
-        if (__got_last[key] && __rcvd_len[key] == __total_len[key]) begin
-            FRAME_T frame = __pending[key];
-            // Trim frame data to exact length (may be oversized if pre-allocated)
-            if (frame.data.size() != __total_len[key]) begin
-                byte tmp[];
-                tmp = new[__total_len[key]](frame.data);
-                frame.data = tmp;
-            end
+        if (ctx.got_last && ctx.rcvd_len == ctx.total_len) begin
+            FRAME_T frame;
+            frame = new($sformatf("frame_buf%0x", key), BUF_ID_T'(key), ctx.total_len);
+            for (int i = 0; i < ctx.total_len; i++)
+                frame.data[i] = ctx.data[i];
             debug_msg($sformatf("Frame buf_id=0x%0x complete, len=%0d.", key, frame.data.size()));
-            __pending.delete(key);
-            __rcvd_len.delete(key);
-            __total_len.delete(key);
-            __got_last.delete(key);
+            __del_ctx(key);
             _enqueue(frame);
         end
 
