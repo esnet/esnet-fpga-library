@@ -1,6 +1,7 @@
 package sar_verif_pkg;
 
     import std_verif_pkg::*;
+    import packet_verif_pkg::*;
     import sar_reg_verif_pkg::*;
     import db_verif_pkg::*;
     import htable_verif_pkg::*;
@@ -12,6 +13,8 @@ package sar_verif_pkg;
     `include "sar_segment_transaction.svh"
     `include "sar_sequencer.svh"
     `include "sar_collector.svh"
+    `include "sar_segment_driver.svh"
+    `include "sar_segment_monitor.svh"
 
     `include "sar_segmentation_reg_agent.svh"
     `include "sar_reassembly_htable_reg_agent.svh"

@@ -8,6 +8,7 @@
 module sar_verif_unit_test;
     import svunit_pkg::svunit_testcase;
     import sar_verif_pkg::*;
+    import packet_verif_pkg::*;
 
     string name = "sar_verif_ut";
     svunit_testcase svunit_ut;
@@ -15,11 +16,14 @@ module sar_verif_unit_test;
     //===================================
     // Parameters
     //===================================
-    localparam int BUF_ID_WID = 1;
-    localparam int OFFSET_WID = 20;
+    localparam int BUF_ID_WID    = 1;
+    localparam int OFFSET_WID    = 20;
+    localparam int DATA_BYTE_WID = 8;
+    localparam int SEG_META_WID  = BUF_ID_WID + OFFSET_WID + 1;
 
-    localparam type BUF_ID_T = logic [BUF_ID_WID-1:0];
-    localparam type OFFSET_T = logic [OFFSET_WID-1:0];
+    localparam type BUF_ID_T   = logic [BUF_ID_WID-1:0];
+    localparam type OFFSET_T   = logic [OFFSET_WID-1:0];
+    localparam type SEG_META_T = logic [SEG_META_WID-1:0];
 
     typedef sar_frame_transaction#(BUF_ID_T)             FRAME_T;
     typedef sar_segment_transaction#(BUF_ID_T, OFFSET_T) SEGMENT_T;
@@ -31,13 +35,24 @@ module sar_verif_unit_test;
     `SVUNIT_CLK_GEN(clk, 5ns);
 
     //===================================
+    // Packet interface — wire between segment driver and monitor
+    //===================================
+    packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_WID(SEG_META_WID)) pkt_if (.clk(clk));
+
+    //===================================
     // Components (recreated fresh in each setup())
     //===================================
-    sar_sequencer#(BUF_ID_T, OFFSET_T) sequencer;
-    sar_collector#(BUF_ID_T, OFFSET_T) collector;
+    sar_sequencer  #(BUF_ID_T, OFFSET_T) sequencer;
+    sar_collector  #(BUF_ID_T, OFFSET_T) collector;
+    sar_segment_driver  #(BUF_ID_T, OFFSET_T) seg_driver;
+    sar_segment_monitor #(BUF_ID_T, OFFSET_T) seg_monitor;
+
+    packet_intf_driver  #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_T(SEG_META_T)) pkt_if_driver;
+    packet_intf_monitor #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_T(SEG_META_T)) pkt_if_monitor;
 
     mailbox #(FRAME_T)   frame_inbox;
-    mailbox #(SEGMENT_T) seg_pipe;
+    mailbox #(SEGMENT_T) seg_pipe;    // sequencer → seg_driver
+    mailbox #(SEGMENT_T) seg_out;     // seg_monitor → collector (also used for direct inject)
     mailbox #(FRAME_T)   frame_outbox;
 
     //===================================
@@ -55,17 +70,37 @@ module sar_verif_unit_test;
 
         frame_inbox  = new();
         seg_pipe     = new();
+        seg_out      = new();
         frame_outbox = new();
 
+        // Concrete packet interface driver / monitor
+        pkt_if_driver = new("pkt_if_driver");
+        pkt_if_driver.packet_vif = pkt_if;
+
+        pkt_if_monitor = new("pkt_if_monitor");
+        pkt_if_monitor.packet_vif = pkt_if;
+
+        // Segment-level driver / monitor (inject the concrete packet driver/monitor)
+        seg_driver = new("seg_driver");
+        seg_driver.inbox      = seg_pipe;
+        seg_driver.pkt_driver = pkt_if_driver;
+
+        seg_monitor = new("seg_monitor");
+        seg_monitor.outbox      = seg_out;
+        seg_monitor.pkt_monitor = pkt_if_monitor;
+
+        // Frame-level sequencer / collector
         sequencer = new("sar_sequencer");
         sequencer.inbox  = frame_inbox;
         sequencer.outbox = seg_pipe;
 
         collector = new("sar_collector");
-        collector.inbox  = seg_pipe;
+        collector.inbox  = seg_out;
         collector.outbox = frame_outbox;
 
         sequencer.run();
+        seg_driver.run();
+        seg_monitor.run();
         collector.run();
     endtask
 
@@ -74,6 +109,8 @@ module sar_verif_unit_test;
     //===================================
     task teardown();
         sequencer.stop();
+        seg_driver.stop();
+        seg_monitor.stop();
         collector.stop();
         svunit_ut.teardown();
     endtask
@@ -90,8 +127,7 @@ module sar_verif_unit_test;
 
     //===================================
     // Test: single_segment
-    // Frame smaller than seg_len → one segment produced and
-    // reassembled; data and buf_id preserved.
+    // Frame smaller than seg_len → one segment; full stack exercised.
     //===================================
     `SVTEST(single_segment)
         FRAME_T sent, rcvd;
@@ -106,8 +142,7 @@ module sar_verif_unit_test;
 
     //===================================
     // Test: multi_segment
-    // Frame spans multiple segments (sequential order);
-    // all data reassembled correctly.
+    // Frame spans multiple segments; full stack exercised.
     //===================================
     `SVTEST(multi_segment)
         FRAME_T sent, rcvd;
@@ -122,7 +157,7 @@ module sar_verif_unit_test;
 
     //===================================
     // Test: exact_segment
-    // Frame length exactly equals seg_len → one segment, last=1.
+    // Frame length exactly equals seg_len → one segment, last=1; full stack.
     //===================================
     `SVTEST(exact_segment)
         FRAME_T sent, rcvd;
@@ -137,8 +172,8 @@ module sar_verif_unit_test;
 
     //===================================
     // Test: out_of_order_segments
-    // Three segments injected directly to collector inbox in
-    // non-sequential order; collector uses offset to reassemble.
+    // Three segments injected directly into seg_out (bypassing packet_intf)
+    // in non-sequential order; collector uses offset to reassemble.
     //===================================
     `SVTEST(out_of_order_segments)
         localparam int SEG_LEN   = 300;
@@ -154,19 +189,19 @@ module sar_verif_unit_test;
         seg = new("seg2", BUF_ID_T'(0), OFFSET_T'(2*SEG_LEN), 1'b1, SEG_LEN);
         for (int i = 0; i < SEG_LEN; i++)
             seg.data[i] = expected.data[2*SEG_LEN + i];
-        seg_pipe.put(seg);
+        seg_out.put(seg);
 
         // Then segment 0 (offset=0)
         seg = new("seg0", BUF_ID_T'(0), OFFSET_T'(0), 1'b0, SEG_LEN);
         for (int i = 0; i < SEG_LEN; i++)
             seg.data[i] = expected.data[i];
-        seg_pipe.put(seg);
+        seg_out.put(seg);
 
         // Finally segment 1 (offset=300) — this completes the frame
         seg = new("seg1", BUF_ID_T'(0), OFFSET_T'(SEG_LEN), 1'b0, SEG_LEN);
         for (int i = 0; i < SEG_LEN; i++)
             seg.data[i] = expected.data[SEG_LEN + i];
-        seg_pipe.put(seg);
+        seg_out.put(seg);
 
         frame_outbox.get(rcvd);
         `FAIL_UNLESS_LOG(expected.compare(rcvd, msg), msg);
@@ -174,8 +209,8 @@ module sar_verif_unit_test;
 
     //===================================
     // Test: two_frames_interleaved
-    // Segments from two buf_ids interleaved in the collector inbox;
-    // both frames reassembled independently and correctly.
+    // Segments from two buf_ids injected directly into seg_out in interleaved
+    // order; both frames reassembled independently and correctly.
     //===================================
     `SVTEST(two_frames_interleaved)
         localparam int SEG_LEN = 200;
@@ -194,23 +229,23 @@ module sar_verif_unit_test;
         // A[0], B[0], A[1/last], B[1], B[2/last]
         seg = new("a0", BUF_ID_T'(0), OFFSET_T'(0), 1'b0, SEG_LEN);
         for (int i = 0; i < SEG_LEN; i++) seg.data[i] = expected_a.data[i];
-        seg_pipe.put(seg);
+        seg_out.put(seg);
 
         seg = new("b0", BUF_ID_T'(1), OFFSET_T'(0), 1'b0, SEG_LEN);
         for (int i = 0; i < SEG_LEN; i++) seg.data[i] = expected_b.data[i];
-        seg_pipe.put(seg);
+        seg_out.put(seg);
 
         seg = new("a1", BUF_ID_T'(0), OFFSET_T'(SEG_LEN), 1'b1, SEG_LEN);
         for (int i = 0; i < SEG_LEN; i++) seg.data[i] = expected_a.data[SEG_LEN + i];
-        seg_pipe.put(seg);
+        seg_out.put(seg);
 
         seg = new("b1", BUF_ID_T'(1), OFFSET_T'(SEG_LEN), 1'b0, SEG_LEN);
         for (int i = 0; i < SEG_LEN; i++) seg.data[i] = expected_b.data[SEG_LEN + i];
-        seg_pipe.put(seg);
+        seg_out.put(seg);
 
         seg = new("b2", BUF_ID_T'(1), OFFSET_T'(2*SEG_LEN), 1'b1, SEG_LEN);
         for (int i = 0; i < SEG_LEN; i++) seg.data[i] = expected_b.data[2*SEG_LEN + i];
-        seg_pipe.put(seg);
+        seg_out.put(seg);
 
         // Collect both frames; match by buf_id (A completes before B)
         frame_outbox.get(tmp);

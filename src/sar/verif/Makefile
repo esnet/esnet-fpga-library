@@ -24,6 +24,7 @@ SRC_LIST_FILES =
 # ----------------------------------------------------
 SUBCOMPONENTS = \
     std.verif \
+    packet.verif \
     sar.regio.verif \
     reg.verif \
     htable.verif \
