@@ -56,6 +56,9 @@ module fec_col_transpose
 
 
     // instantiate ingress and egress pipelines.
+
+    // NOTE: data_in.ready = data_out.ready rate-limits the write side so that
+    // the writer never laps the buffer being drained.  Do not decouple.
     assign data_in.ready = data_out.ready;
 
     always_ff @(posedge clk)
@@ -293,6 +296,6 @@ module fec_col_transpose
         .uflow     ()
     );
 
-    assign data_out.valid = fifo_rd;
+    assign data_out.valid = !fifo_empty;
 
 endmodule  // fec_col_transpose
