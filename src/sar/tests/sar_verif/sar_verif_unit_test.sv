@@ -34,32 +34,48 @@ module sar_verif_unit_test;
     logic clk;
     `SVUNIT_CLK_GEN(clk, 5ns);
 
+    std_reset_intf reset_if(.clk);
+
+    assign reset_if.ready = !reset_if.reset;
+
     //===================================
     // Packet interface — wire between segment driver and monitor
     //===================================
     packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_WID(SEG_META_WID)) pkt_if (.clk(clk));
 
     //===================================
-    // Components (recreated fresh in each setup())
+    // Components
     //===================================
-    sar_sequencer  #(BUF_ID_T, OFFSET_T) sequencer;
-    sar_collector  #(BUF_ID_T, OFFSET_T) collector;
-    sar_segment_driver  #(BUF_ID_T, OFFSET_T) seg_driver;
-    sar_segment_monitor #(BUF_ID_T, OFFSET_T) seg_monitor;
+    sar_component_env #(BUF_ID_T, OFFSET_T) env;
 
     packet_intf_driver  #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_T(SEG_META_T)) pkt_if_driver;
     packet_intf_monitor #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_T(SEG_META_T)) pkt_if_monitor;
 
-    mailbox #(FRAME_T)   frame_inbox;
-    mailbox #(SEGMENT_T) seg_pipe;    // sequencer → seg_driver
-    mailbox #(SEGMENT_T) seg_out;     // seg_monitor → collector (also used for direct inject)
-    mailbox #(FRAME_T)   frame_outbox;
+    std_verif_pkg::wire_model#(FRAME_T) model;
+    std_verif_pkg::event_scoreboard#(FRAME_T) scoreboard;
 
     //===================================
     // Build
     //===================================
     function void build();
         svunit_ut = new(name);
+
+        model = new("model");
+        scoreboard = new("scoreboard");
+
+        pkt_if_driver = new("packet_if_driver");
+        pkt_if_driver.packet_vif = pkt_if;
+
+        pkt_if_monitor = new("packet_if_monitor");
+        pkt_if_monitor.packet_vif = pkt_if;
+
+        env = new("sar_component_env");
+        env.reset_vif = reset_if;
+        env.model = model;
+        env.scoreboard = scoreboard;
+        env.driver.pkt_driver = pkt_if_driver;
+        env.monitor.pkt_monitor = pkt_if_monitor;
+        env.build();
     endfunction
 
     //===================================
@@ -68,50 +84,14 @@ module sar_verif_unit_test;
     task setup();
         svunit_ut.setup();
 
-        frame_inbox  = new();
-        seg_pipe     = new();
-        seg_out      = new();
-        frame_outbox = new();
-
-        // Concrete packet interface driver / monitor
-        pkt_if_driver = new("pkt_if_driver");
-        pkt_if_driver.packet_vif = pkt_if;
-
-        pkt_if_monitor = new("pkt_if_monitor");
-        pkt_if_monitor.packet_vif = pkt_if;
-
-        // Segment-level driver / monitor (inject the concrete packet driver/monitor)
-        seg_driver = new("seg_driver");
-        seg_driver.inbox      = seg_pipe;
-        seg_driver.pkt_driver = pkt_if_driver;
-
-        seg_monitor = new("seg_monitor");
-        seg_monitor.outbox      = seg_out;
-        seg_monitor.pkt_monitor = pkt_if_monitor;
-
-        // Frame-level sequencer / collector
-        sequencer = new("sar_sequencer");
-        sequencer.inbox  = frame_inbox;
-        sequencer.outbox = seg_pipe;
-
-        collector = new("sar_collector");
-        collector.inbox  = seg_out;
-        collector.outbox = frame_outbox;
-
-        sequencer.run();
-        seg_driver.run();
-        seg_monitor.run();
-        collector.run();
+        env.run();
     endtask
 
     //===================================
     // Teardown
     //===================================
     task teardown();
-        sequencer.stop();
-        seg_driver.stop();
-        seg_monitor.stop();
-        collector.stop();
+        env.stop();
         svunit_ut.teardown();
     endtask
 
@@ -134,10 +114,9 @@ module sar_verif_unit_test;
         string msg;
         sent = new("frame", BUF_ID_T'(1), 256);
         fill_frame(sent);
-        sequencer.set_seg_len(512);
-        frame_inbox.put(sent);
-        frame_outbox.get(rcvd);
-        `FAIL_UNLESS_LOG(sent.compare(rcvd, msg), msg);
+        env.sequencer.set_seg_len(512);
+        env.inbox.put(sent);
+        check(1);
     `SVTEST_END
 
     //===================================
@@ -149,10 +128,9 @@ module sar_verif_unit_test;
         string msg;
         sent = new("frame", BUF_ID_T'(0), 1000);
         fill_frame(sent);
-        sequencer.set_seg_len(300);   // 300 + 300 + 400
-        frame_inbox.put(sent);
-        frame_outbox.get(rcvd);
-        `FAIL_UNLESS_LOG(sent.compare(rcvd, msg), msg);
+        env.sequencer.set_seg_len(300);   // 300 + 300 + 400
+        env.inbox.put(sent);
+        check(1);
     `SVTEST_END
 
     //===================================
@@ -164,10 +142,9 @@ module sar_verif_unit_test;
         string msg;
         sent = new("frame", BUF_ID_T'(0), 512);
         fill_frame(sent);
-        sequencer.set_seg_len(512);
-        frame_inbox.put(sent);
-        frame_outbox.get(rcvd);
-        `FAIL_UNLESS_LOG(sent.compare(rcvd, msg), msg);
+        env.sequencer.set_seg_len(512);
+        env.inbox.put(sent);
+        check(1);
     `SVTEST_END
 
     //===================================
@@ -263,4 +240,25 @@ module sar_verif_unit_test;
 
     `SVUNIT_TESTS_END
 
+    task check(input int EXPECTED, input time TIMEOUT=100us);
+        fork
+            begin
+                string msg;
+                #(TIMEOUT);
+                `FAIL_IF_LOG( env.scoreboard.report(msg) > 0, msg);
+                $display($sformatf("%d", env.scoreboard.got_processed()));
+                `FAIL_IF_LOG(1, "Timeout waiting for expected transactions.");
+            end
+            begin
+                string msg;
+                int processed;
+                do
+                    #100ns;
+                while ( env.scoreboard.got_processed() != EXPECTED );
+                `FAIL_IF_LOG( env.scoreboard.report(msg) > 0, msg);
+                `FAIL_UNLESS_EQUAL( env.scoreboard.got_matched(), EXPECTED);
+            end
+        join_any
+        disable fork;
+    endtask
 endmodule : sar_verif_unit_test
