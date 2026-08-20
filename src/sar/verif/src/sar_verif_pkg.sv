@@ -15,6 +15,7 @@ package sar_verif_pkg;
     `include "sar_collector.svh"
     `include "sar_segment_driver.svh"
     `include "sar_segment_monitor.svh"
+    `include "sar_component_env.svh"
 
     `include "sar_segmentation_reg_agent.svh"
     `include "sar_reassembly_htable_reg_agent.svh"
