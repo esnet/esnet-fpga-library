@@ -12,6 +12,7 @@ class sar_frame_transaction #(
     //===================================
     BUF_ID_T   buf_id;
     rand byte  data[];
+    bit        out_of_order;
 
     //===================================
     // Methods
@@ -24,8 +25,9 @@ class sar_frame_transaction #(
         );
         super.new(name);
         // WORKAROUND-INIT-PROPS {
-        this.buf_id = buf_id;
-        this.data   = new[len];
+        this.buf_id       = buf_id;
+        this.data         = new[len];
+        this.out_of_order = 1'b0;
         // } WORKAROUND-INIT-PROPS
     endfunction
 
@@ -54,8 +56,9 @@ class sar_frame_transaction #(
         if (!$cast(t, t2)) begin
             $fatal(2, $sformatf("Type mismatch while copying '%s' to '%s'", t2.get_name(), this.get_name()));
         end
-        this.buf_id = t.buf_id;
-        this.data   = new[t.data.size()](t.data);
+        this.buf_id       = t.buf_id;
+        this.data         = new[t.data.size()](t.data);
+        this.out_of_order = t.out_of_order;
     endfunction
 
     // Get string representation

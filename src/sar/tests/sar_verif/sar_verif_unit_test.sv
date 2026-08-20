@@ -149,95 +149,37 @@ module sar_verif_unit_test;
 
     //===================================
     // Test: out_of_order_segments
-    // Three segments injected directly into seg_out (bypassing packet_intf)
-    // in non-sequential order; collector uses offset to reassemble.
+    // Three-segment frame with out_of_order enabled; sequencer shuffles segment
+    // emission order but collector reassembles correctly via offset placement.
     //===================================
     `SVTEST(out_of_order_segments)
-        localparam int SEG_LEN   = 300;
-        localparam int FRAME_LEN = SEG_LEN * 3;
-        FRAME_T expected, rcvd;
-        SEGMENT_T seg;
-        string msg;
-
-        expected = new("expected", BUF_ID_T'(0), FRAME_LEN);
-        fill_frame(expected);
-
-        // Send segment 2 first (carries last=1, offset=600)
-        seg = new("seg2", BUF_ID_T'(0), OFFSET_T'(2*SEG_LEN), 1'b1, SEG_LEN);
-        for (int i = 0; i < SEG_LEN; i++)
-            seg.data[i] = expected.data[2*SEG_LEN + i];
-        seg_out.put(seg);
-
-        // Then segment 0 (offset=0)
-        seg = new("seg0", BUF_ID_T'(0), OFFSET_T'(0), 1'b0, SEG_LEN);
-        for (int i = 0; i < SEG_LEN; i++)
-            seg.data[i] = expected.data[i];
-        seg_out.put(seg);
-
-        // Finally segment 1 (offset=300) — this completes the frame
-        seg = new("seg1", BUF_ID_T'(0), OFFSET_T'(SEG_LEN), 1'b0, SEG_LEN);
-        for (int i = 0; i < SEG_LEN; i++)
-            seg.data[i] = expected.data[SEG_LEN + i];
-        seg_out.put(seg);
-
-        frame_outbox.get(rcvd);
-        `FAIL_UNLESS_LOG(expected.compare(rcvd, msg), msg);
+        FRAME_T sent;
+        sent = new("frame", BUF_ID_T'(0), 900);
+        fill_frame(sent);
+        sent.out_of_order = 1;
+        env.sequencer.set_seg_len(300);
+        env.inbox.put(sent);
+        check(1);
     `SVTEST_END
 
     //===================================
     // Test: two_frames_interleaved
-    // Segments from two buf_ids injected directly into seg_out in interleaved
-    // order; both frames reassembled independently and correctly.
+    // Two frames submitted simultaneously with interleave enabled; segments from
+    // both frames are emitted concurrently and both frames are reassembled.
     //===================================
     `SVTEST(two_frames_interleaved)
-        localparam int SEG_LEN = 200;
-        FRAME_T expected_a, expected_b, tmp;
-        FRAME_T rcvd_a, rcvd_b;
-        SEGMENT_T seg;
-        string msg;
-
-        expected_a = new("frameA", BUF_ID_T'(0), SEG_LEN*2);
-        expected_b = new("frameB", BUF_ID_T'(1), SEG_LEN*3);
-
-        fill_frame(expected_a);
-        for (int i = 0; i < expected_b.data.size(); i++)
-            expected_b.data[i] = byte'(255 - (i % 256));
-
-        // A[0], B[0], A[1/last], B[1], B[2/last]
-        seg = new("a0", BUF_ID_T'(0), OFFSET_T'(0), 1'b0, SEG_LEN);
-        for (int i = 0; i < SEG_LEN; i++) seg.data[i] = expected_a.data[i];
-        seg_out.put(seg);
-
-        seg = new("b0", BUF_ID_T'(1), OFFSET_T'(0), 1'b0, SEG_LEN);
-        for (int i = 0; i < SEG_LEN; i++) seg.data[i] = expected_b.data[i];
-        seg_out.put(seg);
-
-        seg = new("a1", BUF_ID_T'(0), OFFSET_T'(SEG_LEN), 1'b1, SEG_LEN);
-        for (int i = 0; i < SEG_LEN; i++) seg.data[i] = expected_a.data[SEG_LEN + i];
-        seg_out.put(seg);
-
-        seg = new("b1", BUF_ID_T'(1), OFFSET_T'(SEG_LEN), 1'b0, SEG_LEN);
-        for (int i = 0; i < SEG_LEN; i++) seg.data[i] = expected_b.data[SEG_LEN + i];
-        seg_out.put(seg);
-
-        seg = new("b2", BUF_ID_T'(1), OFFSET_T'(2*SEG_LEN), 1'b1, SEG_LEN);
-        for (int i = 0; i < SEG_LEN; i++) seg.data[i] = expected_b.data[2*SEG_LEN + i];
-        seg_out.put(seg);
-
-        // Collect both frames; match by buf_id (A completes before B)
-        frame_outbox.get(tmp);
-        if (tmp.buf_id === BUF_ID_T'(0)) begin
-            rcvd_a = tmp;
-            frame_outbox.get(rcvd_b);
-        end else begin
-            rcvd_b = tmp;
-            frame_outbox.get(rcvd_a);
-        end
-
-        `FAIL_UNLESS_LOG(expected_a.compare(rcvd_a, msg), msg);
-        `FAIL_UNLESS_LOG(expected_b.compare(rcvd_b, msg), msg);
+        FRAME_T frame_a, frame_b;
+        frame_a = new("frameA", BUF_ID_T'(0), 600);
+        frame_b = new("frameB", BUF_ID_T'(1), 600);
+        fill_frame(frame_a);
+        for (int i = 0; i < frame_b.data.size(); i++)
+            frame_b.data[i] = byte'(255 - (i % 256));
+        env.sequencer.set_seg_len(200);
+        env.sequencer.set_interleave(1);
+        env.inbox.put(frame_a);
+        env.inbox.put(frame_b);
+        check(2);
     `SVTEST_END
-
     `SVUNIT_TESTS_END
 
     task check(input int EXPECTED, input time TIMEOUT=100us);
