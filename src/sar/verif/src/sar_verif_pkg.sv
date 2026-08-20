@@ -13,6 +13,7 @@ package sar_verif_pkg;
     `include "sar_segment_transaction.svh"
     `include "sar_sequencer.svh"
     `include "sar_collector.svh"
+    `include "sar_model.svh"
     `include "sar_segment_driver.svh"
     `include "sar_segment_monitor.svh"
     `include "sar_component_env.svh"

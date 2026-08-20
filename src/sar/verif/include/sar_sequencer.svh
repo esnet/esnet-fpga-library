@@ -109,8 +109,10 @@ class sar_sequencer #(
         SEGMENT_T segs[$];
 
         trace_msg("_generate()");
-        debug_msg($sformatf("Decomposing frame buf_id=0x%0x, len=%0d into %0d-byte segments%s.",
-            seq.buf_id, frame_len, __seg_len, seq.out_of_order ? " (out-of-order)" : ""));
+        debug_msg($sformatf("Decomposing frame buf_id=0x%0x, len=%0d into %0d-byte segments%s%s.",
+            seq.buf_id, frame_len, __seg_len,
+            seq.out_of_order ? " (out-of-order)" : "",
+            seq.error        ? " (error)"        : ""));
 
         while (offset < frame_len) begin
             SEGMENT_T seg;
@@ -134,6 +136,13 @@ class sar_sequencer #(
             segs.push_back(seg);
             offset  += seg_len;
             seg_idx += 1;
+        end
+
+        if (seq.error && segs.size() > 0) begin
+            int drop_idx = int'($urandom_range(0, segs.size() - 1));
+            debug_msg($sformatf("Dropping segment %0d of %0d (error injection).",
+                drop_idx, segs.size()));
+            segs.delete(drop_idx);
         end
 
         if (seq.out_of_order) begin

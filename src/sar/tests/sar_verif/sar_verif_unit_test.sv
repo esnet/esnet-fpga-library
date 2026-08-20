@@ -51,7 +51,7 @@ module sar_verif_unit_test;
     packet_intf_driver  #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_T(SEG_META_T)) pkt_if_driver;
     packet_intf_monitor #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_T(SEG_META_T)) pkt_if_monitor;
 
-    std_verif_pkg::wire_model#(FRAME_T) model;
+    sar_model#(BUF_ID_T) model;
     std_verif_pkg::event_scoreboard#(FRAME_T) scoreboard;
 
     //===================================
@@ -60,7 +60,7 @@ module sar_verif_unit_test;
     function void build();
         svunit_ut = new(name);
 
-        model = new("model");
+        model = new("sar_model");
         scoreboard = new("scoreboard");
 
         pkt_if_driver = new("packet_if_driver");
@@ -178,6 +178,28 @@ module sar_verif_unit_test;
         env.sequencer.set_interleave(1);
         env.inbox.put(frame_a);
         env.inbox.put(frame_b);
+        check(2);
+    `SVTEST_END
+    //===================================
+    // Test: errored_frame
+    // Two clean frames interleaved with one errored frame; the errored frame
+    // is dropped by the model and never reassembled by the collector (one
+    // segment is omitted), so only the two clean frames score.
+    //===================================
+    `SVTEST(errored_frame)
+        FRAME_T clean_a, errored, clean_b;
+        clean_a = new("clean_a", BUF_ID_T'(0), 300);
+        fill_frame(clean_a);
+        errored = new("errored", BUF_ID_T'(1), 600);
+        fill_frame(errored);
+        errored.error = 1;
+        clean_b = new("clean_b", BUF_ID_T'(0), 300);
+        for (int i = 0; i < clean_b.data.size(); i++)
+            clean_b.data[i] = byte'(255 - (i % 256));
+        env.sequencer.set_seg_len(200);
+        env.inbox.put(clean_a);
+        env.inbox.put(errored);
+        env.inbox.put(clean_b);
         check(2);
     `SVTEST_END
     `SVUNIT_TESTS_END
