@@ -37,15 +37,15 @@ module fec_col_buf
     // instantiate RAM instances.
     generate
         for (genvar bank = 0; bank < NUM_BANKS; bank++) begin : g_bank
-            for (genvar _buf = 0; _buf < NUM_BUFS; _buf++) begin : g_buf
-                    // instantiate memory bank buffer.
-                    fec_bank_buf #(.NUM_BUFS(NUM_BUFS)) fec_bank_buf_inst (
-                        .clk        (clk),
-                        .srst       (srst),
-                        .buf_wr_if  (mem_wr_if[bank]),
-                        .buf_rd_if  (mem_rd_if[bank])
-                    );
+            // instantiate memory bank buffer.
+            fec_bank_buf #(.NUM_BUFS(NUM_BUFS)) fec_bank_buf_inst (
+                .clk        (clk),
+                .srst       (srst),
+                .buf_wr_if  (mem_wr_if[bank]),
+                .buf_rd_if  (mem_rd_if[bank])
+            );
 
+            for (genvar _buf = 0; _buf < NUM_BUFS; _buf++) begin : g_buf
                     // wr control signals.
                     assign mem_wr_if[bank][_buf].rst  = buf_wr_if[_buf].rst;
                     assign mem_wr_if[bank][_buf].en   = buf_wr_if[_buf].en;
