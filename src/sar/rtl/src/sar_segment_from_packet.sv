@@ -1,9 +1,7 @@
 // SAR segment-from-packet interface adapter
 // - converts from the sar_packet_segmentation output format (narrow-meta
 //   packet_intf + sideband) to segment representation (wide-meta packet_intf)
-// - meta packing convention: meta[BUF_ID_WID+OFFSET_WID : OFFSET_WID+1] = buf_id
-//                            meta[OFFSET_WID : 1]                        = offset
-//                            meta[0]                                      = last
+// - meta packing convention: meta = {buf_id, offset, last, packet (opaque) metadata}
 // - sideband signals are latched at the first word of each packet (vld && rdy)
 //   to guard against DUT pipelining that may update them before eop; the
 //   packet_intf_monitor samples meta at eop, so a stable value is required
@@ -22,7 +20,15 @@ module sar_segment_from_packet #(
     // Segment interface (wide meta = BUF_ID_WID + OFFSET_WID + 1)
     packet_intf.tx seg_if
 );
-    localparam int SEG_META_WID = BUF_ID_WID + OFFSET_WID + 1;
+
+    // Define metadata packing
+    typedef struct packed {
+        logic [BUF_ID_WID-1:0]    buf_id;
+        logic [OFFSET_WID-1:0]    offset;
+        logic                     last;
+        logic  [PKT_META_WID-1:0] opaque;
+    } meta_t;
+    localparam int SEG_META_WID = $bits(meta_t);
 
     // Parameter checks
     initial begin
@@ -32,26 +38,28 @@ module sar_segment_from_packet #(
     end
 
     // Latch sideband signals on first word of each packet (vld && rdy after eop)
-    logic [SEG_META_WID-1:0] meta_q;
+    meta_t __meta;
+    meta_t meta_q;
     logic sop;
 
-    always_ff @(posedge clk) begin
-        if (srst) begin
-            meta_q <= '0;
-            sop  <= 1'b1;  // start of simulation = start of new packet
-        end else begin
-            if (pkt_if.vld && pkt_if.rdy && sop) begin
-                // First word: latch sideband into meta
-                meta_q <= {packet_buf_id, packet_offset, packet_last};
-            end
-            if (pkt_if.vld && pkt_if.rdy) begin
-                sop <= pkt_if.eop;
-            end
-        end
-    end
+    assign __meta.buf_id = packet_buf_id;
+    assign __meta.offset = packet_offset;
+    assign __meta.last   = packet_last;
+    assign __meta.opaque = pkt_if.meta;
+
+    packet_sop i_packet_sop (
+        .clk,
+        .srst,
+        .vld ( pkt_if.vld ),
+        .rdy ( pkt_if.rdy ),
+        .eop ( pkt_if.eop ),
+        .sop ( sop )
+    );
+
+    always_ff @(posedge clk) if (sop) meta_q <= __meta;
 
     // Drive seg_if meta from latched value (stable throughout packet)
-    assign seg_if.meta = meta_q;
+    assign seg_if.meta = sop ? __meta : meta_q;
 
     // Passthrough data signals
     assign seg_if.vld  = pkt_if.vld;

@@ -19,10 +19,12 @@ module sar_verif_unit_test;
     localparam int BUF_ID_WID    = 1;
     localparam int OFFSET_WID    = 20;
     localparam int DATA_BYTE_WID = 8;
-    localparam int SEG_META_WID  = BUF_ID_WID + OFFSET_WID + 1;
+    localparam int META_WID      = 16;
+    localparam int SEG_META_WID  = BUF_ID_WID + OFFSET_WID + 1 + META_WID;
 
     localparam type BUF_ID_T   = logic [BUF_ID_WID-1:0];
     localparam type OFFSET_T   = logic [OFFSET_WID-1:0];
+    localparam type META_T     = logic [META_WID-1:0];
     localparam type SEG_META_T = logic [SEG_META_WID-1:0];
 
     typedef sar_frame_transaction#(BUF_ID_T)             FRAME_T;
@@ -32,21 +34,44 @@ module sar_verif_unit_test;
     // Clock (required by SVUnit infrastructure)
     //===================================
     logic clk;
+    logic srst;
+
     `SVUNIT_CLK_GEN(clk, 5ns);
 
     std_reset_intf reset_if(.clk);
 
+    assign srst = reset_if.reset;
     assign reset_if.ready = !reset_if.reset;
 
     //===================================
     // Packet interface — wire between segment driver and monitor
     //===================================
-    packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_WID(SEG_META_WID)) pkt_if (.clk(clk));
+    packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_WID(META_WID))     pkt_if (.clk(clk));
+    packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_WID(SEG_META_WID)) seg_if (.clk(clk));
+
+    BUF_ID_T packet_buf_id;
+    OFFSET_T packet_offset;
+    logic    packet_last;
+
+    // Shim: seg_tx_if (wide meta) → packet_in_if (narrow meta) + sideband
+    sar_segment_to_packet #(
+        .BUF_ID_WID   ( BUF_ID_WID ),
+        .OFFSET_WID   ( OFFSET_WID ),
+        .PKT_META_WID ( META_WID   )
+    ) i_seg_to_pkt (.*);
+
+    // Shim: packet_out_if (narrow meta) + sideband → seg_rx_if (wide meta)
+    // clk/srst needed to latch sideband on first word (DUT may update before eop)
+    sar_segment_from_packet #(
+        .BUF_ID_WID   ( BUF_ID_WID ),
+        .OFFSET_WID   ( OFFSET_WID ),
+        .PKT_META_WID ( META_WID   )
+    ) i_pkt_from_seg (.*);
 
     //===================================
     // Components
     //===================================
-    sar_component_env #(BUF_ID_T, OFFSET_T) env;
+    sar_component_env #(BUF_ID_T, OFFSET_T, META_T) env;
 
     packet_intf_driver  #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_T(SEG_META_T)) pkt_if_driver;
     packet_intf_monitor #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_T(SEG_META_T)) pkt_if_monitor;
@@ -64,10 +89,10 @@ module sar_verif_unit_test;
         scoreboard = new("scoreboard");
 
         pkt_if_driver = new("packet_if_driver");
-        pkt_if_driver.packet_vif = pkt_if;
+        pkt_if_driver.packet_vif = seg_if;
 
         pkt_if_monitor = new("packet_if_monitor");
-        pkt_if_monitor.packet_vif = pkt_if;
+        pkt_if_monitor.packet_vif = seg_if;
 
         env = new("sar_component_env");
         env.reset_vif = reset_if;

@@ -1,13 +1,12 @@
 // SAR segment monitor
 // - recovers sar_segment_transaction objects from packets on a transport interface
-// - unpacks segment metadata (buf_id, offset, last) from packet meta field:
-//     meta[BUF_ID_WID+OFFSET_WID : OFFSET_WID+1] = buf_id
-//     meta[OFFSET_WID : 1]                        = offset
-//     meta[0]                                      = last
+// - unpacks segment metadata (buf_id, offset, last, packet metadata) from packet meta field:
+//   {buf_id, offset, last, packet (opaque) metadata} = meta
 // - delegates transport to an injected packet_monitor (assign pkt_monitor before run())
 class sar_segment_monitor #(
     parameter type BUF_ID_T = bit,
-    parameter type OFFSET_T = bit
+    parameter type OFFSET_T = bit,
+    parameter type META_T = bit
 ) extends std_verif_pkg::monitor #(
     sar_segment_transaction#(BUF_ID_T, OFFSET_T)
 );
@@ -19,14 +18,22 @@ class sar_segment_monitor #(
     //===================================
     localparam int BUF_ID_WID   = $bits(BUF_ID_T);
     localparam int OFFSET_WID   = $bits(OFFSET_T);
-    localparam int SEG_META_WID = BUF_ID_WID + OFFSET_WID + 1;
+    localparam int META_WID     = $bits(META_T);
+
+    typedef struct packed {
+        logic [BUF_ID_WID-1:0] buf_id;
+        logic [OFFSET_WID-1:0] offset;
+        logic                  last;
+        logic [META_WID-1:0]   opaque;
+    } meta_t;
+    localparam int SEG_META_WID = $bits(meta_t);
 
     //===================================
     // Typedefs
     //===================================
     typedef logic [SEG_META_WID-1:0]                      SEG_META_T;
     typedef sar_segment_transaction#(BUF_ID_T, OFFSET_T)  SEGMENT_T;
-    typedef packet#(SEG_META_T)                            SEG_PKT_BASE_T;
+    typedef packet#(SEG_META_T)                           SEG_PKT_BASE_T;
 
     //===================================
     // Properties
@@ -82,7 +89,7 @@ class sar_segment_monitor #(
     // [[ implements std_verif_pkg::monitor._receive() ]]
     protected task _receive(output SEGMENT_T transaction);
         SEG_PKT_BASE_T pkt;
-        SEG_META_T     meta;
+        meta_t         meta;
         BUF_ID_T       buf_id;
         OFFSET_T       offset;
         bit            last;
@@ -93,10 +100,10 @@ class sar_segment_monitor #(
         pkt_monitor.receive(pkt);
 
         // Unpack meta: bits packed as {buf_id, offset, last} MSB-first
-        meta   = pkt.get_meta();
-        buf_id = BUF_ID_T'(meta[SEG_META_WID-1 : OFFSET_WID+1]);
-        offset = OFFSET_T'(meta[OFFSET_WID : 1]);
-        last   = meta[0];
+        meta   = meta_t'(pkt.get_meta());
+        buf_id = meta.buf_id;
+        offset = meta.offset;
+        last   = meta.last;
 
         data = pkt.to_bytes();
 

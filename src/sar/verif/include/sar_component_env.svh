@@ -1,7 +1,8 @@
 // Packet component testbench environment base class
 class sar_component_env #(
     parameter type BUF_ID_T = bit,
-    parameter type OFFSET_T = bit
+    parameter type OFFSET_T = bit,
+    parameter type META_T = bit
 ) extends std_verif_pkg::basic_env;
 
     local static const string __CLASS_NAME = "packet_verif_pkg::packet_component_env";
@@ -13,9 +14,9 @@ class sar_component_env #(
     // Properties
     //===================================
     sar_sequencer#(BUF_ID_T,OFFSET_T) sequencer;
-    sar_segment_driver#(BUF_ID_T,OFFSET_T) driver;
+    sar_segment_driver#(BUF_ID_T,OFFSET_T,META_T) driver;
 
-    sar_segment_monitor#(BUF_ID_T,OFFSET_T) monitor;
+    sar_segment_monitor#(BUF_ID_T,OFFSET_T,META_T) monitor;
     sar_collector#(BUF_ID_T,OFFSET_T) collector;
 
     std_verif_pkg::model#(FRAME_T) model;

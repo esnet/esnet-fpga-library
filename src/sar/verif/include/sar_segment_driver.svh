@@ -1,13 +1,12 @@
 // SAR segment driver
 // - translates sar_segment_transaction objects into packets on a transport interface
-// - packs segment metadata (buf_id, offset, last) into packet meta field:
-//     meta[BUF_ID_WID+OFFSET_WID : OFFSET_WID+1] = buf_id
-//     meta[OFFSET_WID : 1]                        = offset
-//     meta[0]                                      = last
+// - packs segment metadata (buf_id, offset, last, packet metadata) into packet meta field:
+//   meta = {buf_id, offset, last, packet (opaque) metadata}
 // - delegates transport to an injected packet_driver (assign pkt_driver before run())
 class sar_segment_driver #(
     parameter type BUF_ID_T = bit,
-    parameter type OFFSET_T = bit
+    parameter type OFFSET_T = bit,
+    parameter type META_T = bit
 ) extends std_verif_pkg::driver #(
     sar_segment_transaction#(BUF_ID_T, OFFSET_T)
 );
@@ -19,14 +18,22 @@ class sar_segment_driver #(
     //===================================
     localparam int BUF_ID_WID   = $bits(BUF_ID_T);
     localparam int OFFSET_WID   = $bits(OFFSET_T);
-    localparam int SEG_META_WID = BUF_ID_WID + OFFSET_WID + 1;
+    localparam int META_WID     = $bits(META_T);
+
+    typedef struct packed {
+        logic [BUF_ID_WID-1:0] buf_id;
+        logic [OFFSET_WID-1:0] offset;
+        logic                  last;
+        logic [META_WID-1:0]   opaque;
+    } meta_t;
+    localparam int SEG_META_WID = $bits(meta_t);
 
     //===================================
     // Typedefs
     //===================================
     typedef logic [SEG_META_WID-1:0]                      SEG_META_T;
     typedef sar_segment_transaction#(BUF_ID_T, OFFSET_T)  SEGMENT_T;
-    typedef packet_raw#(SEG_META_T)                        SEG_PKT_T;
+    typedef packet_raw#(SEG_META_T)                       SEG_PKT_T;
 
     //===================================
     // Properties
@@ -81,7 +88,7 @@ class sar_segment_driver #(
     // Pack segment into a packet and send via the injected transport driver
     // [[ implements std_verif_pkg::driver._send() ]]
     protected task _send(input SEGMENT_T transaction);
-        SEG_META_T meta;
+        meta_t meta;
         SEG_PKT_T  pkt;
 
         trace_msg("_send()");
@@ -89,12 +96,15 @@ class sar_segment_driver #(
             transaction.buf_id, transaction.offset, transaction.last, transaction.data.size()));
 
         // Pack {buf_id, offset, last} MSB-first into meta
-        meta = {transaction.buf_id, transaction.offset, transaction.last};
+        meta.buf_id = transaction.buf_id;
+        meta.offset = transaction.offset;
+        meta.last   = transaction.last;
+        meta.opaque = '0;
 
         pkt = SEG_PKT_T::create_from_bytes(
             $sformatf("%s_pkt", transaction.get_name()),
             transaction.data,
-            meta
+            SEG_META_T'(meta)
         );
 
         pkt_driver.send(pkt);
