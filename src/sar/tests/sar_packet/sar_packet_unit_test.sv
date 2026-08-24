@@ -38,6 +38,9 @@ module sar_packet_unit_test;
     localparam type OFFSET_T   = logic [OFFSET_WID-1:0];
     localparam type SEG_META_T = logic [SEG_META_WID-1:0];
 
+    // Default segment length for shared testcases
+    localparam int SEG_LEN = MAX_PKT_SIZE;
+
     typedef sar_frame_transaction#(BUF_ID_T) FRAME_T;
 
     //===================================
@@ -307,108 +310,12 @@ module sar_packet_unit_test;
 
     //===================================
     // Test: reset
+    // Verifies DUT comes out of reset cleanly (sar_packet only).
     //===================================
     `SVTEST(reset)
     `SVTEST_END
 
-    //===================================
-    // Test: single_segment
-    // Frame fits in one segment (< MAX_PKT_SIZE); full round-trip through DUT.
-    //===================================
-    `SVTEST(single_segment)
-        FRAME_T sent;
-        sent = new("frame", BUF_ID_T'(0), 512);
-        fill_frame(sent);
-        env.sequencer.set_seg_len(MAX_PKT_SIZE);
-        env.inbox.put(sent);
-        check(1, 50us);
-    `SVTEST_END
-
-    //===================================
-    // Test: single_segment_stall_monitor
-    // Same as single_segment but monitor applies back-pressure.
-    //===================================
-    `SVTEST(single_segment_stall_monitor)
-        FRAME_T sent;
-        seg_pkt_monitor.set_stall_rate(0.5);
-        sent = new("frame", BUF_ID_T'(0), 512);
-        fill_frame(sent);
-        env.sequencer.set_seg_len(MAX_PKT_SIZE);
-        env.inbox.put(sent);
-        check(1, 100us);
-    `SVTEST_END
-
-    //===================================
-    // Test: single_segment_gap_driver
-    // Same as single_segment but driver inserts inter-packet gap.
-    //===================================
-    `SVTEST(single_segment_gap_driver)
-        FRAME_T sent;
-        seg_pkt_driver.set_min_gap(2);
-        sent = new("frame", BUF_ID_T'(0), 512);
-        fill_frame(sent);
-        env.sequencer.set_seg_len(MAX_PKT_SIZE);
-        env.inbox.put(sent);
-        check(1, 50us);
-    `SVTEST_END
-
-    //===================================
-    // Test: single_segment_stall_and_gap
-    //===================================
-    `SVTEST(single_segment_stall_and_gap)
-        FRAME_T sent;
-        seg_pkt_monitor.set_stall_rate(0.5);
-        seg_pkt_driver.set_min_gap(2);
-        sent = new("frame", BUF_ID_T'(0), 512);
-        fill_frame(sent);
-        env.sequencer.set_seg_len(MAX_PKT_SIZE);
-        env.inbox.put(sent);
-        check(1, 100us);
-    `SVTEST_END
-
-    //===================================
-    // Test: multi_segment
-    // Frame spans multiple segments; verifies sequencer→DUT→collector chain.
-    //===================================
-    `SVTEST(multi_segment)
-        FRAME_T sent;
-        // Use a non-exact multiple of MAX_PKT_SIZE: 3 full segments + a partial last.
-        // (Exact multiples trigger a DUT edge case in sar_segmentation where the last
-        //  segment is not marked correctly — that is a separate known DUT issue.)
-        sent = new("frame", BUF_ID_T'(0), MAX_PKT_SIZE * 3 - 1);
-        fill_frame(sent);
-        env.sequencer.set_seg_len(MAX_PKT_SIZE);
-        env.inbox.put(sent);
-        check(1, 500us);
-    `SVTEST_END
-
-    //===================================
-    // Test: exact_segment
-    // Frame length equals seg_len → one segment, last=1.
-    //===================================
-    `SVTEST(exact_segment)
-        FRAME_T sent;
-        sent = new("frame", BUF_ID_T'(0), MAX_PKT_SIZE);
-        fill_frame(sent);
-        env.sequencer.set_seg_len(MAX_PKT_SIZE);
-        env.inbox.put(sent);
-        check(1, 50us);
-    `SVTEST_END
-
-    //===================================
-    // Test: frame_stream_100
-    // 100 sequential frames (each a single segment) through the full stack.
-    //===================================
-    `SVTEST(frame_stream_100)
-        FRAME_T sent[100];
-        env.sequencer.set_seg_len(MAX_PKT_SIZE);
-        for (int i = 0; i < 100; i++) begin
-            sent[i] = new($sformatf("frame_%0d", i), BUF_ID_T'(i % NUM_FRAME_BUFFERS), 512);
-            sent[i].randomize();
-            env.inbox.put(sent[i]);
-        end
-        check(100, 2ms);
-    `SVTEST_END
+    `include "sar_common_tests.svh"
 
     `SVUNIT_TESTS_END
 

@@ -3,7 +3,7 @@
 //===================================
 // (Failsafe) timeout (per-testcase)
 //===================================
-`define SVUNIT_TIMEOUT 1ms
+`define SVUNIT_TIMEOUT 5ms
 
 module sar_verif_unit_test;
     import svunit_pkg::svunit_testcase;
@@ -27,8 +27,10 @@ module sar_verif_unit_test;
     localparam type META_T     = logic [META_WID-1:0];
     localparam type SEG_META_T = logic [SEG_META_WID-1:0];
 
-    typedef sar_frame_transaction#(BUF_ID_T)             FRAME_T;
-    typedef sar_segment_transaction#(BUF_ID_T, OFFSET_T) SEGMENT_T;
+    // Default segment length for shared testcases
+    localparam int SEG_LEN = 512;
+
+    typedef sar_frame_transaction#(BUF_ID_T) FRAME_T;
 
     //===================================
     // Clock (required by SVUnit infrastructure)
@@ -72,12 +74,12 @@ module sar_verif_unit_test;
     // Components
     //===================================
     sar_component_env #(BUF_ID_T, OFFSET_T, META_T) env;
-
-    packet_intf_driver  #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_T(SEG_META_T)) pkt_if_driver;
-    packet_intf_monitor #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_T(SEG_META_T)) pkt_if_monitor;
-
     sar_model#(BUF_ID_T) model;
     std_verif_pkg::event_scoreboard#(FRAME_T) scoreboard;
+
+    // Concrete packet interface driver/monitor (named to match shared testcases)
+    packet_intf_driver  #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_T(SEG_META_T)) seg_pkt_driver;
+    packet_intf_monitor #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_T(SEG_META_T)) seg_pkt_monitor;
 
     //===================================
     // Build
@@ -88,18 +90,18 @@ module sar_verif_unit_test;
         model = new("sar_model");
         scoreboard = new("scoreboard");
 
-        pkt_if_driver = new("packet_if_driver");
-        pkt_if_driver.packet_vif = seg_if;
+        seg_pkt_driver = new("seg_pkt_driver");
+        seg_pkt_driver.packet_vif = seg_if;
 
-        pkt_if_monitor = new("packet_if_monitor");
-        pkt_if_monitor.packet_vif = seg_if;
+        seg_pkt_monitor = new("seg_pkt_monitor");
+        seg_pkt_monitor.packet_vif = seg_if;
 
         env = new("sar_component_env");
         env.reset_vif = reset_if;
         env.model = model;
         env.scoreboard = scoreboard;
-        env.driver.pkt_driver = pkt_if_driver;
-        env.monitor.pkt_monitor = pkt_if_monitor;
+        env.driver.pkt_driver  = seg_pkt_driver;
+        env.monitor.pkt_monitor = seg_pkt_monitor;
         env.build();
     endfunction
 
@@ -108,6 +110,10 @@ module sar_verif_unit_test;
     //===================================
     task setup();
         svunit_ut.setup();
+
+        // Reset driver/monitor state that persists across tests
+        seg_pkt_driver.set_min_gap(0);
+        seg_pkt_monitor.set_stall_rate(0.0);
 
         env.run();
     endtask
@@ -121,115 +127,14 @@ module sar_verif_unit_test;
     endtask
 
     //===================================
-    // Helper: fill frame bytes with a sequential pattern
+    // Helpers
     //===================================
     task fill_frame(input FRAME_T frame);
         for (int i = 0; i < frame.data.size(); i++)
             frame.data[i] = byte'(i % 256);
     endtask
 
-    `SVUNIT_TESTS_BEGIN
-
-    //===================================
-    // Test: single_segment
-    // Frame smaller than seg_len → one segment; full stack exercised.
-    //===================================
-    `SVTEST(single_segment)
-        FRAME_T sent, rcvd;
-        string msg;
-        sent = new("frame", BUF_ID_T'(1), 256);
-        fill_frame(sent);
-        env.sequencer.set_seg_len(512);
-        env.inbox.put(sent);
-        check(1);
-    `SVTEST_END
-
-    //===================================
-    // Test: multi_segment
-    // Frame spans multiple segments; full stack exercised.
-    //===================================
-    `SVTEST(multi_segment)
-        FRAME_T sent, rcvd;
-        string msg;
-        sent = new("frame", BUF_ID_T'(0), 1000);
-        fill_frame(sent);
-        env.sequencer.set_seg_len(300);   // 300 + 300 + 400
-        env.inbox.put(sent);
-        check(1);
-    `SVTEST_END
-
-    //===================================
-    // Test: exact_segment
-    // Frame length exactly equals seg_len → one segment, last=1; full stack.
-    //===================================
-    `SVTEST(exact_segment)
-        FRAME_T sent, rcvd;
-        string msg;
-        sent = new("frame", BUF_ID_T'(0), 512);
-        fill_frame(sent);
-        env.sequencer.set_seg_len(512);
-        env.inbox.put(sent);
-        check(1);
-    `SVTEST_END
-
-    //===================================
-    // Test: out_of_order_segments
-    // Three-segment frame with out_of_order enabled; sequencer shuffles segment
-    // emission order but collector reassembles correctly via offset placement.
-    //===================================
-    `SVTEST(out_of_order_segments)
-        FRAME_T sent;
-        sent = new("frame", BUF_ID_T'(0), 900);
-        fill_frame(sent);
-        sent.out_of_order = 1;
-        env.sequencer.set_seg_len(300);
-        env.inbox.put(sent);
-        check(1);
-    `SVTEST_END
-
-    //===================================
-    // Test: two_frames_interleaved
-    // Two frames submitted simultaneously with interleave enabled; segments from
-    // both frames are emitted concurrently and both frames are reassembled.
-    //===================================
-    `SVTEST(two_frames_interleaved)
-        FRAME_T frame_a, frame_b;
-        frame_a = new("frameA", BUF_ID_T'(0), 600);
-        frame_b = new("frameB", BUF_ID_T'(1), 600);
-        fill_frame(frame_a);
-        for (int i = 0; i < frame_b.data.size(); i++)
-            frame_b.data[i] = byte'(255 - (i % 256));
-        env.sequencer.set_seg_len(200);
-        env.sequencer.set_interleave(1);
-        env.inbox.put(frame_a);
-        env.inbox.put(frame_b);
-        check(2);
-    `SVTEST_END
-    //===================================
-    // Test: errored_frame
-    // Two clean frames interleaved with one errored frame; the errored frame
-    // is dropped by the model and never reassembled by the collector (one
-    // segment is omitted), so only the two clean frames score.
-    //===================================
-    `SVTEST(errored_frame)
-        FRAME_T clean_a, errored, clean_b;
-        clean_a = new("clean_a", BUF_ID_T'(0), 300);
-        fill_frame(clean_a);
-        errored = new("errored", BUF_ID_T'(1), 600);
-        fill_frame(errored);
-        errored.error = 1;
-        clean_b = new("clean_b", BUF_ID_T'(0), 300);
-        for (int i = 0; i < clean_b.data.size(); i++)
-            clean_b.data[i] = byte'(255 - (i % 256));
-        env.sequencer.set_seg_len(200);
-        env.inbox.put(clean_a);
-        env.inbox.put(errored);
-        env.inbox.put(clean_b);
-        check(2);
-    `SVTEST_END
-    `SVUNIT_TESTS_END
-
-    task check(input int EXPECTED, input time TIMEOUT=100us);
+    task check(input int EXPECTED, input time TIMEOUT=500us);
         fork
             begin
                 string msg;
@@ -240,7 +145,6 @@ module sar_verif_unit_test;
             end
             begin
                 string msg;
-                int processed;
                 do
                     #100ns;
                 while ( env.scoreboard.got_processed() != EXPECTED );
@@ -250,4 +154,11 @@ module sar_verif_unit_test;
         join_any
         disable fork;
     endtask
+
+    `SVUNIT_TESTS_BEGIN
+
+    `include "sar_common_tests.svh"
+
+    `SVUNIT_TESTS_END
+
 endmodule : sar_verif_unit_test
