@@ -1,5 +1,10 @@
 `include "svunit_defines.svh"
 
+//===================================
+// (Failsafe) timeout (per-testcase)
+//===================================
+`define SVUNIT_TIMEOUT 5ms
+
 module sar_packet_unit_test;
     import svunit_pkg::svunit_testcase;
     import packet_verif_pkg::*;
@@ -33,8 +38,7 @@ module sar_packet_unit_test;
     localparam type OFFSET_T   = logic [OFFSET_WID-1:0];
     localparam type SEG_META_T = logic [SEG_META_WID-1:0];
 
-    typedef sar_frame_transaction#(BUF_ID_T)             FRAME_T;
-    typedef sar_segment_transaction#(BUF_ID_T, OFFSET_T) SEGMENT_T;
+    typedef sar_frame_transaction#(BUF_ID_T) FRAME_T;
 
     //===================================
     // DUT
@@ -185,16 +189,10 @@ module sar_packet_unit_test;
     packet_intf_driver  #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_T(SEG_META_T)) seg_pkt_driver;
     packet_intf_monitor #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_T(SEG_META_T)) seg_pkt_monitor;
 
-    // Frame-level pipeline
-    sar_sequencer  #(BUF_ID_T, OFFSET_T) sequencer;
-    sar_segment_driver  #(BUF_ID_T, OFFSET_T, META_T) seg_driver;
-    sar_segment_monitor #(BUF_ID_T, OFFSET_T, META_T) seg_monitor;
-    sar_collector  #(BUF_ID_T, OFFSET_T) collector;
-
-    mailbox #(FRAME_T)   frame_inbox;    // → sequencer
-    mailbox #(SEGMENT_T) seg_pipe;       // sequencer → seg_driver
-    mailbox #(SEGMENT_T) seg_out;        // seg_monitor → collector
-    mailbox #(FRAME_T)   frame_outbox;   // collector →
+    // Frame-level environment
+    sar_component_env #(BUF_ID_T, OFFSET_T, META_T) env;
+    sar_model         #(BUF_ID_T)                   model;
+    std_verif_pkg::event_scoreboard #(FRAME_T)       scoreboard;
 
     // Reset
     std_reset_intf reset_if (.clk(clk));
@@ -232,12 +230,16 @@ module sar_packet_unit_test;
         seg_pkt_monitor = new("seg_pkt_monitor");
         seg_pkt_monitor.packet_vif = seg_rx_if;
 
-        sequencer = new("sequencer");
-        seg_driver = new("seg_driver");
-        seg_driver.pkt_driver = seg_pkt_driver;
-        seg_monitor = new("seg_monitor");
-        seg_monitor.pkt_monitor = seg_pkt_monitor;
-        collector = new("collector");
+        model      = new("sar_model");
+        scoreboard = new("scoreboard");
+
+        env = new("sar_component_env");
+        env.reset_vif = reset_if;
+        env.model = model;
+        env.scoreboard = scoreboard;
+        env.driver.pkt_driver  = seg_pkt_driver;
+        env.monitor.pkt_monitor = seg_pkt_monitor;
+        env.build();
     endfunction
 
     //===================================
@@ -246,43 +248,21 @@ module sar_packet_unit_test;
     task setup();
         svunit_ut.setup();
 
-        frame_inbox  = new();
-        seg_pipe     = new();
-        seg_out      = new();
-        frame_outbox = new();
-
-        sequencer.inbox  = frame_inbox;
-        sequencer.outbox = seg_pipe;
-        seg_driver.inbox = seg_pipe;
-        seg_monitor.outbox = seg_out;
-        collector.inbox  = seg_out;
-        collector.outbox = frame_outbox;
-
         ms_tick = 0;
 
-        // Reset driver/monitor state that persists across tests
-        seg_pkt_driver.set_min_gap(0);
-        seg_pkt_monitor.set_stall_rate(0.0);
-
-        begin
-            bit timeout;
-            reset_if.pulse(8);
-            reset_if.wait_ready(timeout, 0);
-        end
+        // Pulses reset, waits for init_done__segmentation && init_done__reassembly,
+        // then starts all subcomponents.
+        env.run();
 
         // Configure segmentation DUT: set cfg_seg_len = MAX_PKT_SIZE so each output
         // frame produces exactly one segment, matching the sequencer's seg_len.
-        // reset_if.wait_ready() already guarantees init_done__segmentation=1 (READY state).
+        // env.run() already guarantees init_done__segmentation=1 (READY state).
         begin
             sar_segmentation_reg_pkg::reg__config_t cfg;
             cfg.seg_len = MAX_PKT_SIZE;
             seg_reg_agent.write__config(cfg);
         end
 
-        sequencer.run();
-        seg_driver.run();
-        seg_monitor.run();
-        collector.run();
         @(posedge clk);
     endtask
 
@@ -290,10 +270,7 @@ module sar_packet_unit_test;
     // Teardown
     //===================================
     task teardown();
-        sequencer.stop();
-        seg_driver.stop();
-        seg_monitor.stop();
-        collector.stop();
+        env.stop();
         svunit_ut.teardown();
     endtask
 
@@ -305,22 +282,25 @@ module sar_packet_unit_test;
             frame.data[i] = byte'(i % 256);
     endtask
 
-    task send_frame_check(
-        input  FRAME_T sent,
-        input  string  testname,
-        input  time    timeout_delay = 500us
-    );
-        FRAME_T rcvd;
-        string msg;
-        frame_inbox.put(sent);
+    task check(input int EXPECTED, input time TIMEOUT=500us);
         fork
-            frame_outbox.get(rcvd);
-        join_none
-        #timeout_delay;
-        `FAIL_UNLESS_LOG(frame_outbox.num() > 0 || rcvd != null,
-            $sformatf("%s: timed out waiting for frame", testname));
-        if (rcvd == null) frame_outbox.get(rcvd);
-        `FAIL_UNLESS_LOG(sent.compare(rcvd, msg), msg);
+            begin
+                string msg;
+                #(TIMEOUT);
+                `FAIL_IF_LOG( env.scoreboard.report(msg) > 0, msg);
+                $display($sformatf("%d", env.scoreboard.got_processed()));
+                `FAIL_IF_LOG(1, "Timeout waiting for expected transactions.");
+            end
+            begin
+                string msg;
+                do
+                    #100ns;
+                while ( env.scoreboard.got_processed() != EXPECTED );
+                `FAIL_IF_LOG( env.scoreboard.report(msg) > 0, msg);
+                `FAIL_UNLESS_EQUAL( env.scoreboard.got_matched(), EXPECTED);
+            end
+        join_any
+        disable fork;
     endtask
 
     `SVUNIT_TESTS_BEGIN
@@ -336,15 +316,12 @@ module sar_packet_unit_test;
     // Frame fits in one segment (< MAX_PKT_SIZE); full round-trip through DUT.
     //===================================
     `SVTEST(single_segment)
-        FRAME_T sent, rcvd;
-        string msg;
+        FRAME_T sent;
         sent = new("frame", BUF_ID_T'(0), 512);
         fill_frame(sent);
-        sequencer.set_seg_len(MAX_PKT_SIZE);
-        frame_inbox.put(sent);
-        #50us;
-        frame_outbox.get(rcvd);
-        `FAIL_UNLESS_LOG(sent.compare(rcvd, msg), msg);
+        env.sequencer.set_seg_len(MAX_PKT_SIZE);
+        env.inbox.put(sent);
+        check(1, 50us);
     `SVTEST_END
 
     //===================================
@@ -352,16 +329,13 @@ module sar_packet_unit_test;
     // Same as single_segment but monitor applies back-pressure.
     //===================================
     `SVTEST(single_segment_stall_monitor)
-        FRAME_T sent, rcvd;
-        string msg;
+        FRAME_T sent;
         seg_pkt_monitor.set_stall_rate(0.5);
         sent = new("frame", BUF_ID_T'(0), 512);
         fill_frame(sent);
-        sequencer.set_seg_len(MAX_PKT_SIZE);
-        frame_inbox.put(sent);
-        #50us;
-        frame_outbox.get(rcvd);
-        `FAIL_UNLESS_LOG(sent.compare(rcvd, msg), msg);
+        env.sequencer.set_seg_len(MAX_PKT_SIZE);
+        env.inbox.put(sent);
+        check(1, 100us);
     `SVTEST_END
 
     //===================================
@@ -369,33 +343,27 @@ module sar_packet_unit_test;
     // Same as single_segment but driver inserts inter-packet gap.
     //===================================
     `SVTEST(single_segment_gap_driver)
-        FRAME_T sent, rcvd;
-        string msg;
+        FRAME_T sent;
         seg_pkt_driver.set_min_gap(2);
         sent = new("frame", BUF_ID_T'(0), 512);
         fill_frame(sent);
-        sequencer.set_seg_len(MAX_PKT_SIZE);
-        frame_inbox.put(sent);
-        #50us;
-        frame_outbox.get(rcvd);
-        `FAIL_UNLESS_LOG(sent.compare(rcvd, msg), msg);
+        env.sequencer.set_seg_len(MAX_PKT_SIZE);
+        env.inbox.put(sent);
+        check(1, 50us);
     `SVTEST_END
 
     //===================================
     // Test: single_segment_stall_and_gap
     //===================================
     `SVTEST(single_segment_stall_and_gap)
-        FRAME_T sent, rcvd;
-        string msg;
+        FRAME_T sent;
         seg_pkt_monitor.set_stall_rate(0.5);
         seg_pkt_driver.set_min_gap(2);
         sent = new("frame", BUF_ID_T'(0), 512);
         fill_frame(sent);
-        sequencer.set_seg_len(MAX_PKT_SIZE);
-        frame_inbox.put(sent);
-        #50us;
-        frame_outbox.get(rcvd);
-        `FAIL_UNLESS_LOG(sent.compare(rcvd, msg), msg);
+        env.sequencer.set_seg_len(MAX_PKT_SIZE);
+        env.inbox.put(sent);
+        check(1, 100us);
     `SVTEST_END
 
     //===================================
@@ -403,18 +371,15 @@ module sar_packet_unit_test;
     // Frame spans multiple segments; verifies sequencer→DUT→collector chain.
     //===================================
     `SVTEST(multi_segment)
-        FRAME_T sent, rcvd;
-        string msg;
+        FRAME_T sent;
         // Use a non-exact multiple of MAX_PKT_SIZE: 3 full segments + a partial last.
         // (Exact multiples trigger a DUT edge case in sar_segmentation where the last
         //  segment is not marked correctly — that is a separate known DUT issue.)
         sent = new("frame", BUF_ID_T'(0), MAX_PKT_SIZE * 3 - 1);
         fill_frame(sent);
-        sequencer.set_seg_len(MAX_PKT_SIZE);
-        frame_inbox.put(sent);
-        #500us;
-        frame_outbox.get(rcvd);
-        `FAIL_UNLESS_LOG(sent.compare(rcvd, msg), msg);
+        env.sequencer.set_seg_len(MAX_PKT_SIZE);
+        env.inbox.put(sent);
+        check(1, 500us);
     `SVTEST_END
 
     //===================================
@@ -422,15 +387,12 @@ module sar_packet_unit_test;
     // Frame length equals seg_len → one segment, last=1.
     //===================================
     `SVTEST(exact_segment)
-        FRAME_T sent, rcvd;
-        string msg;
+        FRAME_T sent;
         sent = new("frame", BUF_ID_T'(0), MAX_PKT_SIZE);
         fill_frame(sent);
-        sequencer.set_seg_len(MAX_PKT_SIZE);
-        frame_inbox.put(sent);
-        #50us;
-        frame_outbox.get(rcvd);
-        `FAIL_UNLESS_LOG(sent.compare(rcvd, msg), msg);
+        env.sequencer.set_seg_len(MAX_PKT_SIZE);
+        env.inbox.put(sent);
+        check(1, 50us);
     `SVTEST_END
 
     //===================================
@@ -438,18 +400,14 @@ module sar_packet_unit_test;
     // 100 sequential frames (each a single segment) through the full stack.
     //===================================
     `SVTEST(frame_stream_100)
-        FRAME_T sent[100], rcvd;
-        string msg;
-        sequencer.set_seg_len(MAX_PKT_SIZE);
+        FRAME_T sent[100];
+        env.sequencer.set_seg_len(MAX_PKT_SIZE);
         for (int i = 0; i < 100; i++) begin
             sent[i] = new($sformatf("frame_%0d", i), BUF_ID_T'(i % NUM_FRAME_BUFFERS), 512);
             sent[i].randomize();
-            frame_inbox.put(sent[i]);
+            env.inbox.put(sent[i]);
         end
-        for (int i = 0; i < 100; i++) begin
-            frame_outbox.get(rcvd);
-            `FAIL_UNLESS_LOG(sent[i].compare(rcvd, msg), msg);
-        end
+        check(100, 2ms);
     `SVTEST_END
 
     `SVUNIT_TESTS_END
