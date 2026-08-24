@@ -315,7 +315,7 @@ module sar_packet_unit_test;
     `SVTEST(reset)
     `SVTEST_END
 
-    `include "sar_common_tests.svh"
+    `include "../common/sar_common_tests.svh"
 
     `SVUNIT_TESTS_END
 

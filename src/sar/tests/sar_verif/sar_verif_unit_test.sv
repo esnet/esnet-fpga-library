@@ -157,7 +157,7 @@ module sar_verif_unit_test;
 
     `SVUNIT_TESTS_BEGIN
 
-    `include "sar_common_tests.svh"
+    `include "../common/sar_common_tests.svh"
 
     `SVUNIT_TESTS_END
 
