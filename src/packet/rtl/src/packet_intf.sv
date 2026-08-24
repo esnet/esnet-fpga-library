@@ -48,6 +48,14 @@ interface packet_intf #(
         input  meta
     );
 
+    // mon_* signals are combinational mirrors of output-driven signals,
+    // declared as separate nets so they can be listed as clocking block
+    // inputs (sampled in the preponed region). The `input mon = sig` alias
+    // syntax inside a clocking block is not supported by xsim.
+    logic mon_tx_vld, mon_rx_rdy;
+    assign mon_tx_vld = vld;
+    assign mon_rx_rdy = rdy;
+
     clocking cb_tx @(posedge clk);
         output vld, data, eop, mty, err, meta;
         input rdy;
@@ -92,8 +100,7 @@ interface packet_intf #(
         cb_tx.mty <= _mty;
         cb_tx.err <= _err;
         cb_tx.meta <= _meta;
-        @(cb_tx);
-        wait(cb_tx.rdy);
+        @(cb_tx iff (mon_tx_vld && cb_tx.rdy));
         cb_tx.vld <= 1'b0;
         cb_tx.eop <= 1'b0;
     endtask
@@ -106,8 +113,7 @@ interface packet_intf #(
             output bit [META_WID-1:0] _meta
         );
         cb_rx.rdy <= 1'b1;
-        @(cb_rx);
-        wait(cb_rx.vld);
+        @(cb_rx iff (cb_rx.vld && mon_rx_rdy));
         cb_rx.rdy <= 1'b0;
         _data = cb_rx.data;
         _eop = cb_rx.eop;
