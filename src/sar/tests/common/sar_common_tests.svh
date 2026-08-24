@@ -134,7 +134,7 @@
     errored = new("errored", BUF_ID_T'(1), 384);
     fill_frame(errored);
     errored.error = 1;
-    clean_b = new("clean_b", BUF_ID_T'(0), 256);
+    clean_b = new("clean_b", BUF_ID_T'(2), 256);
     for (int i = 0; i < clean_b.data.size(); i++)
         clean_b.data[i] = byte'(255 - (i % 256));
     env.sequencer.set_seg_len(128);

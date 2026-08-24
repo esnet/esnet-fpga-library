@@ -16,7 +16,8 @@ module sar_verif_unit_test;
     //===================================
     // Parameters
     //===================================
-    localparam int BUF_ID_WID    = 1;
+    localparam int NUM_FRAME_BUFFERS = 128;
+    localparam int BUF_ID_WID    = $clog2(NUM_FRAME_BUFFERS);
     localparam int OFFSET_WID    = 20;
     localparam int DATA_BYTE_WID = 8;
     localparam int META_WID      = 16;
