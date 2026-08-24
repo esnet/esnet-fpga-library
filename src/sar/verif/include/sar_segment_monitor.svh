@@ -60,6 +60,13 @@ class sar_segment_monitor #(
         super.destroy();
     endfunction
 
+    // Reset monitor state
+    // [[ overrides std_verif_pkg::monitor._reset() ]]
+    virtual protected function automatic void _reset();
+        pkt_monitor.reset();
+        super._reset();
+    endfunction
+
     // Configure trace output
     // [[ overrides std_verif_pkg::base.trace_msg() ]]
     function automatic void trace_msg(input string msg);

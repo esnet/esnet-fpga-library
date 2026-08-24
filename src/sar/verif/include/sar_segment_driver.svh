@@ -60,6 +60,13 @@ class sar_segment_driver #(
         super.destroy();
     endfunction
 
+    // Reset driver state
+    // [[ overrides std_verif_pkg::driver._reset() ]]
+    virtual protected function automatic void _reset();
+        pkt_driver.reset();
+        super._reset();
+    endfunction
+
     // Configure trace output
     // [[ overrides std_verif_pkg::base.trace_msg() ]]
     function automatic void trace_msg(input string msg);
