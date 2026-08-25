@@ -61,6 +61,8 @@ module sar_reassembly_cache #(
     // Parameters
     // -------------------------------------------------
     localparam int NUM_RD_TRANSACTIONS = 16;
+    localparam int DELETE_Q_DEPTH = 32;
+    localparam int DELETE_Q_THRESHOLD = DELETE_Q_DEPTH - NUM_RD_TRANSACTIONS;
 
     // -------------------------------------------------
     // Typedefs
@@ -160,12 +162,16 @@ module sar_reassembly_cache #(
     logic               delete_q__append__rd;
     segment_table_key_t delete_q__append__rd_data;
     logic               delete_q__append__empty;
+    logic [$clog2(DELETE_Q_DEPTH+1)-1:0] delete_q__append__count;
 
     logic               delete_q__prepend__wr;
     segment_table_key_t delete_q__prepend__wr_data;
     logic               delete_q__prepend__rd;
     segment_table_key_t delete_q__prepend__rd_data;
     logic               delete_q__prepend__empty;
+    logic [$clog2(DELETE_Q_DEPTH+1)-1:0] delete_q__prepend__count;
+
+    logic               delete_q_stop;
 
     // Debug counter/flag signals
     logic        dbg_cnt_clear;
@@ -389,7 +395,18 @@ module sar_reassembly_cache #(
     assign lookup_if__prepend.next = 1'b0;
     assign lookup_if__prepend_value = lookup_if__prepend.value;
 
-    assign seg_ready = init_done && __en && lookup_if__append.rdy && lookup_if__prepend.rdy;
+    // Registered backpressure to prevent deletion queue overflow
+    initial delete_q_stop = 1'b0;
+    always @(posedge clk) begin
+        if (__srst) begin
+            delete_q_stop <= 1'b0;
+        end else begin
+            delete_q_stop <= (delete_q__append__count  >= DELETE_Q_THRESHOLD) ||
+                             (delete_q__prepend__count >= DELETE_Q_THRESHOLD);
+        end
+    end
+
+    assign seg_ready = init_done && __en && !delete_q_stop && lookup_if__append.rdy && lookup_if__prepend.rdy;
 
     // Context buffer
     assign lookup_ctxt_in.buf_id       = seg_buf_id;
@@ -605,7 +622,7 @@ module sar_reassembly_cache #(
     // -------------------------------------------------
     fifo_small   #(
         .DATA_WID ( SEGMENT_TABLE_KEY_WID ),
-        .DEPTH    ( 16 )
+        .DEPTH    ( DELETE_Q_DEPTH )
     ) i_fifo_small__delete_q__append (
         .clk     ( clk ),
         .srst    ( __srst ),
@@ -617,7 +634,7 @@ module sar_reassembly_cache #(
         .rd_data ( delete_q__append__rd_data ),
         .empty   ( delete_q__append__empty ),
         .uflow   ( ),
-        .count   ( )
+        .count   ( delete_q__append__count )
     );
 
     assign delete_q__append__wr_data.buf_id = lookup_ctxt_out.buf_id;
@@ -625,7 +642,7 @@ module sar_reassembly_cache #(
 
     fifo_small   #(
         .DATA_WID ( SEGMENT_TABLE_KEY_WID ),
-        .DEPTH    ( 16 )
+        .DEPTH    ( DELETE_Q_DEPTH )
     ) i_fifo_small__delete_q__prepend (
         .clk     ( clk ),
         .srst    ( __srst ),
@@ -637,7 +654,7 @@ module sar_reassembly_cache #(
         .rd_data ( delete_q__prepend__rd_data ),
         .empty   ( delete_q__prepend__empty ),
         .uflow   ( ),
-        .count   ( )
+        .count   ( delete_q__prepend__count )
     );
    
     assign delete_q__prepend__wr_data.buf_id = lookup_ctxt_out.buf_id;
