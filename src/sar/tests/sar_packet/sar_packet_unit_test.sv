@@ -34,9 +34,13 @@ module sar_packet_unit_test;
     localparam int ADDR_WID        = $clog2(NUM_FRAME_BUFFERS * MAX_FRAME_SIZE / DATA_BYTE_WID);
     localparam int SEG_META_WID    = BUF_ID_WID + OFFSET_WID + 1 + META_WID;
 
-    localparam type BUF_ID_T   = logic [BUF_ID_WID-1:0];
-    localparam type OFFSET_T   = logic [OFFSET_WID-1:0];
-    localparam type SEG_META_T = logic [SEG_META_WID-1:0];
+    localparam int FRAGMENT_PTR_WID = $clog2(MAX_FRAGMENTS);
+
+    localparam type BUF_ID_T        = logic [BUF_ID_WID-1:0];
+    localparam type OFFSET_T        = logic [OFFSET_WID-1:0];
+    localparam type SEG_META_T      = logic [SEG_META_WID-1:0];
+    localparam type FRAGMENT_PTR_T  = logic [FRAGMENT_PTR_WID-1:0];
+    localparam type TIMER_T         = logic [TIMER_WID-1:0];
 
     // Default segment length for shared testcases
     localparam int SEG_LEN = MAX_PKT_SIZE;
@@ -188,6 +192,9 @@ module sar_packet_unit_test;
     axi4l_verif_pkg::axi4l_reg_agent axil_reg_agent__segmentation;
     sar_segmentation_reg_agent       seg_reg_agent;
 
+    axi4l_verif_pkg::axi4l_reg_agent                                      axil_reg_agent__reassembly;
+    sar_reassembly_reg_agent #(BUF_ID_T, OFFSET_T, FRAGMENT_PTR_T, TIMER_T) reassembly_reg_agent;
+
     // Transport layer (concrete packet interface drivers)
     packet_intf_driver  #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_T(SEG_META_T)) seg_pkt_driver;
     packet_intf_monitor #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_T(SEG_META_T)) seg_pkt_monitor;
@@ -226,6 +233,13 @@ module sar_packet_unit_test;
 
         // Segmentation regs are at 0x1000 within sar_packet_segmentation's AXI-L space
         seg_reg_agent = new("seg_reg_agent", axil_reg_agent__segmentation, 'h1000);
+
+        axil_reg_agent__reassembly = new("axil_reg_agent__reassembly");
+        axil_reg_agent__reassembly.axil_vif = axil_if__reassembly;
+
+        // Reassembly regs are at 0x4000 within sar_packet_reassembly's AXI-L space
+        reassembly_reg_agent = new("reassembly_reg_agent", MAX_FRAGMENTS,
+                                   axil_reg_agent__reassembly, 'h4000);
 
         seg_pkt_driver = new("seg_pkt_driver");
         seg_pkt_driver.packet_vif = seg_tx_if;
@@ -280,6 +294,12 @@ module sar_packet_unit_test;
     //===================================
     // Helpers
     //===================================
+    task tick();
+        ms_tick <= 1'b1;
+        @(posedge clk);
+        ms_tick <= 1'b0;
+    endtask
+
     task fill_frame(input FRAME_T frame);
         for (int i = 0; i < frame.data.size(); i++)
             frame.data[i] = byte'(i % 256);
@@ -316,6 +336,112 @@ module sar_packet_unit_test;
     `SVTEST_END
 
     `include "../common/sar_common_tests.svh"
+
+    //===================================
+    // Test: fragment_expiry
+    // Exercises the ms_tick / expiry path end-to-end.
+    // An errored (incomplete) frame leaves a fragment in the reassembly
+    // cache; advancing the timer past cfg_timeout triggers expiry cleanup.
+    // A subsequent clean frame on the same buf_id confirms stale cache
+    // entries were removed.
+    //===================================
+    `SVTEST(fragment_expiry)
+        FRAME_T errored_frame, clean_frame;
+        int cnt;
+        localparam int EXPIRY_TIMEOUT = 50;
+
+        // Configure a short timeout so we don't need many ms_ticks
+        reassembly_reg_agent.state.check.set_timeout(EXPIRY_TIMEOUT);
+
+        // An errored frame: sequencer drops one segment, model discards it.
+        // Incomplete segments land in the reassembly cache and stay there.
+        errored_frame = new("errored", BUF_ID_T'(0), 256);
+        fill_frame(errored_frame);
+        errored_frame.error = 1;
+        env.sequencer.set_seg_len(128);
+        env.inbox.put(errored_frame);
+
+        // Wait for at least one fragment pointer to be allocated
+        do
+            reassembly_reg_agent.cache.allocator.get_active_cnt(cnt);
+        while (cnt < 1);
+
+        // Advance timer past the configured timeout
+        repeat (EXPIRY_TIMEOUT + 1) tick();
+
+        // Allow expiry scan + deletion FSM to complete.
+        // state_check scans MAX_FRAGMENTS (1024) entries, ~3 cycles each → ~3072 cycles/scan.
+        // Two scans + deletion FSM overhead requires ~15000 cycles conservatively.
+        repeat (15000) @(posedge clk);
+
+        // Verify expired counter and allocator freed the pointer
+        reassembly_reg_agent.get_expired_cnt(cnt);
+        `FAIL_UNLESS_EQUAL(cnt, 1);
+        reassembly_reg_agent.cache.allocator.get_active_cnt(cnt);
+        `FAIL_UNLESS_EQUAL(cnt, 0);
+
+        // Reassemble a clean frame on the same buf_id; stale hash entries
+        // from the expired fragment would corrupt this if cleanup failed.
+        clean_frame = new("clean", BUF_ID_T'(0), 512);
+        fill_frame(clean_frame);
+        env.sequencer.set_seg_len(SEG_LEN);
+
+        @(posedge clk);
+        env.inbox.put(clean_frame);
+        check(1, 200us);
+    `SVTEST_END
+
+    //===================================
+    // Test: counter_readback
+    // Verifies that both DUTs increment their AXI-L debug counters
+    // correctly after processing a batch of frames.
+    //===================================
+    `SVTEST(counter_readback)
+        FRAME_T sent[5];
+        int cnt;
+
+        env.sequencer.set_seg_len(SEG_LEN);
+        for (int i = 0; i < 5; i++) begin
+            sent[i] = new($sformatf("frame_%0d", i), BUF_ID_T'(i), 512);
+            fill_frame(sent[i]);
+            env.inbox.put(sent[i]);
+        end
+        check(5, 500us);
+
+        // Segmentation counters
+        seg_reg_agent.get_frames_in_cnt(cnt);
+        `FAIL_UNLESS_EQUAL(cnt, 5);
+        seg_reg_agent.get_segments_out_cnt(cnt);
+        `FAIL_UNLESS_EQUAL(cnt, 5);
+
+        // Reassembly done counter
+        reassembly_reg_agent.get_done_cnt(cnt);
+        `FAIL_UNLESS_EQUAL(cnt, 5);
+    `SVTEST_END
+
+    //===================================
+    // Test: soft_reset
+    // Issues a software reset on both DUTs via AXI-L and verifies that
+    // a frame can be processed correctly after recovery.
+    //===================================
+    `SVTEST(soft_reset)
+        FRAME_T frame;
+        sar_segmentation_reg_pkg::reg__config_t cfg;
+
+        reassembly_reg_agent.soft_reset();
+        seg_reg_agent.soft_reset();
+
+        // Soft reset restores cfg_seg_len to default (512); reconfigure it
+        cfg.seg_len = MAX_PKT_SIZE;
+        seg_reg_agent.write__config(cfg);
+        @(posedge clk);
+
+        frame = new("frame", BUF_ID_T'(0), 512);
+        fill_frame(frame);
+        env.sequencer.set_seg_len(SEG_LEN);
+        env.inbox.put(frame);
+        check(1, 200us);
+    `SVTEST_END
 
     `SVUNIT_TESTS_END
 
