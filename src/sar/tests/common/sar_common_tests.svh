@@ -68,7 +68,7 @@
 //===================================
 `SVTEST(multi_segment)
     FRAME_T sent;
-    sent = new("frame", BUF_ID_T'(0), SEG_LEN * 3 - 1);
+    sent = new("frame", BUF_ID_T'(0), SEG_LEN * 3);
     fill_frame(sent);
     env.sequencer.set_seg_len(SEG_LEN);
     env.inbox.put(sent);
