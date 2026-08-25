@@ -121,7 +121,7 @@ module sar_packet_reassembly #(
 
     packet_write     #(
         .IGNORE_RDY   ( 0 ),
-        .DROP_ERRORED ( 0 ),
+        .DROP_ERRORED ( 1 ),
         .MIN_PKT_SIZE ( 0 ),
         .MAX_PKT_SIZE ( MAX_PKT_SIZE )
     ) i_packet_write  (

@@ -210,7 +210,7 @@ module sar_segmentation
             len_last <= frame_len;  // correct length for single-segment frames
         end else if (seg_valid && seg_ready) begin
             offset <= offset + cfg_seg_len;
-            last <= (offset_last - offset) < cfg_seg_len;
+            last <= (offset_last - offset) <= cfg_seg_len;
             len_last <= frame_len - offset - cfg_seg_len;
         end
     end

@@ -56,15 +56,27 @@ module sar_reassembly_cache #(
     // Imports
     // -------------------------------------------------
     import sar_pkg::*;
+    import arb_pkg::*;
 
     // -------------------------------------------------
     // Parameters
     // -------------------------------------------------
     localparam int NUM_RD_TRANSACTIONS = 16;
+    localparam int DELETE_Q_DEPTH = 32;
+    localparam int DELETE_Q_THRESHOLD = DELETE_Q_DEPTH - NUM_RD_TRANSACTIONS;
+    localparam int NUM_INGRESS_QUEUES = 4;
+    localparam int INGRESS_Q_DEPTH = 8;
 
     // -------------------------------------------------
     // Typedefs
     // -------------------------------------------------
+    typedef struct packed {
+        logic [BUF_ID_WID-1:0]      buf_id;
+        logic [OFFSET_WID-1:0]      offset;
+        logic [SEGMENT_LEN_WID-1:0] len;
+        logic                       last;
+    } ingress_seg_t;
+
     typedef struct packed {
         logic [BUF_ID_WID-1:0] buf_id;
         logic [OFFSET_WID-1:0] offset;
@@ -93,6 +105,7 @@ module sar_reassembly_cache #(
     // -------------------------------------------------
     // (Derived) Parameters
     // -------------------------------------------------
+    localparam int INGRESS_SEG_WID = $bits(ingress_seg_t);
     localparam int SEGMENT_TABLE_KEY_WID = $bits(segment_table_key_t);
     localparam int SEGMENT_TABLE_VALUE_WID = $bits(segment_table_value_t);
     localparam int SEGMENT_CTXT_WID = $bits(segment_ctxt_t);
@@ -160,12 +173,44 @@ module sar_reassembly_cache #(
     logic               delete_q__append__rd;
     segment_table_key_t delete_q__append__rd_data;
     logic               delete_q__append__empty;
+    logic [$clog2(DELETE_Q_DEPTH+1)-1:0] delete_q__append__count;
 
     logic               delete_q__prepend__wr;
     segment_table_key_t delete_q__prepend__wr_data;
     logic               delete_q__prepend__rd;
     segment_table_key_t delete_q__prepend__rd_data;
     logic               delete_q__prepend__empty;
+    logic [$clog2(DELETE_Q_DEPTH+1)-1:0] delete_q__prepend__count;
+
+    logic               delete_q_stop;
+
+    // Ingress queues and arbitration signals
+    logic [NUM_INGRESS_QUEUES-1:0] in_q_wr;
+    ingress_seg_t                  in_q_wr_data [NUM_INGRESS_QUEUES];
+    logic [NUM_INGRESS_QUEUES-1:0] in_q_full;
+    logic [NUM_INGRESS_QUEUES-1:0] in_q_rd;
+    ingress_seg_t                  in_q_rd_data [NUM_INGRESS_QUEUES];
+    logic [NUM_INGRESS_QUEUES-1:0] in_q_empty;
+
+    logic [NUM_INGRESS_QUEUES-1:0] arb_req;
+    logic [NUM_INGRESS_QUEUES-1:0] arb_grant;
+    logic [NUM_INGRESS_QUEUES-1:0] queue_hazard;
+    logic [$clog2(NUM_INGRESS_QUEUES)-1:0] arb_sel;
+    logic [$clog2(NUM_INGRESS_QUEUES)-1:0] wr_queue_idx;
+
+    logic                       cache_seg_ready;
+    logic                       cache_seg_valid;
+    logic [BUF_ID_WID-1:0]      cache_seg_buf_id;
+    logic [OFFSET_WID-1:0]      cache_seg_offset;
+    logic [SEGMENT_LEN_WID-1:0] cache_seg_len;
+    logic                       cache_seg_last;
+
+    // In-flight hazard tracking
+    localparam int IN_FLIGHT_DEPTH = NUM_RD_TRANSACTIONS;
+    logic [BUF_ID_WID-1:0] in_flight_buf_id [IN_FLIGHT_DEPTH];
+    logic                  in_flight_vld    [IN_FLIGHT_DEPTH];
+    logic [$clog2(IN_FLIGHT_DEPTH)-1:0] in_flight_wr_ptr;
+    logic [$clog2(IN_FLIGHT_DEPTH)-1:0] in_flight_rd_ptr;
 
     // Debug counter/flag signals
     logic        dbg_cnt_clear;
@@ -370,33 +415,163 @@ module sar_reassembly_cache #(
     );
 
     // -------------------------------------------------
+    // Ingress queues & hazard tracking
+    // -------------------------------------------------
+    generate
+        if (BUF_ID_WID >= $clog2(NUM_INGRESS_QUEUES)) begin : g__wr_queue_idx_wide
+            assign wr_queue_idx = seg_buf_id[$clog2(NUM_INGRESS_QUEUES)-1:0];
+        end else if (BUF_ID_WID > 0) begin : g__wr_queue_idx_narrow
+            assign wr_queue_idx = { {($clog2(NUM_INGRESS_QUEUES)-BUF_ID_WID){1'b0}}, seg_buf_id };
+        end else begin : g__wr_queue_idx_zero
+            assign wr_queue_idx = '0;
+        end
+    endgenerate
+
+    assign seg_ready = init_done && __en && !in_q_full[wr_queue_idx];
+
+    always_comb begin
+        for (int q = 0; q < NUM_INGRESS_QUEUES; q++) begin
+            in_q_wr[q] = (seg_valid && seg_ready && (wr_queue_idx == q));
+            in_q_wr_data[q].buf_id = seg_buf_id;
+            in_q_wr_data[q].offset = seg_offset;
+            in_q_wr_data[q].len    = seg_len;
+            in_q_wr_data[q].last   = seg_last;
+        end
+    end
+
+    generate
+        for (genvar g_q = 0; g_q < NUM_INGRESS_QUEUES; g_q++) begin : g__in_q
+            fifo_small #(
+                .DATA_WID ( INGRESS_SEG_WID ),
+                .DEPTH    ( INGRESS_Q_DEPTH )
+            ) i_fifo_small__in_q (
+                .clk     ( clk ),
+                .srst    ( __srst ),
+                .wr      ( in_q_wr[g_q] ),
+                .wr_data ( in_q_wr_data[g_q] ),
+                .full    ( in_q_full[g_q] ),
+                .oflow   ( ),
+                .rd      ( in_q_rd[g_q] ),
+                .rd_data ( in_q_rd_data[g_q] ),
+                .empty   ( in_q_empty[g_q] ),
+                .uflow   ( ),
+                .count   ( )
+            );
+        end
+    endgenerate
+
+    // Track buffer IDs of in-flight lookups to prevent same-buffer race conditions
+    initial begin
+        in_flight_wr_ptr = '0;
+        in_flight_rd_ptr = '0;
+        for (int i = 0; i < IN_FLIGHT_DEPTH; i++) begin
+            in_flight_vld[i] = 1'b0;
+            in_flight_buf_id[i] = '0;
+        end
+    end
+
+    always @(posedge clk) begin
+        if (__srst) begin
+            in_flight_wr_ptr <= '0;
+            in_flight_rd_ptr <= '0;
+            for (int i = 0; i < IN_FLIGHT_DEPTH; i++) begin
+                in_flight_vld[i] <= 1'b0;
+                in_flight_buf_id[i] <= '0;
+            end
+        end else begin
+            if (cache_seg_valid && cache_seg_ready) begin
+                in_flight_vld[in_flight_wr_ptr] <= 1'b1;
+                in_flight_buf_id[in_flight_wr_ptr] <= cache_seg_buf_id;
+                in_flight_wr_ptr <= (in_flight_wr_ptr == IN_FLIGHT_DEPTH-1) ? '0 : in_flight_wr_ptr + 1;
+            end
+            if (lookup_done) begin
+                in_flight_vld[in_flight_rd_ptr] <= 1'b0;
+                in_flight_rd_ptr <= (in_flight_rd_ptr == IN_FLIGHT_DEPTH-1) ? '0 : in_flight_rd_ptr + 1;
+            end
+        end
+    end
+
+    // Detect if head segment of each queue has a buffer hazard
+    always_comb begin
+        for (int q = 0; q < NUM_INGRESS_QUEUES; q++) begin
+            queue_hazard[q] = 1'b0;
+            if (!in_q_empty[q]) begin
+                for (int i = 0; i < IN_FLIGHT_DEPTH; i++) begin
+                    if (in_flight_vld[i] && (in_flight_buf_id[i] == in_q_rd_data[q].buf_id)) begin
+                        queue_hazard[q] = 1'b1;
+                    end
+                end
+            end
+        end
+    end
+
+    // Arbitration across ingress queues (WCRR)
+    always_comb begin
+        for (int q = 0; q < NUM_INGRESS_QUEUES; q++) begin
+            arb_req[q] = !in_q_empty[q] && !queue_hazard[q];
+        end
+    end
+
+    arb_rr #(
+        .MODE ( arb_pkg::WCRR ),
+        .N    ( NUM_INGRESS_QUEUES )
+    ) i_arb_rr (
+        .clk   ( clk ),
+        .srst  ( __srst ),
+        .en    ( cache_seg_ready ),
+        .req   ( arb_req ),
+        .grant ( arb_grant ),
+        .ack   ( arb_grant ),
+        .sel   ( arb_sel )
+    );
+
+    assign cache_seg_valid  = (arb_grant != '0);
+    assign cache_seg_buf_id = in_q_rd_data[arb_sel].buf_id;
+    assign cache_seg_offset = in_q_rd_data[arb_sel].offset;
+    assign cache_seg_len    = in_q_rd_data[arb_sel].len;
+    assign cache_seg_last   = in_q_rd_data[arb_sel].last;
+
+    assign in_q_rd = arb_grant & {NUM_INGRESS_QUEUES{cache_seg_ready}};
+
+    // -------------------------------------------------
     // Drive lookup interfaces
     // -------------------------------------------------
     // Perform two lookups per input key:
     //   - one lookup in 'Append' context, i.e. attempting to append new segment to existing fragment
     //   - one lookup in 'Prepend' context, i.e. attempting to prepend new segment to existing fragment
-    assign lookup_if__append.req = seg_valid;
-    assign lookup_if__append_key.buf_id = seg_buf_id;
-    assign lookup_if__append_key.offset = seg_offset;
+    assign lookup_if__append.req = cache_seg_valid;
+    assign lookup_if__append_key.buf_id = cache_seg_buf_id;
+    assign lookup_if__append_key.offset = cache_seg_offset;
     assign lookup_if__append.key = lookup_if__append_key;
     assign lookup_if__append.next = 1'b0;
     assign lookup_if__append_value = lookup_if__append.value;
 
-    assign lookup_if__prepend.req = seg_valid;
-    assign lookup_if__prepend_key.buf_id = seg_buf_id;
-    assign lookup_if__prepend_key.offset = seg_offset + seg_len;
+    assign lookup_if__prepend.req = cache_seg_valid;
+    assign lookup_if__prepend_key.buf_id = cache_seg_buf_id;
+    assign lookup_if__prepend_key.offset = cache_seg_offset + cache_seg_len;
     assign lookup_if__prepend.key = lookup_if__prepend_key;
     assign lookup_if__prepend.next = 1'b0;
     assign lookup_if__prepend_value = lookup_if__prepend.value;
 
-    assign seg_ready = init_done && __en && lookup_if__append.rdy && lookup_if__prepend.rdy;
+    // Registered backpressure to prevent deletion queue overflow
+    initial delete_q_stop = 1'b0;
+    always @(posedge clk) begin
+        if (__srst) begin
+            delete_q_stop <= 1'b0;
+        end else begin
+            delete_q_stop <= (delete_q__append__count  >= DELETE_Q_THRESHOLD) ||
+                             (delete_q__prepend__count >= DELETE_Q_THRESHOLD);
+        end
+    end
+
+    assign cache_seg_ready = init_done && __en && !delete_q_stop && lookup_if__append.rdy && lookup_if__prepend.rdy;
 
     // Context buffer
-    assign lookup_ctxt_in.buf_id       = seg_buf_id;
-    assign lookup_ctxt_in.offset_start = seg_offset;
-    assign lookup_ctxt_in.offset_end   = seg_offset + seg_len;
-    assign lookup_ctxt_in.len          = seg_len;
-    assign lookup_ctxt_in.last         = seg_last;
+    assign lookup_ctxt_in.buf_id       = cache_seg_buf_id;
+    assign lookup_ctxt_in.offset_start = cache_seg_offset;
+    assign lookup_ctxt_in.offset_end   = cache_seg_offset + cache_seg_len;
+    assign lookup_ctxt_in.len          = cache_seg_len;
+    assign lookup_ctxt_in.last         = cache_seg_last;
 
     assign lookup_done = lookup_if__append.ack && lookup_if__prepend.ack;
 
@@ -411,7 +586,7 @@ module sar_reassembly_cache #(
         .clk     ( clk ),
         .srst    ( __srst ),
         .wr_rdy  ( ),
-        .wr      ( seg_valid && seg_ready ),
+        .wr      ( cache_seg_valid && cache_seg_ready ),
         .wr_data ( lookup_ctxt_in ),
         .rd      ( lookup_done ),
         .rd_vld  ( ),
@@ -605,7 +780,7 @@ module sar_reassembly_cache #(
     // -------------------------------------------------
     fifo_small   #(
         .DATA_WID ( SEGMENT_TABLE_KEY_WID ),
-        .DEPTH    ( 16 )
+        .DEPTH    ( DELETE_Q_DEPTH )
     ) i_fifo_small__delete_q__append (
         .clk     ( clk ),
         .srst    ( __srst ),
@@ -617,7 +792,7 @@ module sar_reassembly_cache #(
         .rd_data ( delete_q__append__rd_data ),
         .empty   ( delete_q__append__empty ),
         .uflow   ( ),
-        .count   ( )
+        .count   ( delete_q__append__count )
     );
 
     assign delete_q__append__wr_data.buf_id = lookup_ctxt_out.buf_id;
@@ -625,7 +800,7 @@ module sar_reassembly_cache #(
 
     fifo_small   #(
         .DATA_WID ( SEGMENT_TABLE_KEY_WID ),
-        .DEPTH    ( 16 )
+        .DEPTH    ( DELETE_Q_DEPTH )
     ) i_fifo_small__delete_q__prepend (
         .clk     ( clk ),
         .srst    ( __srst ),
@@ -637,7 +812,7 @@ module sar_reassembly_cache #(
         .rd_data ( delete_q__prepend__rd_data ),
         .empty   ( delete_q__prepend__empty ),
         .uflow   ( ),
-        .count   ( )
+        .count   ( delete_q__prepend__count )
     );
    
     assign delete_q__prepend__wr_data.buf_id = lookup_ctxt_out.buf_id;

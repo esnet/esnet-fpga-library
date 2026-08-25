@@ -27,6 +27,7 @@ SIM ?= xsim
 SUBCOMPONENTS = \
     sar.rtl \
     sar.verif \
+    std.rtl \
     std.verif \
     mem.rtl \
     axi4l.rtl \
