@@ -192,8 +192,9 @@ module sar_packet_unit_test;
     axi4l_verif_pkg::axi4l_reg_agent axil_reg_agent__segmentation;
     sar_segmentation_reg_agent       seg_reg_agent;
 
-    axi4l_verif_pkg::axi4l_reg_agent                                      axil_reg_agent__reassembly;
+    axi4l_verif_pkg::axi4l_reg_agent                                        axil_reg_agent__reassembly;
     sar_reassembly_reg_agent #(BUF_ID_T, OFFSET_T, FRAGMENT_PTR_T, TIMER_T) reassembly_reg_agent;
+    packet_counters_reg_agent                                               pkt_cnt_reg_agent__reassembly;
 
     // Transport layer (concrete packet interface drivers)
     packet_intf_driver  #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_T(SEG_META_T)) seg_pkt_driver;
@@ -240,6 +241,9 @@ module sar_packet_unit_test;
         // Reassembly regs are at 0x4000 within sar_packet_reassembly's AXI-L space
         reassembly_reg_agent = new("reassembly_reg_agent", MAX_FRAGMENTS,
                                    axil_reg_agent__reassembly, 'h4000);
+        // Packet counter regs are at 0x0000 within sar_packet_reassembly's AXI-L space
+        pkt_cnt_reg_agent__reassembly = new("pkt_cnt_reg_agent__reassembly",
+                                            axil_reg_agent__reassembly, 'h0000);
 
         seg_pkt_driver = new("seg_pkt_driver");
         seg_pkt_driver.packet_vif = seg_tx_if;
@@ -417,6 +421,35 @@ module sar_packet_unit_test;
         // Reassembly done counter
         reassembly_reg_agent.get_done_cnt(cnt);
         `FAIL_UNLESS_EQUAL(cnt, 5);
+    `SVTEST_END
+
+    //===================================
+    // Test: packet_err_dropped_and_counted
+    // Directly drives a segment with pkt.err = 1 into sar_packet_reassembly.
+    // Verifies the errored segment is dropped (not coalesced) and counted
+    // by packet_counters.
+    //===================================
+    `SVTEST(packet_err_dropped_and_counted)
+        sar_segment_transaction#(BUF_ID_T, OFFSET_T) err_seg;
+        longint unsigned pkt_err_cnt, pkt_ok_cnt;
+        int active_cnt;
+
+        err_seg = new("err_seg", BUF_ID_T'(0), 0, 1'b1, 128, 1'b1);
+        for (int i = 0; i < 128; i++) err_seg.data[i] = byte'(i);
+
+        // Send errored segment
+        env.driver.send(err_seg);
+        repeat (100) @(posedge clk);
+
+        // Verify fragment was not created/coalesced in reassembly cache
+        reassembly_reg_agent.cache.allocator.get_active_cnt(active_cnt);
+        `FAIL_UNLESS_EQUAL(active_cnt, 0);
+
+        // Verify packet error counter incremented
+        pkt_cnt_reg_agent__reassembly.get_pkt_err_count(pkt_err_cnt);
+        `FAIL_UNLESS_EQUAL(pkt_err_cnt, 1);
+        pkt_cnt_reg_agent__reassembly.get_pkt_ok_count(pkt_ok_cnt);
+        `FAIL_UNLESS_EQUAL(pkt_ok_cnt, 0);
     `SVTEST_END
 
     //===================================

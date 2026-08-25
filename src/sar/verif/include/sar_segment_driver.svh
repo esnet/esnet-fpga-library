@@ -111,7 +111,8 @@ class sar_segment_driver #(
         pkt = SEG_PKT_T::create_from_bytes(
             $sformatf("%s_pkt", transaction.get_name()),
             transaction.data,
-            SEG_META_T'(meta)
+            SEG_META_T'(meta),
+            transaction.err
         );
 
         pkt_driver.send(pkt);

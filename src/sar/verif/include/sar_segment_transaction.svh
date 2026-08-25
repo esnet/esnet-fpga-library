@@ -15,6 +15,7 @@ class sar_segment_transaction #(
     BUF_ID_T  buf_id;
     OFFSET_T  offset;
     bit       last;
+    bit       err;
     rand byte data[];
 
     //===================================
@@ -26,13 +27,15 @@ class sar_segment_transaction #(
             input BUF_ID_T buf_id = '0,
             input OFFSET_T offset = '0,
             input bit      last   = 1'b0,
-            input int      len    = 0
+            input int      len    = 0,
+            input bit      err    = 1'b0
         );
         super.new(name);
         // WORKAROUND-INIT-PROPS {
         this.buf_id = buf_id;
         this.offset = offset;
         this.last   = last;
+        this.err    = err;
         this.data   = new[len];
         // } WORKAROUND-INIT-PROPS
     endfunction
@@ -65,6 +68,7 @@ class sar_segment_transaction #(
         this.buf_id = t.buf_id;
         this.offset = t.offset;
         this.last   = t.last;
+        this.err    = t.err;
         this.data   = new[t.data.size()](t.data);
     endfunction
 
