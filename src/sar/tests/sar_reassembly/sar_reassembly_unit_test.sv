@@ -332,28 +332,23 @@ module sar_reassembly_unit_test;
         `FAIL_UNLESS_EQUAL(cnt, 1);
     `SVTEST_END
 
-    // TODO: back-to-back and 1-cycle-gap tests fail because the fast-insert stash
-    // does not cover the lookup pipeline latency in this configuration. These tests
-    // are kept as specifications for the RTL fix; re-enable once root-caused and
-    // resolved in sar_reassembly_cache.
-    //
-    //`SVTEST(two_segment_buffer_back_to_back)
-    //    BUF_ID_T _buf;
-    //    SEGMENT_LEN_T _len1, _len2;
-    //    void'(std::randomize(_buf));
-    //    _len1 = $urandom_range(1, 1000);
-    //    _len2 = $urandom_range(1, 1000);
-    //    two_segment_frame(.buf_id(_buf), .len1(_len1), .len2(_len2), .gap(0));
-    //`SVTEST_END
-    //
-    //`SVTEST(two_segment_buffer_one_cycle_gap)
-    //    BUF_ID_T _buf;
-    //    SEGMENT_LEN_T _len1, _len2;
-    //    void'(std::randomize(_buf));
-    //    _len1 = $urandom_range(1, 1000);
-    //    _len2 = $urandom_range(1, 1000);
-    //    two_segment_frame(.buf_id(_buf), .len1(_len1), .len2(_len2), .gap(1));
-    //`SVTEST_END
+    `SVTEST(two_segment_buffer_back_to_back)
+        BUF_ID_T _buf;
+        SEGMENT_LEN_T _len1, _len2;
+        void'(std::randomize(_buf));
+        _len1 = $urandom_range(1, 1000);
+        _len2 = $urandom_range(1, 1000);
+        two_segment_frame(.buf_id(_buf), .len1(_len1), .len2(_len2), .gap(0));
+    `SVTEST_END
+
+    `SVTEST(two_segment_buffer_one_cycle_gap)
+        BUF_ID_T _buf;
+        SEGMENT_LEN_T _len1, _len2;
+        void'(std::randomize(_buf));
+        _len1 = $urandom_range(1, 1000);
+        _len2 = $urandom_range(1, 1000);
+        two_segment_frame(.buf_id(_buf), .len1(_len1), .len2(_len2), .gap(1));
+    `SVTEST_END
 
     `SVTEST(two_segment_buffer_two_cycle_gap)
         BUF_ID_T _buf;
