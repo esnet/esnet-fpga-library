@@ -35,7 +35,7 @@ module sar_reassembly_cache_unit_test;
     localparam int  BURST_SIZE     = 8;
 
     localparam type KEY_T = struct packed {BUF_ID_T buf_id; OFFSET_T offset;};
-    localparam type VALUE_T = struct packed {FRAGMENT_PTR_T ptr; OFFSET_T offset;};
+    localparam type VALUE_T = struct packed {FRAGMENT_PTR_T ptr; OFFSET_T offset; logic last;};
 
     localparam int KEY_WID  = $bits(KEY_T);
     localparam int VALUE_WID = $bits(VALUE_T);

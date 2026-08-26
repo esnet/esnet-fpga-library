@@ -62,6 +62,7 @@ module sar_reassembly
     typedef struct packed {
         logic [FRAGMENT_PTR_WID-1:0] ptr;
         logic [OFFSET_WID-1:0]       offset;
+        logic                        last;
     } value_t;
     localparam int VALUE_WID = $bits(value_t);
 

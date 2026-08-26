@@ -4,7 +4,7 @@ class sar_reassembly_htable_reg_agent#(type BUF_ID_T = bit, type OFFSET_T = bit,
     // Typedefs
     //===================================
     typedef struct packed {BUF_ID_T buf_id; OFFSET_T offset;} __DB_KEY_T;
-    typedef struct packed {FRAGMENT_PTR_T ptr; OFFSET_T offset;} __DB_VALUE_T;
+    typedef struct packed {FRAGMENT_PTR_T ptr; OFFSET_T offset; logic last;} __DB_VALUE_T;
 
     //===================================
     // Properties
