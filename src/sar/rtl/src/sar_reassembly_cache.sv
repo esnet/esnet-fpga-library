@@ -85,6 +85,7 @@ module sar_reassembly_cache #(
     typedef struct packed {
         logic [FRAGMENT_PTR_WID-1:0] ptr;
         logic [OFFSET_WID-1:0]       offset;
+        logic                        last;
     } segment_table_value_t;
 
     typedef struct packed {
@@ -631,8 +632,7 @@ module sar_reassembly_cache #(
                     __frag_ptr = lookup_if__prepend_value.ptr;
                     __frag_offset_start = lookup_ctxt_out.offset_start;
                     __frag_offset_end = lookup_if__prepend_value.offset;
-                    // offset==0 in the prepend table is the sentinel for last=1
-                    __frag_last = lookup_ctxt_out.last | (lookup_if__prepend_value.offset == 0);
+                    __frag_last = lookup_ctxt_out.last | lookup_if__prepend_value.last;
                 end
                 2'b11 : begin
                     __frag_action = FRAGMENT_MERGE;
@@ -642,8 +642,7 @@ module sar_reassembly_cache #(
                     __frag_offset_end = lookup_if__prepend_value.offset;
                     __frag_merged = 1'b1;
                     __frag_merged_ptr = lookup_if__append_value.ptr;
-                    // offset==0 in the prepend table is the sentinel for last=1
-                    __frag_last = lookup_ctxt_out.last | (lookup_if__prepend_value.offset == 0);
+                    __frag_last = lookup_ctxt_out.last | lookup_if__prepend_value.last;
                 end
             endcase
         end
@@ -710,7 +709,8 @@ module sar_reassembly_cache #(
                     update_if__prepend.valid = 1'b1; // Insert
                     update_if__prepend_key.offset = lookup_ctxt_out.offset_start;
                     update_if__prepend_value.ptr = __frag_ptr;
-                    update_if__prepend_value.offset = lookup_ctxt_out.last ? 0 : lookup_ctxt_out.offset_end;
+                    update_if__prepend_value.offset = lookup_ctxt_out.offset_end;
+                    update_if__prepend_value.last = lookup_ctxt_out.last;
                 end
                 FRAGMENT_APPEND : begin
                     update_if__append.req = (!lookup_ctxt_out.last);
@@ -724,10 +724,11 @@ module sar_reassembly_cache #(
                     update_if__prepend.valid = 1'b1; // Update
                     update_if__prepend_key.offset = __frag_offset_start;
                     update_if__prepend_value.ptr = __frag_ptr;
-                    update_if__prepend_value.offset = lookup_ctxt_out.last ? 0 : lookup_ctxt_out.offset_end;
+                    update_if__prepend_value.offset = lookup_ctxt_out.offset_end;
+                    update_if__prepend_value.last = lookup_ctxt_out.last;
                 end
                 FRAGMENT_PREPEND : begin
-                    update_if__append.req = (__frag_offset_end > 0);
+                    update_if__append.req = !__frag_last;
                     update_if__append.valid = 1'b1; // Update
                     update_if__append_key.offset = __frag_offset_end;
                     update_if__append_value.ptr = __frag_ptr;
@@ -737,11 +738,12 @@ module sar_reassembly_cache #(
                     update_if__prepend.valid = 1'b1; // Insert
                     update_if__prepend_key.offset = lookup_ctxt_out.offset_start;
                     update_if__prepend_value.ptr = __frag_ptr;
-                    update_if__prepend_value.offset = __frag_last ? 0 : __frag_offset_end;
+                    update_if__prepend_value.offset = __frag_offset_end;
+                    update_if__prepend_value.last = __frag_last;
                     delete_q__prepend__wr = 1'b1;
                 end
                 FRAGMENT_MERGE : begin
-                    update_if__append.req = (__frag_offset_end > 0) && !__frag_last;
+                    update_if__append.req = !__frag_last;
                     update_if__append.valid = 1'b1; // Insert
                     update_if__append_key.offset = __frag_offset_end;
                     update_if__append_value.ptr = __frag_ptr;
@@ -752,7 +754,8 @@ module sar_reassembly_cache #(
                     update_if__prepend.valid = 1'b1; // Insert
                     update_if__prepend_key.offset = __frag_offset_start;
                     update_if__prepend_value.ptr = __frag_ptr;
-                    update_if__prepend_value.offset = __frag_last ? 0 : __frag_offset_end;
+                    update_if__prepend_value.offset = __frag_offset_end;
+                    update_if__prepend_value.last = __frag_last;
                     delete_q__prepend__wr = 1'b1;
                 end
                 default : begin
