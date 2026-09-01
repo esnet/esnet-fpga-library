@@ -6,8 +6,8 @@ module axi4l_controller
     // Derived parameters (don't override)
     parameter int DATA_BYTE_WID = get_axi4l_bus_width_in_bytes(BUS_WIDTH),
     parameter int DATA_WID = DATA_BYTE_WID * 8,
-    parameter int WR_TIMEOUT = 64, // Write timeout (in clock cycles); set to 0 to disable timeout
-    parameter int RD_TIMEOUT = 64  // Read timeout  (in clock cycles); set to 0 to disable timeout
+    parameter int WR_TIMEOUT = 128, // Write timeout (in clock cycles); set to 0 to disable timeout
+    parameter int RD_TIMEOUT = 128  // Read timeout  (in clock cycles); set to 0 to disable timeout
 ) (
     // Upstream (register control)
     input  logic                     clk,

@@ -31,8 +31,8 @@ class axi4l_reg_agent #(
     // Constructor
     function new(
             string name="axi4l_reg_agent",
-            int WR_TIMEOUT=128,
-            int RD_TIMEOUT=128
+            int WR_TIMEOUT=256,
+            int RD_TIMEOUT=256
         );
         super.new(name);
         set_wr_timeout(WR_TIMEOUT);
