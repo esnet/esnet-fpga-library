@@ -125,12 +125,35 @@ $(REG_VERIF_PACKAGE_OBJ): $(REG_VERIF_HEADER_OBJS) | $(REGIO_VERIF_PACKAGE_OUTPU
 	@echo "endpackage : $(__COMPONENT_BASE_NAME)_reg_verif_pkg" >> $(REG_VERIF_PACKAGE_OBJ)
 	@echo "Done."
 
-$(REGIO_IR_OUTPUT_DIR)/%-ir.yaml: %.yaml | $(REGIO_IR_OUTPUT_DIR)
+# Always regenerate IR artifacts, regardless of file timestamps.
+#
+# Rationale: regmap yaml sources can reference other yaml files indirectly,
+# via the custom '!include' tag (resolved internally by the regio tool's
+# yaml loader). Make has no visibility into these transitive includes, so
+# a plain timestamp-based dependency (source yaml -> generated IR yaml)
+# can miss changes made to an included file, leaving the generated IR
+# (and anything built from it, e.g. the top-level regmap spec artifact
+# consumed by host-side tooling) silently stale.
+#
+# IR generation is comparatively cheap, so force it to always run rather
+# than relying on incomplete dependency tracking. This is a targeted
+# workaround; the proper fix is to teach regio.mk (or the regio tool
+# itself) to track the full transitive '!include' closure of each yaml
+# source as a real Make dependency.
+#
+# NOTE: marking $(REGIO_IR_OUTPUT_DIR)/%-ir.yaml itself as .PHONY does NOT
+# work here — for a pattern-rule target, GNU Make treats a .PHONY listing
+# as satisfied the moment the (real, on-disk) file exists, without ever
+# re-running the recipe. The correct idiom is to depend on a dedicated
+# always-out-of-date phony prerequisite instead.
+$(REGIO_IR_OUTPUT_DIR)/%-ir.yaml: %.yaml FORCE | $(REGIO_IR_OUTPUT_DIR)
 	@echo -n "Generating (flattened) IR for: $< ... "
 	@$(REGIO_FLATTEN_CMD) -o $@ $<
 	@echo "Done."
 
-.PHONY: _reg _reg_rtl _reg_verif _reg_ir _reg_clean
+FORCE:
+
+.PHONY: _reg _reg_rtl _reg_verif _reg_ir _reg_clean FORCE
 
 $(REGIO_COMPONENT_ROOT)/config.mk:
 	@mkdir -p $(REGIO_COMPONENT_ROOT)
