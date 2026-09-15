@@ -292,6 +292,77 @@ module sar_reassembly_cache_unit_test;
         agent.get_frag_merge_cnt(cnt);   `FAIL_UNLESS_EQUAL(cnt, 0);
     `SVTEST_END
 
+    // Multiple consecutive PREPENDs to the same fragment: verifies that the
+    // append-table key (offset_end, constant across PREPENDs) is updated
+    // correctly without INSERT_KEY_EXISTS collisions.
+    `SVTEST(fragment_multi_prepend)
+        localparam int N_SEGS = 5;
+        localparam SEGMENT_LEN_T SEG_LEN = 256;
+        BUF_ID_T _buf;
+        OFFSET_T _end;
+        int cnt;
+        void'(std::randomize(_buf));
+        _end = OFFSET_T'(N_SEGS * SEG_LEN);
+
+        // CREATE: send the highest-offset segment first
+        send_seg(.buf_id(_buf), .offset(OFFSET_T'((N_SEGS-1)*SEG_LEN)), .len(SEG_LEN));
+        do @(posedge clk); while (!frag_valid);
+        `FAIL_UNLESS_EQUAL(frag_init, 1'b1);
+        `FAIL_UNLESS_EQUAL(frag_offset_start, OFFSET_T'((N_SEGS-1)*SEG_LEN));
+        `FAIL_UNLESS_EQUAL(frag_offset_end, _end);
+
+        // N-1 PREPENDs in reverse order: each should update offset_start, keep offset_end
+        for (int i = N_SEGS-2; i >= 0; i--) begin
+            send_seg(.buf_id(_buf), .offset(OFFSET_T'(i*SEG_LEN)), .len(SEG_LEN));
+            do @(posedge clk); while (!frag_valid);
+            `FAIL_UNLESS_EQUAL(frag_init, 1'b0);
+            `FAIL_UNLESS_EQUAL(frag_offset_start, OFFSET_T'(i*SEG_LEN));
+            `FAIL_UNLESS_EQUAL(frag_offset_end, _end);
+        end
+
+        // Counter checks
+        agent.get_frag_create_cnt(cnt);  `FAIL_UNLESS_EQUAL(cnt, 1);
+        agent.get_frag_prepend_cnt(cnt); `FAIL_UNLESS_EQUAL(cnt, N_SEGS-1);
+        agent.get_frag_append_cnt(cnt);  `FAIL_UNLESS_EQUAL(cnt, 0);
+        agent.get_frag_merge_cnt(cnt);   `FAIL_UNLESS_EQUAL(cnt, 0);
+    `SVTEST_END
+
+    // Multiple consecutive APPENDs to the same fragment starting at offset > 0:
+    // verifies that the prepend-table key (offset_start, constant across APPENDs)
+    // is updated correctly without INSERT_KEY_EXISTS collisions.
+    `SVTEST(fragment_multi_append)
+        localparam int N_SEGS    = 5;
+        localparam int START_SEG = 2;  // first received segment — gives offset_start > 0
+        localparam SEGMENT_LEN_T SEG_LEN = 256;
+        BUF_ID_T _buf;
+        OFFSET_T _start;
+        int cnt;
+        void'(std::randomize(_buf));
+        _start = OFFSET_T'(START_SEG * SEG_LEN);
+
+        // CREATE: send segment at START_SEG position (offset_start > 0)
+        send_seg(.buf_id(_buf), .offset(OFFSET_T'(START_SEG*SEG_LEN)), .len(SEG_LEN));
+        do @(posedge clk); while (!frag_valid);
+        `FAIL_UNLESS_EQUAL(frag_init, 1'b1);
+        `FAIL_UNLESS_EQUAL(frag_offset_start, OFFSET_T'(START_SEG*SEG_LEN));
+        `FAIL_UNLESS_EQUAL(frag_offset_end,   OFFSET_T'((START_SEG+1)*SEG_LEN));
+
+        // APPENDs in forward order: offset_start stays constant (> 0), offset_end grows
+        for (int i = START_SEG+1; i < N_SEGS; i++) begin
+            send_seg(.buf_id(_buf), .offset(OFFSET_T'(i*SEG_LEN)), .len(SEG_LEN));
+            do @(posedge clk); while (!frag_valid);
+            `FAIL_UNLESS_EQUAL(frag_init, 1'b0);
+            `FAIL_UNLESS_EQUAL(frag_offset_start, OFFSET_T'(START_SEG*SEG_LEN));
+            `FAIL_UNLESS_EQUAL(frag_offset_end,   OFFSET_T'((i+1)*SEG_LEN));
+        end
+
+        // Counter checks
+        agent.get_frag_create_cnt(cnt);  `FAIL_UNLESS_EQUAL(cnt, 1);
+        agent.get_frag_append_cnt(cnt);  `FAIL_UNLESS_EQUAL(cnt, N_SEGS-START_SEG-1);
+        agent.get_frag_prepend_cnt(cnt); `FAIL_UNLESS_EQUAL(cnt, 0);
+        agent.get_frag_merge_cnt(cnt);   `FAIL_UNLESS_EQUAL(cnt, 0);
+    `SVTEST_END
+
     `SVTEST(fragment_merge)
         BUF_ID_T _buf;
         OFFSET_T _offset;
