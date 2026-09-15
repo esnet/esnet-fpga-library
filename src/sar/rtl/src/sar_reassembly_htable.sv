@@ -157,7 +157,8 @@ module sar_reassembly_htable
         .TABLE_SIZE          ( '{default: TABLE_SIZE} ),
         .HASH_LATENCY        ( 1 ),
         .NUM_RD_TRANSACTIONS ( NUM_RD_TRANSACTIONS ),
-        .UPDATE_BURST_SIZE   ( BURST_SIZE )
+        .UPDATE_BURST_SIZE   ( BURST_SIZE ),
+        .COLLISION_MODE      ( htable_pkg::HTABLE_COLLISION_MODE_OVERWRITE )
     ) i_htable_cuckoo_fast_update_core (
         .clk           ( clk ),
         .srst          ( __srst ),
