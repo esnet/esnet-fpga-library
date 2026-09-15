@@ -13,6 +13,8 @@ class sar_frame_transaction #(
     BUF_ID_T   buf_id;
     rand byte  data[];
     bit        out_of_order;
+    bit        reverse_order;
+    bit        second_half_first;
     bit        error;
 
     //===================================
@@ -28,8 +30,10 @@ class sar_frame_transaction #(
         // WORKAROUND-INIT-PROPS {
         this.buf_id       = buf_id;
         this.data         = new[len];
-        this.out_of_order = 1'b0;
-        this.error        = 1'b0;
+        this.out_of_order      = 1'b0;
+        this.reverse_order     = 1'b0;
+        this.second_half_first = 1'b0;
+        this.error             = 1'b0;
         // } WORKAROUND-INIT-PROPS
     endfunction
 
@@ -60,8 +64,10 @@ class sar_frame_transaction #(
         end
         this.buf_id       = t.buf_id;
         this.data         = new[t.data.size()](t.data);
-        this.out_of_order = t.out_of_order;
-        this.error        = t.error;
+        this.out_of_order      = t.out_of_order;
+        this.reverse_order     = t.reverse_order;
+        this.second_half_first = t.second_half_first;
+        this.error             = t.error;
     endfunction
 
     // Get string representation
