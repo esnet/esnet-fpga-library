@@ -104,6 +104,36 @@
 `SVTEST_END
 
 //===================================
+// Test: out_of_order_reverse
+// Eight-segment frame delivered in strict reverse order (worst case for
+// consecutive PREPENDs to the same append-table key).
+//===================================
+`SVTEST(out_of_order_reverse)
+    FRAME_T sent;
+    sent = new("frame", BUF_ID_T'(0), 256 * 8);
+    fill_frame(sent);
+    sent.reverse_order = 1;
+    env.sequencer.set_seg_len(256);
+    env.inbox.put(sent);
+    check(1, 500us);
+`SVTEST_END
+
+//===================================
+// Test: out_of_order_forward
+// Eight-segment frame delivered second-half-first then first-half (in order within
+// each half): worst case for consecutive APPENDs to a non-zero-start fragment.
+//===================================
+`SVTEST(out_of_order_forward)
+    FRAME_T sent;
+    sent = new("frame", BUF_ID_T'(0), 256 * 8);
+    fill_frame(sent);
+    sent.second_half_first = 1;
+    env.sequencer.set_seg_len(256);
+    env.inbox.put(sent);
+    check(1, 500us);
+`SVTEST_END
+
+//===================================
 // Test: two_frames_interleaved
 // Two frames submitted simultaneously with interleave enabled; segments from
 // both frames are emitted concurrently and both frames are reassembled.
