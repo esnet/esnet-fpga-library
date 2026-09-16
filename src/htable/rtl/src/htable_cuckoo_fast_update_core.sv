@@ -8,7 +8,7 @@ module htable_cuckoo_fast_update_core
     parameter int  HASH_LATENCY = 0,
     parameter int  NUM_RD_TRANSACTIONS = 8,
     parameter int  UPDATE_BURST_SIZE = 8,
-    parameter htable_collision_mode_t COLLISION_MODE = HTABLE_COLLISION_MODE_ERROR
+    parameter htable_key_collision_mode_t KEY_COLLISION_MODE = HTABLE_KEY_COLLISION_MODE_ERROR
 )(
     // Clock/reset
     input  logic               clk,
@@ -151,7 +151,7 @@ module htable_cuckoo_fast_update_core
         .HASH_LATENCY        ( HASH_LATENCY ),
         .NUM_WR_TRANSACTIONS ( 1 ),
         .NUM_RD_TRANSACTIONS ( NUM_RD_TRANSACTIONS ),
-        .COLLISION_MODE      ( COLLISION_MODE )
+        .KEY_COLLISION_MODE      ( KEY_COLLISION_MODE )
     ) i_htable_cuckoo_core   (
         .clk                 ( clk ),
         .srst                ( __srst ),

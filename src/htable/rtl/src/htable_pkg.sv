@@ -26,12 +26,12 @@ package htable_pkg;
         HTABLE_MULTI_INSERT_MODE_BROADCAST
     } htable_multi_insert_mode_t;
 
-    // Collision mode
-    // OVERWRITE: hash collisions allowed/expected; just replace value
-    // ERROR:     hash collisions unexpected; flag as insertion error
+    // Key collision mode
+    // OVERWRITE: key collisions allowed/expected; just replace value
+    // ERROR:     key collisions unexpected; flag as insertion error
     typedef enum {
-        HTABLE_COLLISION_MODE_OVERWRITE,
-        HTABLE_COLLISION_MODE_ERROR
-    } htable_collision_mode_t;
+        HTABLE_KEY_COLLISION_MODE_OVERWRITE,
+        HTABLE_KEY_COLLISION_MODE_ERROR
+    } htable_key_collision_mode_t;
 
 endpackage : htable_pkg

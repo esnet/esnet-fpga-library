@@ -6,7 +6,7 @@ module htable_cuckoo_controller
     parameter int  NUM_TABLES = 3,
     parameter int  TABLE_SIZE [NUM_TABLES] = '{default: 4096},
     parameter int  HASH_LATENCY = 0,
-    parameter htable_collision_mode_t COLLISION_MODE = HTABLE_COLLISION_MODE_ERROR
+    parameter htable_key_collision_mode_t KEY_COLLISION_MODE = HTABLE_KEY_COLLISION_MODE_ERROR
 )(
     // Clock/reset
     input  logic               clk,
@@ -324,8 +324,8 @@ module htable_cuckoo_controller
                 else if (__command == COMMAND_UNSET)   nxt_state = DELETE;
                 else if (__command == COMMAND_REPLACE) nxt_state = INSERT_SET_NEXT;
                 else if (__command == COMMAND_SET) begin
-                    if (COLLISION_MODE == HTABLE_COLLISION_MODE_OVERWRITE) nxt_state = INSERT_SET_NEXT;
-                    else                                                   nxt_state = INSERT_KEY_EXISTS;
+                    if (KEY_COLLISION_MODE == HTABLE_KEY_COLLISION_MODE_OVERWRITE) nxt_state = INSERT_SET_NEXT;
+                    else                               nxt_state = INSERT_KEY_EXISTS;
                 end
                 else                                   nxt_state = ERROR;
             end
