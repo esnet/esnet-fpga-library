@@ -327,6 +327,44 @@ module sar_reassembly_cache_unit_test;
         agent.get_frag_merge_cnt(cnt);   `FAIL_UNLESS_EQUAL(cnt, 0);
     `SVTEST_END
 
+    // Same as fragment_multi_prepend but the first segment carries last=1.
+    // When frag_last=1, the FRAGMENT_PREPEND path skips the append-table update
+    // (update_if__append.req = !frag_last = 0). This test verifies that offset_start
+    // still decrements correctly across all PREPENDs despite the suppressed updates.
+    `SVTEST(fragment_multi_prepend_last)
+        localparam int N_SEGS = 5;
+        localparam SEGMENT_LEN_T SEG_LEN = 256;
+        BUF_ID_T _buf;
+        OFFSET_T _end;
+        int cnt;
+        void'(std::randomize(_buf));
+        _end = OFFSET_T'(N_SEGS * SEG_LEN);
+
+        // CREATE: send the highest-offset segment first, with last=1
+        send_seg(.buf_id(_buf), .offset(OFFSET_T'((N_SEGS-1)*SEG_LEN)), .len(SEG_LEN), .last(1'b1));
+        do @(posedge clk); while (!frag_valid);
+        `FAIL_UNLESS_EQUAL(frag_init, 1'b1);
+        `FAIL_UNLESS_EQUAL(frag_last, 1'b1);
+        `FAIL_UNLESS_EQUAL(frag_offset_start, OFFSET_T'((N_SEGS-1)*SEG_LEN));
+        `FAIL_UNLESS_EQUAL(frag_offset_end, _end);
+
+        // N-1 PREPENDs in reverse order: frag_last stays 1, offset_start should decrement
+        for (int i = N_SEGS-2; i >= 0; i--) begin
+            send_seg(.buf_id(_buf), .offset(OFFSET_T'(i*SEG_LEN)), .len(SEG_LEN));
+            do @(posedge clk); while (!frag_valid);
+            `FAIL_UNLESS_EQUAL(frag_init, 1'b0);
+            `FAIL_UNLESS_EQUAL(frag_last, 1'b1);
+            `FAIL_UNLESS_EQUAL(frag_offset_start, OFFSET_T'(i*SEG_LEN));
+            `FAIL_UNLESS_EQUAL(frag_offset_end, _end);
+        end
+
+        // Counter checks
+        agent.get_frag_create_cnt(cnt);  `FAIL_UNLESS_EQUAL(cnt, 1);
+        agent.get_frag_prepend_cnt(cnt); `FAIL_UNLESS_EQUAL(cnt, N_SEGS-1);
+        agent.get_frag_append_cnt(cnt);  `FAIL_UNLESS_EQUAL(cnt, 0);
+        agent.get_frag_merge_cnt(cnt);   `FAIL_UNLESS_EQUAL(cnt, 0);
+    `SVTEST_END
+
     // Multiple consecutive APPENDs to the same fragment starting at offset > 0:
     // verifies that the prepend-table key (offset_start, constant across APPENDs)
     // is updated correctly without INSERT_KEY_EXISTS collisions.
