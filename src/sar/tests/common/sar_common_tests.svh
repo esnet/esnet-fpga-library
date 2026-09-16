@@ -114,8 +114,10 @@
     fill_frame(sent);
     sent.reverse_order = 1;
     env.sequencer.set_seg_len(256);
+    seg_pkt_driver.set_min_gap(200);
     env.inbox.put(sent);
     check(1, 500us);
+    seg_pkt_driver.set_min_gap(0);
 `SVTEST_END
 
 //===================================
@@ -129,8 +131,10 @@
     fill_frame(sent);
     sent.second_half_first = 1;
     env.sequencer.set_seg_len(256);
+    seg_pkt_driver.set_min_gap(32);
     env.inbox.put(sent);
     check(1, 500us);
+    seg_pkt_driver.set_min_gap(0);
 `SVTEST_END
 
 //===================================
