@@ -109,10 +109,12 @@ class sar_sequencer #(
         SEGMENT_T segs[$];
 
         trace_msg("_generate()");
-        debug_msg($sformatf("Decomposing frame buf_id=0x%0x, len=%0d into %0d-byte segments%s%s.",
+        debug_msg($sformatf("Decomposing frame buf_id=0x%0x, len=%0d into %0d-byte segments%s%s%s%s.",
             seq.buf_id, frame_len, __seg_len,
-            seq.out_of_order ? " (out-of-order)" : "",
-            seq.error        ? " (error)"        : ""));
+            seq.out_of_order       ? " (out-of-order)"       : "",
+            seq.reverse_order      ? " (reverse-order)"      : "",
+            seq.second_half_first  ? " (second-half-first)"  : "",
+            seq.error              ? " (error)"              : ""));
 
         while (offset < frame_len) begin
             SEGMENT_T seg;
@@ -152,6 +154,16 @@ class sar_sequencer #(
                 segs[i] = segs[j];
                 segs[j] = tmp;
             end
+        end else if (seq.reverse_order) begin
+            segs.reverse();
+        end else if (seq.second_half_first) begin
+            // Deliver [mid..end, 0..mid-1]: creates a non-zero-start fragment then
+            // extends it with consecutive APPENDs, exercising the APPEND prepend-table fix.
+            int mid = segs.size() / 2;
+            SEGMENT_T reordered[$];
+            for (int i = mid; i < segs.size(); i++) reordered.push_back(segs[i]);
+            for (int i = 0;   i < mid;          i++) reordered.push_back(segs[i]);
+            segs = reordered;
         end
 
         foreach (segs[i])

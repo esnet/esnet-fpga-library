@@ -487,7 +487,81 @@ module sar_reassembly_unit_test;
         `FAIL_UNLESS_EQUAL(frame_len, OFFSET_T'(_len));
     `SVTEST_END
 
+    // Two-segment frame delivered in reverse order (last segment first with last=1,
+    // then seg0). Single PREPEND; minimal case for the reverse-order path.
+    `SVTEST(two_segment_reverse_order)
+        localparam int SEG_LEN   = 512;
+        localparam int TOTAL_LEN = 2 * SEG_LEN;
+        int cnt;
+
+        send_segment(.buf_id(BUF_ID_T'(0)), .offset(OFFSET_T'(SEG_LEN)), .len(SEGMENT_LEN_T'(SEG_LEN)), .last(1));
+        repeat (10) @(posedge clk);
+        send_segment(.buf_id(BUF_ID_T'(0)), .offset(OFFSET_T'(0)), .len(SEGMENT_LEN_T'(SEG_LEN)), .last(0));
+
+        fork
+            begin : wait_frame
+                do @(posedge clk); while (!frame_valid);
+            end
+            begin : timeout
+                #1ms;
+                `FAIL_IF_LOG(1, "Timed out waiting for frame_valid");
+            end
+        join_any
+        disable fork;
+        `FAIL_UNLESS_EQUAL(frame_buf_id, BUF_ID_T'(0));
+        `FAIL_UNLESS_EQUAL(frame_len, OFFSET_T'(TOTAL_LEN));
+        repeat (200) @(posedge clk);
+        agent.get_done_cnt(cnt);
+        `FAIL_UNLESS_EQUAL(cnt, 1);
+    `SVTEST_END
+
+    // Four-segment frame delivered in strict reverse order (last segment first with
+    // last=1, then segments 2 down to 0). This is the worst case for the PREPEND path:
+    // frag_last=1 throughout, which suppresses append-table updates in each PREPEND
+    // action. Verifies that the reassembly state machine still detects frame completion
+    // and asserts frame_valid after all segments arrive.
+    //
+    // NOTE: Each PREPEND issues one INSERT and one DELETE into the prepend htable stash
+    // (capacity 8), consuming 2 slots per segment. With 10-cycle inter-segment gaps the
+    // stash fills before it can drain, so bursts of 5+ consecutive reverse-order segments
+    // cause a silently-dropped INSERT, leading to a spurious FRAGMENT_CREATE and an
+    // orphaned fragment that never completes. This is a known limitation; a
+    // retry/backpressure mechanism in sar_reassembly_cache is needed to handle larger
+    // reverse-order bursts.
+    `SVTEST(four_segment_reverse_order)
+        localparam int N_SEGS    = 4;
+        localparam int SEG_LEN   = 256;
+        localparam int TOTAL_LEN = N_SEGS * SEG_LEN;
+        int cnt;
+
+        // Segment N-1 first, with last=1 (triggers FRAGMENT_CREATE)
+        send_segment(.buf_id(BUF_ID_T'(0)), .offset(OFFSET_T'((N_SEGS-1)*SEG_LEN)), .len(SEGMENT_LEN_T'(SEG_LEN)), .last(1));
+        // Segments N-2 down to 0 (each triggers FRAGMENT_PREPEND; none carry last=1)
+        for (int i = N_SEGS-2; i >= 0; i--) begin
+            repeat (10) @(posedge clk);
+            send_segment(.buf_id(BUF_ID_T'(0)), .offset(OFFSET_T'(i*SEG_LEN)), .len(SEGMENT_LEN_T'(SEG_LEN)), .last(0));
+        end
+
+        fork
+            begin : wait_frame
+                do @(posedge clk); while (!frame_valid);
+            end
+            begin : timeout
+                #1ms;
+                `FAIL_IF_LOG(1, "Timed out waiting for frame_valid");
+            end
+        join_any
+        disable fork;
+        `FAIL_UNLESS_EQUAL(frame_buf_id, BUF_ID_T'(0));
+        `FAIL_UNLESS_EQUAL(frame_len, OFFSET_T'(TOTAL_LEN));
+        repeat (200) @(posedge clk);
+        agent.get_done_cnt(cnt);
+        `FAIL_UNLESS_EQUAL(cnt, 1);
+    `SVTEST_END
+
     `SVUNIT_TESTS_END
+
+
 
 
     //===================================

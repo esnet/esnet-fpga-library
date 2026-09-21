@@ -104,22 +104,22 @@ module sar_reassembly_state #(
     } notify_q_data_t;
 
     typedef struct packed {
-        logic                  valid;
-        logic [BUF_ID_WID-1:0] buf_id;
-        logic [OFFSET_WID-1:0] offset_start;
-        logic [OFFSET_WID-1:0] offset_end;
-        logic [TIMER_WID-1:0]  timer;
-        logic                  last;
+        logic                  last;         // element 5 (MSB in vector)
+        logic [TIMER_WID-1:0]  timer;        // element 4
+        logic [OFFSET_WID-1:0] offset_end;   // element 3
+        logic [OFFSET_WID-1:0] offset_start; // element 2
+        logic [BUF_ID_WID-1:0] buf_id;       // element 1
+        logic                  valid;        // element 0 (LSB in vector)
     } state_t;
     localparam int STATE_WID = $bits(state_t);
 
     typedef struct packed {
-        logic                  valid;
-        logic [BUF_ID_WID-1:0] buf_id;
-        logic [OFFSET_WID-1:0] offset_start;
-        logic [OFFSET_WID-1:0] offset_end;
-        logic [TIMER_WID-1:0]  timer;
-        logic                  last;
+        logic                  last;         // element 5 (MSB in vector)
+        logic [TIMER_WID-1:0]  timer;        // element 4
+        logic [OFFSET_WID-1:0] offset_end;   // element 3
+        logic [OFFSET_WID-1:0] offset_start; // element 2
+        logic [BUF_ID_WID-1:0] buf_id;       // element 1
+        logic                  valid;        // element 0 (LSB in vector)
     } update_t;
     localparam int UPDATE_WID = $bits(update_t);
  

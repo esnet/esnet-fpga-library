@@ -7,7 +7,8 @@ module htable_cuckoo_core
     parameter int  TABLE_SIZE [NUM_TABLES] = '{default: 4096},
     parameter int  HASH_LATENCY = 0,
     parameter int  NUM_WR_TRANSACTIONS = 4,
-    parameter int  NUM_RD_TRANSACTIONS = 8
+    parameter int  NUM_RD_TRANSACTIONS = 8,
+    parameter htable_key_collision_mode_t KEY_COLLISION_MODE = HTABLE_KEY_COLLISION_MODE_ERROR
 )(
     // Clock/reset
     input  logic               clk,
@@ -92,7 +93,8 @@ module htable_cuckoo_core
         .VALUE_WID    ( VALUE_WID ),
         .NUM_TABLES   ( NUM_TABLES ),
         .TABLE_SIZE   ( TABLE_SIZE ),
-        .HASH_LATENCY ( HASH_LATENCY )
+        .HASH_LATENCY ( HASH_LATENCY ),
+        .KEY_COLLISION_MODE ( KEY_COLLISION_MODE )
     ) i_htable_cuckoo_controller (
         .clk           ( clk ),
         .srst          ( srst ),

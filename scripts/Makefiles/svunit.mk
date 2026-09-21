@@ -17,7 +17,7 @@ SVUNIT_TOP_MODULE = testrunner
 # ----------------------------------------------------
 SVUNIT_FILTER ?= *
 
-PLUSARGS += SVUNIT_FILTER=$(SVUNIT_FILTER)
+override PLUSARGS += SVUNIT_FILTER=$(SVUNIT_FILTER)
 
 # ----------------------------------------------------
 # Sources
