@@ -23,6 +23,22 @@ package packet_pkg;
     endfunction
             
     // ============================================
+    // Packet size
+    // ============================================
+    // Packet sizes are carried in a fixed-width field, so that size-bearing
+    // ports have a width that doesn't depend on an interface or module
+    // parameter.  A component's own MAX_PKT_SIZE parameter still bounds its
+    // storage; it must not exceed MAX_SIZE.
+    //
+    // Named SIZE_FIELD_WID rather than SIZE_WID to avoid silently shadowing
+    // the local SIZE_WID declared by modules that wildcard-import this
+    // package.
+    localparam int SIZE_FIELD_WID = 16;
+    localparam int MAX_SIZE = 2**SIZE_FIELD_WID - 1;  // 65535 bytes
+
+    typedef logic [SIZE_FIELD_WID-1:0] size_t;
+
+    // ============================================
     // Typedefs
     // ============================================
     typedef enum logic [2:0] {

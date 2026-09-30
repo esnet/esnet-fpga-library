@@ -24,7 +24,10 @@ module packet_fifo_core
     packet_event_intf.publisher event_out_if,
     mem_rd_intf.controller      mem_rd_if,
 
-    input logic                 mem_init_done
+    input logic                 mem_init_done,
+
+    // Packet size (held for duration of current output packet)
+    output packet_pkg::size_t   pkt_size
 );
 
     // -----------------------------
@@ -126,6 +129,7 @@ module packet_fifo_core
                 .mem_rd_if,
                 .mem_rd_ctxt      ( ),
                 .mem_init_done,
+                .pkt_size,
                 // Unused for single-context implementation
                 .ctxt_list_append_rdy ( ),
                 .ctxt_out_valid       ( ),

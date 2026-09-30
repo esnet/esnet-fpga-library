@@ -16,7 +16,10 @@ module packet_fifo
     packet_intf.rx  packet_in_if,
 
     input  logic    srst_out,
-    packet_intf.tx  packet_out_if
+    packet_intf.tx  packet_out_if,
+
+    // Packet size (held for duration of current output packet)
+    output packet_pkg::size_t pkt_size
 );
 
     // -----------------------------

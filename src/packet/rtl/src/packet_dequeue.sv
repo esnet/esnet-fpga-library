@@ -42,7 +42,10 @@ module packet_dequeue
     // Memory write interface
     mem_rd_intf.controller      mem_rd_if,
     output logic [CTXT_WID-1:0] mem_rd_ctxt,
-    input  logic                mem_init_done
+    input  logic                mem_init_done,
+
+    // Packet size (held for duration of current output packet)
+    output size_t               pkt_size
 );
     // -----------------------------
     // Imports
@@ -75,6 +78,8 @@ module packet_dequeue
         std_pkg::param_check_gt(wr_descriptor_if[0].ADDR_WID, ADDR_WID, "wr_descriptor_if[0].ADDR_WID");
         std_pkg::param_check_gt(rd_descriptor_if[0].ADDR_WID, ADDR_WID, "rd_descriptor_if[0].ADDR_WID");
         std_pkg::param_check_gt(wr_descriptor_if[0].MAX_PKT_SIZE, MAX_PKT_SIZE, "wr_descriptor_if[0].MAX_PKT_SIZE");
+        std_pkg::param_check_lt(MAX_PKT_SIZE, MAX_SIZE, "wr_descriptor_if[0].MAX_PKT_SIZE",
+                                "Packet size must be representable in packet_pkg::size_t.");
         std_pkg::param_check_gt(rd_descriptor_if[0].MAX_PKT_SIZE, MAX_PKT_SIZE, "rd_descriptor_if[0].MAX_PKT_SIZE");
     end
     
@@ -203,7 +208,8 @@ module packet_dequeue
         .packet_if      ( __packet_if ),
         .descriptor_if  ( __wr_descriptor_if ),
         .event_if,
-        .mem_rd_if
+        .mem_rd_if,
+        .pkt_size
     );
 
     assign mem_rd_ctxt = __ctxt;
