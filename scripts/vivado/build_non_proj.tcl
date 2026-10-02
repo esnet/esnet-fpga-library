@@ -37,6 +37,7 @@ set HOOK_TCL        {}
 set IP_REPOS        {}
 set OUT_DIR         [pwd]
 set JOBS            4
+set USERID          ""
 
 set i 2
 while {$i < $argc} {
@@ -92,10 +93,13 @@ while {$i < $argc} {
             set JOBS [lindex $argv [expr {$i+1}]]
             incr i 2
         }
+        -userid {
+            set USERID [lindex $argv [expr {$i+1}]]
+            incr i 2
+        }
         -board_part -
         -board_repo -
         -timestamp  -
-        -userid     -
         -usr_access -
         -sources_tcl_auto -
         -constraints_tcl_auto -
@@ -310,6 +314,7 @@ switch $PHASE {
         set ::NP_TOP     $TOP
         set ::NP_OUT_DIR $OUT_DIR
         set ::NP_TOP_DCP $TOP_DCP
+        set ::NP_USERID  $USERID
         source_hooks $HOOK_TCL "*write_device_image.pre*"
         write_device_image -force $OUT_DIR/${TOP}.pdi
         puts "Wrote: $OUT_DIR/${TOP}.pdi"
