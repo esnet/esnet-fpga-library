@@ -28,11 +28,16 @@ module packet_intf_unit_test #(
     packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_WID(META_WID)) from_tx (.clk);
     packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_WID(META_WID)) to_rx   (.clk);
 
+    // Events are not checked here; declared for the packet_fifo DUT's
+    // publisher ports.
+    packet_event_intf event_in_if  (.clk);
+    packet_event_intf event_out_if (.clk);
+
 
     generate
         case (DUT_SELECT)
             "packet_intf_connector": packet_intf_connector DUT (.*);
-            "packet_fifo": packet_fifo #(.DEPTH (2048)) DUT (.srst_in (srst), .packet_in_if(from_tx), .srst_out (srst), .packet_out_if(to_rx));
+            "packet_fifo": packet_fifo #(.DEPTH (2048)) DUT (.srst_in (srst), .packet_in_if(from_tx), .event_in_if, .srst_out (srst), .packet_out_if(to_rx), .event_out_if);
             "packet_pipe_1st": packet_pipe #(.STAGES(1)) DUT (.*);
             "packet_pipe_4st": packet_pipe #(.STAGES(4)) DUT (.*);
             "packet_pipe_auto": packet_pipe_auto DUT (.*);
