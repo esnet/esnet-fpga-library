@@ -80,7 +80,7 @@ SYNTH_FILES = \
 # -----------------------------------------------
 # Sources
 # -----------------------------------------------
-SRCS = $(SV_PKG_FILES) $(SV_SRC_FILES) $(V_SRC_FILES)
+SRCS = $(SV_PKG_FILES) $(SV_SRC_FILES) $(V_SRC_FILES) $(VHD_SRC_FILES)
 HDRS = $(SV_HDR_FILES) $(V_HDR_FILES)
 
 # -----------------------------------------------
@@ -125,30 +125,37 @@ INC_REFS =$(INCLUDES:%=-i %)
 # -----------------------------------------------
 V_OPTS :=  $(strip $(COMPILE_OPTS))
 SV_OPTS := --sv $(strip $(COMPILE_OPTS))
+VHD_OPTS := $(strip $(COMPILE_OPTS))
 
 DO_V_COMPILE = $(strip $(V_SRC_FILES))
 DO_SV_COMPILE = $(strip $(SV_PKG_FILES) $(SV_SRC_FILES))
+DO_VHD_COMPILE = $(strip $(VHD_SRC_FILES))
 
 # -----------------------------------------------
 # Log files
 # -----------------------------------------------
 V_XVLOG_LOG := --log $(OBJ_DIR)/compile_v.log
 SV_XVLOG_LOG := --log $(OBJ_DIR)/compile_sv.log
+VHD_XVHDL_LOG := --log $(OBJ_DIR)/compile_vhd.log
 
 # -----------------------------------------------
 # Compiler commands
 # -----------------------------------------------
 XVLOG_CMD = xvlog $(INC_REFS) $(LIB_REFS) $(DEFINE_REFS) -work $(COMPONENT_NAME)=$(OBJ_DIR)
+XVHDL_CMD = xvhdl $(LIB_REFS) -work $(COMPONENT_NAME)=$(OBJ_DIR)
 
-V_COMPILE_CMD  = $(XVLOG_CMD) $(V_OPTS) $(V_XVLOG_LOG) $(V_SRC_FILES)
-SV_COMPILE_CMD = $(XVLOG_CMD) $(SV_OPTS) $(SV_XVLOG_LOG) $(SV_PKG_FILES) $(SV_SRC_FILES)
+V_COMPILE_CMD   = $(XVLOG_CMD) $(V_OPTS) $(V_XVLOG_LOG) $(V_SRC_FILES)
+SV_COMPILE_CMD  = $(XVLOG_CMD) $(SV_OPTS) $(SV_XVLOG_LOG) $(SV_PKG_FILES) $(SV_SRC_FILES)
+VHD_COMPILE_CMD = $(XVHDL_CMD) $(VHD_OPTS) $(VHD_XVHDL_LOG) $(VHD_SRC_FILES)
 
-V_COMPILE = $(if $(DO_V_COMPILE),$(strip $(V_COMPILE_CMD)))
-SV_COMPILE = $(if $(DO_SV_COMPILE),$(strip $(SV_COMPILE_CMD)))
+V_COMPILE   = $(if $(DO_V_COMPILE),$(strip $(V_COMPILE_CMD)))
+SV_COMPILE  = $(if $(DO_SV_COMPILE),$(strip $(SV_COMPILE_CMD)))
+VHD_COMPILE = $(if $(DO_VHD_COMPILE),$(strip $(VHD_COMPILE_CMD)))
 
 # Log compiler commands for reference
-V_COMPILE_CMD_LOG = $(if $(DO_V_COMPILE), $(shell echo $(V_COMPILE_CMD) > $(OBJ_DIR)/compile_v.sh))
-SV_COMPILE_CMD_LOG = $(if $(DO_SV_COMPILE), $(shell echo $(SV_COMPILE_CMD) > $(OBJ_DIR)/compile_sv.sh))
+V_COMPILE_CMD_LOG   = $(if $(DO_V_COMPILE), $(shell echo $(V_COMPILE_CMD) > $(OBJ_DIR)/compile_v.sh))
+SV_COMPILE_CMD_LOG  = $(if $(DO_SV_COMPILE), $(shell echo $(SV_COMPILE_CMD) > $(OBJ_DIR)/compile_sv.sh))
+VHD_COMPILE_CMD_LOG = $(if $(DO_VHD_COMPILE), $(shell echo $(VHD_COMPILE_CMD) > $(OBJ_DIR)/compile_vhd.sh))
 
 # -----------------------------------------------
 # TARGETS
@@ -179,6 +186,8 @@ $(SIM_LIB): $(SRCS) $(HDRS) $(SUBCOMPONENT_OBJS) Makefile | $(OBJ_DIR)
 	@echo "Compiling simulation library '$(COMPONENT_NAME)' ..."
 	@echo
 	@$(call __rm_rf,$(SIM_LIB))
+	$(VHD_COMPILE)
+	@$(VHD_COMPILE_CMD_LOG)
 	$(V_COMPILE)
 	@$(V_COMPILE_CMD_LOG)
 	$(SV_COMPILE)

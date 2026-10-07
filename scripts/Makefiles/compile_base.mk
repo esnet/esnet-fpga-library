@@ -49,6 +49,8 @@ __SRC_FILES = $(abspath $(SRC_FILES) $(__FILE_LIST_SRC_FILES) $(wildcard $(SRC_D
 # Synthesize list of include directories
 INCLUDES = $(sort $(abspath $(INC_DIR) $(INC_DIRS) $(__FILE_LIST_INC_DIRS)))
 
+# Synthesize list of VHDL source files
+VHD_SRC_FILES = $(sort $(filter %.vhd,$(__SRC_FILES)))
 # Synthesize list of Verilog source files
 V_SRC_FILES = $(sort $(filter %.v,$(__SRC_FILES)))
 V_HDR_FILES = $(sort $(foreach incdir,$(__INC_DIRS),$(wildcard $(incdir)/*.vh)))
