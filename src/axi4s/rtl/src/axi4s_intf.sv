@@ -272,6 +272,28 @@ module axi4s_intf_set_meta #(
         std_pkg::param_check(to_rx.DATA_BYTE_WID, from_tx.DATA_BYTE_WID, "DATA_BYTE_WID");
     end
 
+    // Metadata width checks.
+    //
+    // Checked against to_rx (the interface being driven) rather than from_tx:
+    // replacing the metadata is this module's purpose, so the two sides are
+    // expected to differ. What must agree is the parameter and the destination.
+    //
+    // The check is "must not truncate" rather than equality. A parameter
+    // narrower than the destination zero-extends, which is the established idiom
+    // for tying metadata off (callers that do not care instantiate with the
+    // default width of 1 and let tid/tdest/tuser default to '0). A parameter
+    // wider than the destination silently drops the top bits, which is the
+    // defect this guards against.
+    //
+    // These use elaboration-time $error rather than std_pkg::param_check, which
+    // is a $fatal inside an initial block and therefore only fires in simulation
+    // at run time; the check has to hold during synthesis too. Note Vivado does
+    // not substitute format arguments in an elaboration system task, so the
+    // messages are literal.
+    if (TID_WID   > to_rx.TID_WID)   $error("axi4s_intf_set_meta: TID_WID exceeds to_rx.TID_WID (tid would be truncated)");
+    if (TDEST_WID > to_rx.TDEST_WID) $error("axi4s_intf_set_meta: TDEST_WID exceeds to_rx.TDEST_WID (tdest would be truncated)");
+    if (TUSER_WID > to_rx.TUSER_WID) $error("axi4s_intf_set_meta: TUSER_WID exceeds to_rx.TUSER_WID (tuser would be truncated)");
+
     // Connect signals (rx -> tx)
     assign to_rx.tvalid  = from_tx.tvalid;
     assign to_rx.tdata   = from_tx.tdata;

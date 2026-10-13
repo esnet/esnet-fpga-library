@@ -14,9 +14,14 @@ module packet_fifo
  ) (
     input  logic    srst_in,
     packet_intf.rx  packet_in_if,
+    packet_event_intf.publisher event_in_if,
 
     input  logic    srst_out,
-    packet_intf.tx  packet_out_if
+    packet_intf.tx  packet_out_if,
+    packet_event_intf.publisher event_out_if,
+
+    // Packet size (held for duration of current output packet)
+    output packet_pkg::size_t pkt_size
 );
 
     // -----------------------------
@@ -49,9 +54,6 @@ module packet_fifo
     // -----------------------------
     mem_wr_intf #(.ADDR_WID(ADDR_WID), .DATA_WID(DATA_WID)) mem_wr_if (.clk(packet_in_if.clk));
     mem_rd_intf #(.ADDR_WID(ADDR_WID), .DATA_WID(DATA_WID)) mem_rd_if (.clk(packet_out_if.clk));
-
-    packet_event_intf event_in_if  (.clk(packet_in_if.clk));
-    packet_event_intf event_out_if (.clk(packet_out_if.clk));
 
     // -----------------------------
     // FIFO logic

@@ -49,7 +49,7 @@ module packet_capture #(
     localparam int  PACKET_MEM_ADDR_WID = $clog2(PACKET_MEM_DEPTH);
 
     localparam int  SIZE_WID = $bits(packet_capture_reg_pkg::fld_status_packet_bytes_t);
-    localparam int  MAX_PKT_SIZE = 2**SIZE_WID;
+    localparam int  MAX_PKT_SIZE = 2**SIZE_WID - 1;
 
     // -----------------------------
     // Parameter checking

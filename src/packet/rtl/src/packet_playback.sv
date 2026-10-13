@@ -50,7 +50,7 @@ module packet_playback #(
     localparam int  PACKET_MEM_ADDR_WID = $clog2(PACKET_MEM_DEPTH);
 
     localparam int  SIZE_WID = $bits(packet_playback_reg_pkg::fld_config_packet_bytes_t);
-    localparam int  MAX_PKT_SIZE = 2**SIZE_WID;
+    localparam int  MAX_PKT_SIZE = 2**SIZE_WID - 1;
     localparam int  BURST_SIZE_WID = $bits(packet_playback_reg_pkg::fld_config_burst_size_t);
     localparam type BURST_CNT_T = logic[BURST_SIZE_WID-1:0];
 

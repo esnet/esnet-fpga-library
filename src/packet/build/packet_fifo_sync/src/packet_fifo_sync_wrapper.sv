@@ -29,6 +29,14 @@ module packet_fifo_sync_wrapper #(
     packet_intf #(DATA_BYTE_WID, META_WID) packet_in_if  (.clk);
     packet_intf #(DATA_BYTE_WID, META_WID) packet_out_if (.clk);
 
+    // Packet events are not reported out of this wrapper; declared so the
+    // FIFO's publisher ports have something to connect to.
+    packet_event_intf event_in_if  (.clk);
+    packet_event_intf event_out_if (.clk);
+
+    // Not exported; declared to satisfy the FIFO's .* connection.
+    packet_pkg::size_t pkt_size;
+
     assign packet_in_if.vld = packet_in_vld;
     assign packet_in_if.eop = packet_in_eop;
     assign packet_in_if.data = packet_in_data;

@@ -58,11 +58,11 @@ interface packet_intf #(
 
     clocking cb_tx @(posedge clk);
         output vld, data, eop, mty, err, meta;
-        input rdy;
+        input rdy, mon_tx_vld;
     endclocking
 
     clocking cb_rx @(posedge clk);
-        input vld, data, eop, mty, err, meta;
+        input vld, data, eop, mty, err, meta, mon_rx_rdy;
         output rdy;
     endclocking
 
@@ -100,7 +100,7 @@ interface packet_intf #(
         cb_tx.mty <= _mty;
         cb_tx.err <= _err;
         cb_tx.meta <= _meta;
-        @(cb_tx iff (mon_tx_vld && cb_tx.rdy));
+        @(cb_tx iff (cb_tx.mon_tx_vld && cb_tx.rdy));
         cb_tx.vld <= 1'b0;
         cb_tx.eop <= 1'b0;
     endtask
@@ -113,7 +113,7 @@ interface packet_intf #(
             output bit [META_WID-1:0] _meta
         );
         cb_rx.rdy <= 1'b1;
-        @(cb_rx iff (cb_rx.vld && mon_rx_rdy));
+        @(cb_rx iff (cb_rx.vld && cb_rx.mon_rx_rdy));
         cb_rx.rdy <= 1'b0;
         _data = cb_rx.data;
         _eop = cb_rx.eop;

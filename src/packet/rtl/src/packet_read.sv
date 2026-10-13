@@ -24,7 +24,10 @@ module packet_read
     packet_event_intf.publisher event_if,
 
     // Memory read interface
-    mem_rd_intf.controller      mem_rd_if
+    mem_rd_intf.controller      mem_rd_if,
+
+    // Packet size (held for duration of current output packet)
+    output size_t               pkt_size
 );
     // -----------------------------
     // Parameters
@@ -48,6 +51,8 @@ module packet_read
         std_pkg::param_check(descriptor_if.META_WID, META_WID, "descriptor_if.META_WID");
         std_pkg::param_check(mem_rd_if.DATA_WID, DATA_WID, "mem_rd_if.DATA_WID");
         std_pkg::param_check(mem_rd_if.ADDR_WID, ADDR_WID, "mem_rd_if.ADDR_WID");
+        std_pkg::param_check_lt(MAX_PKT_SIZE, MAX_SIZE, "descriptor_if.MAX_PKT_SIZE",
+                                "Packet size must be representable in packet_pkg::size_t.");
     end
 
     // -----------------------------
@@ -159,6 +164,7 @@ module packet_read
     always_ff @(posedge clk) begin
         case (state)
             READY : begin
+                pkt_size <= descriptor_if.size;
                 last_word <= (descriptor_if.size - 1) / DATA_BYTE_WID;
                 last_word_mty <= (DATA_BYTE_WID - descriptor_if.size % DATA_BYTE_WID) % DATA_BYTE_WID;
             end
@@ -283,7 +289,7 @@ module packet_read
 
     // Drive event interface
     assign event_if.evt = packet_if.vld && (packet_if.rdy || IGNORE_RDY) && packet_if.eop;
-    assign event_if.size = 0; // TODO
+    assign event_if.size = pkt_size;
     assign event_if.status = STATUS_OK;
 
 endmodule : packet_read
