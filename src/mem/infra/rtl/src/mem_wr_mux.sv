@@ -36,6 +36,8 @@ module mem_wr_mux #(
             logic rdy [N];
             logic ack [N];
 
+            logic [SEL_WID-1:0] sel_out;
+
             for (genvar g_if = 0; g_if < N; g_if++) begin : g__input
                 assign en[g_if] = from_controller[g_if].en;
                 assign req[g_if] = from_controller[g_if].req;
