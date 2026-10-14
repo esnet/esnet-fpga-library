@@ -36,7 +36,7 @@ module sync_areset #(
         end
     end
 
-    assign __rst_n_out = __sync_ff_reset_n[1];
+    assign __rst_n_out = __sync_ff_reset_n[STAGES-1];
     assign rst_out = OUTPUT_ACTIVE_LOW ? __rst_n_out : !__rst_n_out;
 
 endmodule : sync_areset
