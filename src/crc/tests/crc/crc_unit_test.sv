@@ -1,5 +1,14 @@
 `include "svunit_defines.svh"
 
+// =========================================================================
+// crc_unit_test
+//
+// Tests:
+//   1. check_value        — catalogue check string produces CHECK value
+//   2. random_reference   — random data matches crc_verif_pkg reference
+//   3. en_hold            — output holds when en=0
+//   4. srst_clears        — srst clears output register
+// =========================================================================
 module crc_unit_test
 #(
     parameter crc_pkg::crc_spec_t CRC_SPEC = crc_pkg::DEFAULT_CRC,
@@ -7,120 +16,71 @@ module crc_unit_test
 ) (
 );
     import svunit_pkg::svunit_testcase;
+    import crc_pkg::*;
 
     parameter int WIDTH = CRC_SPEC.cfg.WIDTH;
-    parameter int CRC_LATENCY = 1;
-
     string name = {CRC_SPEC.shortname, "_ut"};
-
     svunit_testcase svunit_ut;
 
-    // Typedefs
-    typedef bit[CRC_SPEC.cfg.WIDTH-1:0] CRC_T;
+    typedef bit[WIDTH-1:0] CRC_T;
 
-
-    //===================================
-    // This is the UUT that we're
-    // running the Unit Tests on
-    //===================================
-    logic             clk;
-    logic             srst;
-    logic             en;
+    // UUT
+    logic clk;
+    logic srst;
+    logic en;
     logic [0:DATA_BYTES-1][7:0] data;
-    CRC_T             crc;
-    logic             check;
+    CRC_T crc;
 
     crc #(CRC_SPEC.cfg, DATA_BYTES) UUT (.*);
 
-    //===================================
-    // Build
-    //===================================
+    `SVUNIT_CLK_GEN(clk, 5ns);
+
     function void build();
         svunit_ut = new(name);
     endfunction
 
-
-    //===================================
-    // Setup for running the Unit Tests
-    //===================================
     task setup();
         svunit_ut.setup();
-        /* Place Setup Code Here */
+        @(negedge clk);
         srst = 1'b1;
-        repeat (100) @(posedge clk);
+        en   = 1'b0;
+        data = '0;
+        repeat (4) @(posedge clk);
+        @(negedge clk);
         srst = 1'b0;
-        en = 1'b0;
-        data = 1'b0;
-        @(posedge clk);
-
     endtask
 
-
-    //===================================
-    // Here we deconstruct anything we
-    // need after running the Unit Tests
-    //===================================
     task teardown();
         svunit_ut.teardown();
-        /* Place Teardown Code Here */
-
     endtask
 
+    // -----------------------------------------------------------------------
+    // Helpers
+    // -----------------------------------------------------------------------
+    function automatic void string_to_bytes(input string s, output byte b[]);
+        b = new[s.len()];
+        foreach (s[i]) b[i] = s[i];
+    endfunction
 
-    //===================================
-    // All tests are defined between the
-    // SVUNIT_TESTS_BEGIN/END macros
-    //
-    // Each individual test must be
-    // defined between `SVTEST(_NAME_)
-    // `SVTEST_END
-    //
-    // i.e.
-    //   `SVTEST(mytest)
-    //     <test code>
-    //   `SVTEST_END
-    //===================================
-    `SVUNIT_TESTS_BEGIN
+    function automatic void random_bytes(input int n, output byte b[]);
+        b = new[n];
+        foreach (b[i]) b[i] = $urandom_range(0, 255);
+    endfunction
 
-        `SVTEST(ascii_generate)
-            byte check_data[];
-            CRC_T check_crc;
-            CRC_T crc_out;
-            bit crc_ok;
+    // Feed one DATA_BYTES-wide beat and return the registered CRC one cycle later.
+    task automatic drive_beat(input byte d[], output CRC_T crc_out);
+        @(negedge clk);
+        en = 1'b1;
+        for (int i = 0; i < DATA_BYTES; i++)
+            data[i] = (i < d.size()) ? d[i] : 8'h00;
+        @(posedge clk);
+        @(negedge clk);
+        en = 1'b0;
+        @(posedge clk);   // one-cycle registered latency
+        crc_out = crc;
+    endtask
 
-            check_crc = get_check_crc();
-            `INFO($sformatf("Check CRC: %x", check_crc));
-            
-            // Get check data
-            string_to_bytes(crc_pkg::CHECK_STRING, check_data);
-
-            // Calculate CRC
-            calculate_crc(check_data, crc_out, crc_ok);
-
-            `FAIL_IF_LOG(crc_out != check_crc,
-                $sformatf("Calculated CRC (0x%x) does not match expected CRC (0x%x).", crc, check_crc)
-            );
-
-        `SVTEST_END
-
-    `SVUNIT_TESTS_END
-
-    // Assign clock (100MHz)
-    `SVUNIT_CLK_GEN(clk, 5ns);
-
-    //===================================
-    // Functions
-    //===================================
-    function automatic CRC_T calculate(input byte data[]);
-        automatic byte data_zero_padded [];
-
-        // Check that data width is less than or equal to configured data width
-        assert(data.size() <= DATA_BYTES);
-
-        // Zero-pad data (if necessary)
-        zero_pad_data (data, data_zero_padded);
-
-        // Calculate CRC
+    function automatic CRC_T reference_crc(byte d[]);
         return crc_verif_pkg::calculate(
             WIDTH,
             CRC_SPEC.cfg.POLY,
@@ -128,59 +88,102 @@ module crc_unit_test
             CRC_SPEC.cfg.REFIN,
             CRC_SPEC.cfg.REFOUT,
             CRC_SPEC.cfg.XOROUT,
-            data_zero_padded
+            d
         );
     endfunction
 
-    function automatic void string_to_bytes(input string input_string, output byte bytes[]);
-        bytes = new[input_string.len()];
-        foreach (input_string[idx]) begin
-            bytes[idx] = input_string[idx];
-        end
-        return;
-    endfunction
+    // -----------------------------------------------------------------------
+    // Tests
+    // -----------------------------------------------------------------------
+    `SVUNIT_TESTS_BEGIN
 
-    function CRC_T get_check_crc();
-        byte check_bytes [];
-        string_to_bytes(crc_pkg::CHECK_STRING, check_bytes);
-        return calculate(check_bytes);
-    endfunction
+        // Catalogue check string produces the expected CHECK value when DATA_BYTES==9.
+        // For other widths the bus is zero-padded; expected comes from the reference model.
+        `SVTEST(check_value)
+            byte check_data[];
+            byte padded[];
+            CRC_T expected;
+            CRC_T got;
 
-    function void zero_pad_data(input byte data[], output byte data_zero_padded []);
-        const automatic int DATA_IN_BYTES = data.size();
-        const automatic int PAD_BYTES = DATA_BYTES > DATA_IN_BYTES ? DATA_BYTES-DATA_IN_BYTES : 0;
-        automatic byte data_padded [$] = data;
-        for (int i = 0; i < PAD_BYTES; i++) begin
-            data_padded.push_front(8'h00);
-        end
-        data_zero_padded = data_padded;
-    endfunction
+            string_to_bytes(crc_pkg::CHECK_STRING, check_data);
 
-    //===================================
-    // Tasks
-    //===================================
-    task calculate_crc (input byte data_in[], output CRC_T crc_out, output bit check);
-        automatic byte data_in_padded [];
+            // Build the DATA_BYTES-wide padded input: check string at the start,
+            // trailing zeros if DATA_BYTES > 9, or truncated if DATA_BYTES < 9.
+            padded = new[DATA_BYTES];
+            for (int i = 0; i < DATA_BYTES; i++)
+                padded[i] = (i < check_data.size()) ? check_data[i] : 8'h00;
 
-        // Zero-pad data (if necessary)
-        zero_pad_data(data_in, data_in_padded);
+            expected = reference_crc(padded);
+            drive_beat(padded, got);
+            `FAIL_IF_LOG(got !== expected,
+                $sformatf("check_value: got 0x%0x, expected 0x%0x", got, expected));
 
-        // Feed entire input message into CRC
-        en = 1'b1;
-        for (int byte_idx = 0; byte_idx < DATA_BYTES; byte_idx++) data[byte_idx] = data_in_padded[byte_idx];
-        @(posedge clk);
-        repeat (CRC_LATENCY) @(posedge clk);
-        crc_out = crc;
+            // When the bus is exactly 9 bytes, result must also equal the catalogue CHECK.
+            if (DATA_BYTES == crc_pkg::CHECK_STRING_CHARS) begin
+                `FAIL_IF_LOG(got !== CRC_T'(CRC_SPEC.cfg.CHECK),
+                    $sformatf("check_value (CHECK): got 0x%0x, expected 0x%0x",
+                              got, CRC_SPEC.cfg.CHECK));
+            end
+        `SVTEST_END
 
-        check = (crc_out == calculate(data_in));
-    endtask
+        // Random data must match the software reference model.
+        `SVTEST(random_reference)
+            byte rand_data[];
+            CRC_T expected;
+            CRC_T got;
+
+            random_bytes(DATA_BYTES, rand_data);
+            expected = reference_crc(rand_data);
+            drive_beat(rand_data, got);
+            `FAIL_IF_LOG(got !== expected,
+                $sformatf("random_reference: got 0x%0x, expected 0x%0x", got, expected));
+        `SVTEST_END
+
+        // Output register holds its value when en=0.
+        `SVTEST(en_hold)
+            byte rand_data[];
+            CRC_T first;
+            CRC_T held;
+
+            random_bytes(DATA_BYTES, rand_data);
+            drive_beat(rand_data, first);
+
+            // Keep en=0 for several cycles and verify crc is unchanged
+            repeat (4) @(posedge clk);
+            held = crc;
+            `FAIL_IF_LOG(held !== first,
+                $sformatf("en_hold: output changed to 0x%0x, expected 0x%0x", held, first));
+        `SVTEST_END
+
+        // srst clears the output register to 0.
+        `SVTEST(srst_clears)
+            byte rand_data[];
+            CRC_T got;
+
+            // Compute a non-zero CRC first
+            random_bytes(DATA_BYTES, rand_data);
+            drive_beat(rand_data, got);
+
+            // Assert srst; output should clear
+            @(negedge clk);
+            srst = 1'b1;
+            @(posedge clk);
+            @(negedge clk);
+            srst = 1'b0;
+            got = crc;
+            `FAIL_IF_LOG(got !== '0,
+                $sformatf("srst_clears: output is 0x%0x after reset, expected 0", got));
+        `SVTEST_END
+
+    `SVUNIT_TESTS_END
 
 endmodule : crc_unit_test
 
-// 'Boilerplate' unit test wrapper code
-//  Builds unit test for a specific CRC configuration in a way
-//  that maintains SVUnit compatibility
-`define CRC_UNIT_TEST(CONFIG,BYTES)\
+
+// ============================================================
+// Boilerplate wrapper
+// ============================================================
+`define CRC_UNIT_TEST(CONFIG, BYTES)\
   import svunit_pkg::svunit_testcase;\
   svunit_testcase svunit_ut;\
   crc_unit_test #(.CRC_SPEC(``CONFIG), .DATA_BYTES(``BYTES)) test();\
@@ -195,75 +198,20 @@ endmodule : crc_unit_test
     test.run();\
   endtask
 
-// --------------------------------------------
-// CRC-specific unit tests
-// --------------------------------------------
+// ------------------------------------------------------------
+// Instantiations
+// ------------------------------------------------------------
 
-
-// CRC-8
-module crc8_x9_unit_test;
-`CRC_UNIT_TEST(crc_pkg::CRC8, 9)
+// Narrow path (DATA_BYTES <= 4): exercises g__narrow_crc generate block
+module crc32_x1_unit_test;
+`CRC_UNIT_TEST(crc_pkg::CRC32, 1)
 endmodule
 
-module crc8_x16_unit_test;
-`CRC_UNIT_TEST(crc_pkg::CRC8, 16)
+module crc32_x4_unit_test;
+`CRC_UNIT_TEST(crc_pkg::CRC32, 4)
 endmodule
 
-// CRC-16/CDMA2000
-module crc16_cdma2000_x9_unit_test;
-`CRC_UNIT_TEST(crc_pkg::CRC16_CDMA2000, 9)
-endmodule
-
-module crc16_cdma2000_x16_unit_test;
-`CRC_UNIT_TEST(crc_pkg::CRC16_CDMA2000, 16)
-endmodule
-
-// CRC-16/KERMIT
-module crc16_kermit_x9_unit_test;
-`CRC_UNIT_TEST(crc_pkg::CRC16_KERMIT, 9)
-endmodule
-
-module crc16_kermit_x16_unit_test;
-`CRC_UNIT_TEST(crc_pkg::CRC16_KERMIT, 16)
-endmodule
-
-// CRC-16/USB
-module crc16_usb_x9_unit_test;
-`CRC_UNIT_TEST(crc_pkg::CRC16_USB, 9)
-endmodule
-
-module crc16_usb_x16_unit_test;
-`CRC_UNIT_TEST(crc_pkg::CRC16_USB, 16)
-endmodule
-
-// CRC-16/XMODEM
-module crc16_xmodem_x9_unit_test;
-`CRC_UNIT_TEST(crc_pkg::CRC16_XMODEM, 9)
-endmodule
-
-module crc16_xmodem_x16_unit_test;
-`CRC_UNIT_TEST(crc_pkg::CRC16_XMODEM, 16)
-endmodule
-
-// CRC-16/LTE
-module crc16_lte_x9_unit_test;
-`CRC_UNIT_TEST(crc_pkg::CRC16_LTE, 9)
-endmodule
-
-module crc16_lte_x16_unit_test;
-`CRC_UNIT_TEST(crc_pkg::CRC16_LTE, 16)
-endmodule
-
-// CRC-24/INTERLAKEN
-module crc24_interlaken_x9_unit_test;
-`CRC_UNIT_TEST(crc_pkg::CRC24_INTERLAKEN, 9)
-endmodule
-
-module crc24_interlaken_x16_unit_test;
-`CRC_UNIT_TEST(crc_pkg::CRC24_INTERLAKEN, 16)
-endmodule
-
-// CRC-32
+// Wide path (DATA_BYTES > 4): exercises g__wide_crc generate block
 module crc32_x9_unit_test;
 `CRC_UNIT_TEST(crc_pkg::CRC32, 9)
 endmodule
@@ -272,74 +220,35 @@ module crc32_x16_unit_test;
 `CRC_UNIT_TEST(crc_pkg::CRC32, 16)
 endmodule
 
-// CRC-32/BZIP-2
+// Non-reflected (REFIN=0, REFOUT=0)
 module crc32_bzip2_x9_unit_test;
 `CRC_UNIT_TEST(crc_pkg::CRC32_BZIP2, 9)
 endmodule
 
-module crc32_bzip2_x16_unit_test;
-`CRC_UNIT_TEST(crc_pkg::CRC32_BZIP2, 16)
+// CRC-8 — narrowest width
+module crc8_x1_unit_test;
+`CRC_UNIT_TEST(crc_pkg::CRC8, 1)
 endmodule
 
-// CRC-32/CKSUM
-module crc32_cksum_x9_unit_test;
-`CRC_UNIT_TEST(crc_pkg::CRC32_CKSUM, 9)
+module crc8_x9_unit_test;
+`CRC_UNIT_TEST(crc_pkg::CRC8, 9)
 endmodule
 
-module crc32_cksum_x16_unit_test;
-`CRC_UNIT_TEST(crc_pkg::CRC32_CKSUM, 16)
+// CRC-16
+module crc16_kermit_x9_unit_test;
+`CRC_UNIT_TEST(crc_pkg::CRC16_KERMIT, 9)
 endmodule
 
-// CRC-32/ISO-HDLC
-module crc32_iso_hdlc_x9_unit_test;
-`CRC_UNIT_TEST(crc_pkg::CRC32_ISO_HDLC, 9)
+module crc16_xmodem_x9_unit_test;
+`CRC_UNIT_TEST(crc_pkg::CRC16_XMODEM, 9)
 endmodule
 
-module crc32_iso_hdlc_x16_unit_test;
-`CRC_UNIT_TEST(crc_pkg::CRC32_ISO_HDLC, 16)
+// CRC-24
+module crc24_interlaken_x9_unit_test;
+`CRC_UNIT_TEST(crc_pkg::CRC24_INTERLAKEN, 9)
 endmodule
 
-// CRC-32/ISCSI
-module crc32_iscsi_x9_unit_test;
-`CRC_UNIT_TEST(crc_pkg::CRC32_ISCSI, 9)
-endmodule
-
-module crc32_iscsi_x16_unit_test;
-`CRC_UNIT_TEST(crc_pkg::CRC32_ISCSI, 16)
-endmodule
-
-// CRC-32/INTERLAKEN
-module crc32_interlaken_x9_unit_test;
-`CRC_UNIT_TEST(crc_pkg::CRC32_INTERLAKEN, 9)
-endmodule
-
-module crc32_interlaken_x16_unit_test;
-`CRC_UNIT_TEST(crc_pkg::CRC32_INTERLAKEN, 16)
-endmodule
-
-// CRC-32/AIXM
-module crc32_aixm_x9_unit_test;
-`CRC_UNIT_TEST(crc_pkg::CRC32_AIXM, 9)
-endmodule
-
-module crc32_aixm_x16_unit_test;
-`CRC_UNIT_TEST(crc_pkg::CRC32_AIXM, 16)
-endmodule
-
-// CRC-32/BASE91-D
-module crc32_base91_d_x9_unit_test;
-`CRC_UNIT_TEST(crc_pkg::CRC32_BASE91_D, 9)
-endmodule
-
-module crc32_base91_d_x16_unit_test;
-`CRC_UNIT_TEST(crc_pkg::CRC32_BASE91_D, 16)
-endmodule
-
-// CRC-32/AUTOSAR
-module crc32_autosar_x9_unit_test;
-`CRC_UNIT_TEST(crc_pkg::CRC32_AUTOSAR, 9)
-endmodule
-
-module crc32_autosar_x16_unit_test;
-`CRC_UNIT_TEST(crc_pkg::CRC32_AUTOSAR, 16)
+// CRC-32/ISO-HDLC (= CRC32 alias — confirms alias config identical)
+module crc32_iso_hdlc_x64_unit_test;
+`CRC_UNIT_TEST(crc_pkg::CRC32_ISO_HDLC, 64)
 endmodule

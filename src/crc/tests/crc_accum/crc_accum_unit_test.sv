@@ -305,6 +305,44 @@ module crc_accum_unit_test
                 $sformatf("partial_beat_reset: pkt2=0x%08x, expected 0x%08x", crc2, expected));
         `SVTEST_END
 
+        // Mid-packet en de-assertion: state must hold when en=0 and the final
+        // CRC must still match the reference.
+        `SVTEST(en_hold_mid_packet)
+            byte rand_data[];
+            CRC_T expected;
+            CRC_T got;
+            logic chk;
+
+            random_bytes(DATA_BYTES * 4, rand_data);
+            expected = reference_crc(rand_data);
+
+            // Drive beats 0 and 1, then stall for 3 cycles, then beats 2 and 3
+            for (int beat = 0; beat < 4; beat++) begin
+                if (beat == 2) begin
+                    // De-assert en for 3 cycles mid-packet
+                    @(negedge clk);
+                    en = 1'b0;
+                    repeat (3) @(posedge clk);
+                end
+                @(negedge clk);
+                en  = 1'b1;
+                mty = '0;
+                for (int b = 0; b < DATA_BYTES; b++)
+                    data[b] = rand_data[beat * DATA_BYTES + b];
+                if (beat == 3) begin
+                    #1ns;
+                    got = crc;
+                    chk = check;
+                end
+                @(posedge clk);
+            end
+            @(negedge clk);
+            en = 1'b0;
+
+            `FAIL_IF_LOG(got !== expected,
+                $sformatf("en_hold_mid_packet: got 0x%08x, expected 0x%08x", got, expected));
+        `SVTEST_END
+
         // check output: feed message + correct FCS; check must assert on EOP.
         // Also verify check does NOT assert for a corrupted FCS.
         // Uses feed_packet so this works on any DATA_BYTES width.
