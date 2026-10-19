@@ -47,7 +47,7 @@ class packet_descriptor_intf_driver #(
         debug_msg($sformatf("Sending:\n%s", transaction.to_string()));
 
         // Send transaction
-        packet_descriptor_vif.send(transaction.addr, transaction.size, transaction.meta, transaction.err);
+        packet_descriptor_vif.send(transaction.addr, transaction.size, transaction.meta, transaction.err, transaction.cksum);
 
         debug_msg("Done.");
     endtask

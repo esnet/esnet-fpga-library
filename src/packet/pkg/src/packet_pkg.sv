@@ -39,6 +39,16 @@ package packet_pkg;
     typedef logic [SIZE_FIELD_WID-1:0] size_t;
 
     // ============================================
+    // Packet checksum
+    // ============================================
+    // 16-bit one's complement checksum (IP-style) carried on
+    // packet_descriptor_intf.  cksum == 0 means not calculated — identical
+    // to the TCP/UDP convention for optional checksum offload.
+    localparam int CKSUM_FIELD_WID = 16;
+
+    typedef logic [CKSUM_FIELD_WID-1:0] cksum_t;
+
+    // ============================================
     // Typedefs
     // ============================================
     typedef enum logic [2:0] {

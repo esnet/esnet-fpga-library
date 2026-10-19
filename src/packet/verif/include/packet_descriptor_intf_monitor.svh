@@ -50,24 +50,26 @@ class packet_descriptor_intf_monitor #(
         int size;
         META_T meta;
         bit err;
+        packet_pkg::cksum_t cksum;
 
         trace_msg("_receive()");
 
         debug_msg("Waiting for transaction...");
 
         // Receive transaction
-        packet_descriptor_vif.receive(addr, size, meta, err);
+        packet_descriptor_vif.receive(addr, size, meta, err, cksum);
 
         // Build Rx packet descriptor transaction
-        transaction = new($sformatf("rx_packet_descriptor[%0d]", num_transactions()), addr, size, meta, err);
+        transaction = new($sformatf("rx_packet_descriptor[%0d]", num_transactions()), addr, size, meta, err, cksum);
 
         debug_msg(
-            $sformatf("Received %s (addr: 0x%0x, %0d bytes, err: %0b, meta: 0x%0x)",
+            $sformatf("Received %s (addr: 0x%0x, %0d bytes, err: %0b, meta: 0x%0x, cksum: 0x%04x)",
                 transaction.get_name(),
                 transaction.addr,
                 transaction.size,
                 transaction.err,
-                transaction.meta
+                transaction.meta,
+                transaction.cksum
             )
         );
         trace_msg("_receive() Done.");
