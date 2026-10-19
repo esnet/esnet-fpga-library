@@ -10,7 +10,8 @@ module packet_write
     parameter int  IGNORE_RDY = 0,
     parameter bit  DROP_ERRORED = 1,
     parameter int  MIN_PKT_SIZE = 0,
-    parameter int  MAX_PKT_SIZE = 16384
+    parameter int  MAX_PKT_SIZE = 16384,
+    parameter bit  COMPUTE_CKSUM = 0   // compute 16-bit one's complement checksum per packet
 ) (
     // Clock/Reset
     input  logic                clk,
@@ -212,12 +213,38 @@ module packet_write
     assign mem_wr_if.addr = addr;
     assign mem_wr_if.data = packet_if.data;
      
+    // -------------------------------------------------------------
+    // Per-packet 16-bit one's complement checksum (IP-style)
+    // Enabled by COMPUTE_CKSUM. cksum == 0 in descriptor when disabled.
+    // -------------------------------------------------------------
+    logic [15:0] cksum_out;
+
+    generate
+        if (COMPUTE_CKSUM) begin : g__cksum
+            packet_cksum #(
+                .DATA_BYTE_WID ( DATA_BYTE_WID )
+            ) i_packet_cksum (
+                .clk,
+                .srst,
+                .reset ( pkt_done ),
+                .vld   ( packet_if.vld && packet_if.rdy ),
+                .data  ( packet_if.data ),
+                .eop   ( packet_if.eop ),
+                .mty   ( packet_if.mty ),
+                .cksum ( cksum_out )
+            );
+        end else begin : g__no_cksum
+            assign cksum_out = '0;
+        end
+    endgenerate
+
     // Drive descriptor
-    assign descriptor_if.vld  = desc_valid;
-    assign descriptor_if.addr = nxt_descriptor_if.addr;
-    assign descriptor_if.size = pkt_size;
-    assign descriptor_if.meta = packet_if.meta;
-    assign descriptor_if.err  = packet_if.err;
+    assign descriptor_if.vld   = desc_valid;
+    assign descriptor_if.addr  = nxt_descriptor_if.addr;
+    assign descriptor_if.size  = pkt_size;
+    assign descriptor_if.meta  = packet_if.meta;
+    assign descriptor_if.err   = packet_if.err;
+    assign descriptor_if.cksum = cksum_out;
 
     // Report packet event
     assign event_if.evt = pkt_done;

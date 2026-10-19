@@ -8,7 +8,8 @@ module packet_read
     import packet_pkg::*;
 #(
     parameter bit  IGNORE_RDY = 0,
-    parameter int  MAX_RD_LATENCY = 8
+    parameter int  MAX_RD_LATENCY = 8,
+    parameter bit  CHECK_CKSUM = 0   // verify descriptor cksum; set err on mismatch
 ) (
     // Clock/Reset
     input  logic                clk,
@@ -213,6 +214,44 @@ module packet_read
         .uflow   ( )
     );
 
+    // -------------------------------------------------------------
+    // Per-packet checksum verification
+    // CHECK_CKSUM==1: recomputes the 16-bit one's complement checksum
+    // over output beats and sets cksum_err combinatorially on EOP when
+    // the computed value disagrees with the descriptor (cksum != 0).
+    // -------------------------------------------------------------
+    logic        cksum_err;
+    logic [15:0] __cksum_expected;
+
+    generate
+        if (CHECK_CKSUM) begin : g__cksum_check
+            logic [15:0] cksum_computed;
+
+            always_ff @(posedge clk) begin
+                if (desc_ack) __cksum_expected <= descriptor_if.cksum;
+            end
+
+            packet_cksum #(
+                .DATA_BYTE_WID ( DATA_BYTE_WID )
+            ) i_packet_cksum (
+                .clk,
+                .srst,
+                .reset ( 1'b0 ),
+                .vld   ( packet_if.vld && (IGNORE_RDY ? 1'b1 : packet_if.rdy) ),
+                .data  ( packet_if.data ),
+                .eop   ( packet_if.eop ),
+                .mty   ( packet_if.mty ),
+                .cksum ( cksum_computed )
+            );
+
+            assign cksum_err = (__cksum_expected != 0) && (cksum_computed != __cksum_expected);
+
+        end else begin : g__no_cksum_check
+            assign __cksum_expected = '0;
+            assign cksum_err = 1'b0;
+        end
+    endgenerate
+
     generate
         if (IGNORE_RDY) begin : g__ignore_rdy
             // Backpressure from receiver not supported; no prefetch needed
@@ -237,7 +276,7 @@ module packet_read
             assign packet_if.data = __data;
             assign packet_if.eop  = __ctxt_out.eop;
             assign packet_if.mty  = __ctxt_out.mty;
-            assign packet_if.err  = __ctxt_out.err;
+            assign packet_if.err  = __ctxt_out.err || (cksum_err && __ctxt_out.eop);
             assign packet_if.meta = __ctxt_out.meta;
 
         end : g__ignore_rdy
@@ -279,9 +318,9 @@ module packet_read
             );
 
             assign packet_if.data = __prefetch_rd_data.data;
-            assign packet_if.eop = __prefetch_rd_data.eop;
-            assign packet_if.mty = __prefetch_rd_data.mty;
-            assign packet_if.err = __prefetch_rd_data.err;
+            assign packet_if.eop  = __prefetch_rd_data.eop;
+            assign packet_if.mty  = __prefetch_rd_data.mty;
+            assign packet_if.err  = __prefetch_rd_data.err || (cksum_err && __prefetch_rd_data.eop);
             assign packet_if.meta = __prefetch_rd_data.meta;
 
         end : g__obey_rdy
