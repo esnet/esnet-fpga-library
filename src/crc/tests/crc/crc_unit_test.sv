@@ -11,15 +11,16 @@
 // =========================================================================
 module crc_unit_test
 #(
-    parameter crc_pkg::crc_spec_t CRC_SPEC = crc_pkg::DEFAULT_CRC,
+    parameter crc_pkg::crc_config_t CONFIG = crc_pkg::DEFAULT_CRC,
+    parameter string NAME = "crc",
     parameter int DATA_BYTES = 4
 ) (
 );
     import svunit_pkg::svunit_testcase;
     import crc_pkg::*;
 
-    parameter int WIDTH = CRC_SPEC.cfg.WIDTH;
-    string name = {CRC_SPEC.shortname, "_ut"};
+    parameter int WIDTH = CONFIG.WIDTH;
+    string name = {NAME, "_ut"};
     svunit_testcase svunit_ut;
 
     typedef bit[WIDTH-1:0] CRC_T;
@@ -31,7 +32,7 @@ module crc_unit_test
     logic [0:DATA_BYTES-1][7:0] data;
     CRC_T crc;
 
-    crc #(CRC_SPEC.cfg, DATA_BYTES) UUT (.*);
+    crc #(CONFIG, DATA_BYTES) UUT (.*);
 
     `SVUNIT_CLK_GEN(clk, 5ns);
 
@@ -83,11 +84,11 @@ module crc_unit_test
     function automatic CRC_T reference_crc(byte d[]);
         return crc_verif_pkg::calculate(
             WIDTH,
-            CRC_SPEC.cfg.POLY,
-            CRC_SPEC.cfg.INIT,
-            CRC_SPEC.cfg.REFIN,
-            CRC_SPEC.cfg.REFOUT,
-            CRC_SPEC.cfg.XOROUT,
+            CONFIG.POLY,
+            CONFIG.INIT,
+            CONFIG.REFIN,
+            CONFIG.REFOUT,
+            CONFIG.XOROUT,
             d
         );
     endfunction
@@ -120,9 +121,9 @@ module crc_unit_test
 
             // When the bus is exactly 9 bytes, result must also equal the catalogue CHECK.
             if (DATA_BYTES == crc_pkg::CHECK_STRING_CHARS) begin
-                `FAIL_IF_LOG(got !== CRC_T'(CRC_SPEC.cfg.CHECK),
+                `FAIL_IF_LOG(got !== CRC_T'(CONFIG.CHECK),
                     $sformatf("check_value (CHECK): got 0x%0x, expected 0x%0x",
-                              got, CRC_SPEC.cfg.CHECK));
+                              got, CONFIG.CHECK));
             end
         `SVTEST_END
 
@@ -183,10 +184,10 @@ endmodule : crc_unit_test
 // ============================================================
 // Boilerplate wrapper
 // ============================================================
-`define CRC_UNIT_TEST(CONFIG, BYTES)\
+`define CRC_UNIT_TEST(CFG, NM, BYTES)\
   import svunit_pkg::svunit_testcase;\
   svunit_testcase svunit_ut;\
-  crc_unit_test #(.CRC_SPEC(``CONFIG), .DATA_BYTES(``BYTES)) test();\
+  crc_unit_test #(.CONFIG(CFG), .NAME(NM), .DATA_BYTES(BYTES)) test();\
   function void build();\
     test.build();\
     svunit_ut = test.svunit_ut;\
@@ -204,51 +205,51 @@ endmodule : crc_unit_test
 
 // Narrow path (DATA_BYTES <= 4): exercises g__narrow_crc generate block
 module crc32_x1_unit_test;
-`CRC_UNIT_TEST(crc_pkg::CRC32, 1)
+`CRC_UNIT_TEST(crc_pkg::CRC32, "crc32", 1)
 endmodule
 
 module crc32_x4_unit_test;
-`CRC_UNIT_TEST(crc_pkg::CRC32, 4)
+`CRC_UNIT_TEST(crc_pkg::CRC32, "crc32", 4)
 endmodule
 
 // Wide path (DATA_BYTES > 4): exercises g__wide_crc generate block
 module crc32_x9_unit_test;
-`CRC_UNIT_TEST(crc_pkg::CRC32, 9)
+`CRC_UNIT_TEST(crc_pkg::CRC32, "crc32", 9)
 endmodule
 
 module crc32_x16_unit_test;
-`CRC_UNIT_TEST(crc_pkg::CRC32, 16)
+`CRC_UNIT_TEST(crc_pkg::CRC32, "crc32", 16)
 endmodule
 
 // Non-reflected (REFIN=0, REFOUT=0)
 module crc32_bzip2_x9_unit_test;
-`CRC_UNIT_TEST(crc_pkg::CRC32_BZIP2, 9)
+`CRC_UNIT_TEST(crc_pkg::CRC32_BZIP2, "crc32_bzip2", 9)
 endmodule
 
 // CRC-8 — narrowest width
 module crc8_x1_unit_test;
-`CRC_UNIT_TEST(crc_pkg::CRC8, 1)
+`CRC_UNIT_TEST(crc_pkg::CRC8, "crc8", 1)
 endmodule
 
 module crc8_x9_unit_test;
-`CRC_UNIT_TEST(crc_pkg::CRC8, 9)
+`CRC_UNIT_TEST(crc_pkg::CRC8, "crc8", 9)
 endmodule
 
 // CRC-16
 module crc16_kermit_x9_unit_test;
-`CRC_UNIT_TEST(crc_pkg::CRC16_KERMIT, 9)
+`CRC_UNIT_TEST(crc_pkg::CRC16_KERMIT, "crc16_kermit", 9)
 endmodule
 
 module crc16_xmodem_x9_unit_test;
-`CRC_UNIT_TEST(crc_pkg::CRC16_XMODEM, 9)
+`CRC_UNIT_TEST(crc_pkg::CRC16_XMODEM, "crc16_xmodem", 9)
 endmodule
 
 // CRC-24
 module crc24_interlaken_x9_unit_test;
-`CRC_UNIT_TEST(crc_pkg::CRC24_INTERLAKEN, 9)
+`CRC_UNIT_TEST(crc_pkg::CRC24_INTERLAKEN, "crc24_interlaken", 9)
 endmodule
 
 // CRC-32/ISO-HDLC (= CRC32 alias — confirms alias config identical)
 module crc32_iso_hdlc_x64_unit_test;
-`CRC_UNIT_TEST(crc_pkg::CRC32_ISO_HDLC, 64)
+`CRC_UNIT_TEST(crc_pkg::CRC32_ISO_HDLC, "crc32_iso_hdlc", 64)
 endmodule

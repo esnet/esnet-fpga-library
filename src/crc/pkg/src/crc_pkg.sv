@@ -9,24 +9,20 @@ package crc_pkg;
     // ========================================================
     // Typedefs
     // ========================================================
-    typedef bit[31:0] CRC_T;
+    typedef logic [31:0] CRC_T;
 
-    typedef struct {
-        int   WIDTH;
-        CRC_T POLY;
-        CRC_T INIT;
-        int   REFIN;
-        int   REFOUT;
-        CRC_T XOROUT;
-        CRC_T CHECK;
-        CRC_T RESIDUE;
+    // Packed struct so Verilator can constant-fold it as a module parameter.
+    // All fields are 32 bits wide (total 256 bits).
+    typedef struct packed {
+        logic [31:0] WIDTH;
+        logic [31:0] POLY;
+        logic [31:0] INIT;
+        logic [31:0] REFIN;
+        logic [31:0] REFOUT;
+        logic [31:0] XOROUT;
+        logic [31:0] CHECK;
+        logic [31:0] RESIDUE;
     } crc_config_t;
-
-    typedef struct {
-        string       name;
-        string       shortname;
-        crc_config_t cfg;
-    } crc_spec_t;
 
     // ========================================================
     // Functions
@@ -128,89 +124,55 @@ package crc_pkg;
     // ------------------
     // CRC-8
     // ------------------
-    localparam crc_config_t CRC8_SMBUS_CFG = '{WIDTH: 8, POLY: 8'h07, INIT: 8'h00, REFIN: 0, REFOUT: 0, XOROUT: 8'h00, CHECK: 8'hf4, RESIDUE: 8'h00};
-    localparam crc_spec_t   CRC8_SMBUS     = '{name: "CRC-8/SMBUS", shortname: "crc8_smbus",  cfg: CRC8_SMBUS_CFG};
+    localparam crc_config_t CRC8_SMBUS  = '{WIDTH: 8,  POLY: 32'h07,       INIT: 32'h00,       REFIN: 0, REFOUT: 0, XOROUT: 32'h00,       CHECK: 32'hf4,       RESIDUE: 32'h00};
     // -- Aliases
-    localparam crc_spec_t   CRC8           = '{name: "CRC-8",       shortname: "crc8",        cfg: CRC8_SMBUS_CFG};
+    localparam crc_config_t CRC8        = CRC8_SMBUS;
 
     // ------------------
     // CRC-16
     // ------------------
-    // CRC-16/CDMA2000
-    localparam crc_config_t CRC16_CDMA2000_CFG = '{WIDTH: 16, POLY: 16'hc867, INIT: 16'hffff, REFIN: 0, REFOUT: 0, XOROUT: 16'h0000, CHECK: 16'h4c06, RESIDUE: 16'h0000};
-    localparam crc_spec_t   CRC16_CDMA2000     = '{name: "CRC-16/CDMA2000",    shortname: "crc16_cdma2000",    cfg: CRC16_CDMA2000_CFG};
-
-    // CRC-16/KERMIT
-    localparam crc_config_t CRC16_KERMIT_CFG   = '{WIDTH: 16, POLY: 16'h1021, INIT: 16'h0000, REFIN: 1, REFOUT: 1, XOROUT: 16'h0000, CHECK: 16'h2189, RESIDUE: 16'h0000};
-    localparam crc_spec_t   CRC16_KERMIT       = '{name: "CRC-16/KERMIT",      shortname: "crc16_kermit",      cfg: CRC16_KERMIT_CFG};
+    localparam crc_config_t CRC16_CDMA2000 = '{WIDTH: 16, POLY: 32'hc867, INIT: 32'hffff, REFIN: 0, REFOUT: 0, XOROUT: 32'h0000, CHECK: 32'h4c06, RESIDUE: 32'h0000};
+    localparam crc_config_t CRC16_KERMIT   = '{WIDTH: 16, POLY: 32'h1021, INIT: 32'h0000, REFIN: 1, REFOUT: 1, XOROUT: 32'h0000, CHECK: 32'h2189, RESIDUE: 32'h0000};
     // -- Aliases
-    localparam crc_spec_t   CRC16_CCITT        = '{name: "CRC-16/CCITT",       shortname: "crc16_ccitt",       cfg: CRC16_KERMIT_CFG};
-    localparam crc_spec_t   CRC16_V41_LSB      = '{name: "CRC-16/V-41-LSB",    shortname: "crc16_v41_lsb",     cfg: CRC16_KERMIT_CFG};
-
-    // CRC-16/USB
-    localparam crc_config_t CRC16_USB_CFG      = '{WIDTH: 16, POLY: 16'h8005, INIT: 16'hffff, REFIN: 1, REFOUT: 1, XOROUT: 16'hffff, CHECK: 16'hb4c8, RESIDUE: 16'hb001};
-    localparam crc_spec_t   CRC16_USB          = '{name: "CRC-16/USB",         shortname: "crc16_usb",         cfg: CRC16_USB_CFG};
-
-    // CRC-16/XMODEM
-    localparam crc_config_t CRC16_XMODEM_CFG   = '{WIDTH: 16, POLY: 16'h1021, INIT: 16'h0000, REFIN: 0, REFOUT: 0, XOROUT: 16'h0000, CHECK: 16'h31c3, RESIDUE: 16'h0000};
-    localparam crc_spec_t   CRC16_XMODEM       = '{name: "CRC-16/XMODEM",      shortname: "crc16_xmodem",      cfg: CRC16_XMODEM_CFG};
+    localparam crc_config_t CRC16_CCITT    = CRC16_KERMIT;
+    localparam crc_config_t CRC16_V41_LSB  = CRC16_KERMIT;
+    localparam crc_config_t CRC16_USB      = '{WIDTH: 16, POLY: 32'h8005, INIT: 32'hffff, REFIN: 1, REFOUT: 1, XOROUT: 32'hffff, CHECK: 32'hb4c8, RESIDUE: 32'hb001};
+    localparam crc_config_t CRC16_XMODEM   = '{WIDTH: 16, POLY: 32'h1021, INIT: 32'h0000, REFIN: 0, REFOUT: 0, XOROUT: 32'h0000, CHECK: 32'h31c3, RESIDUE: 32'h0000};
     // -- Aliases
-    localparam crc_spec_t   CRC16_LTE          = '{name: "CRC-16/LTE",         shortname: "crc16_lte",         cfg: CRC16_XMODEM_CFG};
-    localparam crc_spec_t   CRC16_V41_MSB      = '{name: "CRC-16/V-41-MSB",    shortname: "crc16_v41_msb",     cfg: CRC16_XMODEM_CFG};
+    localparam crc_config_t CRC16_LTE      = CRC16_XMODEM;
+    localparam crc_config_t CRC16_V41_MSB  = CRC16_XMODEM;
 
     // ------------------
     // CRC-24
     // ------------------
-    // CRC-24/INTERLAKEN
-    localparam crc_config_t CRC24_INTERLAKEN_CFG = '{WIDTH: 24, POLY: 24'h328b63, INIT: 24'hffffff, REFIN: 0, REFOUT: 0, XOROUT: 24'hffffff, CHECK: 24'hb4f3e6, RESIDUE: 24'h144e63};
-    localparam crc_spec_t   CRC24_INTERLAKEN     = '{name: "CRC-24/INTERLAKEN", shortname: "crc24_interlaken", cfg: CRC24_INTERLAKEN_CFG};
+    localparam crc_config_t CRC24_INTERLAKEN = '{WIDTH: 24, POLY: 32'h328b63, INIT: 32'hffffff, REFIN: 0, REFOUT: 0, XOROUT: 32'hffffff, CHECK: 32'hb4f3e6, RESIDUE: 32'h144e63};
 
     // ------------------
     // CRC-32
     // ------------------
-    // CRC-32/BZIP2
-    localparam crc_config_t CRC32_BZIP2_CFG    = '{WIDTH: 32, POLY: 32'h04c11db7, INIT: 32'hffffffff, REFIN: 0, REFOUT: 0, XOROUT: 32'hffffffff, CHECK: 32'hfc891918, RESIDUE: 32'hc704dd7b};
-    localparam crc_spec_t   CRC32_BZIP2        = '{name: "CRC-32/BZIP-2",      shortname: "crc32_bzip2",       cfg: CRC32_BZIP2_CFG};
+    localparam crc_config_t CRC32_BZIP2    = '{WIDTH: 32, POLY: 32'h04c11db7, INIT: 32'hffffffff, REFIN: 0, REFOUT: 0, XOROUT: 32'hffffffff, CHECK: 32'hfc891918, RESIDUE: 32'hc704dd7b};
     // -- Aliases
-    localparam crc_spec_t   CRC32_AAL5         = '{name: "CRC-32/AAL5",        shortname: "crc32_aal5",        cfg: CRC32_BZIP2_CFG};
-
-    // CRC-32/CKSUM
-    localparam crc_config_t CRC32_CKSUM_CFG    = '{WIDTH: 32, POLY: 32'h04c11db7, INIT: 32'h00000000, REFIN: 0, REFOUT: 0, XOROUT: 32'hffffffff, CHECK: 32'h765e7680, RESIDUE: 32'hc704dd7b};
-    localparam crc_spec_t   CRC32_CKSUM        = '{name: "CRC-32/CKSUM",       shortname: "crc32_cksum",       cfg: CRC32_CKSUM_CFG};
+    localparam crc_config_t CRC32_AAL5     = CRC32_BZIP2;
+    localparam crc_config_t CRC32_CKSUM    = '{WIDTH: 32, POLY: 32'h04c11db7, INIT: 32'h00000000, REFIN: 0, REFOUT: 0, XOROUT: 32'hffffffff, CHECK: 32'h765e7680, RESIDUE: 32'hc704dd7b};
     // -- Aliases
-    localparam crc_spec_t   CRC32_POSIX        = '{name: "CRC-32/POSIX",       shortname: "crc32_posix",       cfg: CRC32_CKSUM_CFG};
-
-    // CRC-32/ISO-HDLC
-    localparam crc_config_t CRC32_ISO_HDLC_CFG = '{WIDTH: 32, POLY: 32'h04c11db7, INIT: 32'hffffffff, REFIN: 1, REFOUT: 1, XOROUT: 32'hffffffff, CHECK: 32'hcbf43926, RESIDUE: 32'hdebb20e3};
-    localparam crc_spec_t   CRC32_ISO_HDLC     = '{name: "CRC-32/ISO-HDLC",    shortname: "crc32_iso_hdlc",    cfg: CRC32_ISO_HDLC_CFG};
+    localparam crc_config_t CRC32_POSIX    = CRC32_CKSUM;
+    localparam crc_config_t CRC32_ISO_HDLC = '{WIDTH: 32, POLY: 32'h04c11db7, INIT: 32'hffffffff, REFIN: 1, REFOUT: 1, XOROUT: 32'hffffffff, CHECK: 32'hcbf43926, RESIDUE: 32'hdebb20e3};
     // -- Aliases
-    localparam crc_spec_t   CRC32              = '{name: "CRC-32",             shortname: "crc32",             cfg: CRC32_ISO_HDLC_CFG};
-    localparam crc_spec_t   CRC32_V42          = '{name: "CRC-32/V-42",        shortname: "crc32_v42",         cfg: CRC32_ISO_HDLC_CFG};
-
-    // CRC-32/ICSCI
-    localparam crc_config_t CRC32_ISCSI_CFG    = '{WIDTH: 32, POLY: 32'h1edc6f41, INIT: 32'hffffffff, REFIN: 1, REFOUT: 1, XOROUT: 32'hffffffff, CHECK: 32'he3069283, RESIDUE: 32'hb798b438};
-    localparam crc_spec_t   CRC32_ISCSI        = '{name: "CRC-32/ISCSI",       shortname: "crc32_iscsi",       cfg: CRC32_ISCSI_CFG};
+    localparam crc_config_t CRC32          = CRC32_ISO_HDLC;
+    localparam crc_config_t CRC32_V42      = CRC32_ISO_HDLC;
+    localparam crc_config_t CRC32_ISCSI    = '{WIDTH: 32, POLY: 32'h1edc6f41, INIT: 32'hffffffff, REFIN: 1, REFOUT: 1, XOROUT: 32'hffffffff, CHECK: 32'he3069283, RESIDUE: 32'hb798b438};
     // -- Aliases
-    localparam crc_spec_t   CRC32_INTERLAKEN   = '{name: "CRC-32/INTERLAKEN",  shortname: "crc32_interlaken",  cfg: CRC32_ISCSI_CFG};
-    localparam crc_spec_t   CRC32_C            = '{name: "CRC-32C",            shortname: "crc32c",            cfg: CRC32_ISCSI_CFG};
-
-    // CRC-32/AIXM
-    localparam crc_config_t CRC32_AIXM_CFG     = '{WIDTH: 32, POLY: 32'h814141ab, INIT: 32'h00000000, REFIN: 0, REFOUT: 0, XOROUT: 32'h00000000, CHECK: 32'h3010bf7f, RESIDUE: 32'h00000000};
-    localparam crc_spec_t   CRC32_AIXM         = '{name: "CRC-32/AIXM",        shortname: "crc32_aixm",        cfg: CRC32_AIXM_CFG};
-    localparam crc_spec_t   CRC32_Q            = '{name: "CRC-32Q",            shortname: "crc32q",            cfg: CRC32_AIXM_CFG};
-
-    // CRC-32/BASE91-D
-    localparam crc_config_t CRC32_BASE91_D_CFG = '{WIDTH: 32, POLY: 32'ha833982b, INIT: 32'hffffffff, REFIN: 1, REFOUT: 1, XOROUT: 32'hffffffff, CHECK: 32'h87315576, RESIDUE: 32'h45270551};
-    localparam crc_spec_t   CRC32_BASE91_D     = '{name: "CRC-32/BASE91-D",    shortname: "crc32_base91_d",    cfg: CRC32_BASE91_D_CFG};
-    localparam crc_spec_t   CRC32_D            = '{name: "CRC-32D",            shortname: "crc32d",            cfg: CRC32_BASE91_D_CFG};
-
-    // CRC-32/AUTOSAR
-    localparam crc_config_t CRC32_AUTOSAR_CFG  = '{WIDTH: 32, POLY: 32'hf4acfb13, INIT: 32'hffffffff, REFIN: 1, REFOUT: 1, XOROUT: 32'hffffffff, CHECK: 32'h1697d06a, RESIDUE: 32'h904cddbf};
-    localparam crc_spec_t   CRC32_AUTOSAR      = '{name: "CRC-32/AUTOSAR",     shortname: "crc32_autosar",     cfg: CRC32_AUTOSAR_CFG};
+    localparam crc_config_t CRC32_INTERLAKEN = CRC32_ISCSI;
+    localparam crc_config_t CRC32_C          = CRC32_ISCSI;
+    localparam crc_config_t CRC32_AIXM      = '{WIDTH: 32, POLY: 32'h814141ab, INIT: 32'h00000000, REFIN: 0, REFOUT: 0, XOROUT: 32'h00000000, CHECK: 32'h3010bf7f, RESIDUE: 32'h00000000};
+    localparam crc_config_t CRC32_Q         = CRC32_AIXM;
+    localparam crc_config_t CRC32_BASE91_D  = '{WIDTH: 32, POLY: 32'ha833982b, INIT: 32'hffffffff, REFIN: 1, REFOUT: 1, XOROUT: 32'hffffffff, CHECK: 32'h87315576, RESIDUE: 32'h45270551};
+    localparam crc_config_t CRC32_D         = CRC32_BASE91_D;
+    localparam crc_config_t CRC32_AUTOSAR   = '{WIDTH: 32, POLY: 32'hf4acfb13, INIT: 32'hffffffff, REFIN: 1, REFOUT: 1, XOROUT: 32'hffffffff, CHECK: 32'h1697d06a, RESIDUE: 32'h904cddbf};
 
     // ------------------
     // Default
     // ------------------
-    localparam crc_spec_t DEFAULT_CRC = CRC32;
+    localparam crc_config_t DEFAULT_CRC = CRC32;
 
 endpackage : crc_pkg

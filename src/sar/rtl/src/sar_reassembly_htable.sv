@@ -35,10 +35,10 @@ module sar_reassembly_htable
     localparam int KEY_BYTES = KEY_BITS % 8 == 0 ? KEY_BITS / 8 : KEY_BITS / 8 + 1;
 
     localparam crc_pkg::crc_config_t CRC_CONFIG[4] = '{
-        0 : crc_pkg::CRC32_ISO_HDLC_CFG, // CRC-32
-        1 : crc_pkg::CRC32_ISCSI_CFG,    // CRC-32C
-        2 : crc_pkg::CRC32_BASE91_D_CFG, // CRC-32D
-        3 : crc_pkg::CRC32_AUTOSAR_CFG   //
+        0 : crc_pkg::CRC32_ISO_HDLC, // CRC-32
+        1 : crc_pkg::CRC32_ISCSI,    // CRC-32C
+        2 : crc_pkg::CRC32_BASE91_D, // CRC-32D
+        3 : crc_pkg::CRC32_AUTOSAR   //
     };
 
     // Implement 3-way hash table with capacity equal to 150% of target

@@ -36,7 +36,7 @@
 module crc_accum
     import crc_pkg::*;
 #(
-    parameter crc_config_t CONFIG = DEFAULT_CRC.cfg,
+    parameter crc_config_t CONFIG = DEFAULT_CRC,
     parameter int DATA_BYTES = 1
 )(
     input  logic clk,

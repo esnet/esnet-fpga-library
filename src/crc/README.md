@@ -37,8 +37,7 @@ These fields follow the standard CRC catalogue definition at
 
 ### Predefined specifications
 
-`crc_pkg` provides `crc_spec_t` constants for common algorithms.  Pass the
-`.cfg` field as the `CONFIG` parameter:
+`crc_pkg` provides `crc_config_t` constants for common algorithms:
 
 | Constant | Algorithm | REFIN | REFOUT | Typical use |
 |----------|-----------|-------|--------|-------------|
@@ -87,7 +86,7 @@ word on every enabled cycle.  The result is registered.
 
 ```
 Parameter     Default            Description
-CONFIG        DEFAULT_CRC.cfg    CRC algorithm configuration
+CONFIG        DEFAULT_CRC        CRC algorithm configuration
 DATA_BYTES    1                  Width of the data bus, in bytes
 ```
 
@@ -112,7 +111,7 @@ the current beat and is valid in the same cycle as the asserted `en`.
 
 ```
 Parameter     Default            Description
-CONFIG        DEFAULT_CRC.cfg    CRC algorithm configuration
+CONFIG        DEFAULT_CRC        CRC algorithm configuration
 DATA_BYTES    1                  Width of the data bus, in bytes
 ```
 

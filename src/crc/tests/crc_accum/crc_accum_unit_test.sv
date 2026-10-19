@@ -11,15 +11,16 @@
 // =========================================================================
 module crc_accum_unit_test
 #(
-    parameter crc_pkg::crc_spec_t CRC_SPEC = crc_pkg::DEFAULT_CRC,
+    parameter crc_pkg::crc_config_t CONFIG = crc_pkg::DEFAULT_CRC,
+    parameter string NAME = "crc",
     parameter int DATA_BYTES = 1
 ) (
 );
     import svunit_pkg::svunit_testcase;
     import crc_pkg::*;
 
-    parameter int WIDTH = CRC_SPEC.cfg.WIDTH;
-    string name = {CRC_SPEC.shortname, "_accum_ut"};
+    parameter int WIDTH = CONFIG.WIDTH;
+    string name = {NAME, "_accum_ut"};
     svunit_testcase svunit_ut;
 
     typedef bit[WIDTH-1:0] CRC_T;
@@ -33,7 +34,7 @@ module crc_accum_unit_test
     CRC_T crc;
     logic check;
 
-    crc_accum #(CRC_SPEC.cfg, DATA_BYTES) UUT (.*);
+    crc_accum #(CONFIG, DATA_BYTES) UUT (.*);
 
     `SVUNIT_CLK_GEN(clk, 5ns);
 
@@ -137,11 +138,11 @@ module crc_accum_unit_test
     function automatic CRC_T reference_crc(byte data_in[]);
         return crc_verif_pkg::calculate(
             WIDTH,
-            CRC_SPEC.cfg.POLY,
-            CRC_SPEC.cfg.INIT,
-            CRC_SPEC.cfg.REFIN,
-            CRC_SPEC.cfg.REFOUT,
-            CRC_SPEC.cfg.XOROUT,
+            CONFIG.POLY,
+            CONFIG.INIT,
+            CONFIG.REFIN,
+            CONFIG.REFOUT,
+            CONFIG.XOROUT,
             data_in
         );
     endfunction
@@ -207,11 +208,11 @@ module crc_accum_unit_test
                 $sformatf("long_transfer_reference: got 0x%08x, expected 0x%08x", got, expected));
         `SVTEST_END
 
-        // Check string produces the CRC_SPEC.cfg.CHECK value.
+        // Check string produces the CONFIG.CHECK value.
         // Uses feed_packet so the 9-byte string is handled correctly on any bus width.
         `SVTEST(check_value)
             byte check_data[];
-            CRC_T expected = CRC_SPEC.cfg.CHECK;
+            CRC_T expected = CONFIG.CHECK;
             CRC_T got;
             logic chk;
 
@@ -360,9 +361,9 @@ module crc_accum_unit_test
 
             // Reflected algorithms (REFOUT=1) place the FCS LSB-first on the wire.
             // Non-reflected (REFOUT=0) place it MSB-first.
-            fcs_bytes = new[CRC_SPEC.cfg.WIDTH / 8];
-            for (int i = 0; i < CRC_SPEC.cfg.WIDTH / 8; i++) begin
-                automatic int byte_idx = CRC_SPEC.cfg.REFOUT ? i : (CRC_SPEC.cfg.WIDTH / 8 - 1 - i);
+            fcs_bytes = new[CONFIG.WIDTH / 8];
+            for (int i = 0; i < CONFIG.WIDTH / 8; i++) begin
+                automatic int byte_idx = CONFIG.REFOUT ? i : (CONFIG.WIDTH / 8 - 1 - i);
                 fcs_bytes[i] = fcs[8*byte_idx +: 8];
             end
 
@@ -391,10 +392,10 @@ endmodule : crc_accum_unit_test
 // ============================================================
 // Boilerplate wrapper — mirrors the pattern in crc_unit_test.sv
 // ============================================================
-`define CRC_ACCUM_UNIT_TEST(CONFIG, BYTES)\
+`define CRC_ACCUM_UNIT_TEST(CFG, NM, BYTES)\
   import svunit_pkg::svunit_testcase;\
   svunit_testcase svunit_ut;\
-  crc_accum_unit_test #(.CRC_SPEC(``CONFIG), .DATA_BYTES(``BYTES)) test();\
+  crc_accum_unit_test #(.CONFIG(CFG), .NAME(NM), .DATA_BYTES(BYTES)) test();\
   function void build();\
     test.build();\
     svunit_ut = test.svunit_ut;\
@@ -413,30 +414,30 @@ endmodule : crc_accum_unit_test
 // CRC-32 — byte-serial (DATA_BYTES=1): verifies multi-beat accumulation
 // and produces the catalogued CHECK value directly.
 module crc32_accum_x1_unit_test;
-`CRC_ACCUM_UNIT_TEST(crc_pkg::CRC32, 1)
+`CRC_ACCUM_UNIT_TEST(crc_pkg::CRC32, "crc32", 1)
 endmodule
 
 // CRC-32 — 9-byte bus (wide single beat, same width as check string)
 module crc32_accum_x9_unit_test;
-`CRC_ACCUM_UNIT_TEST(crc_pkg::CRC32, 9)
+`CRC_ACCUM_UNIT_TEST(crc_pkg::CRC32, "crc32", 9)
 endmodule
 
 // CRC-32/ISO-HDLC — wide bus matching the QDMA C2H use case
 module crc32_iso_hdlc_accum_x64_unit_test;
-`CRC_ACCUM_UNIT_TEST(crc_pkg::CRC32_ISO_HDLC, 64)
+`CRC_ACCUM_UNIT_TEST(crc_pkg::CRC32_ISO_HDLC, "crc32_iso_hdlc", 64)
 endmodule
 
 // CRC-8 — narrow, exercises the g_narrow generate path
 module crc8_accum_x1_unit_test;
-`CRC_ACCUM_UNIT_TEST(crc_pkg::CRC8, 1)
+`CRC_ACCUM_UNIT_TEST(crc_pkg::CRC8, "crc8", 1)
 endmodule
 
 // CRC-32/BZIP2 — non-reflected (REFIN=0, REFOUT=0); exercises the MSB-first
 // FCS byte-append path in check_output.
 module crc32_bzip2_accum_x1_unit_test;
-`CRC_ACCUM_UNIT_TEST(crc_pkg::CRC32_BZIP2, 1)
+`CRC_ACCUM_UNIT_TEST(crc_pkg::CRC32_BZIP2, "crc32_bzip2", 1)
 endmodule
 
 module crc32_bzip2_accum_x8_unit_test;
-`CRC_ACCUM_UNIT_TEST(crc_pkg::CRC32_BZIP2, 8)
+`CRC_ACCUM_UNIT_TEST(crc_pkg::CRC32_BZIP2, "crc32_bzip2", 8)
 endmodule
