@@ -2,12 +2,14 @@
 
 module packet_q_core_unit_test #(
     parameter int NUM_INPUT_IFS = 1,
-    parameter int NUM_OUTPUT_IFS = 1
+    parameter int NUM_OUTPUT_IFS = 1,
+    parameter bit CKSUM_EN = 0
 );
     import svunit_pkg::svunit_testcase;
     import packet_verif_pkg::*;
 
-    string name = $sformatf("packet_q_core_%0din_%0dout_ut", NUM_INPUT_IFS, NUM_OUTPUT_IFS);
+    localparam string cksum_str = CKSUM_EN ? "_cksum_en" : "";
+    string name = $sformatf("packet_q_core_%0din_%0dout%s_ut", NUM_INPUT_IFS, NUM_OUTPUT_IFS, cksum_str);
     svunit_testcase svunit_ut;
 
     //===================================
@@ -115,6 +117,7 @@ module packet_q_core_unit_test #(
         .MAX_BURST_LEN  ( 16 ),
         .N_ALLOC        ( 4 ),
         .N_GATHER       ( 4 ),
+        .CKSUM_EN       ( CKSUM_EN ),
         .SIM__FAST_INIT ( 0 ),
         .SIM__RAM_MODEL ( 0 )
     ) DUT (.*);
@@ -615,10 +618,10 @@ endmodule
 //  Builds unit test for a parameterized
 //  packet_q_core instance that maintains
 //  SVUnit compatibility
-`define PACKET_Q_CORE_TEST(INPUT_IFS,OUTPUT_IFS)\
+`define PACKET_Q_CORE_TEST(INPUT_IFS,OUTPUT_IFS,CKSUM_EN)\
   import svunit_pkg::svunit_testcase;\
   svunit_testcase svunit_ut;\
-  packet_q_core_unit_test #(INPUT_IFS,OUTPUT_IFS) test();\
+  packet_q_core_unit_test #(INPUT_IFS,OUTPUT_IFS,CKSUM_EN) test();\
   function void build();\
     test.build();\
     svunit_ut = test.svunit_ut;\
@@ -632,9 +635,13 @@ endmodule
 
 
 module packet_q_core_1in_1out_unit_test;
-`PACKET_Q_CORE_TEST(1,1)
+`PACKET_Q_CORE_TEST(1,1,0)
 endmodule
 
 module packet_q_core_2in_2out_unit_test;
-`PACKET_Q_CORE_TEST(2,2)
+`PACKET_Q_CORE_TEST(2,2,0)
+endmodule
+
+module packet_q_core_1in_1out_cksum_en_unit_test;
+`PACKET_Q_CORE_TEST(1,1,1)
 endmodule

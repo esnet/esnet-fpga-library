@@ -75,11 +75,12 @@ module packet_q_manager
 
     // Typedefs
     typedef struct packed {
-        logic [PKT_PTR_WID-1:0] addr;
-        logic [SIZE_WID-1:0]    size;
-        logic [META_WID-1:0]    meta;
-        logic                   err;
-        logic [SEL_WID-1:0]     src;
+        logic [PKT_PTR_WID-1:0]                  addr;
+        logic [SIZE_WID-1:0]                      size;
+        logic [META_WID-1:0]                      meta;
+        logic                                     err;
+        logic [SEL_WID-1:0]                       src;
+        logic [packet_pkg::CKSUM_FIELD_WID-1:0]   cksum;
     } desc_t;
     localparam int DESC_WID = $bits(desc_t);
 
@@ -148,11 +149,12 @@ module packet_q_manager
             logic          enq_rdy;
 
             // Enqueue FIFO
-            assign enq_fifo_wr_data.desc.err  = desc_in_if[g_if_in].err;
-            assign enq_fifo_wr_data.desc.addr = desc_in_if[g_if_in].addr;
-            assign enq_fifo_wr_data.desc.meta = desc_in_if[g_if_in].meta;
-            assign enq_fifo_wr_data.desc.size = desc_in_if[g_if_in].size;
-            assign enq_fifo_wr_data.desc.src  = g_if_in;
+            assign enq_fifo_wr_data.desc.err   = desc_in_if[g_if_in].err;
+            assign enq_fifo_wr_data.desc.addr  = desc_in_if[g_if_in].addr;
+            assign enq_fifo_wr_data.desc.meta  = desc_in_if[g_if_in].meta;
+            assign enq_fifo_wr_data.desc.size  = desc_in_if[g_if_in].size;
+            assign enq_fifo_wr_data.desc.src   = g_if_in;
+            assign enq_fifo_wr_data.desc.cksum = desc_in_if[g_if_in].cksum;
             assign enq_fifo_wr_data.q = desc_in_q[g_if_in];
 
             fifo_sync    #(
@@ -280,10 +282,11 @@ module packet_q_manager
         .uflow   ( )
     );
 
-    assign desc_out_if.addr = desc_fifo_rd_data.desc.addr;
-    assign desc_out_if.size = desc_fifo_rd_data.desc.size;
-    assign desc_out_if.meta = desc_fifo_rd_data.desc.meta;
-    assign desc_out_if.err  = desc_fifo_rd_data.desc.err;
+    assign desc_out_if.addr  = desc_fifo_rd_data.desc.addr;
+    assign desc_out_if.size  = desc_fifo_rd_data.desc.size;
+    assign desc_out_if.meta  = desc_fifo_rd_data.desc.meta;
+    assign desc_out_if.err   = desc_fifo_rd_data.desc.err;
+    assign desc_out_if.cksum = desc_fifo_rd_data.desc.cksum;
     assign desc_out_q = desc_fifo_rd_data.q;
 
     assign deq_ack  = load_ack;

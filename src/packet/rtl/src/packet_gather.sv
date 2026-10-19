@@ -16,7 +16,8 @@ module packet_gather #(
     parameter int MAX_RD_LATENCY = 8,
     parameter int MAX_BURST_LEN = 1,
     parameter int N = 1,
-    parameter int BUFFER_PREFETCH_DEPTH = 8
+    parameter int BUFFER_PREFETCH_DEPTH = 8,
+    parameter bit CHECK_CKSUM = 0   // verify descriptor cksum; set err on mismatch
 ) (
     // Clock/Reset
     input  logic                clk,
@@ -99,18 +100,20 @@ module packet_gather #(
     } read_state_t;
 
     typedef struct packed {
-        logic [PTR_WID-1:0]  ptr;
-        logic                eof;
-        logic [SIZE_WID-1:0] size;
-        logic [META_WID-1:0] meta;
-        logic                err;
+        logic [PTR_WID-1:0]                     ptr;
+        logic                                   eof;
+        logic [SIZE_WID-1:0]                    size;
+        logic [META_WID-1:0]                    meta;
+        logic                                   err;
+        logic [packet_pkg::CKSUM_FIELD_WID-1:0] cksum;
     } buffer_ctxt_t;
 
     typedef struct packed {
-        logic                eop;
-        logic [MTY_WID-1:0]  mty;
-        logic [META_WID-1:0] meta;
-        logic                err;
+        logic                                   eop;
+        logic [MTY_WID-1:0]                     mty;
+        logic [META_WID-1:0]                    meta;
+        logic                                   err;
+        logic [packet_pkg::CKSUM_FIELD_WID-1:0] cksum;
     } rd_ctxt_t;
 
     // -----------------------------
@@ -197,11 +200,24 @@ module packet_gather #(
             assign gather_if[g_inst].req       = fetch_init && (desc_sel == g_inst) && descriptor_if.vld;
             assign gather_if[g_inst].ptr       = descriptor_if.addr;
 
-            assign __buffer_ctxt_in.ptr  = gather_if[g_inst].nxt_ptr;
-            assign __buffer_ctxt_in.eof  = gather_if[g_inst].eof;
-            assign __buffer_ctxt_in.size = gather_if[g_inst].size;
-            assign __buffer_ctxt_in.meta = gather_if[g_inst].meta;
-            assign __buffer_ctxt_in.err  = gather_if[g_inst].err;
+            assign __buffer_ctxt_in.ptr   = gather_if[g_inst].nxt_ptr;
+            assign __buffer_ctxt_in.eof   = gather_if[g_inst].eof;
+            assign __buffer_ctxt_in.size  = gather_if[g_inst].size;
+            assign __buffer_ctxt_in.meta  = gather_if[g_inst].meta;
+            assign __buffer_ctxt_in.err   = gather_if[g_inst].err;
+            // cksum is only valid at descriptor accept time (FETCH_INIT);
+            // latch it so it travels with this buffer chain entry.
+            logic [packet_pkg::CKSUM_FIELD_WID-1:0] __desc_cksum;
+            always_ff @(posedge clk) begin
+                if (srst) __desc_cksum <= '0;
+                else if (__descriptor_if_rdy[g_inst] && descriptor_if.vld)
+                    __desc_cksum <= descriptor_if.cksum;
+            end
+            // Use the live descriptor cksum during the accept cycle; the registered
+            // value is stale on the first cycle a new descriptor is accepted.
+            assign __buffer_ctxt_in.cksum = (__descriptor_if_rdy[g_inst] && descriptor_if.vld)
+                                            ? descriptor_if.cksum
+                                            : __desc_cksum;
 
             // Buffer queue
             fifo_ctxt #(
@@ -307,10 +323,11 @@ module packet_gather #(
     // -----------------------------
     // Maintain read context
     // -----------------------------
-    assign rd_ctxt_in.eop  = rd_eop;
-    assign rd_ctxt_in.mty  = rd_mty;
-    assign rd_ctxt_in.meta = buffer_ctxt[buffer_sel].meta;
-    assign rd_ctxt_in.err  = buffer_ctxt[buffer_sel].err;
+    assign rd_ctxt_in.eop   = rd_eop;
+    assign rd_ctxt_in.mty   = rd_mty;
+    assign rd_ctxt_in.meta  = buffer_ctxt[buffer_sel].meta;
+    assign rd_ctxt_in.err   = buffer_ctxt[buffer_sel].err;
+    assign rd_ctxt_in.cksum = buffer_ctxt[buffer_sel].cksum;
 
     fifo_ctxt #(
         .DATA_WID ( $bits(rd_ctxt_t) ),
@@ -329,6 +346,11 @@ module packet_gather #(
         .oflow   ( ),
         .uflow   ( )
     );
+
+    // Module-level wires driven by whichever output path is active;
+    // used by the cksum-check generate block below.
+    logic        cksum_err;
+    logic [packet_pkg::CKSUM_FIELD_WID-1:0] cksum_expected_out;
 
     generate
         if (IGNORE_RDY) begin : g__ignore_rdy
@@ -350,11 +372,13 @@ module packet_gather #(
                 __rd_ctxt_out <= rd_ctxt_out;
             end
 
+            assign cksum_expected_out = __rd_ctxt_out.cksum;
+
             assign packet_if.vld  = __valid;
             assign packet_if.data = __data;
             assign packet_if.eop  = __rd_ctxt_out.eop;
             assign packet_if.mty  = __rd_ctxt_out.mty;
-            assign packet_if.err  = __rd_ctxt_out.err;
+            assign packet_if.err  = __rd_ctxt_out.err || (cksum_err && __rd_ctxt_out.eop);
             assign packet_if.meta = __rd_ctxt_out.meta;
 
         end : g__ignore_rdy
@@ -365,11 +389,12 @@ module packet_gather #(
             localparam int PREFETCH_DATA_CNT_WID = $clog2(PREFETCH_DATA_DEPTH);
             // (Local) typedefs
             typedef struct packed {
-                logic [DATA_WID-1:0] data;
-                logic                eop;
-                logic [MTY_WID-1:0]  mty;
-                logic                err;
-                logic [META_WID-1:0] meta;
+                logic [DATA_WID-1:0]                     data;
+                logic                                    eop;
+                logic [MTY_WID-1:0]                      mty;
+                logic                                    err;
+                logic [META_WID-1:0]                     meta;
+                logic [packet_pkg::CKSUM_FIELD_WID-1:0]  cksum;
             } prefetch_data_t;
             // (Local) signals
             logic [PREFETCH_DATA_CNT_WID-1:0] __prefetch_wr_count;
@@ -377,11 +402,12 @@ module packet_gather #(
             prefetch_data_t __prefetch_rd_data;
             logic           __prefetch_oflow;
 
-            assign __prefetch_wr_data.data = mem_rd_if.data;
-            assign __prefetch_wr_data.eop = rd_ctxt_out.eop;
-            assign __prefetch_wr_data.mty = rd_ctxt_out.mty;
-            assign __prefetch_wr_data.err = rd_ctxt_out.err;
-            assign __prefetch_wr_data.meta = rd_ctxt_out.meta;
+            assign __prefetch_wr_data.data  = mem_rd_if.data;
+            assign __prefetch_wr_data.eop   = rd_ctxt_out.eop;
+            assign __prefetch_wr_data.mty   = rd_ctxt_out.mty;
+            assign __prefetch_wr_data.err   = rd_ctxt_out.err;
+            assign __prefetch_wr_data.meta  = rd_ctxt_out.meta;
+            assign __prefetch_wr_data.cksum = rd_ctxt_out.cksum;
 
             // Prefetch buffer (data)
             fifo_sync    #(
@@ -407,13 +433,37 @@ module packet_gather #(
 
             always_ff @(posedge clk) prefetch_rdy <= (__prefetch_wr_count < PREFETCH_DEPTH);
 
+            assign cksum_expected_out = __prefetch_rd_data.cksum;
+
             assign packet_if.data = __prefetch_rd_data.data;
-            assign packet_if.eop = __prefetch_rd_data.eop;
-            assign packet_if.mty = __prefetch_rd_data.mty;
-            assign packet_if.err = __prefetch_rd_data.err;
+            assign packet_if.eop  = __prefetch_rd_data.eop;
+            assign packet_if.mty  = __prefetch_rd_data.mty;
+            assign packet_if.err  = __prefetch_rd_data.err || (cksum_err && __prefetch_rd_data.eop);
             assign packet_if.meta = __prefetch_rd_data.meta;
 
         end : g__obey_rdy
+    endgenerate
+
+    // Checksum verification — combinatorial mismatch on EOP beat
+    generate
+        if (CHECK_CKSUM) begin : g__cksum_check
+            logic [15:0] cksum_computed;
+            packet_cksum #(
+                .DATA_BYTE_WID ( DATA_BYTE_WID )
+            ) i_packet_cksum (
+                .clk,
+                .srst,
+                .reset ( 1'b0 ),
+                .vld   ( packet_if.vld && (IGNORE_RDY ? 1'b1 : packet_if.rdy) ),
+                .data  ( packet_if.data ),
+                .eop   ( packet_if.eop ),
+                .mty   ( packet_if.mty ),
+                .cksum ( cksum_computed )
+            );
+            assign cksum_err = (cksum_expected_out != 0) && (cksum_computed != cksum_expected_out);
+        end else begin : g__no_cksum_check
+            assign cksum_err = 1'b0;
+        end
     endgenerate
 
     // Accumulate byte count across words; reset at EOP so byte_cnt holds the

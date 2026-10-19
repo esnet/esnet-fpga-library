@@ -15,6 +15,7 @@ module packet_q_core
     parameter int  MAX_BURST_LEN = 1,
     parameter int  N_ALLOC = 1,
     parameter int  N_GATHER = 1,
+    parameter bit  CKSUM_EN = 0,   // compute cksum on scatter, verify on gather
     // Derived parameters (don't override)
     parameter int  PKT_SIZE_WID = $clog2(MAX_PKT_SIZE+1),
     parameter int  INPUT_SEL_WID = NUM_INPUT_IFS > 1 ? $clog2(NUM_INPUT_IFS) : 1,
@@ -157,11 +158,12 @@ module packet_q_core
                 // (Local) interfaces
                 packet_descriptor_intf #(.ADDR_WID(PTR_WID), .META_WID(META_WID), .MAX_PKT_SIZE(MAX_PKT_SIZE)) __desc_in_if (.clk);
 
-                assign __desc_in_if.vld  = desc_in_if[g_in_if].vld && (__desc_meta.dest == g_out_if);
-                assign __desc_in_if.addr = desc_in_if[g_in_if].addr;
-                assign __desc_in_if.size = desc_in_if[g_in_if].size;
-                assign __desc_in_if.err  = desc_in_if[g_in_if].err;
-                assign __desc_in_if.meta = desc_in_if[g_in_if].meta;
+                assign __desc_in_if.vld   = desc_in_if[g_in_if].vld && (__desc_meta.dest == g_out_if);
+                assign __desc_in_if.addr  = desc_in_if[g_in_if].addr;
+                assign __desc_in_if.size  = desc_in_if[g_in_if].size;
+                assign __desc_in_if.err   = desc_in_if[g_in_if].err;
+                assign __desc_in_if.meta  = desc_in_if[g_in_if].meta;
+                assign __desc_in_if.cksum = desc_in_if[g_in_if].cksum;
                 assign desc_in_if__rdy[g_out_if] = __desc_in_if.rdy;
 
                 packet_descriptor_fifo #(
@@ -196,7 +198,8 @@ module packet_q_core
         .MAX_RD_LATENCY ( MAX_RD_LATENCY ),
         .MAX_BURST_LEN  ( MAX_BURST_LEN ),
         .N_ALLOC        ( N_ALLOC ),
-        .N_GATHER       ( N_GATHER )
+        .N_GATHER       ( N_GATHER ),
+        .CKSUM_EN       ( CKSUM_EN )
     ) i_packet_sg_core  (
         .clk,
         .srst,

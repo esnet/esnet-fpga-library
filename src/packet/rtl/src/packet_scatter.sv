@@ -14,6 +14,7 @@ module packet_scatter #(
     parameter int  MAX_PKT_SIZE = 16384,
     parameter int  NUM_BUFFERS = 1,
     parameter int  BUFFER_SIZE = 1,
+    parameter bit  COMPUTE_CKSUM = 0,   // compute 16-bit one's complement checksum per packet
     // Derived parameters (don't override)
     parameter int  PTR_WID = NUM_BUFFERS > 1 ? $clog2(NUM_BUFFERS) : 1
 ) (
@@ -103,10 +104,11 @@ module packet_scatter #(
     } state_t;
 
     typedef struct packed {
-        logic [PTR_WID-1:0]      ptr;
-        logic [PKT_SIZE_WID-1:0] size;
-        logic [META_WID-1:0]     meta;
-        logic                    err;
+        logic [PTR_WID-1:0]                      ptr;
+        logic [PKT_SIZE_WID-1:0]                 size;
+        logic [META_WID-1:0]                     meta;
+        logic                                    err;
+        logic [packet_pkg::CKSUM_FIELD_WID-1:0]  cksum;
     } pkt_desc_ctxt_t;
 
     typedef struct packed {
@@ -341,13 +343,36 @@ module packet_scatter #(
         else              oflow <= oflow | pkt_oflow;
     end
 
+    // Per-packet checksum
+    logic [15:0] cksum_out;
+    generate
+        if (COMPUTE_CKSUM) begin : g__cksum
+            packet_cksum #(
+                .DATA_BYTE_WID ( DATA_BYTE_WID )
+            ) i_packet_cksum (
+                .clk,
+                .srst,
+                .reset ( pkt_eop ),
+                .vld   ( packet_if.vld && packet_if.rdy ),
+                .data  ( packet_if.data ),
+                .eop   ( packet_if.eop ),
+                .mty   ( packet_if.mty ),
+                .cksum ( cksum_out )
+            );
+        end else begin : g__no_cksum
+            assign cksum_out = '0;
+        end
+    endgenerate
+
     // Latch EOP context
+    logic [packet_pkg::CKSUM_FIELD_WID-1:0] cksum_latched;
     always_ff @(posedge clk) begin
         pkt_done <= pkt_eop;
         if (pkt_eop) begin
-            meta <= packet_if.meta;
-            mty  <= packet_if.mty;
-            err  <= packet_if.err;
+            meta          <= packet_if.meta;
+            mty           <= packet_if.mty;
+            err           <= packet_if.err;
+            cksum_latched <= cksum_out;
         end
     end
     assign pkt_size = (pkt_words * DATA_BYTE_WID) - mty;
@@ -435,10 +460,11 @@ module packet_scatter #(
         .uflow   ( )
     );
 
-    assign pkt_desc_ctxt_in.ptr  = pkt_ptr;
-    assign pkt_desc_ctxt_in.size = pkt_size;
-    assign pkt_desc_ctxt_in.meta = meta;
-    assign pkt_desc_ctxt_in.err  = err;
+    assign pkt_desc_ctxt_in.ptr   = pkt_ptr;
+    assign pkt_desc_ctxt_in.size  = pkt_size;
+    assign pkt_desc_ctxt_in.meta  = meta;
+    assign pkt_desc_ctxt_in.err   = err;
+    assign pkt_desc_ctxt_in.cksum = cksum_latched;
 
     fifo_prefetch #(
         .DATA_WID ( $bits(pkt_desc_ctxt_t) ),
@@ -455,11 +481,12 @@ module packet_scatter #(
         .rd_data ( pkt_desc_ctxt_out ),
         .oflow   ( )
     );
-    assign descriptor_if.vld  = pkt_desc_ctxt_out_vld && frame_valid_out;
-    assign descriptor_if.addr = pkt_desc_ctxt_out.ptr;
-    assign descriptor_if.size = pkt_desc_ctxt_out.size;
-    assign descriptor_if.meta = pkt_desc_ctxt_out.meta;
-    assign descriptor_if.err  = pkt_desc_ctxt_out.err;
+    assign descriptor_if.vld   = pkt_desc_ctxt_out_vld && frame_valid_out;
+    assign descriptor_if.addr  = pkt_desc_ctxt_out.ptr;
+    assign descriptor_if.size  = pkt_desc_ctxt_out.size;
+    assign descriptor_if.meta  = pkt_desc_ctxt_out.meta;
+    assign descriptor_if.err   = pkt_desc_ctxt_out.err;
+    assign descriptor_if.cksum = pkt_desc_ctxt_out.cksum;
 
     // Recycle descriptors for 'bad' packets.
     // Hold recycle_req high until the allocator acknowledges (recycle_rdy).
