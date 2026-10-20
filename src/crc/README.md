@@ -20,15 +20,15 @@ algorithm.  All modules share a common configuration interface defined in
 Every module is parameterised with a `crc_config_t` struct:
 
 ```systemverilog
-typedef struct {
-    int   WIDTH;    // CRC width in bits (8, 16, 24, or 32)
-    CRC_T POLY;     // Generator polynomial (normal / non-reflected form)
-    CRC_T INIT;     // Initial value of the CRC state register
-    int   REFIN;    // 1 = reflect each input byte's bits before processing
-    int   REFOUT;   // 1 = reflect the CRC register before XOROUT
-    CRC_T XOROUT;   // Final XOR mask applied to the (possibly reflected) CRC
-    CRC_T CHECK;    // Expected CRC of the ASCII string "123456789" (self-test)
-    CRC_T RESIDUE;  // Expected CRC register value after appending a correct FCS
+typedef struct packed {
+    logic [31:0] WIDTH;    // CRC width in bits (8, 16, 24, or 32)
+    logic [31:0] POLY;     // Generator polynomial (normal / non-reflected form)
+    logic [31:0] INIT;     // Initial value of the CRC state register
+    logic [31:0] REFIN;    // 1 = reflect each input byte's bits before processing
+    logic [31:0] REFOUT;   // 1 = reflect the CRC register before XOROUT
+    logic [31:0] XOROUT;   // Final XOR mask applied to the (possibly reflected) CRC
+    logic [31:0] CHECK;    // Expected CRC of the ASCII string "123456789" (self-test)
+    logic [31:0] RESIDUE;  // Expected CRC register value after appending a correct FCS
 } crc_config_t;
 ```
 
@@ -46,9 +46,11 @@ These fields follow the standard CRC catalogue definition at
 | `CRC32_AUTOSAR` | CRC-32/AUTOSAR | 1 | 1 | Automotive |
 | `CRC32_BZIP2` / `CRC32_AAL5` | CRC-32/BZIP-2 | 0 | 0 | ATM AAL5 |
 | `CRC32_CKSUM` / `CRC32_POSIX` | CRC-32/POSIX | 0 | 0 | POSIX `cksum` |
-| `CRC16_KERMIT` / `CRC16_CCITT` | CRC-16/KERMIT | 1 | 1 | — |
+| `CRC32_AIXM` / `CRC32_Q` | CRC-32/AIXM | 0 | 0 | — |
+| `CRC32_BASE91_D` / `CRC32_D` | CRC-32/BASE91-D | 1 | 1 | — |
+| `CRC16_KERMIT` / `CRC16_CCITT` / `CRC16_V41_LSB` | CRC-16/KERMIT | 1 | 1 | — |
 | `CRC16_USB` | CRC-16/USB | 1 | 1 | — |
-| `CRC16_XMODEM` / `CRC16_LTE` | CRC-16/XMODEM | 0 | 0 | — |
+| `CRC16_XMODEM` / `CRC16_LTE` / `CRC16_V41_MSB` | CRC-16/XMODEM | 0 | 0 | — |
 | `CRC16_CDMA2000` | CRC-16/CDMA2000 | 0 | 0 | — |
 | `CRC8_SMBUS` / `CRC8` | CRC-8/SMBUS | 0 | 0 | — |
 | `CRC24_INTERLAKEN` | CRC-24/INTERLAKEN | 0 | 0 | Interlaken |
