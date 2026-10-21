@@ -1,7 +1,16 @@
+// =========================================================================
+// crc
+//
+// Stateless parallel CRC.  Computes a fresh CRC from CONFIG.INIT over the
+// full DATA_BYTES-wide data word on every enabled cycle and registers the
+// result.  Each en pulse is independent — use crc_accum for multi-beat packets.
+//
+// Data bus: data[0] is the first byte of the message (network order).
+// =========================================================================
 module crc
     import crc_pkg::*;
 #(
-    parameter crc_config_t CONFIG = DEFAULT_CRC.cfg,
+    parameter crc_config_t CONFIG = DEFAULT_CRC,
     parameter int DATA_BYTES = 1
 )(
     // Clock/reset
