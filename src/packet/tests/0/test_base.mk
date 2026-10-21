@@ -33,7 +33,8 @@ SUBCOMPONENTS = \
     axi4l.verif \
     axi3.rtl \
     axi3.verif \
-    packet.verif
+    packet.verif \
+    crc.verif
 
 EXT_LIBS =
 
