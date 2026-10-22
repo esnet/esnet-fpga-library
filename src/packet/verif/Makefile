@@ -23,6 +23,8 @@ SRC_LIST_FILES =
 #   (see $SCRIPTS_ROOT/Makefiles/templates/dependencies.mk)
 # ----------------------------------------------------
 SUBCOMPONENTS = \
+    crc.pkg \
+    crc.verif \
     packet.pkg \
     packet.eth.pkg \
     packet.regio.rtl \

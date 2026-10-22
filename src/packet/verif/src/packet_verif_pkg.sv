@@ -1,4 +1,6 @@
 package packet_verif_pkg;
+    import crc_pkg::*;
+    import crc_verif_pkg::*;
     import packet_reg_verif_pkg::*;
     import mem_proxy_verif_pkg::*;
     import alloc_verif_pkg::*;
