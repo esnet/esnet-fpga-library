@@ -93,11 +93,15 @@ module packet_crc_tx_unit_test #(
         tx_if.cb_tx.vld <= 1'b0;
     endtask
 
-    // Receive one complete packet (rdy held high throughout).
+    // Receive one complete packet (rdy held high throughout).  rx_crc
+    // captures crc_out at the exact cycle the output EOP beat is accepted
+    // (crc_out is valid only on that cycle, per the module's contract, so
+    // it must be sampled here rather than after this task returns).
     task automatic recv_packet(
         output byte_array_t        rx_data,
         output bit                 rx_err,
-        output logic [META_WID-1:0] rx_meta
+        output logic [META_WID-1:0] rx_meta,
+        output logic [CONFIG.WIDTH-1:0] rx_crc
     );
         byte  rx_q[$];
         bit   eop = 0;
@@ -113,6 +117,7 @@ module packet_crc_tx_unit_test #(
                 if (eop) begin
                     rx_err  = rx_if.cb_rx.err;
                     rx_meta = rx_if.cb_rx.meta;
+                    rx_crc  = crc_out;
                 end
             end
         end
@@ -148,14 +153,14 @@ module packet_crc_tx_unit_test #(
             byte_array_t tx_data, rx_data;
             bit rx_err;
             logic [META_WID-1:0] rx_meta;
-            logic [CONFIG.WIDTH-1:0] exp_crc;
+            logic [CONFIG.WIDTH-1:0] exp_crc, rx_crc;
             tx_data = rand_bytes(DATA_BYTE_WID);
             exp_crc = reference_crc(tx_data);
             fork
                 send_packet(tx_data);
-                recv_packet(rx_data, rx_err, rx_meta);
+                recv_packet(rx_data, rx_err, rx_meta, rx_crc);
             join
-            `FAIL_UNLESS_EQUAL(crc_out, exp_crc);
+            `FAIL_UNLESS_EQUAL(rx_crc, exp_crc);
             `FAIL_IF(rx_err);
         `SVTEST_END
 
@@ -163,14 +168,14 @@ module packet_crc_tx_unit_test #(
             byte_array_t tx_data, rx_data;
             bit rx_err;
             logic [META_WID-1:0] rx_meta;
-            logic [CONFIG.WIDTH-1:0] exp_crc;
+            logic [CONFIG.WIDTH-1:0] exp_crc, rx_crc;
             tx_data = rand_bytes(4 * DATA_BYTE_WID);
             exp_crc = reference_crc(tx_data);
             fork
                 send_packet(tx_data);
-                recv_packet(rx_data, rx_err, rx_meta);
+                recv_packet(rx_data, rx_err, rx_meta, rx_crc);
             join
-            `FAIL_UNLESS_EQUAL(crc_out, exp_crc);
+            `FAIL_UNLESS_EQUAL(rx_crc, exp_crc);
             `FAIL_IF(rx_err);
         `SVTEST_END
 
@@ -178,20 +183,18 @@ module packet_crc_tx_unit_test #(
             byte_array_t tx_data, rx_data;
             bit rx_err;
             logic [META_WID-1:0] rx_meta;
-            logic [CONFIG.WIDTH-1:0] exp_crc;
+            logic [CONFIG.WIDTH-1:0] exp_crc, rx_crc;
             tx_data = rand_bytes(DATA_BYTE_WID + DATA_BYTE_WID / 2);
             exp_crc = reference_crc(tx_data);
             fork
                 send_packet(tx_data);
-                recv_packet(rx_data, rx_err, rx_meta);
+                recv_packet(rx_data, rx_err, rx_meta, rx_crc);
             join
-            `FAIL_UNLESS_EQUAL(crc_out, exp_crc);
+            `FAIL_UNLESS_EQUAL(rx_crc, exp_crc);
             `FAIL_IF(rx_err);
         `SVTEST_END
 
         // Back-to-back packets with no idle gap get independent CRCs.
-        // The two packets are sent and received sequentially; crc_out is
-        // captured after each EOP is drained from the pipeline.
         `SVTEST(back_to_back_packets)
             byte_array_t tx0, tx1, rx_data;
             bit rx_err;
@@ -201,38 +204,15 @@ module packet_crc_tx_unit_test #(
             tx1 = rand_bytes(3 * DATA_BYTE_WID + 1);
             exp0 = reference_crc(tx0);
             exp1 = reference_crc(tx1);
-            // Packet 0: send then receive; no fork to avoid race on crc_out.
             fork
-                send_packet(tx0);
-                recv_packet(rx_data, rx_err, rx_meta);
+                begin send_packet(tx0); send_packet(tx1); end
+                begin
+                    recv_packet(rx_data, rx_err, rx_meta, got0);
+                    recv_packet(rx_data, rx_err, rx_meta, got1);
+                end
             join
-            @(posedge clk); got0 = crc_out;
-            // Packet 1 immediately after (tx side starts next packet at once).
-            fork
-                send_packet(tx1);
-                recv_packet(rx_data, rx_err, rx_meta);
-            join
-            @(posedge clk); got1 = crc_out;
             `FAIL_UNLESS_EQUAL(got0, exp0);
             `FAIL_UNLESS_EQUAL(got1, exp1);
-        `SVTEST_END
-
-        // crc_out is stable between EOP beats.
-        `SVTEST(crc_held_between_packets)
-            byte_array_t tx_data, rx_data;
-            bit rx_err;
-            logic [META_WID-1:0] rx_meta;
-            logic [CONFIG.WIDTH-1:0] exp_crc, held;
-            tx_data = rand_bytes(DATA_BYTE_WID);
-            exp_crc = reference_crc(tx_data);
-            fork
-                send_packet(tx_data);
-                recv_packet(rx_data, rx_err, rx_meta);
-            join
-            held = crc_out;
-            repeat(5) @(posedge clk);
-            `FAIL_UNLESS_EQUAL(crc_out, held);
-            `FAIL_UNLESS_EQUAL(crc_out, exp_crc);
         `SVTEST_END
 
         // err propagates unchanged; CRC is still computed correctly.
@@ -240,15 +220,15 @@ module packet_crc_tx_unit_test #(
             byte_array_t tx_data, rx_data;
             bit rx_err;
             logic [META_WID-1:0] rx_meta;
-            logic [CONFIG.WIDTH-1:0] exp_crc;
+            logic [CONFIG.WIDTH-1:0] exp_crc, rx_crc;
             tx_data = rand_bytes(2 * DATA_BYTE_WID);
             exp_crc = reference_crc(tx_data);
             fork
                 send_packet(tx_data, .src_err(1'b1));
-                recv_packet(rx_data, rx_err, rx_meta);
+                recv_packet(rx_data, rx_err, rx_meta, rx_crc);
             join
             `FAIL_UNLESS(rx_err);
-            `FAIL_UNLESS_EQUAL(crc_out, exp_crc);
+            `FAIL_UNLESS_EQUAL(rx_crc, exp_crc);
         `SVTEST_END
 
         // meta propagates unchanged.
@@ -256,11 +236,12 @@ module packet_crc_tx_unit_test #(
             byte_array_t tx_data, rx_data;
             bit rx_err;
             logic [META_WID-1:0] rx_meta, exp_meta;
+            logic [CONFIG.WIDTH-1:0] rx_crc;
             tx_data  = rand_bytes(DATA_BYTE_WID);
             exp_meta = $urandom();
             fork
                 send_packet(tx_data, .src_err(1'b0), .meta(exp_meta));
-                recv_packet(rx_data, rx_err, rx_meta);
+                recv_packet(rx_data, rx_err, rx_meta, rx_crc);
             join
             `FAIL_UNLESS_EQUAL(rx_meta, exp_meta);
         `SVTEST_END
@@ -270,7 +251,7 @@ module packet_crc_tx_unit_test #(
             byte_array_t tx_data, rx_data;
             bit rx_err;
             logic [META_WID-1:0] rx_meta;
-            logic [CONFIG.WIDTH-1:0] exp_crc;
+            logic [CONFIG.WIDTH-1:0] exp_crc, rx_crc;
             tx_data = rand_bytes(4 * DATA_BYTE_WID);
             exp_crc = reference_crc(tx_data);
             fork
@@ -278,10 +259,10 @@ module packet_crc_tx_unit_test #(
                 // Delay receiver by a few cycles to exercise backpressure
                 begin
                     repeat(5) @(posedge clk);
-                    recv_packet(rx_data, rx_err, rx_meta);
+                    recv_packet(rx_data, rx_err, rx_meta, rx_crc);
                 end
             join
-            `FAIL_UNLESS_EQUAL(crc_out, exp_crc);
+            `FAIL_UNLESS_EQUAL(rx_crc, exp_crc);
         `SVTEST_END
 
     `SVUNIT_TESTS_END
