@@ -143,21 +143,22 @@ not a real transfer; do not assert `en` for one.
 **Implementation note:** the state-advance function is a GF(2) matrix-vector
 multiply over basis vectors precomputed at elaboration time.  Partial-beat
 variants (one basis-vector set per possible valid-byte count) are MUX-selected
-at runtime.  Synthesis constant-folds all basis vectors to pure XOR trees.
-At wide `DATA_BYTES`, this per-beat MUX sits directly in the state-feedback
-recurrence and can dominate timing; callers that always drive `mty=0` (data
-zero-masked externally) and apply `crc_trim` downstream avoid this MUX
-entirely — see `crc_trim` below.
+at runtime by `mty`.  Synthesis constant-folds all basis vectors to pure XOR
+trees, leaving only this MUX as per-beat logic in the state-feedback
+recurrence.  At wide `DATA_BYTES`, driving `mty` from a constant `0` and
+pre-masking any genuinely empty trailing bytes in the input `data` lets
+synthesis collapse the MUX to its fixed (full-beat) selection; pair this with
+`crc_trim` (below) to recover the correct result for partial beats.
 
 ---
 
 ### `crc_trim` — Trailing Zero-Byte Correction
 
-Removes the contribution of `mty` trailing zero-padded bytes from a fully
-formatted CRC value (REFOUT/XOROUT already applied), recovering the CRC as
-if those bytes had never been part of the message.  Purely a function of
-`(CONFIG, crc_in, mty)` — no raw data or accumulator state required, and no
-knowledge of the upstream module that produced `crc_in`.
+A pure combinational function of `(CONFIG, crc_in, mty)`: removes the
+contribution of `mty` trailing zero-padded bytes from a fully formatted CRC
+value (REFOUT/XOROUT already applied), recovering the CRC as if those bytes
+had never been part of the message.  Takes no raw data or accumulator state,
+and has no dependency on whatever module produced `crc_in`.
 
 ```
 Parameter     Default            Description
@@ -172,13 +173,12 @@ DATA_BYTES    1                  Width of the data bus `mty` is relative to, in 
 | `crc[WIDTH-1:0]` | out | Corrected, fully formatted CRC |
 | `check` | out | Asserts when the corrected CRC equals `CONFIG.RESIDUE` |
 
-**Typical use:** pair with `crc_accum` driven with `mty` tied to `0`, with
-the true trailing empty bytes of a partial beat zero-masked externally
-before reaching `crc_accum`.  This collapses `crc_accum`'s internal MUX to a
-single fixed state-shift function, at the cost of requiring `crc_trim`
-(itself several logic levels deep) as a second pipeline stage to recover the
-true CRC — trading one combinatorial MUX in the recurring per-beat path for
-a one-cycle-deeper, but MUX-free, pipeline.
+**Typical use:** pair with `crc_accum` driven with `mty` tied to `0` and the
+true trailing empty bytes of a partial beat zero-masked externally before
+reaching `crc_accum`'s `data` input; apply `crc_trim` to `crc_accum`'s output
+with the real `mty` to recover the true CRC.  See `packet_crc_tx`/
+`packet_crc_rx` in the `packet` library for a worked example, including
+pipelining `crc_trim` into its own cycle.
 
 ---
 
