@@ -7,15 +7,15 @@
 //
 //              Timing: crc_accum's internal mty-selected state-shift MUX sits
 //              directly in its state-feedback recurrence and, at wide
-//              DATA_BYTE_WID, eats most of the timing margin at 350MHz on its
-//              own (see git history for measurements) — independent of the
-//              downstream compare.  To remove the MUX from that recurrence,
-//              crc_accum here is always driven with mty=0 (every beat,
-//              including EOP, is treated as fully valid), with the true
-//              trailing empty bytes of an EOP beat zero-masked on the data
-//              feeding crc_accum instead.  This makes crc_accum's per-beat
-//              state shift a single fixed (DATA_BYTE_WID-byte) function,
-//              previously one option among DATA_BYTE_WID MUX-selected ones.
+//              DATA_BYTE_WID, can dominate the achievable clock rate on its
+//              own — independent of the downstream compare.  To remove the
+//              MUX from that recurrence, crc_accum here is always driven with
+//              mty=0 (every beat, including EOP, is treated as fully valid),
+//              with the true trailing empty bytes of an EOP beat zero-masked
+//              on the data feeding crc_accum instead.  This makes crc_accum's
+//              per-beat state shift a single fixed (DATA_BYTE_WID-byte)
+//              function, previously one option among DATA_BYTE_WID
+//              MUX-selected ones.
 //
 //              The resulting crc_comb is therefore the CRC as if the packet
 //              were zero-padded to a full beat on EOP — not the true packet
@@ -37,11 +37,19 @@
 //              downstream packet_skid_buffer, alongside the rest of the
 //              registered beat.
 //
+//              Ingress register: from_tx is captured into a local register
+//              before anything else reads it, so crc_accum's first state
+//              update is always driven from a register local to this module
+//              rather than directly from whatever drives from_tx. This keeps
+//              the CRC computation's timing self-contained, independent of
+//              the driver's own logic.
+//
 //              from_tx.rdy is driven directly by the skid buffer's own rdy
 //              (itself a registered signal, with SKID cycles of lookahead
-//              reserved), so the two register stages added here cost exactly
-//              the two cycles of slack that SKID=2 accounts for — no
-//              bubbles, no overflow risk.
+//              reserved), so the three register stages added here (ingress,
+//              plus the two feed-forward stages below) cost exactly the three
+//              cycles of slack that SKID=3 accounts for — no bubbles, no
+//              overflow risk.
 //
 module packet_crc_rx
     import crc_pkg::*;
@@ -77,27 +85,56 @@ module packet_crc_rx
     logic clk;
     assign clk = from_tx.clk;
 
-    logic xfer;
-    assign xfer = from_tx.vld && from_tx.rdy;
+    // -----------------------------
+    // Ingress register — captures from_tx (and crc_in) before any other
+    // logic touches it, so crc_accum's first state update is always driven
+    // from a register local to this module rather than whatever
+    // combinational logic the caller's from_tx happens to be (see module
+    // header).
+    // -----------------------------
+    logic                xfer_in;
+    assign xfer_in = from_tx.vld && from_tx.rdy;
+
+    logic                     in_vld_r;
+    logic [DATA_WID-1:0]      in_data_r;
+    logic                     in_eop_r;
+    logic [MTY_WID-1:0]       in_mty_r;
+    logic                     in_err_r;
+    logic [META_WID-1:0]      in_meta_r;
+    logic [CONFIG.WIDTH-1:0]  in_crc_in_r;
+
+    always_ff @(posedge clk) begin
+        if (srst) in_vld_r <= 1'b0;
+        else      in_vld_r <= xfer_in;
+
+        if (xfer_in) begin
+            in_data_r   <= from_tx.data;
+            in_eop_r    <= from_tx.eop;
+            in_mty_r    <= from_tx.mty;
+            in_err_r    <= from_tx.err;
+            in_meta_r   <= from_tx.meta;
+            in_crc_in_r <= crc_in;
+        end
+    end
 
     logic crc_srst;
-    assign crc_srst = srst || (xfer && from_tx.eop);
+    assign crc_srst = srst || (in_vld_r && in_eop_r);
 
     // Zero-mask the true empty trailing bytes before crc_accum, since
     // crc_accum is always driven with mty=0 below (see module header).
     logic [0:DATA_BYTE_WID-1][7:0] data_masked;
     always_comb begin
-        data_masked = from_tx.data;
+        data_masked = in_data_r;
         for (int j = 0; j < DATA_BYTE_WID; j++)
-            if (j >= DATA_BYTE_WID - int'(from_tx.mty)) data_masked[j] = 8'h00;
+            if (j >= DATA_BYTE_WID - int'(in_mty_r)) data_masked[j] = 8'h00;
     end
 
     logic [CONFIG.WIDTH-1:0] crc_comb;
     logic                    crc_check_unused;
 
     // -----------------------------
-    // CRC accumulator — taps input-side data, always treating the beat as
-    // fully valid (mty=0 tied off; see module header).
+    // CRC accumulator — taps the registered ingress data, always treating
+    // the beat as fully valid (mty=0 tied off; see module header).
     // -----------------------------
     crc_accum #(
         .CONFIG     ( CONFIG ),
@@ -105,7 +142,7 @@ module packet_crc_rx
     ) i_crc_accum (
         .clk,
         .srst  ( crc_srst ),
-        .en    ( xfer ),
+        .en    ( in_vld_r ),
         .mty   ( '0 ),
         .data  ( data_masked ),
         .crc   ( crc_comb ),
@@ -128,16 +165,16 @@ module packet_crc_rx
 
     always_ff @(posedge clk) begin
         if (srst) vld_r <= 1'b0;
-        else      vld_r <= xfer;
+        else      vld_r <= in_vld_r;
 
-        if (xfer) begin
-            data_r     <= from_tx.data;
-            eop_r      <= from_tx.eop;
-            mty_r      <= from_tx.mty;
-            err_r      <= from_tx.err;
-            meta_r     <= from_tx.meta;
+        if (in_vld_r) begin
+            data_r     <= in_data_r;
+            eop_r      <= in_eop_r;
+            mty_r      <= in_mty_r;
+            err_r      <= in_err_r;
+            meta_r     <= in_meta_r;
             crc_comb_r <= crc_comb;
-            crc_in_r   <= crc_in;
+            crc_in_r   <= in_crc_in_r;
         end
     end
 
@@ -205,12 +242,13 @@ module packet_crc_rx
     assign ext_if.meta = meta_r2;
 
     // from_tx.rdy is driven directly from the skid buffer's own (registered)
-    // rdy — SKID=2 reserves exactly the slots needed for the two feed-forward
-    // register stages' latency, so this costs no bubble cycles.
+    // rdy — SKID=3 reserves exactly the slots needed for the ingress register
+    // plus the two feed-forward register stages' latency, so this costs no
+    // bubble cycles.
     assign from_tx.rdy = ext_if.rdy;
 
     packet_skid_buffer #(
-        .SKID ( 2 )
+        .SKID ( 3 )
     ) i_packet_skid_buffer (
         .srst,
         .from_tx ( ext_if ),
