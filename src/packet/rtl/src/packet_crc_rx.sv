@@ -85,6 +85,15 @@ module packet_crc_rx
     logic clk;
     assign clk = from_tx.clk;
 
+    // Zero-mask the true empty trailing bytes on ingress, since
+    // crc_accum is always driven with mty=0 below (see module header).
+    logic [0:DATA_BYTE_WID-1][7:0] data_masked;
+    always_comb begin
+        data_masked = from_tx.data;
+        for (int j = 0; j < DATA_BYTE_WID; j++)
+            if (j >= DATA_BYTE_WID - int'(from_tx.mty)) data_masked[j] = 8'h00;
+    end
+
     // -----------------------------
     // Ingress register — captures from_tx (and crc_in) before any other
     // logic touches it, so crc_accum's first state update is always driven
@@ -92,7 +101,7 @@ module packet_crc_rx
     // combinational logic the caller's from_tx happens to be (see module
     // header).
     // -----------------------------
-    logic                xfer_in;
+    logic  xfer_in;
     assign xfer_in = from_tx.vld && from_tx.rdy;
 
     logic                     in_vld_r;
@@ -108,7 +117,7 @@ module packet_crc_rx
         else      in_vld_r <= xfer_in;
 
         if (xfer_in) begin
-            in_data_r   <= from_tx.data;
+            in_data_r   <= data_masked;
             in_eop_r    <= from_tx.eop;
             in_mty_r    <= from_tx.mty;
             in_err_r    <= from_tx.err;
@@ -120,14 +129,6 @@ module packet_crc_rx
     logic crc_srst;
     assign crc_srst = srst || (in_vld_r && in_eop_r);
 
-    // Zero-mask the true empty trailing bytes before crc_accum, since
-    // crc_accum is always driven with mty=0 below (see module header).
-    logic [0:DATA_BYTE_WID-1][7:0] data_masked;
-    always_comb begin
-        data_masked = in_data_r;
-        for (int j = 0; j < DATA_BYTE_WID; j++)
-            if (j >= DATA_BYTE_WID - int'(in_mty_r)) data_masked[j] = 8'h00;
-    end
 
     logic [CONFIG.WIDTH-1:0] crc_comb;
     logic                    crc_check_unused;
@@ -144,7 +145,7 @@ module packet_crc_rx
         .srst  ( crc_srst ),
         .en    ( in_vld_r ),
         .mty   ( '0 ),
-        .data  ( data_masked ),
+        .data  ( in_data_r ),
         .crc   ( crc_comb ),
         .check ( crc_check_unused )
     );
