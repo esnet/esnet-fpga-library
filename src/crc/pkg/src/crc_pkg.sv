@@ -90,6 +90,32 @@ package crc_pkg;
         return crc_shifted;
     endfunction
 
+    // Inverse of calculate_bitwise: given the state produced by shifting
+    // crc_in through one bit of value `data`, recover crc_in. Requires
+    // POLY[0] == 1, which holds for every valid CRC polynomial (the
+    // constant term of a CRC generator polynomial is always 1), so this
+    // shift is always a bijection for the configs in this library.
+    function automatic CRC_T calculate_bitwise_inverse(input crc_config_t _config, input CRC_T crc_out, input bit data);
+        automatic bit fb = crc_out[0];
+        automatic CRC_T crc_in = '0;
+        crc_in[_config.WIDTH-1] = fb ^ data;
+        for (int k = 1; k < _config.WIDTH; k++) begin
+            crc_in[k-1] = crc_out[k] ^ (fb & _config.POLY[k]);
+        end
+        return crc_in;
+    endfunction
+
+    // Inverse of crc_shift: removes `shift_bits` zero-data bit-shifts from
+    // crc_in, recovering the state prior to those shifts. Used to undo the
+    // effect of zero-padded (masked) trailing bytes on an accumulated CRC.
+    function automatic CRC_T crc_unshift(input crc_config_t _config, input CRC_T crc_in, input int shift_bits);
+        automatic CRC_T crc_unshifted = crc_in;
+        for (int i = 0; i < shift_bits; i++) begin
+            crc_unshifted = calculate_bitwise_inverse(_config, crc_unshifted, 1'b0);
+        end
+        return crc_unshifted;
+    endfunction
+
     function automatic CRC_T calculate_bitwise_independent(input crc_config_t _config, input bit data, input int shift_bits);
         CRC_T crc = calculate_bitwise(_config, 0, data);
         return crc_shift(_config, crc, shift_bits);
@@ -103,6 +129,34 @@ package crc_pkg;
     function automatic CRC_T calculate_dwordwise_independent(input crc_config_t _config, input bit[31:0] data, input int shift_dwords);
         CRC_T crc = calculate_dwordwise(_config, 0, data);
         return crc_shift(_config, crc, shift_dwords * 32);
+    endfunction
+
+    // Reverses the order of the low _config.WIDTH bits of val (bits at or
+    // above WIDTH are ignored and read back as 0). _config.WIDTH is a
+    // runtime function argument, not an elaboration-time constant, so a
+    // streaming operator over a variable-width part-select (e.g.
+    // val[_config.WIDTH-1:0]) is not legal here; a bit-select loop (dynamic
+    // single-bit indexing) is used instead.
+    function automatic CRC_T reflect(input crc_config_t _config, input CRC_T val);
+        automatic CRC_T reflected = '0;
+        for (int i = 0; i < int'(_config.WIDTH); i++) begin
+            reflected[i] = val[int'(_config.WIDTH)-1-i];
+        end
+        return reflected;
+    endfunction
+
+    // Removes the effect of `n_bytes` trailing zero-padded bytes from a fully
+    // formatted (REFOUT + XOROUT applied) CRC value, e.g. to recover the true
+    // CRC of a partial (mty > 0) beat whose empty bytes were zero-masked
+    // before being folded into the accumulator. REFOUT/XOROUT are both
+    // self-inverse, so formatting is undone, the shift is removed on the raw
+    // state, then formatting is re-applied.
+    function automatic CRC_T remove_trailing_zero_bytes(input crc_config_t _config, input CRC_T crc_in, input int n_bytes);
+        automatic CRC_T pre_xor = crc_in ^ _config.XOROUT;
+        automatic CRC_T raw = _config.REFOUT ? reflect(_config, pre_xor) : pre_xor;
+        automatic CRC_T raw_corrected = crc_unshift(_config, raw, n_bytes * 8);
+        automatic CRC_T pre_xor_corrected = _config.REFOUT ? reflect(_config, raw_corrected) : raw_corrected;
+        return pre_xor_corrected ^ _config.XOROUT;
     endfunction
 
     function automatic string print_crc_config(input crc_config_t _config);

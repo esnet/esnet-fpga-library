@@ -6,21 +6,36 @@
 //              other beats (not held between packets, and not guaranteed to
 //              read as any particular value when idle).
 //
-//              Timing: crc_comb is fed by crc_accum's state-feedback
-//              recurrence, which is already multiple logic levels deep.  A
-//              dedicated feed-forward register captures data/eop/mty/err/
-//              meta together with crc_comb on the input-side handshake, so
-//              crc_comb is never combined with other logic before landing in
-//              a register of its own — the same shape as the original
-//              single-register crc_out design, which had healthy timing
-//              margin in isolation (crc_comb driving a wide multi-field
-//              register, or a skid buffer fed directly from crc_comb, both
-//              eat into that margin — see git history for measurements).
+//              Timing: crc_accum's internal mty-selected state-shift MUX sits
+//              directly in its state-feedback recurrence and, at wide
+//              DATA_BYTE_WID, eats most of the timing margin at 350MHz on its
+//              own (see git history for measurements) — independent of
+//              anything downstream.  To remove the MUX from that recurrence,
+//              crc_accum here is always driven with mty=0 (every beat,
+//              including EOP, is treated as fully valid), with the true
+//              trailing empty bytes of an EOP beat zero-masked on the data
+//              feeding crc_accum instead.  This makes crc_accum's per-beat
+//              state shift a single fixed (DATA_BYTE_WID-byte) function,
+//              previously one option among DATA_BYTE_WID MUX-selected ones.
+//
+//              The resulting crc_comb is therefore the CRC as if the packet
+//              were zero-padded to a full beat on EOP — not the true
+//              packet CRC.  crc_trim removes the contribution of those
+//              zero-padded bytes to recover the true CRC, given the real
+//              mty.  This correction is itself multiple logic levels deep,
+//              so it gets its own pipeline stage: a first feed-forward
+//              register captures data/eop/mty/err/meta together with the raw
+//              crc_comb on the input-side handshake (crc_comb lands directly
+//              in this register with no other logic in its path); a second
+//              register then captures crc_trim's output alongside the rest
+//              of the beat carried forward another cycle.  Neither crc_comb
+//              nor crc_trim's output is ever combined with other logic
+//              before landing in a register of its own.
 //
 //              Correctness under backpressure: the data path is elastic
 //              (packet_skid_buffer, backed by fifo_prefetch), so more than
 //              one packet can be in flight.  A single crc_out register fed
-//              directly from crc_comb would be overwritten by a later
+//              directly from the trimmed CRC would be overwritten by a later
 //              packet's CRC before an earlier packet's EOP has drained, if
 //              backpressure allows multiple packets to queue.  To avoid
 //              losing CRC values this way, the captured CRC (already
@@ -32,9 +47,9 @@
 //
 //              from_tx.rdy is driven directly by the skid buffer's own rdy
 //              (itself a registered signal, with SKID cycles of lookahead
-//              reserved), so the extra register stage added here costs
-//              exactly the one cycle of slack that SKID=1 accounts for —
-//              no bubbles, no overflow risk.
+//              reserved), so the two register stages added here cost exactly
+//              the two cycles of slack that SKID=2 accounts for — no
+//              bubbles, no overflow risk.
 //
 module packet_crc_tx
     import crc_pkg::*;
@@ -79,11 +94,21 @@ module packet_crc_tx
     logic crc_srst;
     assign crc_srst = srst || (xfer && from_tx.eop);
 
+    // Zero-mask the true empty trailing bytes before crc_accum, since
+    // crc_accum is always driven with mty=0 below (see module header).
+    logic [0:DATA_BYTE_WID-1][7:0] data_masked;
+    always_comb begin
+        data_masked = from_tx.data;
+        for (int j = 0; j < DATA_BYTE_WID; j++)
+            if (j >= DATA_BYTE_WID - int'(from_tx.mty)) data_masked[j] = 8'h00;
+    end
+
     logic [CONFIG.WIDTH-1:0] crc_comb;
     logic                    crc_check_unused;
 
     // -----------------------------
-    // CRC accumulator — taps input-side data
+    // CRC accumulator — taps input-side data, always treating the beat as
+    // fully valid (mty=0 tied off; see module header).
     // -----------------------------
     crc_accum #(
         .CONFIG     ( CONFIG ),
@@ -92,16 +117,17 @@ module packet_crc_tx
         .clk,
         .srst  ( crc_srst ),
         .en    ( xfer ),
-        .mty   ( from_tx.mty ),
-        .data  ( from_tx.data ),
+        .mty   ( '0 ),
+        .data  ( data_masked ),
         .crc   ( crc_comb ),
         .check ( crc_check_unused )
     );
 
     // -----------------------------
-    // Feed-forward register — captures the beat together with crc_comb.
-    // crc_comb lands directly in this register with no other logic in its
-    // path (same timing shape as the original crc_out register).
+    // Feed-forward register — captures the beat together with the *raw*
+    // (zero-padded) crc_comb.  crc_comb lands directly in this register with
+    // no other logic in its path (same timing shape as the original
+    // crc_out register).
     // -----------------------------
     logic                     vld_r;
     logic [DATA_WID-1:0]      data_r;
@@ -109,20 +135,59 @@ module packet_crc_tx
     logic [MTY_WID-1:0]       mty_r;
     logic                     err_r;
     logic [META_WID-1:0]      meta_r;
-    logic [CONFIG.WIDTH-1:0]  crc_r;
+    logic [CONFIG.WIDTH-1:0]  crc_comb_r;
 
     always_ff @(posedge clk) begin
         if (srst) vld_r <= 1'b0;
         else      vld_r <= xfer;
 
         if (xfer) begin
-            data_r <= from_tx.data;
-            eop_r  <= from_tx.eop;
-            mty_r  <= from_tx.mty;
-            err_r  <= from_tx.err;
-            meta_r <= from_tx.meta;
-            crc_r  <= crc_comb;
+            data_r     <= from_tx.data;
+            eop_r      <= from_tx.eop;
+            mty_r      <= from_tx.mty;
+            err_r      <= from_tx.err;
+            meta_r     <= from_tx.meta;
+            crc_comb_r <= crc_comb;
         end
+    end
+
+    // -----------------------------
+    // crc_trim — removes the zero-padded tail's contribution from
+    // crc_comb_r, recovering the true packet CRC.  Multiple logic levels
+    // deep, so its result gets a register stage of its own below rather
+    // than being combined with the feed-forward register above.
+    // -----------------------------
+    logic [CONFIG.WIDTH-1:0] crc_trimmed;
+    logic                    crc_trim_check_unused;
+
+    crc_trim #(
+        .CONFIG     ( CONFIG ),
+        .DATA_BYTES ( DATA_BYTE_WID )
+    ) i_crc_trim (
+        .crc_in ( crc_comb_r ),
+        .mty    ( mty_r ),
+        .crc    ( crc_trimmed ),
+        .check  ( crc_trim_check_unused )
+    );
+
+    logic                     vld_r2;
+    logic [DATA_WID-1:0]      data_r2;
+    logic                     eop_r2;
+    logic [MTY_WID-1:0]       mty_r2;
+    logic                     err_r2;
+    logic [META_WID-1:0]      meta_r2;
+    logic [CONFIG.WIDTH-1:0]  crc_r;
+
+    always_ff @(posedge clk) begin
+        if (srst) vld_r2 <= 1'b0;
+        else      vld_r2 <= vld_r;
+
+        data_r2 <= data_r;
+        eop_r2  <= eop_r;
+        mty_r2  <= mty_r;
+        err_r2  <= err_r;
+        meta_r2 <= meta_r;
+        crc_r   <= crc_trimmed;
     end
 
     // -----------------------------
@@ -130,7 +195,7 @@ module packet_crc_tx
     // caller's registered meta.  crc_r is only meaningful on an EOP beat;
     // zeroed otherwise so the carried field reflects the crc_out contract
     // (valid on EOP only, not held between packets).  This mux sits on the
-    // write-data input to the skid buffer, not on crc_comb's path into
+    // write-data input to the skid buffer, not on crc_trimmed's path into
     // crc_r, so it adds no logic to the timing-critical register above.
     // -----------------------------
     packet_intf #(
@@ -138,16 +203,16 @@ module packet_crc_tx
         .META_WID      ( EXT_META_WID )
     ) ext_if (.clk);
 
-    assign ext_if.vld  = vld_r;
-    assign ext_if.data = data_r;
-    assign ext_if.eop  = eop_r;
-    assign ext_if.mty  = mty_r;
-    assign ext_if.err  = err_r;
-    assign ext_if.meta = {meta_r, (eop_r ? crc_r : '0)};
+    assign ext_if.vld  = vld_r2;
+    assign ext_if.data = data_r2;
+    assign ext_if.eop  = eop_r2;
+    assign ext_if.mty  = mty_r2;
+    assign ext_if.err  = err_r2;
+    assign ext_if.meta = {meta_r2, (eop_r2 ? crc_r : '0)};
 
     // from_tx.rdy is driven directly from the skid buffer's own (registered)
-    // rdy — SKID=1 reserves exactly the slot needed for the feed-forward
-    // register's one cycle of latency, so this costs no bubble cycles.
+    // rdy — SKID=2 reserves exactly the slots needed for the two feed-forward
+    // register stages' latency, so this costs no bubble cycles.
     assign from_tx.rdy = ext_if.rdy;
 
     packet_intf #(
@@ -156,7 +221,7 @@ module packet_crc_tx
     ) ext_out_if (.clk);
 
     packet_skid_buffer #(
-        .SKID ( 1 )
+        .SKID ( 2 )
     ) i_packet_skid_buffer (
         .srst,
         .from_tx ( ext_if ),
