@@ -280,29 +280,36 @@ switch $PHASE {
 
     place {
         open_checkpoint $OUT_DIR/${TOP}.opt.dcp
+        set NP_PLACE_OPTS {}
         source_hooks $HOOK_TCL "*place.pre*"
-        place_design
+        place_design {*}$NP_PLACE_OPTS
         write_checkpoint -force $OUT_DIR/${TOP}.place.dcp
         puts "Wrote: $OUT_DIR/${TOP}.place.dcp"
     }
 
     place_opt {
         open_checkpoint $OUT_DIR/${TOP}.place.dcp
-        phys_opt_design
+        set NP_PLACE_OPT_OPTS {}
+        source_hooks $HOOK_TCL "*place_opt.pre*"
+        phys_opt_design {*}$NP_PLACE_OPT_OPTS
         write_checkpoint -force $OUT_DIR/${TOP}.place_opt.dcp
         puts "Wrote: $OUT_DIR/${TOP}.place_opt.dcp"
     }
 
     route {
         open_checkpoint $OUT_DIR/${TOP}.place_opt.dcp
-        route_design
+        set NP_ROUTE_OPTS {}
+        source_hooks $HOOK_TCL "*route.pre*"
+        route_design {*}$NP_ROUTE_OPTS
         write_checkpoint -force $OUT_DIR/${TOP}.route.dcp
         puts "Wrote: $OUT_DIR/${TOP}.route.dcp"
     }
 
     route_opt {
         open_checkpoint $OUT_DIR/${TOP}.route.dcp
-        phys_opt_design
+        set NP_ROUTE_OPT_OPTS {}
+        source_hooks $HOOK_TCL "*route_opt.pre*"
+        phys_opt_design {*}$NP_ROUTE_OPT_OPTS
         write_checkpoint -force $OUT_DIR/${TOP}.route_opt.dcp
         puts "Wrote: $OUT_DIR/${TOP}.route_opt.dcp"
         source_hooks $HOOK_TCL "*route_opt.post*"
