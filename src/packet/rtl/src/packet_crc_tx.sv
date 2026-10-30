@@ -59,10 +59,19 @@
 //              cycles of slack that SKID=3 accounts for — no bubbles, no
 //              overflow risk.
 //
+//              Parameters TRIM and BYTE_REVERSE select a CRC computed over
+//              whole beats, as produced by wide-bus parallel CRC engines:
+//              TRIM=0 bypasses crc_trim, so the CRC covers the zero-padded EOP
+//              beat, and BYTE_REVERSE=1 feeds the bytes of each beat to the
+//              CRC last byte first.  BYTE_REVERSE requires TRIM=0, since
+//              reversed padding enters the CRC first and cannot be trimmed.  Defaults give the true packet CRC.
+//
 module packet_crc_tx
     import crc_pkg::*;
 #(
-    parameter crc_config_t CONFIG = DEFAULT_CRC
+    parameter crc_config_t CONFIG = DEFAULT_CRC,
+    parameter bit          TRIM         = 1,  // 0: CRC covers the zero-padded EOP beat; crc_trim bypassed
+    parameter bit          BYTE_REVERSE = 0   // 1: bytes of each beat enter the CRC last byte first
 ) (
     input  logic                    srst,
 
@@ -84,6 +93,11 @@ module packet_crc_tx
     // Parameter checking
     // -----------------------------
     initial begin
+        // A trimmed CRC removes the zero padding from the tail of the final
+        // beat; with reversed bytes the padding enters first and cannot be
+        // trimmed.
+        if (BYTE_REVERSE && TRIM)
+            $fatal(1, "packet_crc_tx: BYTE_REVERSE requires TRIM=0");
         std_pkg::param_check(to_rx.DATA_BYTE_WID, DATA_BYTE_WID, "to_rx.DATA_BYTE_WID");
         std_pkg::param_check(to_rx.META_WID,      META_WID,      "to_rx.META_WID");
     end
@@ -138,6 +152,15 @@ module packet_crc_tx
     assign crc_srst = srst || (in_vld_r && in_eop_r);
 
     logic [CONFIG.WIDTH-1:0] crc_comb;
+
+    // Beat as seen by the CRC.  Reversal is wiring only, ahead of crc_accum.
+    logic [0:DATA_BYTE_WID-1][7:0] in_bytes;
+    logic [0:DATA_BYTE_WID-1][7:0] crc_data_in;
+    assign in_bytes = in_data_r;
+    always_comb begin
+        for (int j = 0; j < DATA_BYTE_WID; j++)
+            crc_data_in[j] = BYTE_REVERSE ? in_bytes[(DATA_BYTE_WID-1)-j] : in_bytes[j];
+    end
     logic                    crc_check_unused;
 
     // -----------------------------
@@ -152,7 +175,7 @@ module packet_crc_tx
         .srst  ( crc_srst ),
         .en    ( in_vld_r ),
         .mty   ( '0 ),
-        .data  ( in_data_r ),
+        .data  ( crc_data_in ),
         .crc   ( crc_comb ),
         .check ( crc_check_unused )
     );
@@ -194,15 +217,23 @@ module packet_crc_tx
     logic [CONFIG.WIDTH-1:0] crc_trimmed;
     logic                    crc_trim_check_unused;
 
-    crc_trim #(
-        .CONFIG     ( CONFIG ),
-        .DATA_BYTES ( DATA_BYTE_WID )
-    ) i_crc_trim (
-        .crc_in ( crc_comb_r ),
-        .mty    ( mty_r ),
-        .crc    ( crc_trimmed ),
-        .check  ( crc_trim_check_unused )
-    );
+    generate
+        if (TRIM) begin : g_trim
+            crc_trim #(
+            .CONFIG     ( CONFIG ),
+            .DATA_BYTES ( DATA_BYTE_WID )
+        ) i_crc_trim (
+            .crc_in ( crc_comb_r ),
+            .mty    ( mty_r ),
+            .crc    ( crc_trimmed ),
+            .check  ( crc_trim_check_unused )
+        );
+        end : g_trim
+        else begin : g_no_trim
+            assign crc_trimmed = crc_comb_r;
+            assign crc_trim_check_unused = 1'b0;
+        end : g_no_trim
+    endgenerate
 
     logic                     vld_r2;
     logic [DATA_WID-1:0]      data_r2;

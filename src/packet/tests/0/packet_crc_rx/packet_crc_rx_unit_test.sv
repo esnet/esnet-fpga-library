@@ -3,6 +3,8 @@
 module packet_crc_rx_unit_test #(
     parameter crc_pkg::crc_config_t CONFIG = crc_pkg::DEFAULT_CRC,
     parameter int DATA_BYTE_WID = 8,
+    parameter bit TRIM = 1,
+    parameter bit BYTE_REVERSE = 0,
     parameter string NAME = "packet_crc_rx"
 );
     import svunit_pkg::svunit_testcase;
@@ -30,7 +32,9 @@ module packet_crc_rx_unit_test #(
     logic [CONFIG.WIDTH-1:0] crc_in;
 
     packet_crc_rx #(
-        .CONFIG ( CONFIG )
+        .CONFIG       ( CONFIG ),
+        .TRIM         ( TRIM ),
+        .BYTE_REVERSE ( BYTE_REVERSE )
     ) DUT (
         .srst,
         .from_tx ( tx_if ),
@@ -50,7 +54,21 @@ module packet_crc_rx_unit_test #(
     //===================================
     // Reference model
     //===================================
+    // With TRIM=0 the CRC covers the zero-padded final beat; with
+    // BYTE_REVERSE=1 the bytes of each beat enter the CRC last byte first.
     function automatic logic [CONFIG.WIDTH-1:0] reference_crc(input byte_array_t data);
+        byte_array_t crc_data = data;
+        if (!TRIM) begin
+            int num_beats = (data.size() + DATA_BYTE_WID - 1) / DATA_BYTE_WID;
+            crc_data = new[num_beats * DATA_BYTE_WID];
+            foreach (crc_data[i]) crc_data[i] = (i < data.size()) ? data[i] : 8'h00;
+        end
+        if (BYTE_REVERSE) begin
+            byte_array_t rev = new[crc_data.size()];
+            foreach (rev[i])
+                rev[i] = crc_data[(i / DATA_BYTE_WID) * DATA_BYTE_WID + (DATA_BYTE_WID - 1 - (i % DATA_BYTE_WID))];
+            crc_data = rev;
+        end
         reference_crc = crc_verif_pkg::calculate(
             CONFIG.WIDTH,
             CONFIG.POLY,
@@ -58,7 +76,7 @@ module packet_crc_rx_unit_test #(
             CONFIG.REFIN,
             CONFIG.REFOUT,
             CONFIG.XOROUT,
-            data
+            crc_data
         );
     endfunction
 
@@ -287,10 +305,10 @@ endmodule
 // ──────────────────────────────────────────────────────────────────────────────
 // Wrapper boilerplate
 // ──────────────────────────────────────────────────────────────────────────────
-`define PACKET_CRC_RX_UNIT_TEST(CFG, BYTES, NM) \
+`define PACKET_CRC_RX_UNIT_TEST(CFG, BYTES, NM, TRM = 1, REV = 0) \
   import svunit_pkg::svunit_testcase; \
   svunit_testcase svunit_ut; \
-  packet_crc_rx_unit_test #(.CONFIG(CFG), .DATA_BYTE_WID(BYTES), .NAME(NM)) test(); \
+  packet_crc_rx_unit_test #(.CONFIG(CFG), .DATA_BYTE_WID(BYTES), .TRIM(TRM), .BYTE_REVERSE(REV), .NAME(NM)) test(); \
   function void build(); \
     test.build(); \
     svunit_ut = test.svunit_ut; \
@@ -309,4 +327,12 @@ endmodule
 
 module packet_crc_rx_crc32_x64_unit_test;
     `PACKET_CRC_RX_UNIT_TEST(crc_pkg::CRC32, 64, "packet_crc_rx_crc32_x64")
+endmodule
+
+module packet_crc_rx_mpeg2_beat_x8_unit_test;
+    `PACKET_CRC_RX_UNIT_TEST(crc_pkg::CRC32_MPEG2, 8, "packet_crc_rx_mpeg2_beat_x8", 0, 1)
+endmodule
+
+module packet_crc_rx_mpeg2_beat_x64_unit_test;
+    `PACKET_CRC_RX_UNIT_TEST(crc_pkg::CRC32_MPEG2, 64, "packet_crc_rx_mpeg2_beat_x64", 0, 1)
 endmodule

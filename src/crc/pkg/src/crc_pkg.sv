@@ -210,6 +210,7 @@ package crc_pkg;
     localparam crc_config_t CRC32_CKSUM    = '{WIDTH: 32, POLY: 32'h04c11db7, INIT: 32'h00000000, REFIN: 0, REFOUT: 0, XOROUT: 32'hffffffff, CHECK: 32'h765e7680, RESIDUE: 32'hc704dd7b};
     // -- Aliases
     localparam crc_config_t CRC32_POSIX    = CRC32_CKSUM;
+    localparam crc_config_t CRC32_MPEG2    = '{WIDTH: 32, POLY: 32'h04c11db7, INIT: 32'hffffffff, REFIN: 0, REFOUT: 0, XOROUT: 32'h00000000, CHECK: 32'h0376e6e7, RESIDUE: 32'h00000000};
     localparam crc_config_t CRC32_ISO_HDLC = '{WIDTH: 32, POLY: 32'h04c11db7, INIT: 32'hffffffff, REFIN: 1, REFOUT: 1, XOROUT: 32'hffffffff, CHECK: 32'hcbf43926, RESIDUE: 32'hdebb20e3};
     // -- Aliases
     localparam crc_config_t CRC32          = CRC32_ISO_HDLC;
