@@ -283,6 +283,32 @@ module packet_crc_tx_unit_test #(
             `FAIL_UNLESS_EQUAL(rx_crc, exp_crc);
         `SVTEST_END
 
+
+        // Known-answer vectors for the whole-beat convention (CRC-32/MPEG-2,
+        // TRIM=0, BYTE_REVERSE=1, 64-byte beat).  Payload byte i is
+        // (7*i + 3) mod 256.  Expected values are independent of the
+        // reference model above and match CRCs observed on the hardware
+        // engine that uses this convention.
+        `SVTEST(known_answer_whole_beat)
+            if (CONFIG == crc_pkg::CRC32_MPEG2 && !TRIM && BYTE_REVERSE && DATA_BYTE_WID == 64) begin
+                int          lens [5] = '{1, 60, 64, 65, 196};
+                bit [31:0]   crcs [5] = '{32'h9e7a6888, 32'h8224a023, 32'h0cfb506f, 32'haccc6efe, 32'h8446d5f2};
+                foreach (lens[k]) begin
+                    byte_array_t tx_data, rx_data;
+                    bit rx_err;
+                    logic [META_WID-1:0] rx_meta;
+                    logic [CONFIG.WIDTH-1:0] rx_crc;
+                    tx_data = new[lens[k]];
+                    foreach (tx_data[i]) tx_data[i] = byte'(7*i + 3);
+                    fork
+                        send_packet(tx_data);
+                        recv_packet(rx_data, rx_err, rx_meta, rx_crc);
+                    join
+                    `FAIL_UNLESS_EQUAL(rx_crc, crcs[k]);
+                end
+            end
+        `SVTEST_END
+
     `SVUNIT_TESTS_END
 
 endmodule
@@ -321,4 +347,12 @@ endmodule
 
 module packet_crc_tx_mpeg2_beat_x64_unit_test;
     `PACKET_CRC_TX_UNIT_TEST(crc_pkg::CRC32_MPEG2, 64, "packet_crc_tx_mpeg2_beat_x64", 0, 1)
+endmodule
+
+module packet_crc_tx_mpeg2_padded_x8_unit_test;
+    `PACKET_CRC_TX_UNIT_TEST(crc_pkg::CRC32_MPEG2, 8, "packet_crc_tx_mpeg2_padded_x8", 0, 0)
+endmodule
+
+module packet_crc_tx_mpeg2_padded_x64_unit_test;
+    `PACKET_CRC_TX_UNIT_TEST(crc_pkg::CRC32_MPEG2, 64, "packet_crc_tx_mpeg2_padded_x64", 0, 0)
 endmodule
