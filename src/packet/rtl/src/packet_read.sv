@@ -27,7 +27,8 @@ module packet_read
     // Memory read interface
     mem_rd_intf.controller      mem_rd_if,
 
-    // Packet size (held for duration of current output packet)
+    // Packet size (aligned with the output beats; held for the duration of
+    // the packet presented on packet_if, not the one being read from memory)
     output size_t               pkt_size
 );
     // -----------------------------
@@ -70,6 +71,7 @@ module packet_read
         logic [MTY_WID-1:0]  mty;
         logic                err;
         logic [META_WID-1:0] meta;
+        size_t               size;
     } ctxt_t;
 
     // -----------------------------
@@ -165,7 +167,6 @@ module packet_read
     always_ff @(posedge clk) begin
         case (state)
             READY : begin
-                pkt_size <= descriptor_if.size;
                 last_word <= (descriptor_if.size - 1) / DATA_BYTE_WID;
                 last_word_mty <= (DATA_BYTE_WID - descriptor_if.size % DATA_BYTE_WID) % DATA_BYTE_WID;
             end
@@ -187,12 +188,15 @@ module packet_read
     assign ctxt_in.eop = prefetch_eop;
     assign ctxt_in.mty = prefetch_eop ? last_word_mty : '0;
 
-    // Latch metadata
+    // Latch metadata and size.  These travel with each beat through the read
+    // pipeline, so the outputs stay aligned with the packet being presented
+    // even after the FSM has moved on to the next descriptor.
     always_ff @(posedge clk) begin
         case (state)
             READY : begin
                 ctxt_in.err <= descriptor_if.err;
                 ctxt_in.meta <= descriptor_if.meta;
+                ctxt_in.size <= descriptor_if.size;
             end
         endcase
     end
@@ -278,6 +282,7 @@ module packet_read
             assign packet_if.mty  = __ctxt_out.mty;
             assign packet_if.err  = __ctxt_out.err || (cksum_err && __ctxt_out.eop);
             assign packet_if.meta = __ctxt_out.meta;
+            assign pkt_size       = __ctxt_out.size;
 
         end : g__ignore_rdy
         else begin : g__obey_rdy
@@ -289,6 +294,7 @@ module packet_read
                 logic [MTY_WID-1:0]  mty;
                 logic                err;
                 logic [META_WID-1:0] meta;
+                size_t               size;
             } prefetch_data_t;
             // (Local) signals
             prefetch_data_t __prefetch_wr_data;
@@ -300,6 +306,7 @@ module packet_read
             assign __prefetch_wr_data.mty = ctxt_out.mty;
             assign __prefetch_wr_data.err = ctxt_out.err;
             assign __prefetch_wr_data.meta = ctxt_out.meta;
+            assign __prefetch_wr_data.size = ctxt_out.size;
 
             // Prefetch buffer (data)
             fifo_prefetch #(
@@ -322,6 +329,7 @@ module packet_read
             assign packet_if.mty  = __prefetch_rd_data.mty;
             assign packet_if.err  = __prefetch_rd_data.err || (cksum_err && __prefetch_rd_data.eop);
             assign packet_if.meta = __prefetch_rd_data.meta;
+            assign pkt_size       = __prefetch_rd_data.size;
 
         end : g__obey_rdy
     endgenerate

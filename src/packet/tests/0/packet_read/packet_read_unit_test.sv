@@ -384,6 +384,56 @@ module packet_read_tb #(
             end
         `SVTEST_END
 
+        // pkt_size must track the packet being presented on packet_if, not the
+        // descriptor the read FSM has moved on to.  Back-to-back packets of
+        // differing size with a stalled output expose the difference: the
+        // FSM finishes issuing reads for a packet while its tail beats are
+        // still waiting in the output buffer.
+        `SVTEST(pkt_size_tracks_output_packet)
+            int lengths [] = '{64, 1500, 64, 200, 1, 1500, 65, 64, 700, 64};
+            int words;
+            int addr;
+            int errors;
+            int rx_cnt;
+            int cycles;
+            addr = 0;
+            for (int i = 0; i < lengths.size(); i++) begin
+                preload_mem(rand_bytes(lengths[i]), ADDR_T'(addr));
+                addr += (lengths[i] + DATA_BYTE_WID - 1) / DATA_BYTE_WID;
+            end
+            errors = 0;
+            rx_cnt = 0;
+            fork
+                begin
+                    addr = 0;
+                    for (int i = 0; i < lengths.size(); i++) begin
+                        descriptor_if.send(._addr(ADDR_T'(addr)), ._size(lengths[i]),
+                                           ._cksum(16'h0));
+                        addr += (lengths[i] + DATA_BYTE_WID - 1) / DATA_BYTE_WID;
+                    end
+                end
+                begin
+                    cycles = 0;
+                    while (rx_cnt < lengths.size() && cycles < 50000) begin
+                        if (!IGNORE_RDY) packet_if.cb_rx.rdy <= ($urandom_range(0, 3) == 0);
+                        @(posedge clk);
+                        if (packet_if.vld && (IGNORE_RDY || packet_if.rdy) && packet_if.eop) begin
+                            if (pkt_size != size_t'(lengths[rx_cnt])) begin
+                                errors++;
+                                $display("pkt_size mismatch on packet %0d: got %0d, expected %0d",
+                                         rx_cnt, pkt_size, lengths[rx_cnt]);
+                            end
+                            rx_cnt++;
+                        end
+                        cycles++;
+                    end
+                    if (!IGNORE_RDY) packet_if.cb_rx.rdy <= 1'b0;
+                end
+            join
+            `FAIL_UNLESS_EQUAL(rx_cnt, lengths.size());
+            `FAIL_UNLESS_EQUAL(errors, 0);
+        `SVTEST_END
+
     `SVUNIT_TESTS_END
 
 endmodule : packet_read_tb
