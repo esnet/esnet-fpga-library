@@ -43,7 +43,7 @@ SRCS = $(SV_PKG_FILES__ALL) $(SV_SRC_FILES__ALL) $(V_SRC_FILES__ALL)
 # Runtime arguments (+args)
 # -----------------------------------------------
 PLUSARGS ?=
-PLUSARG_REFS = $(PLUSARGS:%=--testplusarg %)
+PLUSARG_REFS = $(foreach plusarg,$(PLUSARGS),'+$(plusarg)')
 
 # -----------------------------------------------
 # Sim options
