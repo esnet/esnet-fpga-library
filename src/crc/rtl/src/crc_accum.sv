@@ -43,8 +43,7 @@ module crc_accum
     input  logic srst,
     input  logic en,
     // Empty bytes at end of this beat.  0 = all bytes valid.  Valid range is
-    // [0, DATA_BYTES-1] (a beat with 0 valid bytes isn't a real transfer), so
-    // this matches packet_intf's MTY_WID convention, not DATA_BYTES+1.
+    // [0, DATA_BYTES-1] (a beat with 0 valid bytes isn't a real transfer).
     input  logic [(DATA_BYTES > 1 ? $clog2(DATA_BYTES) : 1)-1:0] mty,
     input  logic [0:DATA_BYTES-1][7:0] data,
     output logic [CONFIG.WIDTH-1:0] crc,

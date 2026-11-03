@@ -9,6 +9,8 @@ class packet_descriptor #(parameter type ADDR_T = bit, parameter type META_T = b
     rand ADDR_T addr;
     rand int size;
     rand bit err;
+    // cksum is not randomized; 0 means not calculated (TCP/UDP convention).
+    packet_pkg::cksum_t cksum;
 
     local int __MIN_SIZE = 40;
     local int __MAX_SIZE = 16384;
@@ -20,17 +22,19 @@ class packet_descriptor #(parameter type ADDR_T = bit, parameter type META_T = b
     //===================================
     // Constructor
     function new(
-            input string name = "packet_descriptor",
-            input ADDR_T addr = '0,
-            input int    size =  0,
-            input META_T meta = '0,
-            input bit    err = 1'b0
+            input string            name  = "packet_descriptor",
+            input ADDR_T            addr  = '0,
+            input int               size  =  0,
+            input META_T            meta  = '0,
+            input bit               err   = 1'b0,
+            input packet_pkg::cksum_t cksum = '0
         );
         super.new(name);
-        this.addr = addr;
-        this.size = size;
-        this.err = err;
-        this.meta = meta;
+        this.addr  = addr;
+        this.size  = size;
+        this.err   = err;
+        this.meta  = meta;
+        this.cksum = cksum;
     endfunction
 
     // Destructor
@@ -48,10 +52,11 @@ class packet_descriptor #(parameter type ADDR_T = bit, parameter type META_T = b
             // Impossible to continue; raise fatal exception.
             $fatal(2, "Transaction type mismatch during object copy operation.");
         end
-        this.addr = desc.addr;
-        this.size = desc.size;
-        this.err = desc.err;
-        this.meta = desc.meta;
+        this.addr  = desc.addr;
+        this.size  = desc.size;
+        this.err   = desc.err;
+        this.meta  = desc.meta;
+        this.cksum = desc.cksum;
     endfunction
 
     // Clone
@@ -64,7 +69,8 @@ class packet_descriptor #(parameter type ADDR_T = bit, parameter type META_T = b
             addr,
             size,
             meta,
-            err
+            err,
+            cksum
         );
         return desc;
     endfunction
@@ -114,12 +120,13 @@ class packet_descriptor #(parameter type ADDR_T = bit, parameter type META_T = b
         str = {str, string_pkg::horiz_line()};
         str = {str,
                 $sformatf(
-                    "Packet descriptor '%s' (addr: 0x%0x, %0d bytes, err: %0b, meta: 0x%0x)",
+                    "Packet descriptor '%s' (addr: 0x%0x, %0d bytes, err: %0b, meta: 0x%0x, cksum: 0x%04x)",
                     get_name(),
                     addr,
                     size,
                     err,
-                    meta
+                    meta,
+                    cksum
                 )
               };
         return str;
@@ -146,6 +153,9 @@ class packet_descriptor #(parameter type ADDR_T = bit, parameter type META_T = b
             return 0;
         end else if (this.err != b.err) begin
             msg = $sformatf("Packet descriptor error mismatch. A: %0b, B: %0b.", this.err, b.err);
+            return 0;
+        end else if (this.cksum != 0 && this.cksum !== b.cksum) begin
+            msg = $sformatf("Packet descriptor checksum mismatch. A: 0x%04x, B: 0x%04x.", this.cksum, b.cksum);
             return 0;
         end
         msg = "Packet descriptors match.";

@@ -9,13 +9,14 @@ interface packet_descriptor_intf #(
     localparam int SIZE_WID = $clog2(MAX_PKT_SIZE+1);
 
     // Signals
-    logic                vld;
-    logic                rdy;
-    logic [ADDR_WID-1:0] addr;
-    logic [SIZE_WID-1:0] size;
-    logic                err;
-    logic [META_WID-1:0] meta;
-    
+    logic                                        vld;
+    logic                                        rdy;
+    logic [ADDR_WID-1:0]                         addr;
+    logic [SIZE_WID-1:0]                         size;
+    logic                                        err;
+    logic [META_WID-1:0]                         meta;
+    logic [packet_pkg::CKSUM_FIELD_WID-1:0]      cksum;  // 0 = not calculated
+
     // Modports
     modport tx(
         input  clk,
@@ -24,7 +25,8 @@ interface packet_descriptor_intf #(
         output addr,
         output size,
         output err,
-        output meta
+        output meta,
+        output cksum
     );
 
     modport rx(
@@ -34,25 +36,27 @@ interface packet_descriptor_intf #(
         input  addr,
         input  size,
         input  err,
-        input  meta
+        input  meta,
+        input  cksum
     );
 
     clocking cb_tx @(posedge clk);
-        output vld, addr, size, err, meta;
+        output vld, addr, size, err, meta, cksum;
         input rdy;
     endclocking
 
     clocking cb_rx @(posedge clk);
-        input vld, addr, size, err, meta;
+        input vld, addr, size, err, meta, cksum;
         output rdy;
     endclocking
 
     task idle_tx();
-        cb_tx.vld <= 1'b0;
-        cb_tx.addr <= 'x;
-        cb_tx.size <= 'x;
-        cb_tx.err  <= 1'bx;
-        cb_tx.meta <= 'x;
+        cb_tx.vld   <= 1'b0;
+        cb_tx.addr  <= 'x;
+        cb_tx.size  <= 'x;
+        cb_tx.err   <= 1'bx;
+        cb_tx.meta  <= 'x;
+        cb_tx.cksum <= 'x;
     endtask
 
     task idle_rx();
@@ -68,35 +72,39 @@ interface packet_descriptor_intf #(
     endtask
 
     task send(
-            input bit [ADDR_WID-1:0] _addr,
-            input int                _size,
-            input bit [META_WID-1:0] _meta = '0,
-            input bit                _err = 1'b0
+            input bit [ADDR_WID-1:0]                    _addr,
+            input int                                   _size,
+            input bit [META_WID-1:0]                    _meta  = '0,
+            input bit                                   _err   = 1'b0,
+            input bit [packet_pkg::CKSUM_FIELD_WID-1:0] _cksum = '0
         );
-        cb_tx.vld  <= 1'b1;
-        cb_tx.addr <= _addr;
-        cb_tx.size <= _size[SIZE_WID-1:0];
-        cb_tx.err  <= _err;
-        cb_tx.meta <= _meta;
+        cb_tx.vld   <= 1'b1;
+        cb_tx.addr  <= _addr;
+        cb_tx.size  <= _size[SIZE_WID-1:0];
+        cb_tx.err   <= _err;
+        cb_tx.meta  <= _meta;
+        cb_tx.cksum <= _cksum;
         @(cb_tx);
         wait (cb_tx.rdy);
         cb_tx.vld  <= 1'b0;
     endtask
 
     task receive(
-            output bit [ADDR_WID-1:0] _addr,
-            output int                _size,
-            output bit [META_WID-1:0] _meta,
-            output bit                _err
+            output bit [ADDR_WID-1:0]                    _addr,
+            output int                                   _size,
+            output bit [META_WID-1:0]                    _meta,
+            output bit                                   _err,
+            output bit [packet_pkg::CKSUM_FIELD_WID-1:0] _cksum
         );
         cb_rx.rdy <= 1'b1;
         @(cb_rx);
         wait(cb_rx.vld);
-        cb_rx.rdy <= 1'b0;
-        _addr = cb_rx.addr;
-        _size = cb_rx.size;
-        _meta = cb_rx.meta;
-        _err  = cb_rx.err;
+        cb_rx.rdy  <= 1'b0;
+        _addr  = cb_rx.addr;
+        _size  = cb_rx.size;
+        _meta  = cb_rx.meta;
+        _err   = cb_rx.err;
+        _cksum = cb_rx.cksum;
     endtask
 
     task wait_ready(
@@ -137,11 +145,12 @@ module packet_descriptor_intf_connector (
     end
 
     // Connect signals (tx -> rx)
-    assign to_rx.vld  = from_tx.vld;
-    assign to_rx.addr = from_tx.addr;
-    assign to_rx.size = from_tx.size;
-    assign to_rx.err  = from_tx.err;
-    assign to_rx.meta = from_tx.meta;
+    assign to_rx.vld   = from_tx.vld;
+    assign to_rx.addr  = from_tx.addr;
+    assign to_rx.size  = from_tx.size;
+    assign to_rx.err   = from_tx.err;
+    assign to_rx.meta  = from_tx.meta;
+    assign to_rx.cksum = from_tx.cksum;
 
     // Connect signals (rx -> tx)
     assign from_tx.rdy = to_rx.rdy;
@@ -169,11 +178,14 @@ module packet_descriptor_intf_delay #(
         std_pkg::param_check_gt(STAGES, 1, "to_rx.MAX_PKT_SIZE");
     end
 
+    localparam int CKSUM_WID = packet_pkg::CKSUM_FIELD_WID;
+
     typedef struct packed {
-        logic[ADDR_WID-1:0] addr;
-        logic[SIZE_WID-1:0] size;
-        logic[META_WID-1:0] meta;
-        logic               err;
+        logic[ADDR_WID-1:0]  addr;
+        logic[SIZE_WID-1:0]  size;
+        logic[META_WID-1:0]  meta;
+        logic                err;
+        logic[CKSUM_WID-1:0] cksum;
     } desc_t;
 
     logic  desc_vld  [STAGES];
@@ -191,18 +203,20 @@ module packet_descriptor_intf_delay #(
     always_ff @(posedge from_tx.clk) begin
         if (to_rx.rdy) begin
             for (int i = 1; i < STAGES; i++) desc_pipe[i] <= desc_pipe[i-1];
-            desc_pipe[0].addr <= from_tx.addr;
-            desc_pipe[0].size <= from_tx.size;
-            desc_pipe[0].meta <= from_tx.meta;
-            desc_pipe[0].err  <= from_tx.err;
+            desc_pipe[0].addr  <= from_tx.addr;
+            desc_pipe[0].size  <= from_tx.size;
+            desc_pipe[0].meta  <= from_tx.meta;
+            desc_pipe[0].err   <= from_tx.err;
+            desc_pipe[0].cksum <= from_tx.cksum;
         end
     end
 
-    assign to_rx.vld  = desc_vld[STAGES-1];
-    assign to_rx.addr = desc_pipe[STAGES-1].addr;
-    assign to_rx.size = desc_pipe[STAGES-1].size;
-    assign to_rx.err  = desc_pipe[STAGES-1].err;
-    assign to_rx.meta = desc_pipe[STAGES-1].meta;
+    assign to_rx.vld   = desc_vld[STAGES-1];
+    assign to_rx.addr  = desc_pipe[STAGES-1].addr;
+    assign to_rx.size  = desc_pipe[STAGES-1].size;
+    assign to_rx.err   = desc_pipe[STAGES-1].err;
+    assign to_rx.meta  = desc_pipe[STAGES-1].meta;
+    assign to_rx.cksum = desc_pipe[STAGES-1].cksum;
 
     // Connect signals (rx -> tx)
     assign from_tx.rdy = to_rx.rdy;
@@ -226,11 +240,12 @@ module packet_descriptor_intf_set_meta #(
     end
 
     // Connect signals (tx -> rx)
-    assign to_rx.vld  = from_tx.vld;
-    assign to_rx.addr = from_tx.addr;
-    assign to_rx.size = from_tx.size;
-    assign to_rx.err  = from_tx.err;
-    assign to_rx.meta = meta;
+    assign to_rx.vld   = from_tx.vld;
+    assign to_rx.addr  = from_tx.addr;
+    assign to_rx.size  = from_tx.size;
+    assign to_rx.err   = from_tx.err;
+    assign to_rx.meta  = meta;
+    assign to_rx.cksum = from_tx.cksum;
 
     // Connect signals (rx -> tx)
     assign from_tx.rdy = to_rx.rdy;

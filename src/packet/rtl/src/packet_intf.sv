@@ -226,15 +226,32 @@ module packet_intf_set_meta #(
 endmodule : packet_intf_set_meta
 
 
-// Set packet metadata
+// Packet interface N:1 mux
+//
+// Selects one of N packet streams to forward to a single destination.  The
+// deselected sources are backpressured, so no packet is lost to the selection.
+//
+// A change in sel is applied only at a packet boundary on the output, so a
+// packet already in flight completes from its original source and the new
+// selection takes effect from the next packet.  The change is committed on a
+// cycle in which no beat is offered and stalled: retracting vld before its
+// handshake is forbidden, so a stalled beat holds the change off until it is
+// accepted.  A destination that never accepts therefore holds the change off
+// indefinitely.
+//
+// A sel value >= N selects no source (the output is idle).
+//
+// Routing is combinational: no latency is added.  sel is synchronous to
+// to_rx.clk.
 module packet_intf_mux #(
-    parameter int N = 2,
+    parameter int N = 2,  // number of ingress packet interfaces
     // Derived parameters (don't override)
-    parameter int SEL_WID = $clog2(N)
+    parameter int SEL_WID = N > 1 ? $clog2(N) : 1
 ) (
+    input  logic              srst,
     packet_intf.rx            from_tx [N],
     packet_intf.tx            to_rx,
-    input logic [SEL_WID-1:0] sel
+    input  logic [SEL_WID-1:0] sel
 );
     // Parameters
     localparam int DATA_BYTE_WID = to_rx.DATA_BYTE_WID;
@@ -246,17 +263,46 @@ module packet_intf_mux #(
     initial begin
         std_pkg::param_check(from_tx[0].DATA_BYTE_WID, DATA_BYTE_WID, "from_tx[*].DATA_BYTE_WID");
         std_pkg::param_check(from_tx[0].META_WID,      META_WID,      "from_tx[*].META_WID");
-        std_pkg::param_check_gt(N, 2, "N");
     end
 
     // Signals
+    logic clk;
+    assign clk = to_rx.clk;
+
     logic                          from_tx_vld  [N_POW2];
-    logic                          from_tx_rdy  [N_POW2];
     logic [0:DATA_BYTE_WID-1][7:0] from_tx_data [N_POW2];
     logic                          from_tx_eop  [N_POW2];
     logic [MTY_WID-1:0]            from_tx_mty  [N_POW2];
     logic                          from_tx_err  [N_POW2];
     logic [META_WID-1:0]           from_tx_meta [N_POW2];
+
+    logic [SEL_WID-1:0] sel_r;
+    logic               sop;
+    logic               sop_nxt;
+    logic               arm;
+
+    // Packet boundary tracking (on the output stream).  arm asserts when the
+    // applied source may change at the end of the current cycle: no packet is
+    // partially transferred once this cycle's handshake (if any) completes, and
+    // no beat is being offered that has not been accepted.
+    packet_sop i_packet_sop (
+        .clk,
+        .srst,
+        .vld ( to_rx.vld ),
+        .rdy ( to_rx.rdy ),
+        .eop ( to_rx.eop ),
+        .sop ( sop       )
+    );
+
+    assign sop_nxt = (to_rx.vld && to_rx.rdy) ? to_rx.eop : sop;
+    assign arm     = sop_nxt && (!to_rx.vld || to_rx.rdy);
+
+    // Applied source
+    initial sel_r = '0;
+    always @(posedge clk) begin
+        if (srst)     sel_r <= '0;
+        else if (arm) sel_r <= sel;
+    end
 
     generate
         for (genvar g_input = 0; g_input < N; g_input++) begin : g__input
@@ -266,24 +312,258 @@ module packet_intf_mux #(
             assign from_tx_mty [g_input] = from_tx[g_input].mty;
             assign from_tx_err [g_input] = from_tx[g_input].err;
             assign from_tx_meta[g_input] = from_tx[g_input].meta;
-            assign from_tx[g_input].rdy  = (sel == g_input) ? to_rx.rdy : 1'b0;
+            assign from_tx[g_input].rdy  = (sel_r == g_input) ? to_rx.rdy : 1'b0;
         end : g__input
-        for (genvar g_input = N; g_input < N_POW2; g_input++) begin : g__input_tieoff
+        // Specify 'out-of-range' values
+        for (genvar g_input = N; g_input < N_POW2; g_input++) begin : g__input_out_of_range
             assign from_tx_vld [g_input] = 1'b0;
             assign from_tx_data[g_input] = '0;
             assign from_tx_eop [g_input] = 1'b0;
             assign from_tx_mty [g_input] = '0;
             assign from_tx_err [g_input] = 1'b0;
             assign from_tx_meta[g_input] = '0;
-        end : g__input_tieoff
+        end : g__input_out_of_range
     endgenerate
 
     // Mux logic
-    assign to_rx.vld   = from_tx_vld [sel];
-    assign to_rx.data  = from_tx_data[sel];
-    assign to_rx.eop   = from_tx_eop [sel];
-    assign to_rx.mty   = from_tx_mty [sel];
-    assign to_rx.err   = from_tx_err [sel];
-    assign to_rx.meta  = from_tx_meta[sel];
+    assign to_rx.vld   = from_tx_vld [sel_r];
+    assign to_rx.data  = from_tx_data[sel_r];
+    assign to_rx.eop   = from_tx_eop [sel_r];
+    assign to_rx.mty   = from_tx_mty [sel_r];
+    assign to_rx.err   = from_tx_err [sel_r];
+    assign to_rx.meta  = from_tx_meta[sel_r];
 
 endmodule : packet_intf_mux
+
+
+// Packet interface 2:1 mux
+//
+//   sel = 0 : from_tx_0 -> to_rx, from_tx_1 backpressured
+//   sel = 1 : from_tx_1 -> to_rx, from_tx_0 backpressured
+//
+// A change in sel is applied at a packet boundary; see packet_intf_mux.
+module packet_intf_2to1_mux (
+    input  logic    srst,
+    packet_intf.rx  from_tx_0,
+    packet_intf.rx  from_tx_1,
+    packet_intf.tx  to_rx,
+    input  logic    sel
+);
+    localparam int DATA_BYTE_WID = to_rx.DATA_BYTE_WID;
+    localparam int META_WID      = to_rx.META_WID;
+
+    // Parameter check
+    initial begin
+        std_pkg::param_check(from_tx_0.DATA_BYTE_WID, DATA_BYTE_WID, "from_tx_0.DATA_BYTE_WID");
+        std_pkg::param_check(from_tx_1.DATA_BYTE_WID, DATA_BYTE_WID, "from_tx_1.DATA_BYTE_WID");
+        std_pkg::param_check(from_tx_0.META_WID,      META_WID,      "from_tx_0.META_WID");
+        std_pkg::param_check(from_tx_1.META_WID,      META_WID,      "from_tx_1.META_WID");
+    end
+
+    // Signals
+    logic clk;
+    assign clk = to_rx.clk;
+
+    logic sel_r;
+    logic sop;
+    logic sop_nxt;
+    logic arm;
+
+    // Packet boundary tracking (on the output stream); see packet_intf_mux.
+    packet_sop i_packet_sop (
+        .clk,
+        .srst,
+        .vld ( to_rx.vld ),
+        .rdy ( to_rx.rdy ),
+        .eop ( to_rx.eop ),
+        .sop ( sop       )
+    );
+
+    assign sop_nxt = (to_rx.vld && to_rx.rdy) ? to_rx.eop : sop;
+    assign arm     = sop_nxt && (!to_rx.vld || to_rx.rdy);
+
+    // Applied source
+    initial sel_r = 1'b0;
+    always @(posedge clk) begin
+        if (srst)     sel_r <= 1'b0;
+        else if (arm) sel_r <= sel;
+    end
+
+    // Mux
+    assign to_rx.vld  = sel_r ? from_tx_1.vld  : from_tx_0.vld;
+    assign to_rx.data = sel_r ? from_tx_1.data : from_tx_0.data;
+    assign to_rx.eop  = sel_r ? from_tx_1.eop  : from_tx_0.eop;
+    assign to_rx.mty  = sel_r ? from_tx_1.mty  : from_tx_0.mty;
+    assign to_rx.err  = sel_r ? from_tx_1.err  : from_tx_0.err;
+    assign to_rx.meta = sel_r ? from_tx_1.meta : from_tx_0.meta;
+
+    // Demux rdy
+    assign from_tx_0.rdy = !sel_r && to_rx.rdy;
+    assign from_tx_1.rdy =  sel_r && to_rx.rdy;
+
+endmodule : packet_intf_2to1_mux
+
+
+// Packet interface 1:N demux
+//
+// Steers one packet stream to one of N destinations; the others are held idle.
+//
+// A change in sel is applied only at a packet boundary, so a packet already in
+// flight completes at its original destination and the new routing takes effect
+// from the next packet.  The change is committed on a cycle in which no beat is
+// offered and stalled: retracting vld before its handshake is forbidden, so a
+// stalled beat holds the change off until it is accepted.  A destination that
+// never accepts therefore holds the change off indefinitely.
+//
+// A sel value >= N selects no destination: packets are accepted and discarded.
+//
+// Routing is combinational: no latency is added.  sel is synchronous to
+// from_tx.clk.
+module packet_intf_demux #(
+    parameter int N = 2,  // number of egress packet interfaces
+    // Derived parameters (don't override)
+    parameter int SEL_WID = N > 1 ? $clog2(N) : 1
+) (
+    input  logic              srst,
+    packet_intf.rx            from_tx,
+    packet_intf.tx            to_rx [N],
+    input  logic [SEL_WID-1:0] sel
+);
+    // Parameters
+    localparam int DATA_BYTE_WID = from_tx.DATA_BYTE_WID;
+    localparam int META_WID = from_tx.META_WID;
+    localparam int N_POW2 = 2**SEL_WID;
+
+    // Parameter check
+    initial begin
+        std_pkg::param_check(to_rx[0].DATA_BYTE_WID, DATA_BYTE_WID, "to_rx[*].DATA_BYTE_WID");
+        std_pkg::param_check(to_rx[0].META_WID,      META_WID,      "to_rx[*].META_WID");
+    end
+
+    // Signals
+    logic clk;
+    assign clk = from_tx.clk;
+
+    logic rdy [N_POW2];
+
+    logic [SEL_WID-1:0] sel_r;
+    logic               sop;
+    logic               sop_nxt;
+    logic               arm;
+
+    // Packet boundary tracking (on the input stream).  arm asserts when the
+    // applied destination may change at the end of the current cycle: no packet
+    // is partially transferred once this cycle's handshake (if any) completes,
+    // and no beat is being offered that has not been accepted.
+    packet_sop i_packet_sop (
+        .clk,
+        .srst,
+        .vld ( from_tx.vld ),
+        .rdy ( from_tx.rdy ),
+        .eop ( from_tx.eop ),
+        .sop ( sop         )
+    );
+
+    assign sop_nxt = (from_tx.vld && from_tx.rdy) ? from_tx.eop : sop;
+    assign arm     = sop_nxt && (!from_tx.vld || from_tx.rdy);
+
+    // Applied destination
+    initial sel_r = '0;
+    always @(posedge clk) begin
+        if (srst)     sel_r <= '0;
+        else if (arm) sel_r <= sel;
+    end
+
+    assign from_tx.rdy = rdy[sel_r];
+
+    generate
+        for (genvar g_output = 0; g_output < N; g_output++) begin : g__output
+            assign rdy[g_output] = to_rx[g_output].rdy;
+
+            assign to_rx[g_output].vld  = from_tx.vld && (sel_r == g_output);
+            assign to_rx[g_output].data = from_tx.data;
+            assign to_rx[g_output].eop  = from_tx.eop;
+            assign to_rx[g_output].mty  = from_tx.mty;
+            assign to_rx[g_output].err  = from_tx.err;
+            assign to_rx[g_output].meta = from_tx.meta;
+        end : g__output
+        // Specify 'out-of-range' values
+        for (genvar g_output = N; g_output < N_POW2; g_output++) begin : g__output_out_of_range
+            assign rdy[g_output] = 1'b1;
+        end : g__output_out_of_range
+    endgenerate
+
+endmodule : packet_intf_demux
+
+
+// Packet interface 1:2 demux
+//
+//   sel = 0 : from_tx -> to_rx_0, to_rx_1 held idle
+//   sel = 1 : from_tx -> to_rx_1, to_rx_0 held idle
+//
+// A change in sel is applied at a packet boundary; see packet_intf_demux.
+module packet_intf_1to2_demux (
+    input  logic    srst,
+    packet_intf.rx  from_tx,
+    packet_intf.tx  to_rx_0,
+    packet_intf.tx  to_rx_1,
+    input  logic    sel
+);
+    localparam int DATA_BYTE_WID = from_tx.DATA_BYTE_WID;
+    localparam int META_WID      = from_tx.META_WID;
+
+    // Parameter check
+    initial begin
+        std_pkg::param_check(to_rx_0.DATA_BYTE_WID, DATA_BYTE_WID, "to_rx_0.DATA_BYTE_WID");
+        std_pkg::param_check(to_rx_1.DATA_BYTE_WID, DATA_BYTE_WID, "to_rx_1.DATA_BYTE_WID");
+        std_pkg::param_check(to_rx_0.META_WID,      META_WID,      "to_rx_0.META_WID");
+        std_pkg::param_check(to_rx_1.META_WID,      META_WID,      "to_rx_1.META_WID");
+    end
+
+    // Signals
+    logic clk;
+    assign clk = from_tx.clk;
+
+    logic sel_r;
+    logic sop;
+    logic sop_nxt;
+    logic arm;
+
+    // Packet boundary tracking (on the input stream); see packet_intf_demux.
+    packet_sop i_packet_sop (
+        .clk,
+        .srst,
+        .vld ( from_tx.vld ),
+        .rdy ( from_tx.rdy ),
+        .eop ( from_tx.eop ),
+        .sop ( sop         )
+    );
+
+    assign sop_nxt = (from_tx.vld && from_tx.rdy) ? from_tx.eop : sop;
+    assign arm     = sop_nxt && (!from_tx.vld || from_tx.rdy);
+
+    // Applied destination
+    initial sel_r = 1'b0;
+    always @(posedge clk) begin
+        if (srst)     sel_r <= 1'b0;
+        else if (arm) sel_r <= sel;
+    end
+
+    // Demux
+    assign to_rx_0.vld  = from_tx.vld && !sel_r;
+    assign to_rx_0.data = from_tx.data;
+    assign to_rx_0.eop  = from_tx.eop;
+    assign to_rx_0.mty  = from_tx.mty;
+    assign to_rx_0.err  = from_tx.err;
+    assign to_rx_0.meta = from_tx.meta;
+
+    assign to_rx_1.vld  = from_tx.vld && sel_r;
+    assign to_rx_1.data = from_tx.data;
+    assign to_rx_1.eop  = from_tx.eop;
+    assign to_rx_1.mty  = from_tx.mty;
+    assign to_rx_1.err  = from_tx.err;
+    assign to_rx_1.meta = from_tx.meta;
+
+    assign from_tx.rdy = sel_r ? to_rx_1.rdy : to_rx_0.rdy;
+
+endmodule : packet_intf_1to2_demux

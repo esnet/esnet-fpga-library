@@ -13,6 +13,7 @@ module packet_sg_core
     parameter int  MAX_BURST_LEN = 1,
     parameter int  N_ALLOC = 1,
     parameter int  N_GATHER = 1,
+    parameter bit  CKSUM_EN = 0,   // compute cksum on scatter, verify on gather
     // Simulation-only
     parameter bit  SIM__FAST_INIT = 1,
     parameter bit  SIM__RAM_MODEL = 1
@@ -246,7 +247,8 @@ module packet_sg_core
                 .MIN_PKT_SIZE  ( MIN_PKT_SIZE ),
                 .MAX_PKT_SIZE  ( MAX_PKT_SIZE ),
                 .NUM_BUFFERS   ( NUM_BUFFERS ),
-                .BUFFER_SIZE   ( BUFFER_SIZE )
+                .BUFFER_SIZE   ( BUFFER_SIZE ),
+                .COMPUTE_CKSUM ( CKSUM_EN )
             ) i_packet_scatter (
                 .clk,
                 .srst,
@@ -277,7 +279,8 @@ module packet_sg_core
                 .BUFFER_SIZE    ( BUFFER_SIZE  ),
                 .MAX_RD_LATENCY ( MAX_RD_LATENCY ),
                 .MAX_BURST_LEN  ( MAX_BURST_LEN ),
-                .N              ( N_GATHER )
+                .N              ( N_GATHER ),
+                .CHECK_CKSUM    ( CKSUM_EN )
             ) i_packet_gather   (
                 .clk,
                 .srst,

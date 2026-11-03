@@ -1,7 +1,8 @@
 class packet_write_model #(
     parameter int DATA_BYTE_WID = 8,
     parameter type ADDR_T = bit,
-    parameter type META_T = bit
+    parameter type META_T = bit,
+    parameter bit COMPUTE_CKSUM = 1'b0
 ) extends std_verif_pkg::model#(packet#(META_T),packet_descriptor#(ADDR_T,META_T));
 
     local static const string __CLASS_NAME = "std_verif_pkg::packet_write_model";
@@ -51,6 +52,22 @@ class packet_write_model #(
     // [[ overrides std_verif_pkg::base.trace_msg() ]]
     function automatic void trace_msg(input string msg);
         _trace_msg(msg, __CLASS_NAME);
+    endfunction
+
+    // 16-bit one's complement checksum (IP-style), matching the RTL.
+    local static function automatic packet_pkg::cksum_t __compute_cksum(input byte data []);
+        logic [31:0] acc;
+        logic [7:0] hi, lo;
+        acc = 0;
+        for (int i = 0; i < data.size(); i += 2) begin
+            hi = data[i];
+            lo = (i + 1 < data.size()) ? data[i+1] : 8'h00;
+            acc += {hi, lo};
+        end
+        acc = (acc[31:16] + acc[15:0]);
+        acc = (acc[31:16] + acc[15:0]);
+        __compute_cksum = ~acc[15:0];
+        if (__compute_cksum == 16'h0000) __compute_cksum = 16'hffff;
     endfunction
 
     // Reset model state
@@ -131,6 +148,7 @@ class packet_write_model #(
             descriptor.size = packet.size();
             descriptor.meta = packet.get_meta();
             descriptor.err = packet.is_errored();
+            if (COMPUTE_CKSUM) descriptor.cksum = __compute_cksum(packet.to_bytes());
             __write_ok = 1'b1;
         end
         trace_msg("__write_packet() Done.");

@@ -114,6 +114,22 @@ virtual class packet#(parameter type META_T = bit) extends std_verif_pkg::transa
         return this._err;
     endfunction
 
+    // Compute CRC over the packet's byte representation using the given CRC
+    // configuration (defaults to CRC32-ISO-HDLC, matching packet_crc_rx/tx).
+    function automatic crc_pkg::CRC_T crc(
+            input crc_pkg::crc_config_t crc_config = crc_pkg::DEFAULT_CRC
+        );
+        return crc_verif_pkg::calculate(
+            crc_config.WIDTH,
+            crc_config.POLY,
+            crc_config.INIT,
+            crc_config.REFIN,
+            crc_config.REFOUT,
+            crc_config.XOROUT,
+            this.to_bytes()
+        );
+    endfunction
+
     // Get specified byte
     function automatic byte get_byte(input int idx);
         if (idx < this.size()) begin

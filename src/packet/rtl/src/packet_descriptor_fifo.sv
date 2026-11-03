@@ -31,10 +31,11 @@ module packet_descriptor_fifo #(
     // Typedefs
     // -----------------------------
     typedef struct packed {
-        logic[ADDR_WID-1:0] addr;
-        logic[SIZE_WID-1:0] size;
-        logic[META_WID-1:0] meta;
-        logic               err;
+        logic[ADDR_WID-1:0]                      addr;
+        logic[SIZE_WID-1:0]                      size;
+        logic[META_WID-1:0]                      meta;
+        logic                                    err;
+        logic[packet_pkg::CKSUM_FIELD_WID-1:0]   cksum;
     } desc_t;
 
     // -----------------------------
@@ -53,10 +54,11 @@ module packet_descriptor_fifo #(
     // -----------------------------
     // FIFO
     // -----------------------------
-    assign desc_in.addr = from_tx.addr;
-    assign desc_in.size = from_tx.size;
-    assign desc_in.meta = from_tx.meta;
-    assign desc_in.err  = from_tx.err;
+    assign desc_in.addr  = from_tx.addr;
+    assign desc_in.size  = from_tx.size;
+    assign desc_in.meta  = from_tx.meta;
+    assign desc_in.err   = from_tx.err;
+    assign desc_in.cksum = from_tx.cksum;
 
     fifo_core    #(
         .DATA_WID ( $bits(desc_t) ),
@@ -84,10 +86,11 @@ module packet_descriptor_fifo #(
         .rd_mon_if ( rd_mon_if__unused )
     );
 
-    assign to_rx.vld  = en && desc_out_vld;
-    assign to_rx.addr = desc_out.addr;
-    assign to_rx.size = desc_out.size;
-    assign to_rx.meta = desc_out.meta;
-    assign to_rx.err  = desc_out.err;
+    assign to_rx.vld   = en && desc_out_vld;
+    assign to_rx.addr  = desc_out.addr;
+    assign to_rx.size  = desc_out.size;
+    assign to_rx.meta  = desc_out.meta;
+    assign to_rx.err   = desc_out.err;
+    assign to_rx.cksum = desc_out.cksum;
 
 endmodule : packet_descriptor_fifo

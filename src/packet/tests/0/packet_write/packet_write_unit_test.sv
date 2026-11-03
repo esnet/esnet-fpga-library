@@ -1,14 +1,16 @@
 `include "svunit_defines.svh"
 
 module packet_write_unit_test #(
-    parameter bit DROP_ERRORED = 1'b1
+    parameter bit DROP_ERRORED  = 1'b1,
+    parameter bit COMPUTE_CKSUM = 1'b0
 );
     import svunit_pkg::svunit_testcase;
     import packet_verif_pkg::*;
 
-    localparam string drop_errored_str = DROP_ERRORED ? "_err_drops" : "_no_err_drops";
+    localparam string drop_errored_str  = DROP_ERRORED  ? "_err_drops"    : "_no_err_drops";
+    localparam string compute_cksum_str = COMPUTE_CKSUM ? "_compute_cksum" : "";
 
-    string name = $sformatf("packet_write%s_ut", drop_errored_str);
+    string name = $sformatf("packet_write%s%s_ut", drop_errored_str, compute_cksum_str);
     svunit_testcase svunit_ut;
 
     //===================================
@@ -46,11 +48,12 @@ module packet_write_unit_test #(
     mem_wr_intf #(.ADDR_WID(ADDR_WID), .DATA_WID(DATA_WID)) mem_wr_if (.clk);
     logic mem_init_done;
 
-    packet_write     #(
-        .IGNORE_RDY   ( 1 ),
-        .MIN_PKT_SIZE ( MIN_PKT_SIZE ),
-        .MAX_PKT_SIZE ( MAX_PKT_SIZE ),
-        .DROP_ERRORED ( DROP_ERRORED )
+    packet_write #(
+        .IGNORE_RDY    ( 1             ),
+        .MIN_PKT_SIZE  ( MIN_PKT_SIZE  ),
+        .MAX_PKT_SIZE  ( MAX_PKT_SIZE  ),
+        .DROP_ERRORED  ( DROP_ERRORED  ),
+        .COMPUTE_CKSUM ( COMPUTE_CKSUM )
     ) DUT (
         .*
     );
@@ -79,7 +82,7 @@ module packet_write_unit_test #(
     packet_descriptor_intf_monitor#(ADDR_T,META_T) monitor;
 
     // Model
-    packet_write_model#(DATA_BYTE_WID,ADDR_T,META_T) model;
+    packet_write_model#(DATA_BYTE_WID,ADDR_T,META_T,COMPUTE_CKSUM) model;
     std_verif_pkg::event_scoreboard#(PACKET_DESCRIPTOR_T) scoreboard;
 
     // Reset
@@ -357,10 +360,10 @@ endmodule
 //  Builds unit test for a specific parameterization
 //  of the packet_write module that maintains
 //  SVUnit compatibility
-`define PACKET_WRITE_UNIT_TEST(DROP_ERRORED)\
+`define PACKET_WRITE_UNIT_TEST(DROP_ERRORED, COMPUTE_CKSUM)\
   import svunit_pkg::svunit_testcase;\
   svunit_testcase svunit_ut;\
-  packet_write_unit_test #(DROP_ERRORED) test();\
+  packet_write_unit_test #(DROP_ERRORED, COMPUTE_CKSUM) test();\
   function void build();\
     test.build();\
     svunit_ut = test.svunit_ut;\
@@ -374,10 +377,14 @@ endmodule
 
 
 module packet_write_err_drops_unit_test;
-`PACKET_WRITE_UNIT_TEST(0);
+`PACKET_WRITE_UNIT_TEST(0, 0);
 endmodule
 
 module packet_write_no_err_drops_unit_test;
-`PACKET_WRITE_UNIT_TEST(1);
+`PACKET_WRITE_UNIT_TEST(1, 0);
+endmodule
+
+module packet_write_compute_cksum_unit_test;
+`PACKET_WRITE_UNIT_TEST(1, 1);
 endmodule
 

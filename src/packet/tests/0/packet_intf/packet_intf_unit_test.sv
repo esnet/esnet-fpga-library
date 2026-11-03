@@ -37,7 +37,7 @@ module packet_intf_unit_test #(
     generate
         case (DUT_SELECT)
             "packet_intf_connector": packet_intf_connector DUT (.*);
-            "packet_fifo": packet_fifo #(.DEPTH (2048)) DUT (.srst_in (srst), .packet_in_if(from_tx), .event_in_if, .srst_out (srst), .packet_out_if(to_rx), .event_out_if);
+            "packet_fifo": packet_fifo #(.DEPTH (2048)) DUT (.srst_in (srst), .packet_in_if(from_tx), .event_in_if, .srst_out (srst), .packet_out_if(to_rx), .event_out_if, .pkt_size());
             "packet_pipe_1st": packet_pipe #(.STAGES(1)) DUT (.*);
             "packet_pipe_4st": packet_pipe #(.STAGES(4)) DUT (.*);
             "packet_pipe_auto": packet_pipe_auto DUT (.*);
