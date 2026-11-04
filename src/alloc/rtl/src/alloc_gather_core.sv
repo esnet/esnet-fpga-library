@@ -32,7 +32,8 @@ module alloc_gather_core #(
     // -----------------------------
     localparam int  SIZE_WID = $clog2(BUFFER_SIZE);
     localparam int  CTXT_SEL_WID = CONTEXTS > 1 ? $clog2(CONTEXTS) : 1;
-    localparam type DESC_T = alloc_pkg::alloc#(BUFFER_SIZE, PTR_WID, META_WID)::desc_t;
+    typedef alloc_pkg::alloc#(BUFFER_SIZE, PTR_WID, META_WID) ALLOC_T;
+    typedef ALLOC_T::desc_t DESC_T;
 
     // -----------------------------
     // Typedefs
