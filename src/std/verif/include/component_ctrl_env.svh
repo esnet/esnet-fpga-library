@@ -8,7 +8,7 @@ class component_ctrl_env #(
     parameter type MONITOR_T=monitor#(TRANSACTION_OUT_T),
     parameter type MODEL_T=model#(TRANSACTION_IN_T,TRANSACTION_OUT_T),
     parameter type SCOREBOARD_T=scoreboard#(TRANSACTION_OUT_T),
-    parameter type AGENT_T = agent
+    parameter type AGENT_T = std_verif_pkg::agent
 ) extends component_env#(TRANSACTION_IN_T, TRANSACTION_OUT_T, DRIVER_T, MONITOR_T, MODEL_T, SCOREBOARD_T);
     
     local static const string __CLASS_NAME = "std_verif_pkg::component_ctrl_env";

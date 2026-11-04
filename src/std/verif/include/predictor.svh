@@ -14,7 +14,7 @@ virtual class predictor #(
     // (must be implemented by derived class)
     //===================================
     // Predict output transaction, given input transaction
-    pure virtual function automatic TRANSACTION_OUT_T predict(input TRANSACTION_IN_T transaction);
+    pure virtual function TRANSACTION_OUT_T predict(input TRANSACTION_IN_T transaction);
 
     //===================================
     // Methods

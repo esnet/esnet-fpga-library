@@ -10,11 +10,11 @@ virtual class transaction extends base;
     // (must be implemented by derived class)
     //===================================
     // Get string representation
-    pure virtual function automatic string to_string();
+    pure virtual function string to_string();
     // (Deep) Copy implementation
-    pure virtual protected function automatic void _copy(input transaction t2);
+    pure virtual protected function void _copy(input transaction t2);
     // Compare transactions; return 1 if equal, 0 otherwise.
-    pure virtual function automatic bit compare(input transaction t2, output string msg);
+    pure virtual function bit compare(input transaction t2, output string msg);
 
     //===================================
     // Methods

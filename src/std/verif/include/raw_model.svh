@@ -11,7 +11,7 @@ virtual class raw_model #(
     // (must be implemented by derived class)
     //===================================
     // Process (raw) input data transaction
-    pure protected virtual task _process_raw(input DATA_IN_T data_in);
+    pure virtual protected task _process_raw(input DATA_IN_T data_in);
 
     //===================================
     // Methods
