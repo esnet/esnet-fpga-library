@@ -16,7 +16,7 @@
 # -----------------------------------------------
 SEED ?= 0
 RUN_DIR = run_$(SEED)
-TOP = testrunner
+TOP ?= testrunner
 TIMESCALE ?= 1ns/1ps
 
 # -----------------------------------------------
