@@ -51,8 +51,8 @@ module bus_intf_unit_test #(
 
             "bus_pipe_slr_b2b" : begin : g__bus_pipe_slr_b2b
                 bus_intf #(DATA_WID) __bus_if (.clk);
-                bus_pipe_slr #(0, 1, 1) DUT1 (.srst, .from_tx, .to_rx (__bus_if));
-                bus_pipe_slr #(0, 1, 1) DUT2 (.srst, .from_tx (__bus_if), .to_rx);
+                bus_pipe_slr #(.PRE_PIPE_STAGES(1), .POST_PIPE_STAGES(1)) DUT1 (.srst, .from_tx, .to_rx (__bus_if));
+                bus_pipe_slr #(.PRE_PIPE_STAGES(1), .POST_PIPE_STAGES(1)) DUT2 (.srst, .from_tx (__bus_if), .to_rx);
             end : g__bus_pipe_slr_b2b
 
             "bus_pipe_auto" : begin : g__bus_pipe_auto
