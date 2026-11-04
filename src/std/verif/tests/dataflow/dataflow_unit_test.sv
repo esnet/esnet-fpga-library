@@ -84,9 +84,9 @@ module dataflow_unit_test;
             byte_t sent;
             byte_t got;
             workers.push_back(model);
-            sent = model.input_transaction_from_raw(8'h12);
+            sent = byte_t::from_raw(8'h12);
             got = model.predict(sent);
-            `FAIL_UNLESS_EQUAL(model.output_transaction_to_raw(got), 8'h48);
+            `FAIL_UNLESS_EQUAL(byte_t::to_raw(got), 8'h48);
             model.inbox = new(); model.outbox = new();
             model.build(); model.init(); model.run();
             model.inbox.put(sent);
@@ -112,6 +112,42 @@ module dataflow_unit_test;
             `FAIL_UNLESS_EQUAL(model.num_input_transactions(), 4);
             `FAIL_UNLESS_EQUAL(model.num_output_transactions(), 2);
             `FAIL_UNLESS_EQUAL(model.outbox.num(), 0);
+        `SVTEST_END
+
+        // Exercise model and predictor specialization with wider payloads.
+        `SVTEST(raw_model_non_default_payload)
+            wide_echo_model model = new();
+            word_t sent;
+            word_t got;
+            sent = word_t::from_raw(32'h87654321);
+            workers.push_back(model);
+            model.inbox = new(); model.outbox = new();
+            model.build(); model.init(); model.run();
+            model.inbox.put(sent);
+            model.outbox.get(got);
+            `FAIL_UNLESS_EQUAL(word_t::to_raw(got), 32'h87654321);
+            `FAIL_UNLESS_EQUAL(model.num_input_transactions(), 1);
+            `FAIL_UNLESS_EQUAL(model.num_output_transactions(), 1);
+        `SVTEST_END
+
+        `SVTEST(raw_predictor_non_default_payload)
+            wide_predictor model = new();
+            predictor#(word_t, wide_t) generic_model = model;
+            word_t sent = new("wide_input", 32'h12345678);
+            word_t converted;
+            wide_t got;
+            workers.push_back(model);
+            got = generic_model.predict(sent);
+            `FAIL_UNLESS_EQUAL(got.data, 64'habcd0123479e03d2);
+            converted = word_t::from_raw(32'h87654321);
+            `FAIL_UNLESS_EQUAL(converted.data, 32'h87654321);
+            `FAIL_UNLESS_EQUAL(wide_t::to_raw(got), 64'habcd0123479e03d2);
+            model.inbox = new(); model.outbox = new();
+            model.build(); model.init(); model.run();
+            model.inbox.put(sent); model.outbox.get(got);
+            `FAIL_UNLESS_EQUAL(got.data, 64'habcd0123479e03d2);
+            `FAIL_UNLESS_EQUAL(model.num_input_transactions(), 1);
+            `FAIL_UNLESS_EQUAL(model.num_output_transactions(), 1);
         `SVTEST_END
 
         `SVTEST(sequencer_and_collector)

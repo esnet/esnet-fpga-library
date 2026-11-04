@@ -71,9 +71,29 @@ package std_verif_test_pkg;
     class filtering_model extends raw_model;
         function new(string name="filtering_model"); super.new(name); endfunction
         protected task _process_raw(input byte data_in);
-            if (data_in[0]) _drop(input_transaction_from_raw(data_in));
+            if (data_in[0]) _drop(byte_t::from_raw(data_in));
             else           _enqueue_raw(data_in + 1);
         endtask
+    endclass
+
+    //===================================
+    // Non-default payload models
+    //===================================
+    class wide_echo_model extends raw_model#(word_data_t, word_data_t);
+        function new(string name="wide_echo_model"); super.new(name); endfunction
+        protected task _process_raw(input word_data_t data_in);
+            _enqueue_raw(data_in);
+        endtask
+    endclass
+
+    typedef bit [63:0] wide_data_t;
+    typedef raw_transaction#(wide_data_t) wide_t;
+
+    class wide_predictor extends raw_predictor#(word_data_t, wide_data_t);
+        function new(string name="wide_predictor"); super.new(name); endfunction
+        function wide_data_t predict_raw(input word_data_t data_in);
+            return {32'habcd0123, data_in ^ 32'h55aa55aa};
+        endfunction
     endclass
 
     //===================================
