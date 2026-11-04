@@ -50,6 +50,8 @@ module fifo_axil_core
     fifo_mon_intf __wr_mon_if (.clk(wr_clk));
     fifo_mon_intf __rd_mon_if (.clk(rd_clk));
 
+    axi4l_intf axil_client_if [fifo_decoder_pkg::MEM_MAP.NUM_REGIONS] ();
+
     axi4l_intf axil_ctrl_if   ();
     axi4l_intf axil_wr_mon_if ();
     axi4l_intf axil_rd_mon_if ();
@@ -95,24 +97,25 @@ module fifo_axil_core
     // -----------------------------
     // AXI-L control and monitoring
     // -----------------------------
-    // Main decoder
-    // TEMP: Workaround elaboration bug in Vivado 2023.2 where interface array port
-    //       (axil_client_if[2]) in axi4l_decoder submodule is reported as not present.
-    //       Instantiating the axi4l_decoder module here directly seems to avoid the issue.
-    /*
-    // FIFO block-level decoder
-    fifo_decoder i_fifo_decoder (
-        .axil_if        ( axil_if ),
-        .ctrl_axil_if   ( axil_ctrl_if ),
-        .wr_mon_axil_if ( axil_wr_mon_if ),
-        .rd_mon_axil_if ( axil_rd_mon_if )
-    );
-    */
+    // Use a concrete interface array for portable decoder connections.
     axi4l_decoder #(
         .MEM_MAP   ( fifo_decoder_pkg::MEM_MAP)
     ) i_axi4l_decoder (
         .axi4l_if        ( axil_if ),
-        .axi4l_client_if ( '{axil_ctrl_if, axil_wr_mon_if, axil_rd_mon_if} )
+        .axi4l_client_if ( axil_client_if )
+    );
+
+    axi4l_intf_connector i_axil_ctrl_connector (
+        .axi4l_if_from_controller ( axil_client_if[0] ),
+        .axi4l_if_to_peripheral   ( axil_ctrl_if )
+    );
+    axi4l_intf_connector i_axil_wr_mon_connector (
+        .axi4l_if_from_controller ( axil_client_if[1] ),
+        .axi4l_if_to_peripheral   ( axil_wr_mon_if )
+    );
+    axi4l_intf_connector i_axil_rd_mon_connector (
+        .axi4l_if_from_controller ( axil_client_if[2] ),
+        .axi4l_if_to_peripheral   ( axil_rd_mon_if )
     );
 
     fifo_ctrl_reg_blk i_fifo_ctrl_reg_blk (
