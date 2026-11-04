@@ -1,5 +1,10 @@
 `include "svunit_defines.svh"
 
+//===================================
+// (Failsafe) timeout (per-testcase)
+//===================================
+`define SVUNIT_TIMEOUT 500us
+
 // =========================================================================
 // crc_accum_unit_test
 //
