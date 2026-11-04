@@ -26,8 +26,7 @@ SIM ?= xsim
 # ----------------------------------------------------
 SUBCOMPONENTS = \
     mem.rtl \
-    std.rtl \
-    std.verif
+    std.rtl
 
 EXT_LIBS =
 
