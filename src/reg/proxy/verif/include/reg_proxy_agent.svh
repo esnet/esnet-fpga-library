@@ -181,8 +181,8 @@ class reg_proxy_agent #(
     endtask
 
     task __transact_raw(
-            input wr,
-            output error
+            input bit wr,
+            output bit error
         );
         // Signals
         reg_proxy_reg_pkg::reg_command_t command = 0;
@@ -211,10 +211,10 @@ class reg_proxy_agent #(
     endtask
 
     task __transact(
-            input wr,
-            output error,
-            output timeout,
-            input TIMEOUT=0
+            input bit wr,
+            output bit error,
+            output bit timeout,
+            input int TIMEOUT=0
         );
         // Keep fork results local until the losing branch has been canceled.
         bit _error = 1'b0;
