@@ -272,7 +272,7 @@ module fifo_axil_async_unit_test #(
             unused_flag = ctrl_model_write();
 
             // Wait
-            wr_if._wait(FIFO_ASYNC_LATENCY);
+            env.driver.wait_n(FIFO_ASYNC_LATENCY);
 
             // Check register status
             check_status();
@@ -282,7 +282,7 @@ module fifo_axil_async_unit_test #(
             unused_flag = ctrl_model_read();
 
             // Wait
-            wr_if._wait(FIFO_ASYNC_LATENCY);
+            env.driver.wait_n(FIFO_ASYNC_LATENCY);
 
             // Check register status
             check_status();
@@ -319,7 +319,7 @@ module fifo_axil_async_unit_test #(
             unused_flag = ctrl_model_write();
 
             // Wait
-            wr_if._wait(FIFO_ASYNC_LATENCY);
+            env.driver.wait_n(FIFO_ASYNC_LATENCY);
 
             // Check status as reported from regs
             check_status();
@@ -329,7 +329,7 @@ module fifo_axil_async_unit_test #(
             unused_flag = ctrl_model_read();
 
             // Wait
-            wr_if._wait(FIFO_ASYNC_LATENCY);
+            env.driver.wait_n(FIFO_ASYNC_LATENCY);
 
             // Check register status
             check_status();
@@ -348,7 +348,7 @@ module fifo_axil_async_unit_test #(
             unused_flag = ctrl_model_write();
 
             // Wait
-            wr_if._wait(FIFO_ASYNC_LATENCY);
+            env.driver.wait_n(FIFO_ASYNC_LATENCY);
 
             // Check status as reported from regs
             check_status();
@@ -531,8 +531,8 @@ module fifo_axil_async_unit_test #(
             @(cb_wr);
 
             // Check that empty is deasserted immediately (once write transaction is registered by FIFO)
-            rd_if._wait(FIFO_ASYNC_LATENCY);
-            if (FWFT) rd_if._wait(MEM_RD_LATENCY);
+            env.monitor.wait_n(FIFO_ASYNC_LATENCY);
+            if (FWFT) env.monitor.wait_n(MEM_RD_LATENCY);
             `FAIL_UNLESS(cb_rd.rd_empty == 0);
 
             // Receive transaction
@@ -597,7 +597,7 @@ module fifo_axil_async_unit_test #(
             @(cb_rd);
 
             // Allow read transaction to be registered by FIFO
-            wr_if._wait(FIFO_ASYNC_LATENCY);
+            env.driver.wait_n(FIFO_ASYNC_LATENCY);
 
             // Check that full is once again deasserted
             `FAIL_UNLESS(cb_wr.wr_full == 0);

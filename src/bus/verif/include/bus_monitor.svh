@@ -83,7 +83,7 @@ class bus_monitor #(
     endtask
 
     // Block for N cycles
-    local task _wait_cycles(input int cycles);
+    task wait_n(input int cycles);
         repeat (cycles) @(bus_vif.cb);
     endtask
 
@@ -165,7 +165,7 @@ class bus_monitor #(
             if (this.__stall_cycles > 0) stall_cycles = this.__stall_cycles;
             else                         stall_cycles = $urandom_range(0, this.__stall_cycles_max);
             _idle();
-            _wait_cycles(stall_cycles);
+            wait_n(stall_cycles);
         end
         // Receive transaction from interface
         case (this.__rx_mode)

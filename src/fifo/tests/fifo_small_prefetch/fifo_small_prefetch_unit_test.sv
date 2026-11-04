@@ -215,7 +215,7 @@ module fifo_small_prefetch_unit_test #(
             env.driver.send(exp_transaction);
 
             // Allow write transaction to be registered by FIFO
-            wr_if._wait(MEM_WR_LATENCY);
+            env.driver.wait_n(MEM_WR_LATENCY);
 
             // Check that empty is deasserted
             `FAIL_IF(cb.empty);
@@ -366,7 +366,7 @@ module fifo_small_prefetch_unit_test #(
             env.driver.send(exp_transaction);
             `FAIL_IF(cb.oflow);
 
-            wr_if._wait(1);
+            env.driver.wait_n(1);
 
             env.monitor.receive(got_transaction);
             match = exp_transaction.compare(got_transaction, msg);

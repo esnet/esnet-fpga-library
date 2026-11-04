@@ -84,8 +84,13 @@ class bus_driver #(
     endtask
 
     // Block for N cycles
-    local task _wait_cycles(input int cycles);
+    task wait_n(input int cycles);
         repeat (cycles) @(bus_vif.cb);
+    endtask
+
+    // Wait for readiness sampled on a clock edge.
+    task wait_ready();
+        @(bus_vif.cb iff (bus_vif.cb.mon_ready));
     endtask
 
     // Send
@@ -116,7 +121,7 @@ class bus_driver #(
     // - transaction is completed on cycle that valid is asserted
     local task _bus_push_when_ready(input bit [DATA_WID-1:0] data);
         // Observe readiness after any preceding push has updated the receiver.
-        @(bus_vif.cb iff (bus_vif.cb.mon_ready));
+        wait_ready();
         _bus_push(data);
     endtask
 
@@ -132,7 +137,7 @@ class bus_driver #(
             if (this.__stall_cycles > 0) stall_cycles = this.__stall_cycles;
             else                         stall_cycles = $urandom_range(0, this.__stall_cycles_max);
             _idle();
-            _wait_cycles(stall_cycles);
+            wait_n(stall_cycles);
         end
         // Send transaction to interface
         case(this.__tx_mode)

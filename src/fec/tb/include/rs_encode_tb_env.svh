@@ -52,7 +52,7 @@ class rs_encode_tb_env #(
     endfunction
 
     task wait_n(input int cycles);
-        wr_vif._wait(cycles);
+        this.driver.wait_n(cycles);
     endtask
 
     automatic function void reset();

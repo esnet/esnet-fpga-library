@@ -227,7 +227,7 @@ module fifo_prefetch_unit_test #(
             env.driver.send(exp_transaction);
 
             // Allow write transaction to be registered by FIFO
-            wr_if._wait(WR_TO_EMPTY_LATENCY);
+            env.driver.wait_n(WR_TO_EMPTY_LATENCY);
 
             // Check that empty is deasserted
             `FAIL_IF(cb.empty);
@@ -236,7 +236,7 @@ module fifo_prefetch_unit_test #(
             env.monitor.receive(got_transaction);
 
             // Check that empty is reasserted
-            wr_if._wait(RD_TO_EMPTY_LATENCY);
+            env.driver.wait_n(RD_TO_EMPTY_LATENCY);
             `FAIL_UNLESS(cb.empty);
 
         `SVTEST_END
@@ -260,7 +260,7 @@ module fifo_prefetch_unit_test #(
             exp_transaction = new("exp_transaction", exp_item);
 
             // Full should be deasserted on init (could take as much as PIPELINE_DEPTH to update)
-            wr_if._wait(PIPELINE_DEPTH);
+            env.driver.wait_n(PIPELINE_DEPTH);
             `FAIL_IF(cb.full);
 
             // Send enough transactions to trigger 'full'
@@ -269,7 +269,7 @@ module fifo_prefetch_unit_test #(
                 env.driver.send(exp_transaction);
             end
             // Full should be asserted after some delay
-            wr_if._wait(WR_TO_FULL_LATENCY);
+            env.driver.wait_n(WR_TO_FULL_LATENCY);
             fork
                 wait(cb.full);
                 begin
@@ -283,7 +283,7 @@ module fifo_prefetch_unit_test #(
             env.monitor.receive(got_transaction);
 
             // Check that full is once again deasserted
-            wr_if._wait(RD_TO_FULL_LATENCY);
+            env.driver.wait_n(RD_TO_FULL_LATENCY);
             fork
                 wait(!cb.full);
                 begin
@@ -319,7 +319,7 @@ module fifo_prefetch_unit_test #(
             `FAIL_IF(cb.oflow);
 
             // Full should be deasserted on init (could take as much as PIPELINE_DEPTH to update)
-            wr_if._wait(PIPELINE_DEPTH);
+            env.driver.wait_n(PIPELINE_DEPTH);
             `FAIL_IF(cb.full);
 
             // Send enough transactions to trigger 'full'
@@ -332,7 +332,7 @@ module fifo_prefetch_unit_test #(
             end
 
             // After exceeding almost full depth, 'full' should be asserted (oflow should remain deasserted)
-            wr_if._wait(WR_TO_FULL_LATENCY);
+            env.driver.wait_n(WR_TO_FULL_LATENCY);
             fork
                 wait(cb.full);
                 `FAIL_IF(cb.oflow);
@@ -351,7 +351,7 @@ module fifo_prefetch_unit_test #(
             end
             `FAIL_IF(cb.oflow);
 
-            wr_if._wait(WR_TO_FULL_LATENCY);
+            env.driver.wait_n(WR_TO_FULL_LATENCY);
             `FAIL_UNLESS(cb.full);
 
             // Put driver in 'push' mode to force transactions despite wr_rdy being deasserted
@@ -385,7 +385,7 @@ module fifo_prefetch_unit_test #(
                 );
             end
 
-            wr_if._wait(RD_TO_FULL_LATENCY);
+            env.driver.wait_n(RD_TO_FULL_LATENCY);
 
             // Send and receive one more transaction
             exp_transaction = new($sformatf("exp_transaction_%d", DEPTH), DEPTH);
