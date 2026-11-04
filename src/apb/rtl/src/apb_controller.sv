@@ -31,7 +31,8 @@ module apb_controller #(
     localparam int DATA_BYTE_WID = reg_if.DATA_BYTE_WID;
     localparam int ADDR_WID = reg_if.ADDR_WID;
 
-    localparam int TIMER_WID = WR_TIMEOUT > RD_TIMEOUT ? $clog2(WR_TIMEOUT) : (RD_TIMEOUT > 0 ? $clog2(RD_TIMEOUT) : 1);
+    localparam int MAX_TIMEOUT = WR_TIMEOUT > RD_TIMEOUT ? WR_TIMEOUT : RD_TIMEOUT;
+    localparam int TIMER_WID = MAX_TIMEOUT > 1 ? $clog2(MAX_TIMEOUT) : 1;
 
     // ============================
     // Signals
@@ -102,6 +103,7 @@ module apb_controller #(
                 nxt_state = READ;
             end
             WRITE : begin
+                timer_reset = 1'b0;
                 timer_inc = 1'b1;
                 apb_if.psel = 1'b1;
                 apb_if.pwrite = 1'b1;
@@ -109,6 +111,8 @@ module apb_controller #(
                 if (apb_if.pready || wr_timeout) nxt_state = IDLE;
             end
             READ : begin
+                timer_reset = 1'b0;
+                timer_inc = 1'b1;
                 apb_if.psel = 1'b1;
                 apb_if.penable = 1'b1;
                 if (apb_if.pready || rd_timeout) nxt_state = IDLE;
