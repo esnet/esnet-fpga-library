@@ -118,10 +118,20 @@ module alloc_axil_sg_core_unit_test #(
     always @(posedge axil_if.aclk or posedge srst) axil_if.aresetn <= !srst;
 
     //===================================
+    // Store/load agents
+    //===================================
+    alloc_verif_pkg::alloc_store_agent #(BUFFER_SIZE, PTR_WID, META_WID) store_agent;
+    alloc_verif_pkg::alloc_load_agent #(BUFFER_SIZE, PTR_WID, META_WID) load_agent;
+
+    //===================================
     // Build
     //===================================
     function void build();
         svunit_ut = new(name);
+        store_agent = new();
+        store_agent.alloc_vif = scatter_if[0];
+        load_agent = new();
+        load_agent.alloc_vif = gather_if[0];
 
         // AXI-L agent
         axil_reg_agent = new();
@@ -140,6 +150,8 @@ module alloc_axil_sg_core_unit_test #(
         int cnt;
 
         svunit_ut.setup();
+        store_agent.idle();
+        load_agent.idle();
 
         reset();
 
@@ -345,19 +357,19 @@ module alloc_axil_sg_core_unit_test #(
     `SVUNIT_TESTS_END
 
     task store_req(input int ctxt, output PTR_T ptr);
-        scatter_if[0].store_req(ptr);
+        store_agent.store_req(ptr);
     endtask
 
     task store(input int ctxt, input PTR_T ptr, input logic eof=1'b0, input SIZE_T size=0, input META_T meta=0, input logic err=1'b0);
-        scatter_if[0].store(ptr, eof, size, meta, err);
+        store_agent.store(ptr, eof, size, meta, err);
     endtask
 
     task load_req(input int ctxt, input PTR_T ptr);
-        gather_if[0].load_req(ptr);
+        load_agent.load_req(ptr);
     endtask
 
     task load(input int ctxt, output PTR_T ptr, output logic eof, output SIZE_T size, output META_T meta, output logic err);
-        gather_if[0].load(ptr, eof, size, meta, err);
+        load_agent.load(ptr, eof, size, meta, err);
     endtask
 
     task reset();

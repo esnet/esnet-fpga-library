@@ -78,15 +78,24 @@ interface alloc_intf #(
         output err
     );
 
+    //===================================
+    // Verification clocking blocks
+    //===================================
+    wire mon_req = req;
+    wire mon_vld = vld;
+    wire mon_ack = ack;
+
     clocking cb_store @(posedge clk);
         output nxt_ptr, eof, size, meta, err;
         input  rdy, ptr, ack;
+        input  mon_req, mon_vld;
         inout  vld, req;
     endclocking
 
     clocking cb_load @(posedge clk);
         output ptr;
         input  rdy, nxt_ptr, vld, eof, size, meta, err;
+        input  mon_req, mon_ack;
         inout  req, ack;
     endclocking
 
