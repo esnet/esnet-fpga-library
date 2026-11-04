@@ -21,6 +21,20 @@ class raw_transaction#(parameter type DATA_T = bit) extends transaction;
         this.data = data;
     endfunction
 
+    // Create a transaction from a raw payload.
+    static function raw_transaction#(DATA_T) from_raw(
+        input DATA_T data,
+        input string name="raw_transaction"
+    );
+        raw_transaction#(DATA_T) transaction = new(name, data);
+        return transaction;
+    endfunction
+
+    // Extract the payload from a transaction.
+    static function DATA_T to_raw(input raw_transaction#(DATA_T) transaction);
+        return transaction.data;
+    endfunction
+
     // Destructor
     // [[ implements std_verif_pkg::base.destroy() ]]
     virtual function automatic void destroy();

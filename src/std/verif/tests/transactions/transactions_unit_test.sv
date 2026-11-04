@@ -31,6 +31,28 @@ module transactions_unit_test;
             `FAIL_UNLESS_STR_EQUAL(item.get_name(), "");
         `SVTEST_END
 
+        // Conversions preserve payload types and create independent objects.
+        `SVTEST(raw_conversion)
+            typedef struct packed {
+                bit valid;
+                bit [63:0] payload;
+            } packed_data_t;
+            typedef raw_transaction#(packed_data_t) packed_t;
+            packed_data_t data = '{valid: 1'b1, payload: 64'hfedcba9876543210};
+            packed_t packed_item = packed_t::from_raw(data);
+            word_t first = word_t::from_raw(32'h87654321, "converted");
+            word_t second = word_t::from_raw(32'h87654321);
+            byte_t narrow = byte_t::from_raw(8'ha5);
+            `FAIL_UNLESS_EQUAL(packed_t::to_raw(packed_item), data);
+            `FAIL_UNLESS_EQUAL(word_t::to_raw(first), 32'h87654321);
+            `FAIL_UNLESS_EQUAL(byte_t::to_raw(narrow), 8'ha5);
+            `FAIL_UNLESS_STR_EQUAL(first.get_name(), "converted");
+            `FAIL_UNLESS_STR_EQUAL(second.get_name(), "raw_transaction");
+            `FAIL_IF(first == second);
+            first.data = 0;
+            `FAIL_UNLESS_EQUAL(word_t::to_raw(second), 32'h87654321);
+        `SVTEST_END
+
         `SVTEST(copy_is_independent)
             word_t source = new("source", 32'h12345678);
             word_t copied = new("destination", 0);
