@@ -1,5 +1,10 @@
 `include "svunit_defines.svh"
 
+//===================================
+// (Failsafe) timeout (per-testcase)
+//===================================
+`define SVUNIT_TIMEOUT 500us
+
 module reg_proxy_unit_test;
     import svunit_pkg::svunit_testcase;
     import reg_verif_pkg::*;
