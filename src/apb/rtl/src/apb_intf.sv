@@ -208,15 +208,15 @@ module apb_intf_controller_term (
     import apb_pkg::*;
 
     // Tie off controller outputs
-    assign apb_if_to_peripheral.pclk = 1'b0;
-    assign apb_if_to_peripheral.presetn = 1'b0;
-    assign apb_if_to_peripheral.paddr = '0;
-    assign apb_if_to_peripheral.pprot = '0;
-    assign apb_if_to_peripheral.psel = 1'b0;
-    assign apb_if_to_peripheral.penable = 1'b0;
-    assign apb_if_to_peripheral.pwrite = 1'b0;
-    assign apb_if_to_peripheral.pwdata = '0;
-    assign apb_if_to_peripheral.pstrb = '0;
+    assign apb_if.pclk = 1'b0;
+    assign apb_if.presetn = 1'b0;
+    assign apb_if.paddr = '0;
+    assign apb_if.pprot = '0;
+    assign apb_if.psel = 1'b0;
+    assign apb_if.penable = 1'b0;
+    assign apb_if.pwrite = 1'b0;
+    assign apb_if.pwdata = '0;
+    assign apb_if.pstrb = '0;
 
 endmodule : apb_intf_controller_term
 
