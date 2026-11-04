@@ -1,5 +1,8 @@
 `include "svunit_defines.svh"
 
+// (Failsafe) timeout
+`define SVUNIT_TIMEOUT 1ms
+
 module math_unit_test;
     import svunit_pkg::svunit_testcase;
     import math_pkg::*;
