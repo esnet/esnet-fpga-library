@@ -216,6 +216,9 @@ class reg_proxy_agent #(
             output timeout,
             input TIMEOUT=0
         );
+        // Keep fork results local until the losing branch has been canceled.
+        bit _error = 1'b0;
+        bit _timeout = 1'b0;
         string cmd_str;
         if (wr) cmd_str = "WR";
         else    cmd_str = "RD";
@@ -226,23 +229,23 @@ class reg_proxy_agent #(
             begin
                 fork
                     begin
-                        error = 1'b0;
-                        __transact_raw(wr, error);
+                        __transact_raw(wr, _error);
                     end
                     begin
-                        timeout = 1'b0;
                         if (TIMEOUT > 0) begin
                             wait_n(TIMEOUT);
-                            timeout = 1'b1;
+                            _timeout = 1'b1;
                         end else wait(0);
                     end
                 join_any
                 disable fork;
             end
         join
-        assert (error == 0)   else info_msg($sformatf("Error detected during '%s' transaction.", cmd_str));
-        assert (timeout == 0) else error_msg($sformatf("'%s' transaction timed out.", cmd_str));
+        assert (_error == 0)   else info_msg($sformatf("Error detected during '%s' transaction.", cmd_str));
+        assert (_timeout == 0) else error_msg($sformatf("'%s' transaction timed out.", cmd_str));
 
+        error = _error;
+        timeout = _timeout;
         trace_msg($sformatf("transact (%s) Done.", cmd_str));
     endtask
 
