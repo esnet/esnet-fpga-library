@@ -45,6 +45,7 @@ module apb_peripheral #(
     end
 
     always_comb begin
+        nxt_state = state;
         reg_if.wr = 1'b0;
         reg_if.rd = 1'b0;
         case (state)
@@ -65,6 +66,7 @@ module apb_peripheral #(
                 reg_if.rd = apb_if.penable;
                 if (reg_if.rd_ack) nxt_state = IDLE;
             end
+            default : nxt_state = RESET;
         endcase
     end
 
