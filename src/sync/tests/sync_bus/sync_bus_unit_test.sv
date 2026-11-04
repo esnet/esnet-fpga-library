@@ -38,6 +38,19 @@ module sync_bus_unit_test;
     `SVUNIT_CLK_GEN(clk_in, clk_in_period);
     `SVUNIT_CLK_GEN(clk_out, clk_out_period);
 
+    // Sample the driven request independently of the output clockvar.
+    wire mon_req_in = req_in;
+
+    clocking cb_in @(posedge clk_in);
+        output rst_in, req_in, data_in;
+        input rdy_in, mon_req_in;
+    endclocking
+
+    clocking cb_out @(posedge clk_out);
+        output rst_out;
+        input ack_out, data_out;
+    endclocking
+
     //===================================
     // Build
     //===================================
@@ -52,7 +65,7 @@ module sync_bus_unit_test;
     task setup();
         svunit_ut.setup();
 
-        req_in = 1'b0;
+        cb_in.req_in <= 1'b0;
 
         reset();
 
@@ -82,68 +95,85 @@ module sync_bus_unit_test;
     //     <test code>
     //   `SVTEST_END
     //===================================
+    // Isolate each worker fork so cleanup cannot affect other test processes.
+    // Check results after cleanup, including failure paths.
     `SVUNIT_TESTS_BEGIN
 
         `SVTEST(rst_in_value)
-            rst_in = 1'b1;
-            req_in = 1'b1;
-            fork
-                begin
-                    wait_for_sync();
-                end
-                begin
-                    forever begin
-                        // No events should be forwarded, due to input reset assertion
-                        @(posedge clk_out);
-                        `FAIL_IF(ack_out);
+            bit unexpected_output = 0;
+            cb_in.rst_in <= 1'b1;
+            cb_in.req_in <= 1'b1;
+            fork begin
+                fork
+                    begin
+                        wait_for_sync();
                     end
-                end
-            join_any
+                    begin
+                        forever begin
+                            // No events should be forwarded, due to input reset assertion
+                            @(cb_out);
+                            unexpected_output |= cb_out.ack_out;
+                        end
+                    end
+                join_any
+                disable fork;
+            end join
+            `FAIL_IF(unexpected_output);
         `SVTEST_END
 
         `SVTEST(rst_out_value)
-            rst_out = 1'b1;
-            req_in = 1'b1;
-            fork
-                begin
-                    wait_for_sync();
-                end
-                begin
-                    forever begin
-                        // No events should be forwarded, due to output reset assertion
-                        @(posedge clk_out);
-                        `FAIL_IF(ack_out);
+            bit unexpected_output = 0;
+            cb_out.rst_out <= 1'b1;
+            cb_in.req_in <= 1'b1;
+            fork begin
+                fork
+                    begin
+                        wait_for_sync();
                     end
-                end
-            join_any
+                    begin
+                        forever begin
+                            // No events should be forwarded, due to output reset assertion
+                            @(cb_out);
+                            unexpected_output |= cb_out.ack_out;
+                        end
+                    end
+                join_any
+                disable fork;
+            end join
+            `FAIL_IF(unexpected_output);
         `SVTEST_END
 
         `SVTEST(pass_value)
+            bit received = 0;
+            DATA_T received_data;
             DATA_T _data_in;
             void'(std::randomize(_data_in));
             
             // Send request
-            @(posedge clk_in);
-            req_in <= 1'b1;
-            data_in <= _data_in;
+            @(cb_in);
+            cb_in.req_in <= 1'b1;
+            cb_in.data_in <= _data_in;
 
-            wait(rdy_in);
-            @(posedge clk_in);
-            req_in <= 1'b0;
-            data_in <= 'x;
+            do @(cb_in); while (!cb_in.rdy_in);
+            cb_in.req_in <= 1'b0;
+            cb_in.data_in <= 'x;
 
-            fork
-                begin
-                    wait_for_sync();
-                    @(posedge clk_out);
-                    `FAIL_IF(1);
-                end
-                begin
-                    wait(ack_out);
-                    @(posedge clk_out);
-                    `FAIL_UNLESS_EQUAL(data_out, _data_in);
-                end
-            join_any
+            fork begin
+                fork
+                    begin
+                        wait_for_sync();
+                        @(cb_out);
+                    end
+                    begin
+                        @(cb_out iff cb_out.ack_out);
+                        received_data = cb_out.data_out;
+                        received = 1;
+                    end
+                join_any
+                disable fork;
+            end join
+            `FAIL_UNLESS(received);
+            `FAIL_UNLESS_EQUAL(received_data, _data_in);
 
         `SVTEST_END
 
@@ -151,28 +181,31 @@ module sync_bus_unit_test;
             DATA_T samples_in [$];
             DATA_T samples_out [$];
 
-            fork
-                begin
-                    DATA_T _data_in;
-                    @(posedge clk_in);
-                    void'(std::randomize(_data_in));
-                    req_in <= 1'b1;
-                    data_in <= _data_in;
-                    repeat (10000) begin
-                        @(posedge clk_in);
-                        if (rdy_in) samples_in.push_back(_data_in);
+            fork begin
+                fork
+                    begin
+                        DATA_T _data_in;
+                        @(cb_in);
+                        void'(std::randomize(_data_in));
+                        cb_in.req_in <= 1'b1;
+                        cb_in.data_in <= _data_in;
+                        repeat (10000) begin
+                            @(cb_in);
+                            if (cb_in.mon_req_in && cb_in.rdy_in) samples_in.push_back(_data_in);
+                        end
+                        cb_in.req_in <= 1'b0;
+                        wait_for_sync();
+                        @(cb_out);
                     end
-                    req_in <= 1'b0;
-                    wait_for_sync();
-                    @(posedge clk_out);
-                end
-                begin
-                    forever begin
-                        @(posedge clk_out);
-                        if (ack_out) samples_out.push_back(data_out);
+                    begin
+                        forever begin
+                            @(cb_out);
+                            if (cb_out.ack_out) samples_out.push_back(cb_out.data_out);
+                        end
                     end
-                end
-            join_any
+                join_any
+                disable fork;
+            end join
 
             // Check that list of output samples is identical
             // (matching length and order) to list of input samples
@@ -185,28 +218,31 @@ module sync_bus_unit_test;
 
     `SVUNIT_TESTS_END
 
+    //===================================
+    // Tasks
+    //===================================
     task reset();
         fork
             begin
-                rst_in <= 1'b1;
-                repeat (8) @(posedge clk_in);
-                rst_in <= 1'b0;
-                @(posedge clk_in);
+                cb_in.rst_in <= 1'b1;
+                repeat (8) @(cb_in);
+                cb_in.rst_in <= 1'b0;
+                @(cb_in);
             end
             begin
-                rst_out <= 1'b1;
-                repeat (8) @(posedge clk_out);
-                rst_out <= 1'b0;
-                @(posedge clk_out);
+                cb_out.rst_out <= 1'b1;
+                repeat (8) @(cb_out);
+                cb_out.rst_out <= 1'b0;
+                @(cb_out);
             end
         join
     endtask
 
     task wait_for_sync();
-        repeat (2) @(posedge clk_in);
-        @(posedge clk_in);
-        repeat (sync_pkg::RETIMING_STAGES+1) @(posedge clk_out);
-        @(posedge clk_out);
+        repeat (2) @(cb_in);
+        @(cb_in);
+        repeat (sync_pkg::RETIMING_STAGES+1) @(cb_out);
+        @(cb_out);
     endtask
 
 endmodule

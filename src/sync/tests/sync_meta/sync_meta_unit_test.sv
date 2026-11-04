@@ -31,6 +31,15 @@ module sync_meta_unit_test;
     `SVUNIT_CLK_GEN(clk_in, clk_in_period);
     `SVUNIT_CLK_GEN(clk_out, clk_out_period);
 
+    clocking cb_in @(posedge clk_in);
+        output rst_in, sig_in;
+    endclocking
+
+    clocking cb_out @(posedge clk_out);
+        output rst_out;
+        input sig_out;
+    endclocking
+
     //===================================
     // Build
     //===================================
@@ -76,93 +85,96 @@ module sync_meta_unit_test;
     `SVUNIT_TESTS_BEGIN
 
         `SVTEST(rst_in_value)
-            rst_in = 1'b1;
+            cb_in.rst_in <= 1'b1;
 
-            sig_in = 1'b1;
+            cb_in.sig_in <= 1'b1;
             wait_for_sync();
 
             `FAIL_UNLESS_LOG (
-                sig_out === RST_VALUE,
-                $sformatf("Reset value mismatch. Exp: %0b, Got: %0b.", RST_VALUE, sig_out)
+                cb_out.sig_out === RST_VALUE,
+                $sformatf("Reset value mismatch. Exp: %0b, Got: %0b.", RST_VALUE, cb_out.sig_out)
             );
         `SVTEST_END
 
         `SVTEST(rst_out_value)
-            rst_out = 1'b1;
+            cb_out.rst_out <= 1'b1;
 
-            sig_in = 1'b1;
+            cb_in.sig_in <= 1'b1;
             wait_for_sync();
 
             `FAIL_UNLESS_LOG (
-                sig_out === RST_VALUE,
-                $sformatf("Reset value mismatch. Exp: %0b, Got: %0b.", RST_VALUE, sig_out)
+                cb_out.sig_out === RST_VALUE,
+                $sformatf("Reset value mismatch. Exp: %0b, Got: %0b.", RST_VALUE, cb_out.sig_out)
             );
         `SVTEST_END
 
         `SVTEST(pass_0_to_1)
-            sig_in = 1'b0;
+            cb_in.sig_in <= 1'b0;
 
             wait_for_sync();
 
             `FAIL_UNLESS_LOG(
-                sig_out === 1'b0,
-                $sformatf("Output value mismatch. Exp: %0b, Got: %0b.", 1'b0, sig_out)
+                cb_out.sig_out === 1'b0,
+                $sformatf("Output value mismatch. Exp: %0b, Got: %0b.", 1'b0, cb_out.sig_out)
             );
-            #1ns;
-            sig_in = 1'b1;
+            @(cb_in);
+            cb_in.sig_in <= 1'b1;
 
             wait_for_sync();
 
             `FAIL_UNLESS_LOG(
-                sig_out === 1'b1,
-                $sformatf("Output value mismatch. Exp: %0b, Got: %0b.", 1'b1, sig_out)
+                cb_out.sig_out === 1'b1,
+                $sformatf("Output value mismatch. Exp: %0b, Got: %0b.", 1'b1, cb_out.sig_out)
             );
         `SVTEST_END
 
         `SVTEST(pass_1_to_0)
-            sig_in = 1'b1;
+            cb_in.sig_in <= 1'b1;
 
             wait_for_sync();
 
             `FAIL_UNLESS_LOG(
-                sig_out === 1'b1,
-                $sformatf("Output value mismatch. Exp: %0b, Got: %0b.", 1'b1, sig_out)
+                cb_out.sig_out === 1'b1,
+                $sformatf("Output value mismatch. Exp: %0b, Got: %0b.", 1'b1, cb_out.sig_out)
             );
-            #1ns;
-            sig_in = 1'b0;
+            @(cb_in);
+            cb_in.sig_in <= 1'b0;
 
             wait_for_sync();
 
             `FAIL_UNLESS_LOG(
-                sig_out === 1'b0,
-                $sformatf("Output value mismatch. Exp: %0b, Got: %0b.", 1'b0, sig_out)
+                cb_out.sig_out === 1'b0,
+                $sformatf("Output value mismatch. Exp: %0b, Got: %0b.", 1'b0, cb_out.sig_out)
             );
         `SVTEST_END
 
     `SVUNIT_TESTS_END
 
+    //===================================
+    // Tasks
+    //===================================
     task reset();
         fork
             begin
-                rst_in <= 1'b1;
-                repeat (8) @(posedge clk_in);
-                rst_in <= 1'b0;
-                @(posedge clk_in);
+                cb_in.rst_in <= 1'b1;
+                repeat (8) @(cb_in);
+                cb_in.rst_in <= 1'b0;
+                @(cb_in);
             end
             begin
-                rst_out <= 1'b1;
-                repeat (8) @(posedge clk_out);
-                rst_out <= 1'b0;
-                @(posedge clk_out);
+                cb_out.rst_out <= 1'b1;
+                repeat (8) @(cb_out);
+                cb_out.rst_out <= 1'b0;
+                @(cb_out);
             end
         join
     endtask
 
     task wait_for_sync();
-        @(posedge clk_in);
-        @(posedge clk_in);
-        repeat (sync_pkg::RETIMING_STAGES+1) @(posedge clk_out);
-        @(posedge clk_out);
+        @(cb_in);
+        @(cb_in);
+        repeat (sync_pkg::RETIMING_STAGES+1) @(cb_out);
+        @(cb_out);
     endtask
 
 endmodule

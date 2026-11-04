@@ -35,6 +35,15 @@ module sync_bus_sampled_unit_test;
     `SVUNIT_CLK_GEN(clk_in, clk_in_period);
     `SVUNIT_CLK_GEN(clk_out, clk_out_period);
 
+    clocking cb_in @(posedge clk_in);
+        output rst_in, data_in;
+    endclocking
+
+    clocking cb_out @(posedge clk_out);
+        output rst_out;
+        input data_out;
+    endclocking
+
     //===================================
     // Build
     //===================================
@@ -77,20 +86,22 @@ module sync_bus_sampled_unit_test;
     //     <test code>
     //   `SVTEST_END
     //===================================
+    // Isolate each worker fork so cleanup cannot affect other test processes.
+    // Check results after cleanup, including failure paths.
     `SVUNIT_TESTS_BEGIN
 
         `SVTEST(rst_in_value)
             DATA_T value_in;
             void'(std::randomize(value_in));
 
-            rst_in <= 1'b1;
+            cb_in.rst_in <= 1'b1;
 
-            data_in <= value_in;
+            cb_in.data_in <= value_in;
             wait_for_sync();
 
             `FAIL_UNLESS_LOG (
-                data_out === RST_VALUE,
-                $sformatf("Reset value mismatch. Exp: 0x%0x, Got: 0x%0x", RST_VALUE, data_out)
+                cb_out.data_out === RST_VALUE,
+                $sformatf("Reset value mismatch. Exp: 0x%0x, Got: 0x%0x", RST_VALUE, cb_out.data_out)
             );
         `SVTEST_END
 
@@ -98,14 +109,14 @@ module sync_bus_sampled_unit_test;
             DATA_T value_in;
             void'(std::randomize(value_in));
 
-            rst_out <= 1'b1;
+            cb_out.rst_out <= 1'b1;
 
-            data_in <= value_in;
+            cb_in.data_in <= value_in;
             wait_for_sync();
 
             `FAIL_UNLESS_LOG (
-                data_out === RST_VALUE,
-                $sformatf("Reset value mismatch. Exp: 0x%0x, Got: 0x%0x.", RST_VALUE, data_out)
+                cb_out.data_out === RST_VALUE,
+                $sformatf("Reset value mismatch. Exp: 0x%0x, Got: 0x%0x.", RST_VALUE, cb_out.data_out)
             );
         `SVTEST_END
 
@@ -114,7 +125,7 @@ module sync_bus_sampled_unit_test;
             void'(std::randomize(value_in));
 
             // Set input value
-            data_in <= value_in;
+            cb_in.data_in <= value_in;
 
             // Allow reset value to propagate
             wait_for_handshake();
@@ -122,21 +133,21 @@ module sync_bus_sampled_unit_test;
             wait_for_sync();
 
             `FAIL_UNLESS_LOG(
-                data_out === value_in,
-                $sformatf("Output value mismatch. Exp: 0x%0x, Got: 0x%0x.", value_in, data_out)
+                cb_out.data_out === value_in,
+                $sformatf("Output value mismatch. Exp: 0x%0x, Got: 0x%0x.", value_in, cb_out.data_out)
             );
 
             // Change input value
             void'(std::randomize(value_in));
 
-            @(posedge clk_in);
-            data_in <= value_in;
+            @(cb_in);
+            cb_in.data_in <= value_in;
 
             wait_for_handshake();
 
             `FAIL_UNLESS_LOG(
-                data_out === value_in,
-                $sformatf("Output value mismatch. Exp: 0x%0x, Got: 0x%0x.", value_in, data_out)
+                cb_out.data_out === value_in,
+                $sformatf("Output value mismatch. Exp: 0x%0x, Got: 0x%0x.", value_in, cb_out.data_out)
             );
         `SVTEST_END
 
@@ -145,28 +156,31 @@ module sync_bus_sampled_unit_test;
             DATA_T samples_in [$];
             DATA_T samples_out [$];
 
-            fork
-                begin
-                    DATA_T _data_in;
-                    repeat (10000) begin
-                        void'(std::randomize(_data_in));
-                        data_in <= _data_in;
-                        @(posedge clk_in);
-                        samples_in.push_back(_data_in);
+            fork begin
+                fork
+                    begin
+                        DATA_T _data_in;
+                        repeat (10000) begin
+                            void'(std::randomize(_data_in));
+                            cb_in.data_in <= _data_in;
+                            @(cb_in);
+                            samples_in.push_back(_data_in);
+                        end
+                        wait_for_sync();
                     end
-                    wait_for_sync();
-                end
-                begin
-                    // Allow reset value to propagate
-                    wait_for_handshake();
-                    forever begin
-                        @(posedge clk_out);
-                        if (samples_out.size() > 0) begin
-                            if (samples_out[$] != data_out) samples_out.push_back(data_out);
-                        end else samples_out.push_back(data_out);
+                    begin
+                        // Allow reset value to propagate
+                        wait_for_handshake();
+                        forever begin
+                            @(cb_out);
+                            if (samples_out.size() > 0) begin
+                                if (samples_out[$] != cb_out.data_out) samples_out.push_back(cb_out.data_out);
+                            end else samples_out.push_back(cb_out.data_out);
+                        end
                     end
-                end
-            join_any
+                join_any
+                disable fork;
+            end join
 
             do begin
                 DATA_T sample_in;
@@ -181,35 +195,38 @@ module sync_bus_sampled_unit_test;
 
     `SVUNIT_TESTS_END
 
+    //===================================
+    // Tasks
+    //===================================
     task reset();
         fork
             begin
-                rst_in <= 1'b1;
-                repeat (8) @(posedge clk_in);
-                rst_in <= 1'b0;
-                @(posedge clk_in);
+                cb_in.rst_in <= 1'b1;
+                repeat (8) @(cb_in);
+                cb_in.rst_in <= 1'b0;
+                @(cb_in);
             end
             begin
-                rst_out <= 1'b1;
-                repeat (8) @(posedge clk_out);
-                rst_out <= 1'b0;
-                @(posedge clk_out);
+                cb_out.rst_out <= 1'b1;
+                repeat (8) @(cb_out);
+                cb_out.rst_out <= 1'b0;
+                @(cb_out);
             end
         join
     endtask
 
     task wait_for_sync();
-        repeat (2) @(posedge clk_in);
-        @(posedge clk_in);
-        repeat (sync_pkg::RETIMING_STAGES+1) @(posedge clk_out);
-        @(posedge clk_out);
+        repeat (2) @(cb_in);
+        @(cb_in);
+        repeat (sync_pkg::RETIMING_STAGES+1) @(cb_out);
+        @(cb_out);
     endtask
 
     task wait_for_ack();
-        @(posedge clk_out);
-        @(posedge clk_out);
-        repeat (sync_pkg::RETIMING_STAGES+1) @(posedge clk_in);
-        @(posedge clk_in);
+        @(cb_out);
+        @(cb_out);
+        repeat (sync_pkg::RETIMING_STAGES+1) @(cb_in);
+        @(cb_in);
     endtask
 
     task wait_for_handshake();

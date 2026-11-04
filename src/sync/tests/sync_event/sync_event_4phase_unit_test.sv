@@ -34,6 +34,16 @@ module sync_event_4phase_unit_test;
     `SVUNIT_CLK_GEN(clk_in, clk_in_period);
     `SVUNIT_CLK_GEN(clk_out, clk_out_period);
 
+    clocking cb_in @(posedge clk_in);
+        output rst_in, evt_in;
+        input rdy_in;
+    endclocking
+
+    clocking cb_out @(posedge clk_out);
+        output rst_out;
+        input evt_out;
+    endclocking
+
     //===================================
     // Build
     //===================================
@@ -48,7 +58,7 @@ module sync_event_4phase_unit_test;
     task setup();
         svunit_ut.setup();
 
-        evt_in = 1'b0;
+        cb_in.evt_in <= 1'b0;
 
         reset();
 
@@ -78,59 +88,76 @@ module sync_event_4phase_unit_test;
     //     <test code>
     //   `SVTEST_END
     //===================================
+    // Isolate each worker fork so cleanup cannot affect other test processes.
+    // Check results after cleanup, including failure paths.
     `SVUNIT_TESTS_BEGIN
 
         `SVTEST(rst_in_value)
-            rst_in = 1'b1;
-            evt_in = 1'b1;
-            fork
-                begin
-                    wait_for_sync();
-                end
-                begin
-                    forever begin
-                        // No events should be forwarded, due to input reset assertion
-                        @(posedge clk_out);
-                        `FAIL_IF(evt_out);
+            bit unexpected_output = 0;
+            cb_in.rst_in <= 1'b1;
+            cb_in.evt_in <= 1'b1;
+            fork begin
+                fork
+                    begin
+                        wait_for_sync();
                     end
-                end
-            join_any
+                    begin
+                        forever begin
+                            // No events should be forwarded, due to input reset assertion
+                            @(cb_out);
+                            unexpected_output |= cb_out.evt_out;
+                        end
+                    end
+                join_any
+                disable fork;
+            end join
+            `FAIL_IF(unexpected_output);
         `SVTEST_END
 
         `SVTEST(rst_out_value)
-            rst_out = 1'b1;
-            evt_in = 1'b1;
-            fork
-                begin
-                    wait_for_sync();
-                end
-                begin
-                    forever begin
-                        // No events should be forwarded, due to output reset assertion
-                        @(posedge clk_out);
-                        `FAIL_IF(evt_out);
+            bit unexpected_output = 0;
+            cb_out.rst_out <= 1'b1;
+            cb_in.evt_in <= 1'b1;
+            fork begin
+                fork
+                    begin
+                        wait_for_sync();
                     end
-                end
-            join_any
+                    begin
+                        forever begin
+                            // No events should be forwarded, due to output reset assertion
+                            @(cb_out);
+                            unexpected_output |= cb_out.evt_out;
+                        end
+                    end
+                join_any
+                disable fork;
+            end join
+            `FAIL_IF(unexpected_output);
         `SVTEST_END
 
         `SVTEST(pass_event)
+            bit received = 0;
 
-            @(posedge clk_in);
-            evt_in = 1'b1;
-            @(posedge clk_in);
-            evt_in = 1'b0;
+            @(cb_in);
+            cb_in.evt_in <= 1'b1;
+            @(cb_in);
+            cb_in.evt_in <= 1'b0;
 
-            fork
-                begin
-                    wait_for_sync();
-                    @(posedge clk_out);
-                    `FAIL_IF(1);
-                end
-                begin
-                    wait(evt_out);
-                end
-            join_any
+            fork begin
+                fork
+                    begin
+                        wait_for_sync();
+                        @(cb_out);
+                    end
+                    begin
+                        @(cb_out iff cb_out.evt_out);
+                        received = 1;
+                    end
+                join_any
+                disable fork;
+            end join
+            `FAIL_UNLESS(received);
 
         `SVTEST_END
 
@@ -138,25 +165,28 @@ module sync_event_4phase_unit_test;
             int exp_evt_cnt = 0;
             int got_evt_cnt = 0;
 
-            fork
-                begin
-                    @(posedge clk_in);
-                    evt_in <= 1'b1;
-                    repeat (10000) begin
-                        @(posedge clk_in);
-                        if (rdy_in) exp_evt_cnt++;
+            fork begin
+                fork
+                    begin
+                        @(cb_in);
+                        cb_in.evt_in <= 1'b1;
+                        repeat (10000) begin
+                            @(cb_in);
+                            if (cb_in.rdy_in) exp_evt_cnt++;
+                        end
+                        cb_in.evt_in <= 1'b0;
+                        wait_for_sync();
+                        @(cb_out);
                     end
-                    evt_in <= 1'b0;
-                    wait_for_sync();
-                    @(posedge clk_out);
-                end
-                begin
-                    forever begin
-                        @(posedge clk_out);
-                        if (evt_out) got_evt_cnt++;
+                    begin
+                        forever begin
+                            @(cb_out);
+                            if (cb_out.evt_out) got_evt_cnt++;
+                        end
                     end
-                end
-            join_any
+                join_any
+                disable fork;
+            end join
 
             `FAIL_UNLESS_EQUAL(got_evt_cnt, exp_evt_cnt);
 
@@ -164,28 +194,31 @@ module sync_event_4phase_unit_test;
 
     `SVUNIT_TESTS_END
 
+    //===================================
+    // Tasks
+    //===================================
     task reset();
         fork
             begin
-                rst_in <= 1'b1;
-                repeat (8) @(posedge clk_in);
-                rst_in <= 1'b0;
-                @(posedge clk_in);
+                cb_in.rst_in <= 1'b1;
+                repeat (8) @(cb_in);
+                cb_in.rst_in <= 1'b0;
+                @(cb_in);
             end
             begin
-                rst_out <= 1'b1;
-                repeat (8) @(posedge clk_out);
-                rst_out <= 1'b0;
-                @(posedge clk_out);
+                cb_out.rst_out <= 1'b1;
+                repeat (8) @(cb_out);
+                cb_out.rst_out <= 1'b0;
+                @(cb_out);
             end
         join
     endtask
 
     task wait_for_sync();
-        @(posedge clk_in);
-        @(posedge clk_in);
-        repeat (sync_pkg::RETIMING_STAGES+1) @(posedge clk_out);
-        @(posedge clk_out);
+        @(cb_in);
+        @(cb_in);
+        repeat (sync_pkg::RETIMING_STAGES+1) @(cb_out);
+        @(cb_out);
     endtask
 
 endmodule
