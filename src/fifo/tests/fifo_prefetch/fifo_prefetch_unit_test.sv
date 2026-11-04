@@ -21,7 +21,9 @@ module fifo_prefetch_unit_test #(
     //===================================
     localparam int DATA_WID = 32;
     localparam type DATA_T = bit[DATA_WID-1:0];
-    localparam int DEPTH = DUT.DEPTH;
+    // Storage depth includes pipeline reservations and control-path headroom.
+    localparam int DEPTH = 2*PIPELINE_DEPTH + 2
+                        + (WR_OPT_TIMING ? 1 : 0) + (RD_OPT_TIMING ? 1 : 0);
 
     localparam fifo_pkg::opt_mode_t WR_OPT_MODE = WR_OPT_TIMING ? fifo_pkg::OPT_MODE_TIMING : fifo_pkg::OPT_MODE_LATENCY;
     localparam fifo_pkg::opt_mode_t RD_OPT_MODE = RD_OPT_TIMING ? fifo_pkg::OPT_MODE_TIMING : fifo_pkg::OPT_MODE_LATENCY;

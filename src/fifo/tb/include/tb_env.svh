@@ -31,6 +31,8 @@ class tb_env #(
         // Create superclass instance
         super.new(name);
         this.reset_vif = _reset_vif;
+        this.wr_vif = _wr_vif;
+        this.rd_vif = _rd_vif;
         
         // Create (raw data) testbench components
         this.driver = new();
@@ -42,11 +44,11 @@ class tb_env #(
         this.scoreboard = new();
     endfunction
 
-    automatic function void reset_driver_mode();
+    function automatic void reset_driver_mode();
         this.driver.set_tx_mode(bus_verif_pkg::TX_MODE_PUSH_WHEN_READY);
     endfunction
 
-    automatic function void reset_monitor_mode();
+    function automatic void reset_monitor_mode();
         if (FWFT) this.monitor.set_rx_mode(bus_verif_pkg::RX_MODE_ACK);
         else      this.monitor.set_rx_mode(bus_verif_pkg::RX_MODE_FETCH_VAL);
     endfunction
@@ -55,7 +57,7 @@ class tb_env #(
         this.driver.wait_n(cycles);
     endtask
 
-    automatic function void reset();
+    function automatic void reset();
         trace_msg("reset()");
         super.reset();
         reset_driver_mode();

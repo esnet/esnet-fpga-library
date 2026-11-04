@@ -287,7 +287,7 @@ module fifo_small_ctxt_depth1_unit_test;
 endmodule
 
 // 3-entry FIFO (small)
-module fifo_ctxt_depth3_unit_test;
+module fifo_small_ctxt_depth3_unit_test;
 `FIFO_SMALL_CTXT_UNIT_TEST(3)
 endmodule
 

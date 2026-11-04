@@ -257,7 +257,7 @@ module fifo_small_prefetch_unit_test #(
             end
             // Full should be asserted after some delay
             fork
-                @(cb.full);
+                wait (cb.full);
                 begin
                     repeat (DEPTH) @(cb);
                     `FAIL_IF_LOG(1, "Full not asserted");
@@ -270,7 +270,7 @@ module fifo_small_prefetch_unit_test #(
 
             // Check that full is once again deasserted (takes an extra cycle for read to take effect)
             fork
-                @(!cb.full);
+                wait (!cb.full);
                 begin
                     repeat (DEPTH+1) @(cb);
                     `FAIL_IF_LOG(1, "Full not deasserted");
@@ -315,8 +315,13 @@ module fifo_small_prefetch_unit_test #(
 
             // After exceeding almost full depth, 'full' should be asserted (oflow should remain deasserted)
             fork
-                @(cb.full);
-                `FAIL_IF(cb.oflow);
+                begin
+                    while (!cb.full) begin
+                        `FAIL_IF(cb.oflow);
+                        @(cb);
+                    end
+                    `FAIL_IF(cb.oflow);
+                end
                 begin
                     repeat (DEPTH) @(cb);
                     `FAIL_IF_LOG(1, "Full not asserted");
@@ -332,7 +337,8 @@ module fifo_small_prefetch_unit_test #(
             end
             `FAIL_IF(cb.oflow);
 
-            @(cb);
+            // Allow the pipelined readiness indication to reflect the last write.
+            repeat (PIPELINE_DEPTH + 1) @(cb);
             `FAIL_UNLESS(cb.full);
 
             // Put driver in 'push' mode to force transactions despite wr_rdy being deasserted

@@ -26,8 +26,16 @@ module fifo_sync_unit_test #(
     //===================================
     // Derived parameters
     //===================================
-    localparam int MEM_WR_LATENCY = DUT.i_fifo_core.MEM_WR_LATENCY;
-    localparam int MEM_RD_LATENCY = DUT.i_fifo_core.MEM_RD_LATENCY;
+    // Match the memory specification selected by fifo_core.
+    localparam mem_pkg::spec_t MEM_SPEC = '{
+        ADDR_WID: DEPTH > 1 ? $clog2(DEPTH) : 1,
+        DATA_WID: DATA_WID,
+        ASYNC: 0,
+        RESET_FSM: 0,
+        OPT_MODE: FWFT ? mem_pkg::OPT_MODE_LATENCY : mem_pkg::OPT_MODE_DEFAULT
+    };
+    localparam int MEM_WR_LATENCY = mem_pkg::get_wr_latency(MEM_SPEC);
+    localparam int MEM_RD_LATENCY = mem_pkg::get_rd_latency(MEM_SPEC);
 
     // Adjust 'effective' FIFO depth to account for optional FWFT buffer
     localparam int __DEPTH = FWFT ? DEPTH + MEM_RD_LATENCY : DEPTH;
