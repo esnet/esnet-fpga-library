@@ -1,5 +1,8 @@
 `include "svunit_defines.svh"
 
+// (Failsafe) timeout
+`define SVUNIT_TIMEOUT 100ms
+
 module axi4l_intf_unit_test #(
     parameter string DUT_NAME = "axi4l_intf_connector"
 );

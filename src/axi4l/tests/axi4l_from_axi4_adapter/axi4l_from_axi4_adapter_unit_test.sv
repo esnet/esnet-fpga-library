@@ -1,5 +1,8 @@
 `include "svunit_defines.svh"
 
+// (Failsafe) timeout
+`define SVUNIT_TIMEOUT 100ms
+
 // Unit test for axi4l_from_axi4_adapter.
 //
 // DUT: axi4l_from_axi4_adapter (wide AXI4 → 32-bit AXI4-L).

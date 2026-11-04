@@ -1,5 +1,8 @@
 `include "svunit_defines.svh"
 
+// (Failsafe) timeout
+`define SVUNIT_TIMEOUT 100ms
+
 module axi4l_decoder_unit_test;
     import svunit_pkg::svunit_testcase;
     import axi4l_verif_pkg::*;
