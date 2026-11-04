@@ -65,3 +65,36 @@ open('${TARGET_DIR}/svunit_testsuite.sv', 'w').write(''.join(result))
 "
 sed -i "s:^.*svunit_testsuite.sv:${TARGET_DIR}/svunit_testsuite.sv:g" ${TARGET_DIR}/.svunit.f
 
+# Enhancement: Cancel completed testcase descendants with modern Verilator.
+#              Keep its unsupported #0 delay guarded, but allow disable fork
+#              to cancel losing timeout branches before the next test starts.
+# ----------------------------------------------
+python3 - "${SVUNIT_INSTALL}" "${TARGET_DIR}" <<'PY'
+from pathlib import Path
+import sys
+
+base = Path(sys.argv[1]) / 'svunit_base'
+target = Path(sys.argv[2]).resolve()
+# Patch testcase cleanup in a build-local copy.
+text = (base / 'svunit_testcase.sv').read_text()
+old = '`ifndef VERILATOR\n        #0;\n        disable fork;\n`endif'
+new = '`ifndef VERILATOR\n        #0;\n`endif\n        disable fork;'
+if text.count(old) != 1:
+    raise SystemExit('Unexpected SVUnit testcase fork-cleanup implementation')
+(target / 'svunit_testcase.sv').write_text(text.replace(old, new))
+
+# Use local includes so both simulators compile the compatibility copies.
+text = (base / 'svunit_pkg.sv').read_text()
+for filename in ('svunit_testcase.sv', 'svunit_testsuite.sv'):
+    text = text.replace(f'`include "{filename}"', f'`include "{target / filename}"')
+(target / 'svunit_pkg.sv').write_text(text)
+
+# Redirect compilation to the local package.
+file_list = target / '.svunit.f'
+lines = file_list.read_text().splitlines()
+file_list.write_text(''.join(
+    str(target / 'svunit_pkg.sv') + '\n'
+    if Path(line).name == 'svunit_pkg.sv' else line + '\n'
+    for line in lines
+))
+PY
