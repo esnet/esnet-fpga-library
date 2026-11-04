@@ -30,7 +30,13 @@ package math_pkg;
     endfunction
 
     function int LCM(input int a, input int b);
-        return (a * b / GCD(a,b));
+        longint product;
+        if (a == 0 || b == 0) return 0;
+        // Divide first and widen before multiplying to preserve intermediates.
+        product = (longint'(a) / GCD(a, b)) * longint'(b);
+        if (product < 0) product = -product;
+        // The nonnegative result must fit in a signed int.
+        return int'(product);
     endfunction
 
     // ----------------------------------------

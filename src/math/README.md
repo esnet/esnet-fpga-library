@@ -12,7 +12,7 @@ parameter calculations; the vector helper can also be used in logic.
 | `MAX(a, b)` | Larger of two signed integers |
 | `ABS(a)` | Absolute value of a signed integer |
 | `GCD(a, b)` | Greatest common divisor, using the Euclidean algorithm |
-| `LCM(a, b)` | Least common multiple, retaining the sign of the input product |
+| `LCM(a, b)` | Nonnegative least common multiple |
 | `vec#(WID)::count_ones(value)` | Counts set bits in a vector of width `WID` |
 
 ## Integer helpers
@@ -30,16 +30,16 @@ localparam int COUNT_WID = math_pkg::MAX(1, $clog2(BLOCK_BYTES + 1));
 
 `GCD` accepts negative operands and returns a nonnegative divisor when the
 result is representable. `GCD(a, 0)` is `ABS(a)` and `GCD(0, 0)` is zero.
-`LCM` computes `a * b / GCD(a, b)`: one negative operand produces a negative
-result, while two negative operands produce a positive result. With one
-zero operand and a nonzero other operand, it returns zero; do not pass zero
-for both operands because that divides by zero.
+`LCM` returns a nonnegative result regardless of operand signs. For example,
+`LCM(-72, 27)` and `LCM(-72, -27)` both return `216`. If either operand is
+zero, the result is zero, including `LCM(0, 0)`.
 
-Arithmetic uses signed 32-bit integers. Keep intermediate products and
-magnitudes within that range. In particular, `ABS` cannot represent the
-positive magnitude of the most negative `int`, and `LCM` multiplies before
-dividing, so its intermediate product can overflow even when the final
-mathematical result would fit.
+The integer API uses signed 32-bit values, so results must be representable
+in that range. `ABS` cannot represent the positive magnitude of the most
+negative `int`. `LCM` divides by the GCD before multiplying and uses a
+64-bit intermediate to avoid overflow when the final result fits. Inputs
+whose mathematical LCM exceeds the nonnegative signed `int` range are
+outside the function's supported domain.
 
 ## Vector population count
 
@@ -60,8 +60,9 @@ assign ones = word_math_t::count_ones(data);
 
 The SVUnit suite checks the integer helpers in constant expressions and
 runtime calls, including randomized operands, signed combinations, and
-zero cases. The vector population-count helper and integer overflow cases
-are outside the current suite's coverage.
+zero cases. LCM checks include widened intermediates whose final results
+fit the integer API. The vector population-count helper and unrepresentable
+integer results are outside the current suite's coverage.
 
 ```sh
 # Single testbench
