@@ -99,46 +99,6 @@ interface alloc_intf #(
         inout  req, ack;
     endclocking
 
-    task store_req(output bit [PTR_WID-1:0] ptr);
-        cb_store.req <= 1'b1;
-        @(cb_store);
-        wait(cb_store.req && cb_store.rdy);
-        ptr = cb_store.ptr;
-        cb_store.req <= 1'b0;
-    endtask
-
-    task store(input bit [PTR_WID-1:0] ptr, input bit eof=1'b0, input bit [SIZE_WID-1:0] size=0, input bit [META_WID-1:0] meta=0, input bit err=1'b0);
-        cb_store.vld <= 1'b1;
-        cb_store.nxt_ptr <= ptr;
-        cb_store.eof   <= eof;
-        cb_store.size  <= size;
-        cb_store.meta  <= meta;
-        cb_store.err   <= err;
-        @(cb_store);
-        wait(cb_store.vld && cb_store.ack);
-        cb_store.vld <= 1'b0;
-    endtask
-
-    task load_req(input bit [PTR_WID-1:0] ptr);
-        cb_load.req <= 1'b1;
-        cb_load.ptr <= ptr;
-        @(cb_load);
-        wait(cb_load.req && cb_load.rdy);
-        cb_load.req <= 1'b0;
-    endtask
-
-    task load(output bit [PTR_WID-1:0] ptr, output bit eof, output bit [SIZE_WID-1:0] size, output bit [META_WID-1:0] meta, output bit err);
-        cb_load.ack <= 1'b1;
-        @(cb_load);
-        wait(cb_load.vld && cb_load.ack);
-        ptr = cb_load.nxt_ptr;
-        eof = cb_load.eof;
-        size = cb_load.size;
-        meta = cb_load.meta;
-        err = cb_load.err;
-        cb_load.ack <= 1'b0;
-    endtask
-
 endinterface : alloc_intf
 
 
