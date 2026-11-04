@@ -41,7 +41,6 @@ module axi4l_apb_bridge_unit_test;
 
     // Connect reset interface
     assign axi4l_if.aresetn = !reset_if.reset;
-    assign apb_if.presetn = !reset_if.reset;
     assign reset_if.ready = !reset_if.reset;
 
     // Agents
