@@ -86,6 +86,13 @@ interface axi4_intf
     // ------------------------------------------------------------------
     // Clocking block — controller perspective
     // ------------------------------------------------------------------
+    // Sample controller-driven handshake signals through input views.
+    wire mon_awvalid = awvalid;
+    wire mon_wvalid = wvalid;
+    wire mon_bready = bready;
+    wire mon_arvalid = arvalid;
+    wire mon_rready = rready;
+
     clocking cb @(posedge aclk);
         output awid, awaddr, awlen, awsize, awburst, awlock, awcache, awprot,
                awqos, awregion, awuser;
@@ -95,6 +102,7 @@ interface axi4_intf
         inout  awvalid, wvalid, bready, arvalid, rready;
         input  awready, wready, bid, bresp, buser, bvalid;
         input  arready, rid, rdata, rresp, rlast, ruser, rvalid;
+        input  mon_awvalid, mon_wvalid, mon_bready, mon_arvalid, mon_rready;
     endclocking
 
     // ------------------------------------------------------------------

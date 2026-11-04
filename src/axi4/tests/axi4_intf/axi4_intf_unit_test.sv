@@ -142,7 +142,7 @@ module axi4_intf_unit_test #(
         // Place the 32-bit word on the correct lane
         wdata[word_idx*4 +: 4] = data;
         strb[word_idx*4 +: 4]  = 4'hF;
-        agent.axi4_vif.write(addr, wdata, strb, resp, timeout);
+        agent.write(addr, wdata, strb, resp, timeout);
         `FAIL_IF_LOG(timeout, $sformatf("Write to 0x%0x timed out", addr));
         `FAIL_UNLESS_LOG(resp === 2'b00,
             $sformatf("Write to 0x%0x: expected OKAY, got 2'b%02b", addr, resp));
@@ -157,7 +157,7 @@ module axi4_intf_unit_test #(
         automatic bit [DATA_BYTE_WID-1:0][7:0] rdata;
         automatic bit [1:0] resp;
         automatic bit       timeout;
-        agent.axi4_vif.read(addr, rdata, resp, timeout);
+        agent.read(addr, rdata, resp, timeout);
         `FAIL_IF_LOG(timeout, $sformatf("Read from 0x%0x timed out", addr));
         `FAIL_UNLESS_LOG(resp === 2'b00,
             $sformatf("Read from 0x%0x: expected OKAY, got 2'b%02b", addr, resp));
