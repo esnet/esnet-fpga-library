@@ -11,18 +11,33 @@ module {{ dec.name_lower }}_decoder (
 {%- endfor %}
 );
 
+    //===================================
+    // Client interfaces
+    //===================================
+    axi4l_intf #(
+        .ADDR_WID (axil_if.ADDR_WID),
+        .BUS_WIDTH (axil_if.BUS_WIDTH)
+    ) axil_client_if [{{ dec.name_lower }}_decoder_pkg::MEM_MAP.NUM_REGIONS] ();
+
+    //===================================
+    // Address decoder
+    //===================================
     axi4l_decoder #(
         .MEM_MAP ({{ dec.name_lower }}_decoder_pkg::MEM_MAP)
     ) i_axi4l_decoder (
         .axi4l_if (axil_if),
-        .axi4l_client_if (
-            '{
-{%- for intf in dec.interfaces: %}
-                {{ intf.name_lower }}{{ intf.suffix }}_axil_if{{ ',' if not loop.last }}
-{%- endfor %}
-            }
-        )
+        .axi4l_client_if (axil_client_if)
     );
 
-endmodule : {{ dec.name_lower }}_decoder
+    //===================================
+    // Peripheral connections
+    //===================================
+{%- for intf in dec.interfaces: %}
 
+    axi4l_intf_connector i_{{ intf.name_lower }}{{ intf.suffix }}_connector (
+        .axi4l_if_from_controller (axil_client_if[{{ loop.index0 }}]),
+        .axi4l_if_to_peripheral ({{ intf.name_lower }}{{ intf.suffix }}_axil_if)
+    );
+{%- endfor %}
+
+endmodule : {{ dec.name_lower }}_decoder
