@@ -54,116 +54,14 @@ interface apb_intf
         output pslverr
     );
 
+    wire mon_psel = psel;
+    wire mon_penable = penable;
+
     clocking cb @(posedge pclk);
         output paddr, pprot, psel, penable, pwrite, pwdata, pstrb;
         input  pready, prdata, pslverr;
+        input  mon_psel, mon_penable;
     endclocking
-
-    task idle_controller();
-        cb.paddr   <=   '0;
-        cb.pprot   <=   '0;
-        cb.psel    <= 1'b0;
-        cb.penable <= 1'b0;
-        cb.pwrite  <= 1'b0;
-        cb.pwdata  <=   '0;
-        cb.pstrb   <=   '0;
-    endtask
-
-    task _wait(input int cycles);
-        repeat (cycles) @(cb);
-    endtask
-
-    task _write(
-            input  bit [ADDR_WID-1:0]      addr,
-            input  data_t                  data,
-            input  bit [DATA_BYTE_WID-1:0] strb,
-            output bit                     error          
-        );
-        cb.psel <= 1'b1;
-        cb.paddr <= addr;
-        cb.pwdata <= data;
-        cb.pwrite <= 1'b1;
-        @(cb);
-        cb.penable <= 1'b1;
-        wait (cb.pready);
-        cb.psel <= 1'b0;
-        cb.penable <= 1'b0;
-        error = cb.pslverr;
-    endtask
-
-    task _read(
-            input  bit [ADDR_WID-1:0] addr,
-            output data_t             data,
-            output bit                error
-        );
-        cb.psel <= 1'b1;
-        cb.paddr <= addr;
-        cb.pwrite <= 1'b0;
-        @(cb);
-        cb.penable <= 1'b1;
-        wait(cb.pready);
-        cb.psel <= 1'b0;
-        cb.penable <= 1'b0;
-        error = cb.pslverr;
-        data = cb.prdata;
-    endtask
-
-    task read(
-            input  bit [ADDR_WID-1:0] addr,
-            output data_t             data,
-            output bit error,
-            output bit timeout,
-            input  int RD_TIMEOUT = 0
-        );
-        error = 1'b0;
-        timeout = 1'b0;
-        fork
-            begin
-                fork
-                    begin
-                        _read(addr, data, error);
-                    end
-                    begin
-                        if (RD_TIMEOUT > 0) begin
-                            _wait(RD_TIMEOUT);
-                            timeout = 1'b1;
-                        end else forever _wait(1);
-                    end
-                join_any
-                disable fork;
-            end
-        join
-        if (timeout) idle_controller();
-    endtask
-
-    task write(
-            input  bit [ADDR_WID-1:0]      addr,
-            input  data_t                  data,
-            input  bit [DATA_BYTE_WID-1:0] strb,
-            output bit error,
-            output bit timeout,
-            input  int WR_TIMEOUT = 0
-        );
-        error = 1'b0;
-        timeout = 1'b0;
-        fork
-            begin
-                fork
-                    begin
-                        _write(addr, data, strb, error);
-                    end
-                    begin
-                        if (WR_TIMEOUT > 0) begin
-                            _wait(WR_TIMEOUT);
-                            timeout = 1'b1;
-                        end else forever _wait(1);
-                    end
-                join_any
-                disable fork;
-            end
-        join
-        if (timeout) idle_controller();
-    endtask
 
 endinterface : apb_intf
 
