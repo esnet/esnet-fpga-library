@@ -32,7 +32,8 @@ module alloc_axil_sg_core_unit_test #(
 
     localparam int  META_WID = $bits(META_T);
 
-    localparam type DESC_T = alloc_pkg::alloc#(BUFFER_SIZE, PTR_WID, META_WID)::desc_t;
+    typedef alloc_pkg::alloc#(BUFFER_SIZE, PTR_WID, META_WID) ALLOC_T;
+    typedef ALLOC_T::desc_t DESC_T;
     localparam int  DESC_WID = $bits(DESC_T);
 
     localparam mem_pkg::spec_t  MEM_SPEC = '{
