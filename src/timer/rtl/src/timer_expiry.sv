@@ -98,7 +98,7 @@ module timer_expiry #(
         .srst ( __srst ),
         .reset ( reset ),
         .freeze ( __freeze ),
-        .tick ( tick ),
+        .tick ( tick && __en ),
         .timer ( timer )
     );
  

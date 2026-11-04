@@ -60,6 +60,12 @@ module timer_expiry_unit_test;
     // Assign AXI-L clock (125MHz);
     `SVUNIT_CLK_GEN(axil_if.aclk, 4ns);
 
+    // Drive enable/reset and sample the counter synchronously.
+    clocking cb @(posedge clk);
+        output en, reset;
+        input timer_out;
+    endclocking
+
     // Interfaces
     std_reset_intf reset_if (.clk(clk));
 
@@ -214,6 +220,76 @@ module timer_expiry_unit_test;
                 "Timer count mismatch. Exp: %d, Got: %d.", num_ticks, __timer
             )
         );
+    `SVTEST_END
+
+    // Hardware disable pauses ticks while reset remains effective.
+    `SVTEST(hardware_enable)
+        timer_expiry_reg_pkg::reg_status_t status;
+
+        ticks(7);
+        repeat (2) @(cb);
+        `FAIL_UNLESS_EQUAL(cb.timer_out, 7);
+
+        cb.en <= 1'b0;
+        repeat (2) @(cb);
+        reg_agent.read_status(status);
+        `FAIL_IF(status.enable_mon);
+        ticks(11);
+        repeat (2) @(cb);
+        `FAIL_UNLESS_EQUAL(cb.timer_out, 7);
+
+        // Reset must still clear the counter while counting is disabled.
+        cb.reset <= 1'b1;
+        repeat (2) @(cb);
+        cb.reset <= 1'b0;
+        repeat (2) @(cb);
+        `FAIL_UNLESS_EQUAL(cb.timer_out, 0);
+
+        cb.en <= 1'b1;
+        repeat (2) @(cb);
+        reg_agent.read_status(status);
+        `FAIL_UNLESS(status.enable_mon);
+        ticks(5);
+        repeat (2) @(cb);
+        `FAIL_UNLESS_EQUAL(cb.timer_out, 5);
+    `SVTEST_END
+
+    // Counting requires both hardware and software enable.
+    `SVTEST(software_enable)
+        timer_expiry_reg_pkg::reg_control_t control;
+        timer_expiry_reg_pkg::reg_status_t status;
+
+        ticks(7);
+        repeat (2) @(cb);
+        `FAIL_UNLESS_EQUAL(cb.timer_out, 7);
+
+        reg_agent.read_control(control);
+        control.enable = 1'b0;
+        reg_agent.write_control(control);
+        reg_agent.read_status(status);
+        `FAIL_IF(status.enable_mon);
+        ticks(11);
+        repeat (2) @(cb);
+        `FAIL_UNLESS_EQUAL(cb.timer_out, 7);
+
+        // Software enable alone cannot override a disabled hardware input.
+        cb.en <= 1'b0;
+        repeat (2) @(cb);
+        control.enable = 1'b1;
+        reg_agent.write_control(control);
+        reg_agent.read_status(status);
+        `FAIL_IF(status.enable_mon);
+        ticks(5);
+        repeat (2) @(cb);
+        `FAIL_UNLESS_EQUAL(cb.timer_out, 7);
+
+        cb.en <= 1'b1;
+        repeat (2) @(cb);
+        reg_agent.read_status(status);
+        `FAIL_UNLESS(status.enable_mon);
+        ticks(3);
+        repeat (2) @(cb);
+        `FAIL_UNLESS_EQUAL(cb.timer_out, 10);
     `SVTEST_END
 
     `SVTEST(cfg_timeout)
