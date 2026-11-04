@@ -29,8 +29,14 @@ interface bus_intf #(
         input  data
     );
 
+    // Sample driven signals separately for verification agents.
+    wire mon_valid = valid;
+    wire mon_ready = ready;
+    wire [DATA_WID-1:0] mon_data = data;
+
     clocking cb @(posedge clk);
         inout valid, ready, data;
+        input mon_valid, mon_ready, mon_data;
     endclocking
 
     task _wait(input int cycles);
