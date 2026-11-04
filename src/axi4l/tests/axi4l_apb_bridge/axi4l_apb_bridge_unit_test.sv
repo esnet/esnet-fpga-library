@@ -79,7 +79,7 @@ module axi4l_apb_bridge_unit_test;
         svunit_ut.setup();
         /* Place Setup Code Here */
 
-        axi4l_if.idle_controller();
+        reg_agent.idle();
 
         reset();
 

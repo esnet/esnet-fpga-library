@@ -88,7 +88,7 @@ module reg_proxy_unit_test;
         svunit_ut.setup();
         /* Place Setup Code Here */
 
-        axil_if.idle_controller();
+        axil_reg_agent.idle();
 
         // Assert/deassert reset
         reset_if.pulse(8);

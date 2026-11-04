@@ -105,7 +105,7 @@ module example_component_unit_test;
         /* Place Setup Code Here */
 
         // Quiesce AXI-L control interface
-        axil_if.idle_controller();
+        axil_reg_agent.idle();
 
         // Assert/deassert reset
         reset_if.pulse(8);

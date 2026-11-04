@@ -89,10 +89,19 @@ interface axi4l_intf
         output rresp
     );
 
+    // Separate nets let testbench agents sample the driven controller signals.
+    // Clocking-block input aliases are not supported by xsim.
+    wire mon_awvalid = awvalid;
+    wire mon_wvalid = wvalid;
+    wire mon_bready = bready;
+    wire mon_arvalid = arvalid;
+    wire mon_rready = rready;
+
     clocking cb @(posedge aclk);
         output awaddr, awprot, wdata, wstrb, araddr, arprot;
         input  awready, wready, bvalid, bresp, arready, rvalid, rdata, rresp;
         inout  awvalid, wvalid, bready, arvalid, rready;
+        input  mon_awvalid, mon_wvalid, mon_bready, mon_arvalid, mon_rready;
     endclocking
 
     task idle_controller();

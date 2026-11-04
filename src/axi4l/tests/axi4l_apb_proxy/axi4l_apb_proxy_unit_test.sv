@@ -86,7 +86,7 @@ module axi4l_apb_proxy_unit_test;
         svunit_ut.setup();
         /* Place Setup Code Here */
 
-        axi4l_if.idle_controller();
+        axil_reg_agent.idle();
 
         reset();
 
