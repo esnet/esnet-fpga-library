@@ -33,6 +33,11 @@ module arb_rr_unit_test #(parameter arb_rr_mode_t MODE = RR);
     //===================================
     `SVUNIT_CLK_GEN(clk, 5ns);
 
+    default clocking cb @(posedge clk);
+        output srst, en, req, ack;
+        input grant, sel;
+    endclocking
+
     int IF;
 
     //===================================
@@ -49,10 +54,9 @@ module arb_rr_unit_test #(parameter arb_rr_mode_t MODE = RR);
     task setup();
         svunit_ut.setup();
 
-        en = 1'b1;
-
-        req = '0;
-        ack = '0;
+        cb.en <= 1'b1;
+        cb.req <= '0;
+        cb.ack <= '0;
 
         reset();
 
@@ -86,17 +90,15 @@ module arb_rr_unit_test #(parameter arb_rr_mode_t MODE = RR);
 
         `SVTEST(_grant)
             IF = $urandom % N;
-            req[IF] = 1'b1;
-            #1 while (!grant[IF]) @(negedge clk);
-            `FAIL_UNLESS_EQUAL(grant, 1 << IF);
-            `FAIL_UNLESS_EQUAL(sel, IF);
+            cb.req[IF] <= 1'b1;
+            wait_for_grant();
         `SVTEST_END
 
         `SVTEST(no_hold)
             repeat (10) begin
               IF = $urandom % N;
-              req[IF] = 1'b1;
-              ack[IF] = 1'b1;
+              cb.req[IF] <= 1'b1;
+              cb.ack[IF] <= 1'b1;
               check_grant_no_hold();
             end
         `SVTEST_END
@@ -104,29 +106,39 @@ module arb_rr_unit_test #(parameter arb_rr_mode_t MODE = RR);
         `SVTEST(hold)
             repeat (10) begin
               IF = $urandom % N;
-              req[IF] = 1'b1;
+              cb.req[IF] <= 1'b1;
               check_grant_hold();
             end
         `SVTEST_END
 
         `SVTEST(concurrent_requests_hold)
+            logic [N-1:0] pending;
             IF = 1;
             repeat (10) begin
-              req = $urandom;
-              while (req != '0) begin
-                 if (req[IF] == 1'b1) check_grant_hold();
+              pending = $urandom;
+              cb.req <= pending;
+              while (pending != '0) begin
+                 if (pending[IF]) begin
+                    check_grant_hold();
+                    pending[IF] = 1'b0;
+                 end
                  IF = (IF + 1) % N;
               end
             end
         `SVTEST_END
 
         `SVTEST(concurrent_requests_no_hold)
+            logic [N-1:0] pending;
             IF = 1;
             repeat (10) begin
-              req = $urandom;
-              ack = '1;
-              while (req != '0) begin
-                 if (req[IF] == 1'b1) check_grant_no_hold();
+              pending = $urandom;
+              cb.req <= pending;
+              cb.ack <= '1;
+              while (pending != '0) begin
+                 if (pending[IF]) begin
+                    check_grant_no_hold();
+                    pending[IF] = 1'b0;
+                 end
                  IF = (IF + 1) % N;
               end
             end
@@ -134,18 +146,17 @@ module arb_rr_unit_test #(parameter arb_rr_mode_t MODE = RR);
 
         `SVTEST(persistent_requests_no_hold)
             IF = 1;
-            req = '1;
-            ack = '1;
-            @(posedge clk); // wait for 'state' transition from RESET -> GRANT.
+            cb.req <= '1;
+            cb.ack <= '1;
+            // Wait for the first sampled transfer after reset.
+            while (cb.grant == '0) @(cb);
 
             repeat (10) begin
                for (int i = 0; i < N; i++) begin
-                  #1;
-                  `FAIL_UNLESS_EQUAL(grant, 1 << IF);
-                  `FAIL_UNLESS_EQUAL(sel, IF);
-                  @(posedge clk);
-                  #1;
-                  `FAIL_UNLESS_EQUAL(grant[IF], 0);
+                  `FAIL_UNLESS_EQUAL(cb.grant, 1 << IF);
+                  `FAIL_UNLESS_EQUAL(cb.sel, IF);
+                  @(cb);
+                  `FAIL_UNLESS_EQUAL(cb.grant[IF], 0);
                   IF = (IF + 1) % N;
                end
             end
@@ -153,40 +164,45 @@ module arb_rr_unit_test #(parameter arb_rr_mode_t MODE = RR);
 
     `SVUNIT_TESTS_END
 
+    //===================================
+    // Tasks
+    //===================================
     task reset();
-        srst <= 1'b1;
-        repeat (8) @(posedge clk);
-        srst <= 1'b0;
+        cb.srst <= 1'b1;
+        repeat (8) @(cb);
+        cb.srst <= 1'b0;
+    endtask
+
+    task wait_for_grant();
+       // Reuse a grant sampled on this edge, allowing back-to-back clients.
+       // Otherwise wait until the requested client is selected.
+       while (!cb.grant[IF]) @(cb);
+       `FAIL_UNLESS_EQUAL(cb.grant, 1 << IF);
+       `FAIL_UNLESS_EQUAL(cb.sel, IF);
     endtask
 
     task check_grant_no_hold();
-       #1 while (!grant[IF]) @(negedge clk);
-       `FAIL_UNLESS_EQUAL(grant, 1 << IF);
-       `FAIL_UNLESS_EQUAL(sel, IF);
-       @(posedge clk);
-       req[IF] = 1'b0;
-       #1;
-       `FAIL_UNLESS_EQUAL(grant[IF], 0);
+       wait_for_grant();
+       cb.req[IF] <= 1'b0;
+       @(cb);
+       `FAIL_UNLESS_EQUAL(cb.grant[IF], 0);
     endtask
 
     task check_grant_hold();
-       #1 while (!grant[IF]) @(negedge clk);
-       `FAIL_UNLESS_EQUAL(grant, 1 << IF);
-       `FAIL_UNLESS_EQUAL(sel, IF);
-       @(posedge clk);
-       req[IF] = 1'b0;
-       #1;
-       `FAIL_UNLESS_EQUAL(grant, 1 << IF);
-       `FAIL_UNLESS_EQUAL(sel, IF);
-       @(posedge clk);
-       ack[IF] = 1'b1;
-       #1;
-       `FAIL_UNLESS_EQUAL(grant, 1 << IF);
-       `FAIL_UNLESS_EQUAL(sel, IF);
-       @(posedge clk);
-       #1;
-       `FAIL_UNLESS_EQUAL(grant[IF], 0);
-       ack[IF] = 1'b0;
+       wait_for_grant();
+       cb.req[IF] <= 1'b0;
+       @(cb);
+       `FAIL_UNLESS_EQUAL(cb.grant, 1 << IF);
+       `FAIL_UNLESS_EQUAL(cb.sel, IF);
+       @(cb);
+       cb.ack[IF] <= 1'b1;
+       @(cb);
+       // The held grant is still present on the acknowledgement edge.
+       `FAIL_UNLESS_EQUAL(cb.grant, 1 << IF);
+       `FAIL_UNLESS_EQUAL(cb.sel, IF);
+       @(cb);
+       `FAIL_UNLESS_EQUAL(cb.grant[IF], 0);
+       cb.ack[IF] <= 1'b0;
     endtask
 
 endmodule
