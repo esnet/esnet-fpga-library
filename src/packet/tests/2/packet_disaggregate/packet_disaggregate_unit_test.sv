@@ -1,5 +1,8 @@
 `include "svunit_defines.svh"
 
+// (Failsafe) timeout
+`define SVUNIT_TIMEOUT 2ms
+
 module packet_disaggregate_unit_test;
     import svunit_pkg::svunit_testcase;
     import packet_verif_pkg::*;

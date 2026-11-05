@@ -1,5 +1,8 @@
 `include "svunit_defines.svh"
 
+// (Failsafe) timeout
+`define SVUNIT_TIMEOUT 2ms
+
 module packet_descriptor_intf_unit_test #(
     parameter string DUT_SELECT = "packet_descriptor_intf_connector"
 );

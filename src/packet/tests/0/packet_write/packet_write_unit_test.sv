@@ -1,5 +1,8 @@
 `include "svunit_defines.svh"
 
+// (Failsafe) timeout
+`define SVUNIT_TIMEOUT 2ms
+
 module packet_write_unit_test #(
     parameter bit DROP_ERRORED  = 1'b1,
     parameter bit COMPUTE_CKSUM = 1'b0

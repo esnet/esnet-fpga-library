@@ -1,5 +1,8 @@
 `include "svunit_defines.svh"
 
+// (Failsafe) timeout
+`define SVUNIT_TIMEOUT 2ms
+
 module packet_crc_tx_unit_test #(
     parameter crc_pkg::crc_config_t CONFIG = crc_pkg::DEFAULT_CRC,
     parameter int DATA_BYTE_WID = 8,

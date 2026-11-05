@@ -1,5 +1,8 @@
 `include "svunit_defines.svh"
 
+// (Failsafe) timeout
+`define SVUNIT_TIMEOUT 2ms
+
 module packet_sg_core_unit_test #(
     parameter int NUM_INPUT_IFS = 1,
     parameter int NUM_OUTPUT_IFS = 1
