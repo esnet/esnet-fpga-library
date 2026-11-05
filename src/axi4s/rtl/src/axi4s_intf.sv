@@ -61,14 +61,19 @@ interface axi4s_intf #(
         input  tuser
     );
 
+    // Sample driven handshake signals through separate clocking-block inputs.
+    logic mon_tx_tvalid, mon_rx_tready;
+    assign mon_tx_tvalid = tvalid;
+    assign mon_rx_tready = tready;
+
     clocking cb_tx @(posedge aclk);
         output tdata, tkeep, tlast, tid, tdest, tuser;
-        input tready;
+        input tready, mon_tx_tvalid;
         inout tvalid;
     endclocking
 
     clocking cb_rx @(posedge aclk);
-        input tvalid, tdata, tkeep, tlast, tid, tdest, tuser;
+        input tvalid, tdata, tkeep, tlast, tid, tdest, tuser, mon_rx_tready;
         inout tready;
     endclocking
 

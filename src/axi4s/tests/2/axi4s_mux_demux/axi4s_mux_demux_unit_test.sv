@@ -227,7 +227,7 @@ module axi4s_mux_demux_unit_test;
             bad_byte_data = 8'hFF ^ bad_transaction.get_byte(bad_byte_idx);
             bad_transaction.set_byte(bad_byte_idx, bad_byte_data);
             env[0].driver.inbox.put(bad_transaction);
-            from_tx[0]._wait(1000);
+            env[0].driver.wait_n(1000);
             `FAIL_UNLESS_LOG(
                 env[0].scoreboard.report(msg),
                 "Passed unexpectedly."

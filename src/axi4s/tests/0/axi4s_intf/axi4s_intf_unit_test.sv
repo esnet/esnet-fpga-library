@@ -298,7 +298,7 @@ module axi4s_intf_unit_test #(
     `SVUNIT_TESTS_BEGIN
 
         `SVTEST(reset)
-            from_tx._wait(1);
+            env.driver.wait_n(1);
         `SVTEST_END
 
         `SVTEST(one_packet_good)
@@ -365,7 +365,7 @@ module axi4s_intf_unit_test #(
             bad_byte_data = 8'hFF ^ bad_transaction.get_byte(bad_byte_idx);
             bad_transaction.set_byte(bad_byte_idx, bad_byte_data);
             env.driver.inbox.put(bad_transaction);
-            from_tx._wait(1000);
+            env.driver.wait_n(1000);
             `FAIL_UNLESS_LOG(
                 scoreboard.report(msg),
                 "Passed unexpectedly."

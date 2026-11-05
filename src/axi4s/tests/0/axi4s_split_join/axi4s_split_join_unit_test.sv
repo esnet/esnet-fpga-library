@@ -249,7 +249,7 @@ module axi4s_split_join_unit_test
           repeat (4) env.driver.inbox.put(axis_transaction);
 
           // wait for packet transit time.
-          axi4s_out._wait(200); // wait for packet transit time.
+          env.monitor.wait_n(200); // wait for packet transit time.
        end
 
       `FAIL_IF_LOG (scoreboard.report(msg) != 0, msg); `INFO(msg);
@@ -295,7 +295,7 @@ module axi4s_split_join_unit_test
                  env.driver.inbox.put(axis_transaction);
               end
 
-              axi4s_out._wait(250); // wait for packet transit time.
+              env.monitor.wait_n(250); // wait for packet transit time.
           end
 
           // if drop_hdr is set, send packet that will be dropped (before looping to increment payload size).
@@ -304,7 +304,7 @@ module axi4s_split_join_unit_test
             axis_transaction = AXI4S_TRANSACTION_T::create_from_bytes($sformatf("trans_in_drop_%0d", j), {drop_hdr, pyld_in});
             env.driver.inbox.put(axis_transaction);
 
-            axi4s_out._wait(100); // wait for packet transit time.
+            env.monitor.wait_n(100); // wait for packet transit time.
           end
 
         end

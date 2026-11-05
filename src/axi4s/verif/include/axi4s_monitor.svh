@@ -82,13 +82,46 @@ class axi4s_monitor #(
         this.set_tpause(0);
     endfunction
 
+    //===================================
+    // Clocking-block interface control and transfers
+    //===================================
     // Quiesce AXI-S interface
     // [[ implements std_verif_pkg::component._idle() ]]
-    virtual protected task _idle();
-        super._idle();
-        axis_vif.idle_rx();
+    protected task _idle();
+        axis_vif.cb_rx.tready <= 1'b0;
     endtask
 
+    task wait_n(input int cycles);
+        repeat (cycles) @(axis_vif.cb);
+    endtask
+
+    task receive_beat(
+            output bit [DATA_BYTE_WID-1:0][7:0] _tdata,
+            output bit [DATA_BYTE_WID-1:0]      _tkeep,
+            output bit                          _tlast,
+            output bit [TID_WID-1:0]            _tid,
+            output bit [TDEST_WID-1:0]          _tdest,
+            output bit [TUSER_WID-1:0]          _tuser,
+            input  int tpause = 0
+        );
+        if (tpause > 0) begin
+            axis_vif.cb_rx.tready <= 1'b0;
+            wait_n(tpause);
+        end
+        axis_vif.cb_rx.tready <= 1'b1;
+        @(axis_vif.cb_rx iff (axis_vif.cb_rx.tvalid && axis_vif.cb_rx.mon_rx_tready));
+        axis_vif.cb_rx.tready <= 1'b0;
+        _tdata = axis_vif.cb_rx.tdata;
+        _tkeep = axis_vif.cb_rx.tkeep;
+        _tlast = axis_vif.cb_rx.tlast;
+        _tid   = axis_vif.cb_rx.tid;
+        _tdest = axis_vif.cb_rx.tdest;
+        _tuser = axis_vif.cb_rx.tuser;
+    endtask
+
+    //===================================
+    // Packet assembly
+    //===================================
     // Receive transaction (represented as raw byte array with associated metadata)
     task receive_raw(
             output byte    data[],
@@ -112,7 +145,7 @@ class axi4s_monitor #(
         debug_msg("receive_raw: Waiting for data...");
 
         while (!tlast) begin
-            axis_vif.receive(tdata, tkeep, tlast, tid, tdest, tuser, tpause);
+            receive_beat(tdata, tkeep, tlast, tid, tdest, tuser, tpause);
             trace_msg($sformatf("receive_raw: Received word %0d.", word_idx));
 
             while (byte_idx < DATA_BYTE_WID) begin
@@ -163,7 +196,7 @@ class axi4s_monitor #(
     endtask
 
     task flush();
-        axis_vif.tready = 1'b1;
+        axis_vif.cb_rx.tready <= 1'b1;
     endtask
 
 endclass
