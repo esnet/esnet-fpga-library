@@ -26,23 +26,4 @@ interface state_event_intf #(
         output evt, id, msg;
     endclocking
 
-    task idle();
-        cb.evt <= 1'b0;
-        cb.id  <=   'x;
-        cb.msg <=   'x;
-    endtask
-
-    task _wait(input int cycles);
-        repeat (cycles) @(cb);
-    endtask
-
-    task notify(input bit [ID_WID-1:0] _id, input bit [MSG_WID-1:0] _msg);
-        cb.evt <= 1'b1;
-        cb.id  <= _id;
-        cb.msg <= _msg;
-        @(cb);
-        cb.msg <= 1'b0;
-        cb.msg <= '0;
-    endtask
-
 endinterface : state_event_intf

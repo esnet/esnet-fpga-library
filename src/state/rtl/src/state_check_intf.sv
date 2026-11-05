@@ -38,34 +38,4 @@ interface state_check_intf #(
         inout req;
     endclocking
 
-    task idle();
-        cb.req <= 1'b0;
-        cb.state  <= 'x;
-    endtask
-
-    task _wait(input int cycles);
-        repeat (cycles) @(cb);
-    endtask
-
-    task _send_req(input bit [STATE_WID-1:0] _state);
-        cb.req <= 1'b1;
-        cb.state <= _state;
-        @(cb);
-        cb.req <= 1'b0;
-        cb.state <= 'x;
-    endtask
-
-    task check(
-            input bit [STATE_WID-1:0] _state,
-            output bit                _active,
-            output bit                _notify,
-            output bit [MSG_WID-1:0] _msg
-        );
-        _send_req(state);
-        wait(cb.ack);
-        _active = cb.active;
-        _notify = cb.notify;
-        _msg = cb.msg;
-    endtask
-
 endinterface : state_check_intf
