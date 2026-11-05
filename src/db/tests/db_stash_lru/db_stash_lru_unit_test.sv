@@ -1,5 +1,8 @@
 `include "svunit_defines.svh"
 
+`undef SVUNIT_TIMEOUT
+`define SVUNIT_TIMEOUT 20ms
+
 module db_stash_lru_unit_test;
     import svunit_pkg::svunit_testcase;
     import db_pkg::*;

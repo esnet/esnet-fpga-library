@@ -1,5 +1,8 @@
 `include "svunit_defines.svh"
 
+`undef SVUNIT_TIMEOUT
+`define SVUNIT_TIMEOUT 20ms
+
 module db_ctrl_mux_unit_test
 #(
     parameter int NUM_IFS = 2,
@@ -9,7 +12,7 @@ module db_ctrl_mux_unit_test
 ) (
     output logic clk,
     output logic srst,
-    db_ctrl_intf.controller db_ctrl_if_to_DUT [NUM_IFS],
+    db_ctrl_intf db_ctrl_if_to_DUT [NUM_IFS],
     db_ctrl_intf.peripheral db_ctrl_if_from_DUT
 );
     import svunit_pkg::svunit_testcase;
