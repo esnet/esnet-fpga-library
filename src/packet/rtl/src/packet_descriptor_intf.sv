@@ -40,13 +40,18 @@ interface packet_descriptor_intf #(
         input  cksum
     );
 
+    // Sample driven handshake signals through separate clocking-block inputs.
+    logic mon_tx_vld, mon_rx_rdy;
+    assign mon_tx_vld = vld;
+    assign mon_rx_rdy = rdy;
+
     clocking cb_tx @(posedge clk);
         output vld, addr, size, err, meta, cksum;
-        input rdy;
+        input rdy, mon_tx_vld;
     endclocking
 
     clocking cb_rx @(posedge clk);
-        input vld, addr, size, err, meta, cksum;
+        input vld, addr, size, err, meta, cksum, mon_rx_rdy;
         output rdy;
     endclocking
 
