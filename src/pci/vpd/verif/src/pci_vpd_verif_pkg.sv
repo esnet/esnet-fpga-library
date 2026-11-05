@@ -5,11 +5,6 @@ package pci_vpd_verif_pkg;
     //===================================
     import pci_vpd_pkg::*;
 
-    // Verif class definitions
-    // (declared here to enforce htable_verif_pkg:: namespace for verification definitions)
-    `include "pci_vpd_agent.svh"
-    `include "pci_vpd_intf_agent.svh"
-
     //===================================
     // Typedefs
     //===================================
@@ -207,5 +202,11 @@ package pci_vpd_verif_pkg;
         foreach (vpd_r.records[i]) str = {str, vpd_record_to_string(vpd_r.records[i], {indent, "\t"})};
         return str;
     endfunction
+
+    //===================================
+    // Agents (after their resource types and formatting helpers)
+    //===================================
+    `include "pci_vpd_agent.svh"
+    `include "pci_vpd_intf_agent.svh"
 
 endpackage : pci_vpd_verif_pkg

@@ -24,6 +24,7 @@ SRC_LIST_FILES =
 # ----------------------------------------------------
 SUBCOMPONENTS = \
     std.verif \
+    string.pkg \
     pci.vpd.pkg \
     pci.vpd.rtl
 

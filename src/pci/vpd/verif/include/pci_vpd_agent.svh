@@ -1,9 +1,9 @@
 // Base agent class for PCI Vital Product Data (VPD) access
-// - interface class (can't be instantiated directly)
-// - describes interface for 'generic' register agents, where methods are to be implemented by derived class
+// - abstract byte transport with resource reading and cached VPD data
+// - derived classes implement byte reads/writes and idle control
 virtual class pci_vpd_agent extends std_verif_pkg::agent;
 
-    local static const string __CLASS_NAME = "pci_verif_pkg::pci_vpd_agent";
+    local static const string __CLASS_NAME = "pci_vpd_verif_pkg::pci_vpd_agent";
 
     //===================================
     // Parameters
@@ -23,8 +23,8 @@ virtual class pci_vpd_agent extends std_verif_pkg::agent;
     // (to be implemented by subclass)
     //===================================
     pure virtual protected task _idle();
-    pure virtual protected task automatic _write_byte(input int addr, input byte data, output bit error, output bit timeout);
-    pure virtual protected task automatic _read_byte(input int addr, output byte data, output bit error, output bit timeout);
+    pure virtual protected task _write_byte(input int addr, input byte data, output bit error, output bit timeout);
+    pure virtual protected task _read_byte(input int addr, output byte data, output bit error, output bit timeout);
 
     //===================================
     // Methods
