@@ -13,7 +13,10 @@ include $(COMPONENT_ROOT)/config.mk
 # -----------------------------------------------
 all: regression
 
-regression: _regression
+regression:
+	@$(MAKE) -C tests/rs/regression
+	@$(MAKE) -C tests/fec/regression
+	@$(MAKE) -C tests/rs_acc/regression
 
 .PHONY: all regression
 

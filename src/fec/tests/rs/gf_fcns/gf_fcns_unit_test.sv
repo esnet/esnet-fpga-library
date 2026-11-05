@@ -1,5 +1,9 @@
 `include "svunit_defines.svh"
 
+// (Failsafe) timeout
+`undef SVUNIT_TIMEOUT
+`define SVUNIT_TIMEOUT 500us
+
 module gf_fcns_unit_test;
     import svunit_pkg::svunit_testcase;
     import fec_pkg::*;

@@ -1,6 +1,7 @@
 `include "svunit_defines.svh"
 
 // (Failsafe) timeout
+`undef SVUNIT_TIMEOUT
 `define SVUNIT_TIMEOUT 500us
 
 module rs_decode_unit_test;
