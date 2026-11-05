@@ -3,6 +3,7 @@
 //===================================
 // (Failsafe) timeout (per-testcase)
 //===================================
+`undef SVUNIT_TIMEOUT
 `define SVUNIT_TIMEOUT 2ms
 
 module state_element_core_seq_unit_test;
