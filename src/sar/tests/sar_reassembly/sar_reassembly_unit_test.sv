@@ -629,7 +629,7 @@ module sar_reassembly_unit_test;
 
     // Frame-level drive: decompose a frame into segments using the sequencer's seg_len
     // configuration, then drive each segment onto the DUT.
-    task send_frame(input FRAME_T frame);
+    task automatic send_frame(input FRAME_T frame);
         int frame_len  = frame.data.size();
         int seg_len_cfg = sequencer.get_seg_len();
         int offset = 0;
