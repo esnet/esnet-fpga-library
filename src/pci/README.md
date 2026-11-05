@@ -1,41 +1,16 @@
-# PCAP
+# PCI support
 
-PCI library; Contains infrastructure and definitions for PCI implementations.
+PCI-related definitions, interfaces, and verification helpers.
 
-## Unit Tests
+| Library | Description |
+|---------|-------------|
+| [`pci.vpd`](vpd/README.md) | Vital Product Data resource definitions, byte-access interface, agents, and parsing helpers |
 
-This library contains unit tests implemented using the open-source SVUnit test
-framework (https://github.com/tudortimi/svunit).
+See the sub-library guide for component details and verification capabilities.
+Run all PCI suites from this directory:
 
-SVUnit is managed within the repository as a submodule and no separate installation
-or setup is required.
-
-### Vivado Simulator Support
-
-In addition, this library contains Makefiles that support running the unit
-tests using Xilinx's Vivado Simulator. Vivado is not supported natively by
-SVUnit so the 'runSVUnit' script cannot be used directly. To execute the unit
-tests using the Vivado simulator:
-
-1. Configure Vivado. For example:
-```
-source ${XILINX_VIVADO}/settings64.sh
+```sh
+make regression
 ```
 
-2. Execute appropriate Makefile
-
-    Running make in one of the test directories (i.e. tests/\[testbench_name\]/) executes
-    the unit tests contained within that testbench.
-
-    ```
-    make all
-    ```
-
-    Running make at the root of the library or in the tests/regression directory
-    executes all of the testcases contained in all of the testbenches.
-
-    Waves (Vivado *.wdb format)
-    can be logged by passing 'waves=ON' to the make command. Example:
-    ```
-    make all waves=ON
-    ```
+Pass `waves=ON` to capture a waveform, or `SEED=N` to fix the random seed.
