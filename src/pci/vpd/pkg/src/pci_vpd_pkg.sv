@@ -30,7 +30,7 @@ package pci_vpd_pkg;
     } vpd_srdt_t;
 
     typedef struct packed {
-        vpd_resource_type_t _type; // 1 for small resource data type
+        vpd_resource_type_t _type; // 1 for large resource data type
         vpd_tag_t           tag;
     } vpd_lrdt_t;
 
@@ -80,15 +80,13 @@ package pci_vpd_pkg;
 
     function automatic vpd_tag_t vpd_get_tag(input vpd_rdt_t rdt);
         vpd_tag_t tag;
-        case (vpd_get_type(rdt))
-            VPD_RESOURCE_TYPE__LARGE: begin
-                if ($cast(tag, rdt._large.tag)) return tag;
-                else                            return VPD_TAG_INVALID;
-            end
-            VPD_RESOURCE_TYPE__SMALL: begin
-                if ($cast(tag, rdt._small.tag)) return tag;
-                else                            return VPD_TAG_INVALID;
-            end
+        if (vpd_get_type(rdt) == VPD_RESOURCE_TYPE__LARGE) tag = rdt._large.tag;
+        else tag = vpd_tag_t'(rdt._small.tag);
+
+        // A union view can carry bits outside the enum's declared values.
+        case (tag)
+            VPD_TAG_ID, VPD_TAG_END, VPD_TAG_VPD_R, VPD_TAG_VPD_W: return tag;
+            default: return VPD_TAG_INVALID;
         endcase
     endfunction
 
