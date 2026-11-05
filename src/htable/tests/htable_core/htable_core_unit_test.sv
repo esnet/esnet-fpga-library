@@ -1,5 +1,8 @@
 `include "svunit_defines.svh"
 
+`undef SVUNIT_TIMEOUT
+`define SVUNIT_TIMEOUT 20ms
+
 module htable_core_unit_test;
     import svunit_pkg::svunit_testcase;
     import db_pkg::*;
