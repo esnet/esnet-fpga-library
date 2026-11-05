@@ -34,6 +34,13 @@ module packet_loopback_unit_test;
     logic en = 1'b0;
     logic en_mon;
     logic switching;
+    wire mon_srst = srst;
+
+    // Control stimulus and status sampling use the same clock as the streams.
+    clocking cb @(posedge clk);
+        output srst, en;
+        input en_mon, switching, mon_srst;
+    endclocking
 
     // Drive all stimulus from time 0 so nothing is X before setup() runs.
     initial begin
@@ -124,108 +131,101 @@ module packet_loopback_unit_test;
     // internal consistency. A reset abandons any packet in progress so a test
     // that resets mid-packet does not corrupt the next test's queue.
     // =========================================================================
-    initial forever begin
-        fork
-            begin : mon_tx
-                rx_pkt_t p;
-                int idx;
-                p.ok = 1'b1;
-                @(posedge clk iff (tx_out.vld && tx_out.rdy));
-                p.id    = tx_out.data[0];
-                p.beats = tx_out.data[2];
-                if (tx_out.data[1] != 0) p.ok = 1'b0;
-                idx = 1;
-                while (!tx_out.eop) begin
-                    @(posedge clk iff (tx_out.vld && tx_out.rdy));
-                    if (tx_out.data[0] != p.id)    p.ok = 1'b0;
-                    if (tx_out.data[1] != idx)     p.ok = 1'b0;
-                    if (tx_out.data[2] != p.beats) p.ok = 1'b0;
-                    idx++;
+    initial begin
+        rx_pkt_t p;
+        int idx;
+        bit active = 1'b0;
+        forever begin
+            @(tx_out.cb_rx);
+            if (cb.mon_srst) active = 1'b0;
+            else if (tx_out.cb_rx.vld && tx_out.cb_rx.mon_rx_rdy) begin
+                if (!active) begin
+                    p.id = tx_out.cb_rx.data[0];
+                    p.beats = tx_out.cb_rx.data[2];
+                    p.ok = 1'b1;
+                    idx = 0;
+                    active = 1'b1;
                 end
-                if (idx != p.beats) p.ok = 1'b0;
-                if (tx_out.meta != META_WID'(p.id)) p.ok = 1'b0;
-                tx_out_q.push_back(p);
-            end : mon_tx
-            begin : rst_tx
-                @(posedge srst);
-            end : rst_tx
-        join_any
-        disable fork;
+                if (tx_out.cb_rx.data[0] != p.id) p.ok = 1'b0;
+                if (tx_out.cb_rx.data[1] != idx) p.ok = 1'b0;
+                if (tx_out.cb_rx.data[2] != p.beats) p.ok = 1'b0;
+                idx++;
+                if (tx_out.cb_rx.eop) begin
+                    if (idx != p.beats) p.ok = 1'b0;
+                    if (tx_out.cb_rx.meta != META_WID'(p.id)) p.ok = 1'b0;
+                    tx_out_q.push_back(p);
+                    active = 1'b0;
+                end
+            end
+        end
     end
 
-    initial forever begin
-        fork
-            begin : mon_rx
-                rx_pkt_t p;
-                int idx;
-                p.ok = 1'b1;
-                @(posedge clk iff (rx_out.vld && rx_out.rdy));
-                p.id    = rx_out.data[0];
-                p.beats = rx_out.data[2];
-                if (rx_out.data[1] != 0) p.ok = 1'b0;
-                idx = 1;
-                while (!rx_out.eop) begin
-                    @(posedge clk iff (rx_out.vld && rx_out.rdy));
-                    if (rx_out.data[0] != p.id)    p.ok = 1'b0;
-                    if (rx_out.data[1] != idx)     p.ok = 1'b0;
-                    if (rx_out.data[2] != p.beats) p.ok = 1'b0;
-                    idx++;
+    initial begin
+        rx_pkt_t p;
+        int idx;
+        bit active = 1'b0;
+        forever begin
+            @(rx_out.cb_rx);
+            if (cb.mon_srst) active = 1'b0;
+            else if (rx_out.cb_rx.vld && rx_out.cb_rx.mon_rx_rdy) begin
+                if (!active) begin
+                    p.id = rx_out.cb_rx.data[0];
+                    p.beats = rx_out.cb_rx.data[2];
+                    p.ok = 1'b1;
+                    idx = 0;
+                    active = 1'b1;
                 end
-                if (idx != p.beats) p.ok = 1'b0;
-                if (rx_out.meta != META_WID'(p.id)) p.ok = 1'b0;
-                rx_out_q.push_back(p);
-            end : mon_rx
-            begin : rst_rx
-                @(posedge srst);
-            end : rst_rx
-        join_any
-        disable fork;
+                if (rx_out.cb_rx.data[0] != p.id) p.ok = 1'b0;
+                if (rx_out.cb_rx.data[1] != idx) p.ok = 1'b0;
+                if (rx_out.cb_rx.data[2] != p.beats) p.ok = 1'b0;
+                idx++;
+                if (rx_out.cb_rx.eop) begin
+                    if (idx != p.beats) p.ok = 1'b0;
+                    if (rx_out.cb_rx.meta != META_WID'(p.id)) p.ok = 1'b0;
+                    rx_out_q.push_back(p);
+                    active = 1'b0;
+                end
+            end
+        end
     end
 
     // =========================================================================
     // Helpers
     // =========================================================================
     task automatic reset_dut();
-        srst <= 1'b1;
-        repeat (4) @(posedge clk);
-        srst <= 1'b0;
-        repeat (4) @(posedge clk);
+        cb.srst <= 1'b1;
+        repeat (4) @(cb);
+        cb.srst <= 1'b0;
+        repeat (4) @(cb);
         tx_out_q.delete();
         rx_out_q.delete();
     endtask
 
     // Request a mode and wait for it to be applied.
     task automatic set_mode(input bit mode);
-        en <= mode;
-        @(posedge clk);
+        cb.en <= mode;
+        @(cb);
         forever begin
-            @(posedge clk);
-            if (!switching && (en_mon === mode)) break;
+            @(cb);
+            if (!cb.switching && (cb.en_mon === mode)) break;
         end
     endtask
 
     task automatic wait_settled();
-        while (switching) @(posedge clk);
+        // A just-driven request may not have entered QUIESCE yet.
+        do @(cb); while (cb.switching || cb.en_mon != en);
     endtask
 
     task automatic wait_tx_out(input int n);
-        while (tx_out_q.size() < n) @(posedge clk);
+        while (tx_out_q.size() < n) @(cb);
     endtask
 
     task automatic wait_rx_out(input int n);
-        while (rx_out_q.size() < n) @(posedge clk);
-    endtask
-
-    // Retire stimulus left asserted by a driver abandoned via disable fork.
-    task automatic force_idle();
-        repeat (2) @(posedge clk);
-        tx_in.vld = 1'b0; tx_in.eop = 1'b0;
-        rx_in.vld = 1'b0; rx_in.eop = 1'b0;
-        @(posedge clk);
+        while (rx_out_q.size() < n) @(cb);
     endtask
 
     task automatic quiet(input int cycles);
-        repeat (cycles) @(posedge clk);
+        repeat (cycles) @(cb);
     endtask
 
     task automatic check_pkt(input rx_pkt_t p, input int id, input int beats);
@@ -280,9 +280,9 @@ module packet_loopback_unit_test;
 
     task setup();
         svunit_ut.setup();
-        en <= 1'b0;
-        tx_out.rdy <= 1'b1;
-        rx_out.rdy <= 1'b1;
+        cb.en <= 1'b0;
+        tx_out.cb_rx.rdy <= 1'b1;
+        rx_out.cb_rx.rdy <= 1'b1;
         reset_dut();
     endtask
 
@@ -349,13 +349,13 @@ module packet_loopback_unit_test;
         // one is reflected.
         `SVTEST(flip_midpacket_tx)
             for (int k = 1; k <= 5; k++) begin
-                en <= 1'b0;
+                cb.en <= 1'b0;
                 reset_dut();
                 fork
                     send_tx(.id(10+k), .beats(6));
                     begin
-                        repeat (k) @(posedge clk iff (tx_in.vld && tx_in.rdy));
-                        en <= 1'b1;
+                        repeat (k) @(tx_in.cb_tx iff (tx_in.cb_tx.mon_tx_vld && tx_in.cb_tx.rdy));
+                        cb.en <= 1'b1;
                     end
                 join
                 wait_tx_out(1);
@@ -373,13 +373,13 @@ module packet_loopback_unit_test;
         // Same, part-way through an inbound packet.
         `SVTEST(flip_midpacket_rx)
             for (int k = 1; k <= 5; k++) begin
-                en <= 1'b0;
+                cb.en <= 1'b0;
                 reset_dut();
                 fork
                     send_rx(.id(30+k), .beats(6));
                     begin
-                        repeat (k) @(posedge clk iff (rx_in.vld && rx_in.rdy));
-                        en <= 1'b1;
+                        repeat (k) @(rx_in.cb_tx iff (rx_in.cb_tx.mon_tx_vld && rx_in.cb_tx.rdy));
+                        cb.en <= 1'b1;
                     end
                 join
                 wait_rx_out(1);
@@ -395,8 +395,8 @@ module packet_loopback_unit_test;
                 send_tx(.id(40), .beats(8));
                 send_rx(.id(41), .beats(6));
                 begin
-                    repeat (3) @(posedge clk iff (tx_in.vld && tx_in.rdy));
-                    en <= 1'b1;
+                    repeat (3) @(tx_in.cb_tx iff (tx_in.cb_tx.mon_tx_vld && tx_in.cb_tx.rdy));
+                    cb.en <= 1'b1;
                 end
             join
             wait_tx_out(1); wait_rx_out(1);
@@ -410,15 +410,15 @@ module packet_loopback_unit_test;
         // The beat must not be dropped and vld must not retract; the stable
         // assertions above are the real check.
         `SVTEST(flip_while_backpressured)
-            tx_out.rdy <= 1'b0;
+            tx_out.cb_rx.rdy <= 1'b0;
             fork
                 send_tx(.id(50), .beats(4));
                 begin
-                    repeat (4) @(posedge clk);
-                    en <= 1'b1;                 // requested while stalled at SOP
-                    repeat (8) @(posedge clk);
+                    repeat (4) @(cb);
+                    cb.en <= 1'b1;                 // requested while stalled at SOP
+                    repeat (8) @(cb);
                     `FAIL_UNLESS_LOG(switching, "mode change should be held off by the stall");
-                    tx_out.rdy <= 1'b1;          // release
+                    tx_out.cb_rx.rdy <= 1'b1;          // release
                 end
             join
             wait_tx_out(1);
@@ -430,9 +430,9 @@ module packet_loopback_unit_test;
         // Request withdrawn before it is applied: the FSM must return to the
         // original mode with both paths running.
         `SVTEST(rapid_double_flip)
-            en <= 1'b1;
-            @(posedge clk);
-            en <= 1'b0;
+            cb.en <= 1'b1;
+            @(cb);
+            cb.en <= 1'b0;
             quiet(16);
             `FAIL_IF(switching);
             `FAIL_IF(en_mon);
@@ -448,8 +448,8 @@ module packet_loopback_unit_test;
                     for (int i = 0; i < 16; i++) send_tx(.id(70+i), .beats(1));
                 end
                 begin
-                    repeat (6) @(posedge clk iff (tx_in.vld && tx_in.rdy));
-                    en <= 1'b1;
+                    repeat (6) @(tx_in.cb_tx iff (tx_in.cb_tx.mon_tx_vld && tx_in.cb_tx.rdy));
+                    cb.en <= 1'b1;
                 end
             join
             wait_settled();
@@ -479,32 +479,32 @@ module packet_loopback_unit_test;
                 begin : mode_toggle
                     repeat (20) begin
                         quiet($urandom_range(1, 50));
-                        en <= $urandom_range(0, 1);
+                        cb.en <= $urandom_range(0, 1);
                     end
                 end : mode_toggle
                 begin : bp
                     repeat (200) begin
                         quiet($urandom_range(1, 10));
-                        tx_out.rdy <= $urandom_range(0, 1);
-                        rx_out.rdy <= $urandom_range(0, 1);
+                        tx_out.cb_rx.rdy <= $urandom_range(0, 1);
+                        rx_out.cb_rx.rdy <= $urandom_range(0, 1);
                     end
-                    tx_out.rdy <= 1'b1;
-                    rx_out.rdy <= 1'b1;
+                    tx_out.cb_rx.rdy <= 1'b1;
+                    rx_out.cb_rx.rdy <= 1'b1;
                 end : bp
-            join_any
-            disable fork;
-            force_idle();
-            tx_out.rdy <= 1'b1;
-            rx_out.rdy <= 1'b1;
-            en <= 1'b0;
+            join
+            // All offered packets have completed before checking or resetting.
+            tx_driver.idle();
+            rx_driver.idle();
+            tx_out.cb_rx.rdy <= 1'b1;
+            rx_out.cb_rx.rdy <= 1'b1;
+            cb.en <= 1'b0;
             quiet(64);
-            // Every delivered packet must be internally consistent, and the
-            // total delivered must not exceed what was sent.
+            // Every packet must arrive intact, without loss or duplication.
             begin
                 int n_tx, n_rx;
                 drain_tx_out(n_tx);
                 drain_rx_out(n_rx);
-                `FAIL_UNLESS(n_tx + n_rx <= n_sent);
+                `FAIL_UNLESS_EQUAL(n_tx + n_rx, n_sent);
             end
         `SVTEST_END
 
@@ -514,24 +514,24 @@ module packet_loopback_unit_test;
             // Offer a beat that is never accepted, so the mode change cannot
             // commit.  Driven directly rather than through a driver process,
             // so the reset below has nothing left in flight to abandon.
-            tx_out.rdy <= 1'b0;
-            @(posedge clk);
-            tx_in.vld  <= 1'b1;
-            tx_in.data <= mk_beat(80, 0, 4);
-            tx_in.eop  <= 1'b0;
-            tx_in.meta <= META_WID'(80);
-            repeat (4) @(posedge clk);
-            en <= 1'b1;
-            repeat (4) @(posedge clk);
+            tx_out.cb_rx.rdy <= 1'b0;
+            @(cb);
+            tx_in.cb_tx.vld  <= 1'b1;
+            tx_in.cb_tx.data <= mk_beat(80, 0, 4);
+            tx_in.cb_tx.eop  <= 1'b0;
+            tx_in.cb_tx.meta <= META_WID'(80);
+            repeat (4) @(cb);
+            cb.en <= 1'b1;
+            repeat (4) @(cb);
             `FAIL_UNLESS_LOG(switching, "mode change should be pending while stalled");
 
-            srst      <= 1'b1;                 // reset mid-QUIESCE
-            tx_in.vld <= 1'b0;
-            tx_in.eop <= 1'b0;
-            repeat (4) @(posedge clk);
-            srst       <= 1'b0;
-            tx_out.rdy <= 1'b1;
-            repeat (4) @(posedge clk);
+            cb.srst      <= 1'b1;                 // reset mid-QUIESCE
+            tx_in.cb_tx.vld <= 1'b0;
+            tx_in.cb_tx.eop <= 1'b0;
+            repeat (4) @(cb);
+            cb.srst       <= 1'b0;
+            tx_out.cb_rx.rdy <= 1'b1;
+            repeat (4) @(cb);
             tx_out_q.delete();
             rx_out_q.delete();
             wait_settled();
