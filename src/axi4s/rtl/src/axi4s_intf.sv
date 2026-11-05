@@ -67,129 +67,19 @@ interface axi4s_intf #(
     assign mon_rx_tready = tready;
 
     clocking cb_tx @(posedge aclk);
-        output tdata, tkeep, tlast, tid, tdest, tuser;
+        output tvalid, tdata, tkeep, tlast, tid, tdest, tuser;
         input tready, mon_tx_tvalid;
-        inout tvalid;
     endclocking
 
     clocking cb_rx @(posedge aclk);
         input tvalid, tdata, tkeep, tlast, tid, tdest, tuser, mon_rx_tready;
-        inout tready;
+        output tready;
     endclocking
 
     clocking cb @(posedge aclk);
         input tvalid, tready, tdata, tkeep, tlast, tid, tdest, tuser;
     endclocking
 
-    task idle_tx();
-        cb_tx.tvalid <= 1'b0;
-        cb_tx.tlast  <= 1'b0;
-        cb_tx.tkeep  <= '0;
-        cb_tx.tdata  <= '0;
-        cb_tx.tid    <= '0;
-        cb_tx.tdest  <= '0;
-        cb_tx.tuser  <= '0;
-    endtask
-
-    task idle_rx();
-        cb_rx.tready <= 1'b0;
-    endtask
-
-    task _wait(input int cycles);
-        repeat (cycles) @(cb);
-    endtask
-
-    task send(
-            input bit [DATA_BYTE_WID-1:0][7:0] _tdata,
-            input bit [DATA_BYTE_WID-1:0]      _tkeep,
-            input bit                          _tlast,
-            input bit [TID_WID-1:0]            _tid=0,
-            input bit [TDEST_WID-1:0]          _tdest=0,
-            input bit [TUSER_WID-1:0]          _tuser=0,
-            input int twait = 0
-        );
-        if (twait > 0) begin
-            cb_tx.tvalid <= 1'b0;
-            _wait(twait);
-        end
-        cb_tx.tvalid <= 1'b1;
-        cb_tx.tlast <= _tlast;
-        cb_tx.tkeep <= _tkeep;
-        cb_tx.tdata <= _tdata;
-        cb_tx.tid <= _tid;
-        cb_tx.tdest <= _tdest;
-        cb_tx.tuser <= _tuser;
-        @(cb_tx);
-        wait (cb_tx.tvalid && cb_tx.tready);
-        cb_tx.tvalid <= 1'b0;
-        cb_tx.tlast <= 1'b0;
-    endtask
-
-    task receive(
-            output bit [DATA_BYTE_WID-1:0][7:0] _tdata,
-            output bit [DATA_BYTE_WID-1:0]      _tkeep,
-            output bit                          _tlast,
-            output bit [TID_WID-1:0]            _tid,
-            output bit [TDEST_WID-1:0]          _tdest,
-            output bit [TUSER_WID-1:0]          _tuser,
-            input  int tpause = 0
-        );
-        if (tpause > 0) begin
-            cb_rx.tready <= 1'b0;
-            _wait(tpause);
-        end
-        cb_rx.tready <= 1'b1;
-        @(cb_rx);
-        wait (cb_rx.tvalid && cb_rx.tready);
-        cb_rx.tready <= 1'b0;
-        _tdata = cb_rx.tdata;
-        _tkeep = cb_rx.tkeep;
-        _tlast = cb_rx.tlast;
-        _tid   = cb_rx.tid;
-        _tdest = cb_rx.tdest;
-        _tuser = cb_rx.tuser;
-    endtask
-
-    task sample(
-            output bit [DATA_BYTE_WID-1:0][7:0] _tdata,
-            output bit [DATA_BYTE_WID-1:0]      _tkeep,
-            output bit                          _tlast,
-            output bit [TID_WID-1:0]            _tid,
-            output bit [TDEST_WID-1:0]          _tdest,
-            output bit [TUSER_WID-1:0]          _tuser
-        );
-        do @(cb); while (!(cb.tvalid && cb.tready));
-        _tdata = cb.tdata;
-        _tkeep = cb.tkeep;
-        _tlast = cb.tlast;
-        _tid = cb.tid;
-        _tdest = cb.tdest;
-        _tuser = cb.tuser;
-    endtask
-
-    task wait_ready(
-            output bit _timeout,
-            input  int TIMEOUT=0
-        );
-        automatic bit __timeout = 1'b0;
-        fork
-            begin
-                fork
-                    begin
-                        wait(cb_tx.tready);
-                    end
-                    begin
-                        if (TIMEOUT > 0) begin
-                            _wait(TIMEOUT);
-                            __timeout = 1'b1;
-                        end else forever _wait(1);
-                    end
-                join_any
-                disable fork;
-            end
-        join
-        _timeout = __timeout;
-    endtask
 
 endinterface : axi4s_intf
 
