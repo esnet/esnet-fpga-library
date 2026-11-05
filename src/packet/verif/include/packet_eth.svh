@@ -72,7 +72,11 @@ class packet_eth#(parameter type META_T = bit) extends packet#(META_T);
     // Header
     // [[ implements packet_verif_pkg::packet.header ]]
     virtual function automatic byte_array_t header();
-        return {>>byte{this.__hdr}};
+        byte_array_t data = new[packet_eth_pkg::HDR_BYTES];
+        // Serialize the MAC header in network byte order.
+        foreach (data[i])
+            data[i] = this.__hdr[(packet_eth_pkg::HDR_BYTES-1-i)*8 +: 8];
+        return data;
     endfunction
 
     // Payload
