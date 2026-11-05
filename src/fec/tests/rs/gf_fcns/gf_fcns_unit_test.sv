@@ -81,6 +81,13 @@ module gf_fcns_unit_test;
 
     `SVUNIT_TESTS_BEGIN
 
+        // Mask bit order must match the reconstruction matrix row order.
+        `SVTEST(erasure_mask_order)
+            `FAIL_UNLESS_EQUAL(RS_ERR_LOC_LUT[0], 10'b1100000000);
+            `FAIL_UNLESS_EQUAL(RS_ERR_LOC_LUT[2], 10'b1001000000);
+            `FAIL_UNLESS_EQUAL(RS_ERR_LOC_LUT[NUM_H-1], 10'b0000000011);
+        `SVTEST_END
+
         `SVTEST(gf_mul_test)
             dut_sel = MUL; gf_fcn_test();
         `SVTEST_END

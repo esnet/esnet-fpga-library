@@ -673,12 +673,14 @@ if (True) :
       else:        print(f'''    }}''',      file = svh_file);  # last row, no comma.
    print(f'''}};\n''', file = svh_file);
 
+   # Keep mask bit order explicit for simulators that reverse nested bit patterns.
+   print("// Use explicit packed masks: Verilator 5.054 reverses the bit order of", file=svh_file)
+   print("// nested assignment patterns containing single-bit elements.", file=svh_file)
    print(f'''localparam logic [0:NUM_H-1][0:RS_N-1] RS_ERR_LOC_LUT = '{{''', file = svh_file);
-   for item in range(len(ERR_LOC_LUT)):
-      if item < len(ERR_LOC_LUT)-1:
-          print(f'''        '{{ {",".join(map(str,ERR_LOC_LUT[item]))} }},''', file = svh_file);
-      else:
-          print(f'''        '{{ {",".join(map(str,ERR_LOC_LUT[item]))} }}''', file = svh_file);
+   for item, mask in enumerate(ERR_LOC_LUT):
+      bits = "".join(map(str, mask))
+      suffix = "," if item < len(ERR_LOC_LUT)-1 else ""
+      print(f"        {len(mask)}'b{bits}{suffix}", file=svh_file)
    print(f'''}};''', file = svh_file);
 
    svh_file.close()
