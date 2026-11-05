@@ -15,8 +15,8 @@ class tb_env #(
     //===================================
     // Properties
     //===================================
-    virtual state_intf #(ID_WID, STATE_WID, UPDATE_WID) ctrl_vif;
-    virtual state_intf #(ID_WID, STATE_WID, UPDATE_WID) update_vif;
+    state_intf_agent #(ID_T, STATE_T, UPDATE_T) ctrl_agent;
+    state_intf_agent #(ID_T, STATE_T, UPDATE_T) update_agent;
 
     state_model#(ID_T, STATE_T, UPDATE_T) model;
 
@@ -29,16 +29,18 @@ class tb_env #(
     function new(string name="tb_env");
         super.new(name);
         set_reset_timeout(RESET_TIMEOUT);
+        ctrl_agent = new("ctrl_agent");
+        update_agent = new("update_agent");
     endfunction
 
     task idle();
         db_agent.idle();
-        update_vif.idle();
-        ctrl_vif.idle();
+        update_agent.idle();
+        ctrl_agent.idle();
     endtask
 
     task wait_n(input int num_cycles);
-        update_vif._wait(num_cycles);
+        update_agent.wait_n(num_cycles);
     endtask
 
 endclass : tb_env

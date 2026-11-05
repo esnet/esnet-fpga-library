@@ -40,10 +40,15 @@ interface state_intf #(
         output state
     );
 
+    // Sample the driven request independently of its clocking-block output.
+    logic mon_req;
+    assign mon_req = req;
+
     clocking cb @(posedge clk);
         output id, init, update, ctxt;
         input  rdy, ack, state;
         inout  req;
+        input mon_req;
     endclocking
 
     task idle();

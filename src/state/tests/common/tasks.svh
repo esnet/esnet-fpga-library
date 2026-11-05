@@ -12,30 +12,30 @@ task wait_n(input int num_cycles);
 endtask
 
 task update_req(input ID_T id, input UPDATE_T update, input bit init=1'b0);
-    env.update_vif.update_req(id, update, init);
+    env.update_agent.update_req(id, update, init);
 endtask
 
 task receive(output STATE_T state);
     bit timeout;
-    env.update_vif.receive_resp(state, timeout);
+    env.update_agent.receive_resp(state, timeout);
     `FAIL_IF_LOG(timeout, "Timeout detected while waiting for update response.");
 endtask
 
 task _update(input ID_T id, input UPDATE_T update, output STATE_T state, input bit init=1'b0);
     bit timeout;
-    env.update_vif._update(id, update, init, state, timeout);
+    env.update_agent._update(id, update, init, state, timeout);
     `FAIL_IF_LOG(timeout, $sformatf("Timeout detected while updating state for ID 0x%0x.", id));
 endtask
 
 task control_update(input ID_T id, input UPDATE_T update, output STATE_T state, input bit init=1'b0);
     bit timeout;
-    env.ctrl_vif.control(id, update, init, state, timeout);
+    env.ctrl_agent.control(id, update, init, state, timeout);
     `FAIL_IF_LOG(timeout, $sformatf("Timeout detected while performing control update for ID 0x%0x.", id));
 endtask
 
 task _reap(input ID_T id, output STATE_T state);
     bit timeout;
-    env.ctrl_vif.reap(id, state, timeout);
+    env.ctrl_agent.reap(id, state, timeout);
     `FAIL_IF_LOG(timeout, $sformatf("Timeout detected while reaping state for ID 0x%0x.", id));
 endtask
 
