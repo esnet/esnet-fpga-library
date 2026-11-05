@@ -89,23 +89,23 @@ package pcap_pkg;
 
     function automatic pcap_hdr_t pop_hdr(ref byte data[$]);
         pcap_hdr_t hdr;
-        {>>{hdr}} = data;
         // Check that header can be popped from buffer
         assert(data.size() >= PCAP_HDR_BYTES) else
             $fatal(1, $sformatf("[pcap_pkg::pop_hdr] Insufficient bytes to pop PCAP header. %d bytes required, %d bytes available in buffer.", PCAP_HDR_BYTES, data.size()));
-        // Build header from buffer
-        for (int i = 0; i < PCAP_HDR_BYTES; i++) data.pop_front();
+        // Consume header bytes in file order, most significant byte first.
+        for (int i = 0; i < PCAP_HDR_BYTES; i++)
+            hdr[(PCAP_HDR_BYTES-1-i)*8 +: 8] = data.pop_front();
         return hdr;
     endfunction
 
     function automatic pcap_record_hdr_t pop_record_hdr(ref byte data[$]);
         pcap_record_hdr_t record_hdr;
-        {>>{record_hdr}} = data;
         // Check that header can be popped from buffer
         assert(data.size() >= PCAP_RECORD_HDR_BYTES) else
             $fatal(1, $sformatf("[pcap_pkg::pop_record_hdr] Insufficient bytes to pop PCAP record header. %d bytes required, %d bytes available in buffer.", PCAP_RECORD_HDR_BYTES, data.size()));
-        // Build header from buffer
-        for (int i = 0; i < PCAP_RECORD_HDR_BYTES; i++) data.pop_front();
+        // Consume header bytes in file order, most significant byte first.
+        for (int i = 0; i < PCAP_RECORD_HDR_BYTES; i++)
+            record_hdr[(PCAP_RECORD_HDR_BYTES-1-i)*8 +: 8] = data.pop_front();
         return record_hdr;
     endfunction
 
