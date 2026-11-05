@@ -174,7 +174,7 @@ module packet_descriptor_intf_unit_test #(
             bad_packet = packet.dup("trans_0_bad");
             bad_packet.addr++;
             env.driver.inbox.put(bad_packet);
-            from_tx._wait(1000);
+            driver.wait_n(1000);
             `FAIL_UNLESS_LOG(
                 scoreboard.report(msg),
                 "Passed unexpectedly."

@@ -152,8 +152,13 @@ module packet_crc_tx_unit_test #(
 
     task setup();
         svunit_ut.setup();
-        tx_if.idle_tx();
-        rx_if.idle_rx();
+        tx_if.cb_tx.vld <= 1'b0;
+        tx_if.cb_tx.data <= 'x;
+        tx_if.cb_tx.eop <= 'x;
+        tx_if.cb_tx.mty <= 'x;
+        tx_if.cb_tx.err <= 'x;
+        tx_if.cb_tx.meta <= 'x;
+        rx_if.cb_rx.rdy <= 1'b0;
         reset_if.pulse(8);
         reset_if._wait(8);
     endtask

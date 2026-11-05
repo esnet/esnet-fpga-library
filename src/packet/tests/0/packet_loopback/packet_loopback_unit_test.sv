@@ -28,6 +28,9 @@ module packet_loopback_unit_test;
     packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_WID(META_WID)) rx_in  (.clk(clk));
     packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_WID(META_WID)) rx_out (.clk(clk));
 
+    // Beat-level stimulus agents.
+    packet_verif_pkg::packet_intf_driver#(DATA_BYTE_WID, bit[META_WID-1:0]) tx_driver, rx_driver;
+
     logic en = 1'b0;
     logic en_mon;
     logic switching;
@@ -106,12 +109,12 @@ module packet_loopback_unit_test;
 
     task automatic send_tx(input int id, input int beats);
         for (int i = 0; i < beats; i++)
-            tx_in.send(mk_beat(id, i, beats), (i == beats-1), '0, 1'b0, META_WID'(id));
+            tx_driver.send_beat(mk_beat(id, i, beats), (i == beats-1), '0, 1'b0, META_WID'(id));
     endtask
 
     task automatic send_rx(input int id, input int beats);
         for (int i = 0; i < beats; i++)
-            rx_in.send(mk_beat(id, i, beats), (i == beats-1), '0, 1'b0, META_WID'(id));
+            rx_driver.send_beat(mk_beat(id, i, beats), (i == beats-1), '0, 1'b0, META_WID'(id));
     endtask
 
     // =========================================================================
@@ -269,6 +272,10 @@ module packet_loopback_unit_test;
     // =========================================================================
     function void build();
         svunit_ut = new(name);
+        tx_driver = new("tx_driver");
+        tx_driver.packet_vif = tx_in;
+        rx_driver = new("rx_driver");
+        rx_driver.packet_vif = rx_in;
     endfunction
 
     task setup();

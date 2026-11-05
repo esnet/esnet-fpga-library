@@ -176,7 +176,7 @@ module packet_aggregate_unit_test;
             bad_byte_data = 8'hFF ^ bad_pkt.get_byte(bad_byte_idx);
             bad_pkt.set_byte(bad_byte_idx, bad_byte_data);
             env.driver.inbox.put(bad_pkt);
-            packet_in_if[0]._wait(1000);
+            driver.wait_n(1000);
             `FAIL_UNLESS_LOG(
                 scoreboard.report(msg),
                 "Passed unexpectedly."

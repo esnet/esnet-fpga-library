@@ -343,7 +343,7 @@ module packet_sg_core_oflow_unit_test #(
             bad_byte_data = 8'hFF ^ bad_pkt.get_byte(bad_byte_idx);
             bad_pkt.set_byte(bad_byte_idx, bad_byte_data);
             env.driver.inbox.put(bad_pkt);
-            packet_in_if[0]._wait(1000);
+            driver.wait_n(1000);
             `FAIL_UNLESS_LOG(
                 scoreboard.report(msg),
                 "Passed unexpectedly."
@@ -365,10 +365,10 @@ module packet_sg_core_oflow_unit_test #(
             for (int i = 0; i < NUM_BUFFERS; i++)
                 one_packet(i);
             // Wait for all packets to be scattered into memory
-            packet_in_if[0]._wait(5000);
+            driver.wait_n(5000);
             // Send one more — should overflow since all buffers are occupied
             one_overflow_packet(0);
-            packet_in_if[0]._wait(500);
+            driver.wait_n(500);
             // Release descriptor gate and drain the NUM_BUFFERS good packets
             desc_en = 1'b1;
             check(NUM_BUFFERS, 100us);
@@ -381,7 +381,7 @@ module packet_sg_core_oflow_unit_test #(
             // Wait for the recycle pipeline (descriptor RD_LATENCY + alloc_bv scan
             // + scatter prefetch) before sending, so the scatter has a buffer
             // available and does not treat the packet as a second overflow.
-            packet_in_if[0]._wait(2000);
+            driver.wait_n(2000);
             one_packet(NUM_BUFFERS);
             check(NUM_BUFFERS+1, 100us);
         `SVTEST_END
@@ -397,17 +397,17 @@ module packet_sg_core_oflow_unit_test #(
             desc_en = 1'b0;
             for (int i = 0; i < NUM_BUFFERS; i++)
                 one_packet(i);
-            packet_in_if[0]._wait(5000);
+            driver.wait_n(5000);
             for (int i = 0; i < n_oflow; i++)
                 one_overflow_packet(i);
-            packet_in_if[0]._wait(1000);
+            driver.wait_n(1000);
             desc_en = 1'b1;
             check(NUM_BUFFERS, 100us);
             check_counters(.exp_in_ok(NUM_BUFFERS), .exp_in_err(0), .exp_out_ok(NUM_BUFFERS), .exp_out_err(0));
             reg_agent.get_input_pkt_oflow_count(0, cnt);
             if (DEBUG) $display("[oflow_burst] input pkt_oflow: got %0d, expected %0d", cnt, n_oflow);
             `FAIL_UNLESS_EQUAL(cnt, n_oflow);
-            packet_in_if[0]._wait(2000);
+            driver.wait_n(2000);
             one_packet(NUM_BUFFERS);
             check(NUM_BUFFERS+1, 100us);
         `SVTEST_END
