@@ -55,7 +55,7 @@ interface packet_event_intf (
         @(cb_tx);
         cb_tx.evt <= 1'b0;
         cb_tx.size <= 'x;
-        cb_tx.status <= 'x;
+        cb_tx.status <= STATUS_UNDEFINED;
     endtask
 
 endinterface : packet_event_intf
