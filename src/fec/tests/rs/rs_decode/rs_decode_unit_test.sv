@@ -237,7 +237,7 @@ module rs_decode_unit_test;
 
             for (int i=0; i<N; i++) begin
                 // Send transaction
-                for (int j=0; j<RS_N; j++) transaction_in_data[j] = $urandom;
+                for (int j=0; j<RS_K; j++) transaction_in_data[j] = $urandom;
                 transaction_in = new("transaction_in", transaction_in_data);
                 env.inbox.put(transaction_in);
             end
