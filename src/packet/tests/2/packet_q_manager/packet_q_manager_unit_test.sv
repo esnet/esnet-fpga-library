@@ -228,6 +228,7 @@ module packet_q_manager_unit_test #(
             bit deq_ok;
             int deq_size;
             desc_in = new();
+            desc_in.set_max_size(MAX_PKT_SIZE);
             desc_in.randomize();
             q = $urandom % NUM_QS;
             desc_in_q[0] = q;
@@ -252,6 +253,7 @@ module packet_q_manager_unit_test #(
             bit deq_ok;
             int deq_size;
             desc_in = new();
+            desc_in.set_max_size(MAX_PKT_SIZE);
             desc_in.randomize();
             q = $urandom % NUM_QS;
             desc_in_q[0] = q;

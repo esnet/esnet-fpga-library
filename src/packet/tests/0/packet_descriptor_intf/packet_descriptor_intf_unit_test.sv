@@ -144,6 +144,7 @@ module packet_descriptor_intf_unit_test #(
     task one_packet(int id=0);
         PACKET_DESCRIPTOR_T packet_descriptor;
         packet_descriptor = new($sformatf("pkt_%0d", id));
+        packet_descriptor.set_max_size(from_tx.MAX_PKT_SIZE);
         packet_descriptor.randomize();
         env.inbox.put(packet_descriptor);
     endtask
