@@ -93,7 +93,7 @@ virtual class pci_vpd_agent extends std_verif_pkg::agent;
         do begin
             read_vpd_resource(parse_idx, resource);
             resources.push_back(resource);
-        end while ((resource.tag != VPD_TAG_INVALID) && (resource.tag != VPD_TAG_END));
+        end while ((resource.tag != VPD_TAG_INVALID) && (resource.tag != VPD_TAG_END) && (parse_idx < MAX_VPD_LEN));
         if (resource.tag == VPD_TAG_END) __VPD.valid = 1'b1;
         __VPD.resources = resources;
         trace_msg({"Read VPD:\n", vpd_to_string(__VPD, "\t")});
@@ -115,16 +115,37 @@ virtual class pci_vpd_agent extends std_verif_pkg::agent;
         resource.tag = vpd_get_tag(rdt);
         sum += data;
         
-        // Determine length
-        if (vpd_get_type(rdt) == VPD_RESOURCE_TYPE__SMALL) resource_len = rdt._small.len;
-        else foreach(len[i]) begin
-            read_byte(idx++, data);
-            len[i] = data;
-            sum += data;
+        // Stop on unknown tags before interpreting their length or payload.
+        resource.value = new[0];
+        if (resource.tag == VPD_TAG_INVALID) begin
+            resource.sum = sum;
+            return;
         end
-        
-        resource_len = {<<8{len}};
-        
+
+        // Small resources embed their length; large resources use little endian.
+        if (vpd_get_type(rdt) == VPD_RESOURCE_TYPE__SMALL)
+            resource_len = rdt._small.len;
+        else begin
+            if (idx + 2 > MAX_VPD_LEN) begin
+                resource.tag = VPD_TAG_INVALID;
+                resource.sum = sum;
+                return;
+            end
+            foreach (len[i]) begin
+                read_byte(idx++, data);
+                len[i] = data;
+                sum += data;
+            end
+            resource_len = {len[1], len[0]};
+        end
+
+        // Reject images that would read beyond the VPD address space.
+        if (idx + resource_len > MAX_VPD_LEN) begin
+            resource.tag = VPD_TAG_INVALID;
+            resource.sum = sum;
+            return;
+        end
+
         // Read value
         resource.value = new[resource_len];
         foreach (resource.value[i]) begin
