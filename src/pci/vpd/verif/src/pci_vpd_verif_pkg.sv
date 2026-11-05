@@ -104,7 +104,7 @@ package pci_vpd_verif_pkg;
                     records.push_back(record);
 
                     // Proceed to next record, if remaining bytes are sufficient to at least encode name/len
-                end while (parse_idx + 3 < resource.value.size());
+                end while (parse_idx + 3 <= resource.value.size());
 
                 // Parsing should terminate on the last byte of the resource; otherwise VPD-R resource is invalid
                 if (parse_idx == resource.value.size()) begin
@@ -115,8 +115,8 @@ package pci_vpd_verif_pkg;
                 // Process RV record (should be last record)
                 if (record.name == "RV") begin
                     if (record.value.size() > 0) begin
-                        sum -= record.value[0];
-                        foreach (record.value[i]) sum += record.value[i];
+                        // The checksum ends at RV's first byte; exclude reserved bytes.
+                        for (int i = 1; i < record.value.size(); i++) sum -= record.value[i];
                         if (sum == 0) vpd_r.checksum_ok = 1'b1;
                     end
                 end
