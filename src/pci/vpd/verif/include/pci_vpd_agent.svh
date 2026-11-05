@@ -22,7 +22,7 @@ virtual class pci_vpd_agent extends std_verif_pkg::agent;
     // Pure Virtual Methods
     // (to be implemented by subclass)
     //===================================
-    pure virtual protected task automatic idle();
+    pure virtual protected task _idle();
     pure virtual protected task automatic _write_byte(input int addr, input byte data, output bit error, output bit timeout);
     pure virtual protected task automatic _read_byte(input int addr, output byte data, output bit error, output bit timeout);
 
