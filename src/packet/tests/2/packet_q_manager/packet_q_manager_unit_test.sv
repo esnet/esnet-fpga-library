@@ -35,9 +35,6 @@ module packet_q_manager_unit_test #(
     localparam type ADDR_T = logic[ADDR_WID-1:0];
     localparam int  BUFFER_SIZE = 2048;
 
-    localparam type DESC_T = alloc_pkg::alloc#(BUFFER_SIZE, ADDR_WID, META_WID)::desc_t;
-    localparam int  DESC_WID = $bits(DESC_T);
-
     localparam int  MEM_DATA_BYTE_WID = 32;
     localparam int  MEM_DATA_WID = MEM_DATA_BYTE_WID * 8;
     localparam int  MEM_ADDR_WID = $clog2(Q_DEPTH * MEM_DATA_BYTE_WID);

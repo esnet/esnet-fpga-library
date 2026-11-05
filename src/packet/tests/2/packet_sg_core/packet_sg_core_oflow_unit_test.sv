@@ -49,8 +49,6 @@ module packet_sg_core_oflow_unit_test #(
 
     typedef packet#(META_T) PACKET_T;
 
-    localparam type DESC_T = alloc_pkg::alloc#(BUFFER_SIZE, PTR_WID, META_WID)::desc_t;
-    localparam int  DESC_WID = $bits(DESC_T);
 
     //===================================
     // DUT
@@ -191,7 +189,13 @@ module packet_sg_core_oflow_unit_test #(
     //===================================
     // Testbench
     //===================================
-    packet_component_env #(META_T) env;
+    std_verif_pkg::component_env#(
+        PACKET_T, PACKET_T,
+        packet_intf_driver#(DATA_IN_BYTE_WID, META_T),
+        packet_intf_monitor#(DATA_OUT_BYTE_WID, META_T),
+        std_verif_pkg::wire_model#(PACKET_T),
+        std_verif_pkg::event_scoreboard#(PACKET_T)
+    ) env;
 
     packet_intf_driver#(DATA_IN_BYTE_WID, META_T) driver;
     packet_intf_monitor#(DATA_OUT_BYTE_WID, META_T) monitor;
@@ -233,7 +237,11 @@ module packet_sg_core_oflow_unit_test #(
         model = new();
         scoreboard = new();
 
-        env = new("env", driver, monitor, model, scoreboard);
+        env = new("env");
+        env.driver = driver;
+        env.monitor = monitor;
+        env.model = model;
+        env.scoreboard = scoreboard;
         env.reset_vif = reset_if;
         env.build();
 

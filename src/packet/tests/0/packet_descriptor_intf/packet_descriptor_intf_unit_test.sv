@@ -28,6 +28,7 @@ module packet_descriptor_intf_unit_test #(
     //===================================
     logic clk;
     logic srst;
+    logic en = 1'b1;
 
     logic from_tx_srst;
     logic to_rx_srst;
@@ -46,9 +47,13 @@ module packet_descriptor_intf_unit_test #(
     //===================================
     // Testbench
     //===================================
-    std_verif_pkg::component_env #(
+    std_verif_pkg::component_env#(
         PACKET_DESCRIPTOR_T,
-        PACKET_DESCRIPTOR_T
+        PACKET_DESCRIPTOR_T,
+        packet_descriptor_intf_driver#(ADDR_T,META_T),
+        packet_descriptor_intf_monitor#(ADDR_T,META_T),
+        std_verif_pkg::wire_model#(PACKET_DESCRIPTOR_T),
+        std_verif_pkg::event_scoreboard#(PACKET_DESCRIPTOR_T)
     ) env;
 
     // Driver/monitor

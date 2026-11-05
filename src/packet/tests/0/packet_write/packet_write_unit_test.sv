@@ -74,9 +74,13 @@ module packet_write_unit_test #(
     assign mem_init_done = 1'b1;
 
     // Environment
-    std_verif_pkg::component_env #(
+    std_verif_pkg::component_env#(
         PACKET_T,
-        PACKET_DESCRIPTOR_T
+        PACKET_DESCRIPTOR_T,
+        packet_intf_driver#(DATA_BYTE_WID,META_T),
+        packet_descriptor_intf_monitor#(ADDR_T,META_T),
+        packet_write_model#(DATA_BYTE_WID,ADDR_T,META_T,COMPUTE_CKSUM),
+        std_verif_pkg::event_scoreboard#(PACKET_DESCRIPTOR_T)
     ) env;
 
     // Driver/monitor

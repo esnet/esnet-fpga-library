@@ -40,6 +40,9 @@ module packet_disaggregate_unit_test;
     packet_event_intf event_out_if [NUM_OUTPUTS] (.clk);
 
     CTXT_T ctxt_sel;
+    logic ctxt_list_append_req = 1'b0;
+    CTXT_T ctxt_list_append_data = '0;
+    logic ctxt_out_ack = 1'b1;
 
     logic  ctxt_out_valid;
     CTXT_T ctxt_out;
@@ -56,7 +59,13 @@ module packet_disaggregate_unit_test;
     //===================================
     // Testbench
     //===================================
-    packet_component_env #(META_T) env;
+    std_verif_pkg::component_env#(
+        PACKET_T, PACKET_T,
+        packet_intf_driver#(DATA_IN_BYTE_WID, META_T),
+        packet_intf_monitor#(DATA_OUT_BYTE_WID, META_T),
+        std_verif_pkg::wire_model#(PACKET_T),
+        std_verif_pkg::event_scoreboard#(PACKET_T)
+    ) env;
 
     assign ctxt_sel = 0;
     for (genvar g_output = 1; g_output < NUM_OUTPUTS; g_output++) begin : g__output
@@ -97,7 +106,11 @@ module packet_disaggregate_unit_test;
         model = new();
         scoreboard = new();
 
-        env = new("env", driver, monitor, model, scoreboard);
+        env = new("env");
+        env.driver = driver;
+        env.monitor = monitor;
+        env.model = model;
+        env.scoreboard = scoreboard;
         env.reset_vif = reset_if;
         env.build();
     endfunction
