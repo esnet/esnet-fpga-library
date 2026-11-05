@@ -67,9 +67,9 @@ module axi4s_intf_unit_test #(
     axi4l_intf_controller_term axi4l_to_ovfl_controller_term  (.axi4l_if(axil_to_ovfl));
     axi4l_intf_controller_term axi4l_if_controller_term       (.axi4l_if(axil_if));
 
-    logic tvalid_check = 0;
+    localparam bit tvalid_check = DUT_SELECT == 11;
 
-    bit ASYNC = 0;
+    localparam bit ASYNC = DUT_SELECT >= 7 && DUT_SELECT <= 11;
 
     generate
       case (DUT_SELECT)
@@ -84,19 +84,16 @@ module axi4s_intf_unit_test #(
 
          7: begin
                 axi4s_fifo_async #(.DEPTH(  32)) DUT (.from_tx_srst(srst), .to_rx_srst(srst), .*);
-                assign ASYNC = 1;
                `SVUNIT_CLK_GEN(aclk_out_gen, 1.0ns);  // slow to fast
             end
 
          8: begin
                 axi4s_fifo_async #(.DEPTH( 512)) DUT (.from_tx_srst(srst), .to_rx_srst(srst), .*);
-                assign ASYNC = 1;
                `SVUNIT_CLK_GEN(aclk_out_gen, 1.5ns);
             end
 
          9: begin
                 axi4s_fifo_async #(.DEPTH(8192)) DUT (.from_tx_srst(srst), .to_rx_srst(srst), .*);
-                assign ASYNC = 1;
                `SVUNIT_CLK_GEN(aclk_out_gen, 2.0ns);  // fast to slow
             end
 
@@ -105,18 +102,15 @@ module axi4s_intf_unit_test #(
                                            .axi4s_in(from_tx), .axi4s_in_srst(srst), .axi4s_out(to_rx), .axi4s_out_srst(srst),
                                            .flow_ctl_thresh('0), .flow_ctl(),
                                            .axil_to_probe(axil_to_probe), .axil_to_ovfl(axil_to_ovfl), .axil_if(axil_if) );
-                assign ASYNC = 1;
                `SVUNIT_CLK_GEN(aclk_out_gen, 2.0ns);  // fast to slow
             end
 
          11: begin
-                assign tvalid_check = 1;
 
                 axi4s_pkt_fifo_async #(.TX_THRESHOLD(512)) DUT (
                                            .axi4s_in(from_tx), .axi4s_in_srst(srst), .axi4s_out(to_rx), .axi4s_out_srst(srst),
                                            .flow_ctl_thresh('0), .flow_ctl(),
                                            .axil_to_probe(axil_to_probe), .axil_to_ovfl(axil_to_ovfl), .axil_if(axil_if) );
-                assign ASYNC = 1;
                `SVUNIT_CLK_GEN(aclk_out_gen, 1.0ns);  // slow to fast
             end
 
