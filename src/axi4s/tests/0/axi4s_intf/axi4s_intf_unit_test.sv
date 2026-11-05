@@ -1,5 +1,8 @@
 `include "svunit_defines.svh"
 
+// (Failsafe) timeout
+`define SVUNIT_TIMEOUT 2ms
+
 module axi4s_intf_unit_test #(
     parameter int DUT_SELECT = 0
 );

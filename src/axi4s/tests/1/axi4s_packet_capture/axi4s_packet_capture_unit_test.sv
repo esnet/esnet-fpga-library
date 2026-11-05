@@ -1,5 +1,8 @@
 `include "svunit_defines.svh"
 
+// (Failsafe) timeout
+`define SVUNIT_TIMEOUT 20ms
+
 module axi4s_packet_capture_unit_test;
 
     import svunit_pkg::svunit_testcase;
