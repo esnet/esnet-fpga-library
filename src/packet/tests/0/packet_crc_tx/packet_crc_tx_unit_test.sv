@@ -34,6 +34,11 @@ module packet_crc_tx_unit_test #(
 
     logic [CONFIG.WIDTH-1:0] crc_out;
 
+    // Sample the CRC alongside the accepted output EOP beat.
+    clocking cb @(posedge clk);
+        input crc_out;
+    endclocking
+
     packet_crc_tx #(
         .CONFIG       ( CONFIG ),
         .TRIM         ( TRIM ),
@@ -129,7 +134,7 @@ module packet_crc_tx_unit_test #(
         rx_if.cb_rx.rdy <= 1'b1;
         while (!eop) begin
             @(rx_if.cb_rx);
-            if (rx_if.cb_rx.vld) begin
+            if (rx_if.cb_rx.vld && rx_if.cb_rx.mon_rx_rdy) begin
                 automatic logic [0:DATA_BYTE_WID-1][7:0] word = rx_if.cb_rx.data;
                 automatic int valid = rx_if.cb_rx.eop ?
                     DATA_BYTE_WID - int'(rx_if.cb_rx.mty) : DATA_BYTE_WID;
@@ -138,7 +143,7 @@ module packet_crc_tx_unit_test #(
                 if (eop) begin
                     rx_err  = rx_if.cb_rx.err;
                     rx_meta = rx_if.cb_rx.meta;
-                    rx_crc  = crc_out;
+                    rx_crc  = cb.crc_out;
                 end
             end
         end

@@ -125,7 +125,7 @@ module packet_crc_rx_unit_test #(
         rx_if.cb_rx.rdy <= 1'b1;
         while (!eop) begin
             @(rx_if.cb_rx);
-            if (rx_if.cb_rx.vld) begin
+            if (rx_if.cb_rx.vld && rx_if.cb_rx.mon_rx_rdy) begin
                 automatic logic [0:DATA_BYTE_WID-1][7:0] word = rx_if.cb_rx.data;
                 automatic int valid = rx_if.cb_rx.eop ?
                     DATA_BYTE_WID - int'(rx_if.cb_rx.mty) : DATA_BYTE_WID;
