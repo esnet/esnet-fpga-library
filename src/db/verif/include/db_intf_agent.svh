@@ -41,14 +41,12 @@ class db_intf_agent #(
         db_vif.cb.req <= 1'b1;
         db_vif.cb.key <= key;
         db_vif.cb.next <= 1'b0;
-        @(db_vif.cb);
-        wait (db_vif.cb.req && db_vif.cb.rdy);
+        @(db_vif.cb iff (db_vif.cb.mon_req && db_vif.cb.rdy));
         db_vif.cb.req <= 1'b0;
     endtask
 
     task wait_ack(output bit error);
-        @(db_vif.cb);
-        wait (db_vif.cb.ack);
+        @(db_vif.cb iff (db_vif.cb.ack));
         error = db_vif.cb.error;
     endtask
 
@@ -88,7 +86,7 @@ class db_intf_agent #(
             @(db_vif.cb);
             cycles++;
             timeout = TIMEOUT > 0 && cycles >= TIMEOUT;
-        end while (!timeout && !(db_vif.cb.req && db_vif.cb.rdy));
+        end while (!timeout && !(db_vif.cb.mon_req && db_vif.cb.rdy));
         db_vif.cb.req <= 1'b0;
         if (timeout || posted) return;
         do begin

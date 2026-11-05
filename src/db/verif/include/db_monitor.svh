@@ -60,8 +60,7 @@ class db_monitor #(
         );
         trace_msg("receive_raw()");
         // Receive transaction from interface
-        @(db_vif.cb);
-        wait (db_vif.cb.ack);
+        @(db_vif.cb iff (db_vif.cb.ack));
         found = db_vif.cb.valid;
         value = db_vif.cb.value;
         trace_msg("receive_raw() Done.");

@@ -70,8 +70,7 @@ class db_driver #(
         db_vif.cb.req <= 1'b1;
         db_vif.cb.key <= key;
         db_vif.cb.next <= 1'b0;
-        @(db_vif.cb);
-        wait (db_vif.cb.req && db_vif.cb.rdy);
+        @(db_vif.cb iff (db_vif.cb.mon_req && db_vif.cb.rdy));
         db_vif.cb.req <= 1'b0;
         trace_msg("send_raw() Done.");
     endtask

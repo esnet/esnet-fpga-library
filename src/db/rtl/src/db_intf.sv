@@ -46,10 +46,16 @@ interface db_intf #(
         output next_key
     );
 
+    // Sample the driven request independently of its clocking-block output.
+    logic mon_req;
+    assign mon_req = req;
+
     clocking cb @(posedge clk);
         output key, next;
         input rdy, ack, error, next_key;
-        inout req, valid, value;
+        output req;
+        input mon_req;
+        inout valid, value;
     endclocking
 
 endinterface : db_intf

@@ -23,17 +23,20 @@ module db_intf_unit_test;
     bit ready_enable = 1;
     bit ack_enable = 1;
     bit response_error = 0;
+    bit sequence_response = 0;
+    int response_seq = 0;
     KEY_T written_key;
     VALUE_T written_value;
     bit written_valid;
     assign rd_if.rdy = ready_enable;
     assign wr_if.rdy = ready_enable;
     assign rd_if.valid = 1'b1;
-    assign rd_if.value = 32'h12345678;
+    assign rd_if.value = sequence_response ? response_seq : 32'h12345678;
     assign rd_if.error = response_error;
     assign wr_if.error = response_error;
     always @(posedge clk) begin
         rd_if.ack <= rd_if.req && rd_if.rdy && ack_enable;
+        if (rd_if.req && rd_if.rdy) response_seq <= response_seq + 1;
         wr_if.ack <= wr_if.req && wr_if.rdy && ack_enable;
         if (wr_if.req && wr_if.rdy) begin
             written_key <= wr_if.key;
@@ -43,7 +46,8 @@ module db_intf_unit_test;
     end
 
     clocking cb @(posedge clk);
-        output ready_enable, ack_enable, response_error;
+        output ready_enable, ack_enable, response_error, sequence_response;
+        input response_seq;
         input written_key, written_value, written_valid;
     endclocking
 
@@ -63,6 +67,7 @@ module db_intf_unit_test;
         cb.ready_enable <= 1;
         cb.ack_enable <= 1;
         cb.response_error <= 0;
+        cb.sequence_response <= 0;
         reader.wait_n(2);
     endtask
 
@@ -89,6 +94,31 @@ module db_intf_unit_test;
         `FAIL_UNLESS_EQUAL(value, 32'h12345678);
     `SVTEST_END
 
+    `SVTEST(pipelined_query_responses)
+        int before_seq;
+        bit valid, error;
+        VALUE_T value;
+        cb.sequence_response <= 1;
+        reader.wait_n(2);
+        before_seq = cb.response_seq;
+        fork
+            begin
+                reader.send(8'h12);
+                reader.send(8'h34);
+            end
+            begin
+                reader.receive(valid, value, error);
+                `FAIL_IF(error);
+                `FAIL_UNLESS(valid);
+                `FAIL_UNLESS_EQUAL(value, VALUE_T'(before_seq+1));
+                reader.receive(valid, value, error);
+                `FAIL_IF(error);
+                `FAIL_UNLESS(valid);
+                `FAIL_UNLESS_EQUAL(value, VALUE_T'(before_seq+2));
+            end
+        join
+    `SVTEST_END
+
     `SVTEST(posted_update_without_ack)
         bit timeout;
         cb.ack_enable <= 0;
@@ -109,7 +139,7 @@ module db_intf_unit_test;
         reader.query(0, valid, value, error, timeout, 3);
         `FAIL_UNLESS(timeout);
         reader.wait_n(1);
-        `FAIL_IF(rd_if.cb.req);
+        `FAIL_IF(rd_if.cb.mon_req);
         cb.ready_enable <= 1;
         reader.wait_n(2);
         reader.query(0, valid, value, error, timeout);
@@ -124,7 +154,7 @@ module db_intf_unit_test;
         writer.update(1, 1, 2, error, timeout, 4);
         `FAIL_UNLESS(timeout);
         writer.wait_n(1);
-        `FAIL_IF(wr_if.cb.req);
+        `FAIL_IF(wr_if.cb.mon_req);
         cb.ack_enable <= 1;
         writer.wait_n(2);
         writer.update(3, 1, 4, error, timeout);
