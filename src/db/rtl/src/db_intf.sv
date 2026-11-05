@@ -543,7 +543,7 @@ module db_intf_demux #(
     parameter int  NUM_TRANSACTIONS = 32,
     parameter bit  WR_RD_N = 1'b0,
     // Derived parameters (don't override)
-    parameter int  SEL_WID = NUM_IFS > 1 ?clog2(NUM_IFS) : 1
+    parameter int  SEL_WID = NUM_IFS > 1 ? $clog2(NUM_IFS) : 1
 ) (
     input logic               clk,
     input logic               srst,
@@ -592,7 +592,7 @@ module db_intf_demux #(
             end
 
             // Maintain context for open transactions
-            fifo_cxt #(
+            fifo_ctxt #(
                 .DATA_WID ( SEL_WID ),
                 .DEPTH    ( NUM_TRANSACTIONS )
             ) i_fifo_ctxt (
@@ -667,13 +667,20 @@ module db_intf_rr_demux #(
     db_intf.requester  to_responder [NUM_IFS]
 );
     // Parameters
-    localparam int SEL_WID = NUM_IFS > 1 ?clog2(NUM_IFS) : 1;
+    localparam int SEL_WID = NUM_IFS > 1 ? $clog2(NUM_IFS) : 1;
 
     // Signals
     logic [SEL_WID-1:0] demux_sel;
 
     initial demux_sel = 0;
-    always @(posedge clk) if (from_requester.req && from_requester.rdy) demux_sel <= demux_sel + 1;
+    // Restart at the first destination and wrap at the configured count.
+    always @(posedge clk) begin
+        if (srst) demux_sel <= 0;
+        else if (from_requester.req && from_requester.rdy) begin
+            if (demux_sel == NUM_IFS-1) demux_sel <= 0;
+            else                       demux_sel <= demux_sel + 1;
+        end
+    end
 
     // Base demux component
     db_intf_demux        #(
