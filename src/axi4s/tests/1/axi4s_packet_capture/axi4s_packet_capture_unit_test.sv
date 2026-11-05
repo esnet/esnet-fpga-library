@@ -47,9 +47,6 @@ module axi4s_packet_capture_unit_test;
     // Register agent
     axi4l_reg_agent reg_agent;
 
-    // Environment
-    std_verif_pkg::component_env#(AXI4S_TRANSACTION_T,PACKET_T) env;
-
     // Driver
     axi4s_driver#(DATA_BYTE_WID,TID_T,TDEST_T,TUSER_T) driver;
 
@@ -80,6 +77,15 @@ module axi4s_packet_capture_unit_test;
 
     // Scoreboard
     std_verif_pkg::event_scoreboard#(PACKET_T) scoreboard;
+
+    // Environment
+    std_verif_pkg::component_env#(
+        AXI4S_TRANSACTION_T,PACKET_T,
+        axi4s_driver#(DATA_BYTE_WID,TID_T,TDEST_T,TUSER_T),
+        packet_capture_monitor#(META_T),
+        axi4s_to_packet_model,
+        std_verif_pkg::event_scoreboard#(PACKET_T)
+    ) env;
 
     // Reset
     std_reset_intf reset_if (.clk(clk));

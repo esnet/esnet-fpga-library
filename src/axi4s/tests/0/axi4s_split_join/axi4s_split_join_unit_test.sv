@@ -99,11 +99,12 @@ module axi4s_split_join_unit_test
     //===================================
     // Testbench
     //===================================
-    axi4s_component_env #(
-        DATA_BYTE_WID,
-        TID_T,
-        TDEST_T,
-        TUSER_T
+    std_verif_pkg::component_env#(
+        AXI4S_TRANSACTION_T, AXI4S_TRANSACTION_T,
+        axi4s_driver#(DATA_BYTE_WID,TID_T,TDEST_T,TUSER_T),
+        axi4s_monitor#(DATA_BYTE_WID,TID_T,TDEST_T,TUSER_T),
+        std_verif_pkg::wire_model#(AXI4S_TRANSACTION_T),
+        std_verif_pkg::event_scoreboard#(AXI4S_TRANSACTION_T)
     ) env;
 
     // Model
@@ -143,10 +144,14 @@ module axi4s_split_join_unit_test
         split_join_reg_blk_agent = new("split_join_reg_blk", 'h0000);
         split_join_reg_blk_agent.reg_agent = reg_agent;
 
-        env = new("env", model, scoreboard);
+        env = new("env");
+        env.driver = new();
+        env.monitor = new();
+        env.model = model;
+        env.scoreboard = scoreboard;
         env.reset_vif = reset_if;
-        env.axis_in_vif = axi4s_in;
-        env.axis_out_vif = axi4s_out;
+        env.driver.axis_vif = axi4s_in;
+        env.monitor.axis_vif = axi4s_out;
         env.build();
 
         env.set_debug_level(0);

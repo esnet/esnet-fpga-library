@@ -1,9 +1,23 @@
+// Resolve sideband types before using the packed metadata in a superclass.
+class axi4s_metadata #(
+    parameter type TID_T = bit,
+    parameter type TDEST_T = bit,
+    parameter type TUSER_T = bit
+);
+    typedef struct packed {
+        TID_T tid;
+        TDEST_T tdest;
+        TUSER_T tuser;
+    } meta_t;
+endclass : axi4s_metadata
+
+// Packet transaction with typed AXI4-Stream sidebands.
 class axi4s_transaction #(
     parameter type TID_T = bit,
     parameter type TDEST_T = bit,
     parameter type TUSER_T = bit,
     // Derived parameters (don't override)
-    parameter type META_T = struct packed {TID_T tid; TDEST_T tdest; TUSER_T tuser;}
+    parameter type META_T = axi4s_metadata#(TID_T, TDEST_T, TUSER_T)::meta_t
 ) extends packet_verif_pkg::packet_raw#(META_T);
 
     local static const string __CLASS_NAME = "axi4s_verif_pkg::axi4s_transaction";
