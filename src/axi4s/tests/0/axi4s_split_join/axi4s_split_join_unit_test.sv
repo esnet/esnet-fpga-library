@@ -215,10 +215,18 @@ module axi4s_split_join_unit_test
     byte hdr_exp [];
 
     // header data
-    byte hdr_data      [] = {>>byte{'h0001020304050607_08090a0b0c0d0e0f}};
+    byte hdr_data      [] = '{
+        8'h00, 8'h01, 8'h02, 8'h03, 8'h04, 8'h05, 8'h06, 8'h07,
+        8'h08, 8'h09, 8'h0a, 8'h0b, 8'h0c, 8'h0d, 8'h0e, 8'h0f
+    };
 
     // payload data
-    byte pyld_data     [] = {>>byte{'hf0f1f2f3f4f5f6f7_f8f9fafbfcfdfeff_e0e1e2e3e4e5e6e7_e8e9eaebecedeeef}};
+    byte pyld_data     [] = '{
+        8'hf0, 8'hf1, 8'hf2, 8'hf3, 8'hf4, 8'hf5, 8'hf6, 8'hf7,
+        8'hf8, 8'hf9, 8'hfa, 8'hfb, 8'hfc, 8'hfd, 8'hfe, 8'hff,
+        8'he0, 8'he1, 8'he2, 8'he3, 8'he4, 8'he5, 8'he6, 8'he7,
+        8'he8, 8'he9, 8'hea, 8'heb, 8'hec, 8'hed, 8'hee, 8'hef
+    };
 
     int tpause;
 
@@ -238,7 +246,7 @@ module axi4s_split_join_unit_test
           hdr_in = hdr_data;
 
           pyld_in = new[j];
-          for (int k = 0; k < j; k++) pyld_in[k] = pyld_data[k];
+          for (int k = 0; k < j; k++) pyld_in[k] = pyld_data[k % pyld_data.size()];
 
           // set header processing truncation length.  larger then biggest header (no truncation).
           hdr_trunc_length = 128;
@@ -276,7 +284,7 @@ module axi4s_split_join_unit_test
               hdr_in = hdr_data;
               
               pyld_in = new[j];
-              for (int k = 0; k < j; k++) pyld_in[k] = pyld_data[k];
+              for (int k = 0; k < j; k++) pyld_in[k] = pyld_data[k % pyld_data.size()];
 
               hdr_exp = new[i];
               for (int k = 0; k < i; k++) hdr_exp[k] = hdr_in[k];
@@ -347,7 +355,10 @@ module axi4s_split_join_unit_test
 
         `SVTEST(grow_header)
             // set header prefix (used by header processor) to grow header by 16B.
-            prefix = {>>byte{'h0011223344556677_8899aabbccddeeff}};
+            prefix = '{
+                8'h00, 8'h11, 8'h22, 8'h33, 8'h44, 8'h55, 8'h66, 8'h77,
+                8'h88, 8'h99, 8'haa, 8'hbb, 8'hcc, 8'hdd, 8'hee, 8'hff
+            };
 
             // send sequence of packets that iteratively shorten original header.
             processed_packet_loop;
@@ -366,7 +377,10 @@ module axi4s_split_join_unit_test
             env.monitor.set_tpause(2);
 
             // set header prefix (used by header processor) to grow header by 16B.
-            prefix = {>>byte{'h0011223344556677_8899aabbccddeeff}};
+            prefix = '{
+                8'h00, 8'h11, 8'h22, 8'h33, 8'h44, 8'h55, 8'h66, 8'h77,
+                8'h88, 8'h99, 8'haa, 8'hbb, 8'hcc, 8'hdd, 8'hee, 8'hff
+            };
 
             // send sequence of packets that iteratively shorten original header.
             processed_packet_loop;
@@ -375,7 +389,10 @@ module axi4s_split_join_unit_test
 
         `SVTEST(shrink_header_with_drops_mode_0)
             // set drop header.
-            drop_hdr = {>>byte{'h9696969696969696_9696969696969696}};
+            drop_hdr = '{
+                8'h96, 8'h96, 8'h96, 8'h96, 8'h96, 8'h96, 8'h96, 8'h96,
+                8'h96, 8'h96, 8'h96, 8'h96, 8'h96, 8'h96, 8'h96, 8'h96
+            };
 
             // send sequence of packets that shorten original header.
             processed_packet_loop;
@@ -386,7 +403,10 @@ module axi4s_split_join_unit_test
             env.monitor.set_tpause(2);
 
             // set drop header.
-            drop_hdr = {>>byte{'h9696969696969696_9696969696969696}};
+            drop_hdr = '{
+                8'h96, 8'h96, 8'h96, 8'h96, 8'h96, 8'h96, 8'h96, 8'h96,
+                8'h96, 8'h96, 8'h96, 8'h96, 8'h96, 8'h96, 8'h96, 8'h96
+            };
 
             // send sequence of packets that shorten original header.
             processed_packet_loop;
@@ -397,7 +417,10 @@ module axi4s_split_join_unit_test
             drop_hdr_mode = 1;  // Drops entire hdr packet.
 
             // set drop header.
-            drop_hdr = {>>byte{'h9696969696969696_9696969696969696}};
+            drop_hdr = '{
+                8'h96, 8'h96, 8'h96, 8'h96, 8'h96, 8'h96, 8'h96, 8'h96,
+                8'h96, 8'h96, 8'h96, 8'h96, 8'h96, 8'h96, 8'h96, 8'h96
+            };
 
             // check that sop_mismatch is NOT set.
             split_join_reg_blk_agent.read_sop_mismatch( rd_data );
@@ -472,8 +495,12 @@ module axi4s_hdr_proc
    // drop header logic
    logic  drop_pkt;
    always @(*) begin
-      drop_pkt = sop && drop_hdr.size() != 0;
-      for (int i = 0; i < DATA_BYTE_WID; i++) drop_pkt = drop_pkt && axi4s_in.tdata[i] == drop_hdr[i]; 
+      drop_pkt = 1'b0;
+      if (sop && drop_hdr.size() >= DATA_BYTE_WID) begin
+         drop_pkt = 1'b1;
+         for (int i = 0; i < DATA_BYTE_WID; i++)
+            drop_pkt = drop_pkt && axi4s_in.tdata[i] == drop_hdr[i];
+      end
    end
 
    logic drop_pkt_latch;
@@ -585,8 +612,11 @@ module axi4s_prefix
 
    logic [DATA_BYTE_WID-1:0][7:0] prefix_tdata;
    always @(*) begin
-      for (int i=0; i<DATA_BYTE_WID; i++)
-         prefix_tdata[i] = prefix[(index*DATA_BYTE_WID)+i];
+      prefix_tdata = '0;
+      for (int i=0; i<DATA_BYTE_WID; i++) begin
+         if ((index*DATA_BYTE_WID)+i < prefix.size())
+            prefix_tdata[i] = prefix[(index*DATA_BYTE_WID)+i];
+      end
    end
 
    // axis4s input interface signalling.
