@@ -303,6 +303,26 @@ module axi4s_intf_unit_test #(
             env.driver.wait_n(1);
         `SVTEST_END
 
+        // Observe accepted beats without participating in backpressure.
+        `SVTEST(passive_sample_with_backpressure)
+            byte payload[] = new[DATA_BYTE_WID+3];
+            byte observed[$];
+            AXI4S_TRANSACTION_T transaction;
+            axi4s_sample#(DATA_BYTE_WID,TID_T,TDEST_T,TUSER_T) sampler = new();
+            foreach (payload[i]) payload[i] = byte'(i+'h80);
+            transaction = AXI4S_TRANSACTION_T::create_from_bytes("sample", payload);
+            sampler.axis_vif = to_rx;
+            env.monitor.set_tpause(2);
+            fork
+                env.inbox.put(transaction);
+                sampler.capture_pkt_data(observed);
+            join
+            `FAIL_UNLESS_EQUAL(observed.size(), payload.size());
+            foreach (payload[i]) `FAIL_UNLESS_EQUAL(observed[i], payload[i]);
+            wait (scoreboard.got_processed() == 1);
+            `FAIL_IF_LOG(scoreboard.report(msg) > 0, msg);
+        `SVTEST_END
+
         `SVTEST(one_packet_good)
             len = $urandom_range(64, 511);
             one_packet();
