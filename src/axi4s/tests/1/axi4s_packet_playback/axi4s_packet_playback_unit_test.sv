@@ -93,6 +93,7 @@ module axi4s_packet_playback_unit_test;
     std_reset_intf reset_if (.clk(clk));
     assign srst = reset_if.reset;
     assign reset_if.ready = !srst;
+    assign axil_if.aresetn = !srst;
 
     // Assign clock (333MHz)
     `SVUNIT_CLK_GEN(clk, 1.5ns);
