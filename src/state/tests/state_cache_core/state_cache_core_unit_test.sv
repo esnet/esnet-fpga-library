@@ -53,7 +53,7 @@ module state_cache_core_unit_test;
     KEY_T    lookup_key;
     hash_t   lookup_hash [NUM_TABLES];
 
-    KEY_T    ctrl_key  [NUM_TABLES];
+    logic [KEY_WID-1:0] ctrl_key [NUM_TABLES];
     hash_t   ctrl_hash [NUM_TABLES];
 
     logic    tbl_init [NUM_TABLES];

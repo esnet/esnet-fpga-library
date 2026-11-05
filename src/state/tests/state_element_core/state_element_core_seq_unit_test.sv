@@ -18,12 +18,10 @@ module state_element_core_seq_unit_test;
     //===================================
     // Parameters
     //===================================
+    // Positional fields avoid resolving width labels as enclosing constants.
     localparam element_t SPEC = '{
-        TYPE: ELEMENT_TYPE_SEQ,
-        STATE_WID: 32,
-        UPDATE_WID: 48,
-        RETURN_MODE: RETURN_MODE_PREV_STATE,
-        REAP_MODE: REAP_MODE_PERSIST
+        ELEMENT_TYPE_SEQ, 32, 48,
+        RETURN_MODE_PREV_STATE, REAP_MODE_PERSIST
     };
 
     localparam int ID_WID = 12;

@@ -18,12 +18,10 @@ module state_element_core_write_n_times_unit_test;
     //===================================
     // Parameters
     //===================================
+    // Positional fields avoid resolving width labels as enclosing constants.
     localparam element_t SPEC = '{
-        TYPE: ELEMENT_TYPE_WRITE_N_TIMES,
-        STATE_WID: 36,
-        UPDATE_WID: 36,
-        RETURN_MODE: RETURN_MODE_PREV_STATE,
-        REAP_MODE: REAP_MODE_CLEAR
+        ELEMENT_TYPE_WRITE_N_TIMES, 36, 36,
+        RETURN_MODE_PREV_STATE, REAP_MODE_CLEAR
     };
 
     // NOTE: define ID_T/STATE_T here as 'logic' vectors and not 'bit' vectors
