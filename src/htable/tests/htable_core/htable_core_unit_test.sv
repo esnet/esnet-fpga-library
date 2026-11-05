@@ -92,11 +92,20 @@ module htable_core_unit_test;
     assign srst = reset_if.reset;
     assign reset_if.ready = init_done;
 
+    // Application interface agents
+    db_intf_agent #(KEY_T, VALUE_T) lookup_agent;
+    db_intf_agent #(KEY_T, VALUE_T) update_agent;
+
     //===================================
     // Build
     //===================================
     function void build();
         svunit_ut = new(name);
+
+        lookup_agent = new("lookup_agent");
+        lookup_agent.db_vif = lookup_if;
+        update_agent = new("update_agent");
+        update_agent.db_vif = update_if;
 
         agent = new("db_ctrl_agent", SIZE);
         agent.attach_info_if(info_if);
@@ -112,8 +121,8 @@ module htable_core_unit_test;
         svunit_ut.setup();
         
         agent.idle();
-        update_if.idle();
-        lookup_if.idle();
+        update_agent.idle();
+        lookup_agent.idle();
 
         reset();
     
@@ -274,7 +283,7 @@ module htable_core_unit_test;
         `FAIL_IF(error);
         `FAIL_IF(timeout);
         // Query database from app interface
-        lookup_if.query(key, got_valid, got_value, error, timeout);
+        lookup_agent.query(key, got_valid, got_value, error, timeout);
         `FAIL_IF(error);
         `FAIL_IF(timeout);
         `FAIL_UNLESS(got_valid);
@@ -292,7 +301,7 @@ module htable_core_unit_test;
         void'(std::randomize(key));
         void'(std::randomize(exp_value));
         // Add entry
-        update_if.update(key, 1'b1, exp_value, error, timeout);
+        update_agent.update(key, 1'b1, exp_value, error, timeout);
         `FAIL_IF(error);
         `FAIL_IF(timeout);
         // Query database from control interface
@@ -315,11 +324,11 @@ module htable_core_unit_test;
         void'(std::randomize(key));
         void'(std::randomize(exp_value));
         // Add entry
-        update_if.update(key, 1'b1, exp_value, error, timeout);
+        update_agent.update(key, 1'b1, exp_value, error, timeout);
         `FAIL_IF(error);
         `FAIL_IF(timeout);
         // Query database from app interface
-        lookup_if.query(key, got_valid, got_value, error, timeout);
+        lookup_agent.query(key, got_valid, got_value, error, timeout);
         `FAIL_IF(error);
         `FAIL_IF(timeout);
         `FAIL_UNLESS(got_valid);
@@ -340,11 +349,11 @@ module htable_core_unit_test;
         for (int i = 0; i < BURST_CNT; i++) begin
             // Add new random entry (same key)
             void'(std::randomize(exp_value));
-            update_if.post_update(key, 1'b1, exp_value, timeout);
+            update_agent.post_update(key, 1'b1, exp_value, timeout);
             `FAIL_IF(timeout);
         end
         // Query database and check that most recently written value is returned
-        lookup_if.query(key, got_valid, got_value, error, timeout);
+        lookup_agent.query(key, got_valid, got_value, error, timeout);
         `FAIL_IF(error);
         `FAIL_IF(timeout);
         `FAIL_UNLESS(got_valid);

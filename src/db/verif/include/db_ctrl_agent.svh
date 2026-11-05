@@ -79,29 +79,43 @@ class db_ctrl_agent #(
     // Put all (driven) interfaces into idle state
     // [[ implements std_verif_pkg::component._idle ]]
     virtual protected task _idle();
-        ctrl_vif.idle();
+        ctrl_vif.cb.req <= 1'b0;
     endtask
 
-    // Wait for specified number of 'cycles', where a cycle is defined by
-    // the reg_blk_agent (e.g. AXI-L aclk cycles for an AXI-L reg agent)
-    // [[ implements std_verif_pkg::db_agent.wait_n ]]
+    // Wait for control-interface clock cycles
+    // [[ implements db_agent.wait_n ]]
     virtual task wait_n(input int cycles);
-        ctrl_vif._wait(cycles);
+        repeat (cycles) @(ctrl_vif.cb);
     endtask
+
+    function bit is_ready();
+        return ctrl_vif.cb.rdy;
+    endfunction
 
     // Wait for client init/reset to complete
     task wait_ready();
         bit timeout;
-        ctrl_vif.wait_ready(timeout, this._RESET_TIMEOUT);
+        int cycles = 0;
+        timeout = 0;
+        while (!ctrl_vif.cb.rdy && !timeout) begin
+            @(ctrl_vif.cb);
+            cycles++;
+            timeout = this._RESET_TIMEOUT > 0 && cycles >= this._RESET_TIMEOUT;
+        end
         assert (timeout == 0) else error_msg("TIMEOUT waiting for control interface.");
     endtask
 
     // Generic transaction (no timeout protection)
     // [[ implements db_agent::_transact ]]
     task _transact(input db_pkg::command_t _command, output bit _error);
-        bit _timeout;
         trace_msg($sformatf("_transact(command=%s)", _command.name()));
-        ctrl_vif.transact(_command, _error);
+        ctrl_vif.cb.command <= _command;
+        ctrl_vif.cb.req <= 1'b1;
+        @(ctrl_vif.cb);
+        wait (ctrl_vif.cb.req && ctrl_vif.cb.rdy);
+        ctrl_vif.cb.req <= 1'b0;
+        wait (ctrl_vif.cb.ack);
+        _error = (ctrl_vif.cb.status != STATUS_OK);
         trace_msg("_transact() Done.");
     endtask
 
@@ -109,7 +123,7 @@ class db_ctrl_agent #(
     // [[ implements db_agent::_set_key ]]
     task _set_key(input KEY_T _key);
         trace_msg($sformatf("_set_key (key=0x%0x)", _key));
-        ctrl_vif._set_key(_key);
+        ctrl_vif.cb.key <= _key;
         trace_msg("db_ctrl_agent._set_key() Done.");
     endtask
 
@@ -117,25 +131,25 @@ class db_ctrl_agent #(
     // [[ implements db_agent::_set_value ]]
     task _set_value(input VALUE_T _value);
         trace_msg($sformatf("_set_value (value=0x%0x)", _value));
-        ctrl_vif._set_value(_value);
+        ctrl_vif.cb.set_value <= _value;
         trace_msg("_set_value() Done.");
     endtask
 
     // Read valid (from response)
     // [[ implements db_agent::_get_valid ]]
     task _get_valid(output bit _valid);
-        ctrl_vif._get_valid(_valid);
+        _valid = ctrl_vif.cb.get_valid;
     endtask
 
     // Read key (from response)
     // [[ implements db_agent::_get_key ]]
     task _get_key(output KEY_T _key);
-        ctrl_vif._get_key(_key);
+        _key = ctrl_vif.cb.get_key;
     endtask
     // Read value (from response)
     // [[ implements db_agent::_get_value ]]
     task _get_value(output VALUE_T _value);
-        ctrl_vif._get_value(_value);
+        _value = ctrl_vif.cb.get_value;
     endtask
 
     // Get database type

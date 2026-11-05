@@ -48,6 +48,7 @@ module db_stash_lru_unit_test;
     // Testbench
     //===================================
     db_ctrl_agent #(KEY_T, VALUE_T) agent;
+    db_intf_agent #(KEY_T, VALUE_T) app_wr_agent, app_rd_agent;
     std_reset_intf reset_if (.clk);
 
     // Assign clock (250MHz)
@@ -64,6 +65,10 @@ module db_stash_lru_unit_test;
         svunit_ut = new(name);
 
         agent = new("db_agent", SIZE);
+        app_wr_agent = new("app_wr_agent");
+        app_wr_agent.db_vif = app_wr_if;
+        app_rd_agent = new("app_rd_agent");
+        app_rd_agent.db_vif = app_rd_if;
         agent.ctrl_vif = ctrl_if;
         agent.info_vif = info_if;
  
@@ -77,8 +82,8 @@ module db_stash_lru_unit_test;
         svunit_ut.setup();
         
         agent.idle();
-        app_wr_if.idle();
-        app_rd_if.idle();
+        app_wr_agent.idle();
+        app_rd_agent.idle();
 
         reset();
     

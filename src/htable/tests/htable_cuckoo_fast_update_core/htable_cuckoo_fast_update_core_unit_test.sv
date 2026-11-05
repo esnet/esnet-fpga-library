@@ -129,11 +129,20 @@ module htable_cuckoo_fast_update_core_unit_test;
 
     assign en = 1'b1;
 
+    // Application interface agents
+    db_intf_agent #(KEY_T, VALUE_T) lookup_agent;
+    db_intf_agent #(KEY_T, VALUE_T) update_agent;
+
     //===================================
     // Build
     //===================================
     function void build();
         svunit_ut = new(name);
+
+        lookup_agent = new("lookup_agent");
+        lookup_agent.db_vif = lookup_if;
+        update_agent = new("update_agent");
+        update_agent.db_vif = update_if;
 
         axil_reg_agent = new;
         axil_reg_agent.axil_vif = axil_if;
@@ -155,8 +164,8 @@ module htable_cuckoo_fast_update_core_unit_test;
         svunit_ut.setup();
         axil_reg_agent.idle();
         agent.idle();
-        lookup_if.idle();
-        update_if.idle();
+        lookup_agent.idle();
+        update_agent.idle();
 
         reset();
     
@@ -353,7 +362,7 @@ module htable_cuckoo_fast_update_core_unit_test;
         `FAIL_IF(error);
         `FAIL_IF(timeout);
         // Query database from app interface
-        lookup_if.query(key, got_valid, got_value, error, timeout);
+        lookup_agent.query(key, got_valid, got_value, error, timeout);
         `FAIL_IF(error);
         `FAIL_IF(timeout);
         `FAIL_UNLESS(got_valid);
@@ -371,7 +380,7 @@ module htable_cuckoo_fast_update_core_unit_test;
         void'(std::randomize(key));
         void'(std::randomize(exp_value));
         // Add entry
-        update_if.update(key, 1'b1, exp_value, error, timeout);
+        update_agent.update(key, 1'b1, exp_value, error, timeout);
         `FAIL_IF(error);
         `FAIL_IF(timeout);
         // Query database from control interface
@@ -393,11 +402,11 @@ module htable_cuckoo_fast_update_core_unit_test;
         void'(std::randomize(key));
         void'(std::randomize(exp_value));
         // Add entry
-        update_if.update(key, 1'b1, exp_value, error, timeout);
+        update_agent.update(key, 1'b1, exp_value, error, timeout);
         `FAIL_IF(error);
         `FAIL_IF(timeout);
         // Query database from app interface
-        lookup_if.query(key, got_valid, got_value, error, timeout);
+        lookup_agent.query(key, got_valid, got_value, error, timeout);
         `FAIL_IF(error);
         `FAIL_IF(timeout);
         `FAIL_UNLESS(got_valid);
@@ -415,29 +424,29 @@ module htable_cuckoo_fast_update_core_unit_test;
         void'(std::randomize(key));
         void'(std::randomize(exp_value));
         // Insert entry
-        update_if.update(key, 1'b1, exp_value, error, timeout);
+        update_agent.update(key, 1'b1, exp_value, error, timeout);
         `FAIL_IF(error);
         `FAIL_IF(timeout);
         exp_update_stats.update += 1;
         exp_cuckoo_stats.insert_ok += 1;
         exp_cuckoo_stats.active += 1;
         // Query database from app interface
-        lookup_if.query(key, got_valid, got_value, error, timeout);
+        lookup_agent.query(key, got_valid, got_value, error, timeout);
         `FAIL_IF(error);
         `FAIL_IF(timeout);
         `FAIL_UNLESS(got_valid);
         `FAIL_UNLESS_EQUAL(got_value, exp_value);
         // Delete entry
-        update_if.update(key, 1'b0, '0, error, timeout);
+        update_agent.update(key, 1'b0, '0, error, timeout);
         `FAIL_IF(error);
         `FAIL_IF(timeout);
         exp_update_stats.update += 1;
         exp_cuckoo_stats.delete_ok += 1;
         exp_cuckoo_stats.active -= 1;
         // Wait for delete to be processed
-        update_if._wait(100);
+        update_agent.wait_n(100);
         // Query database from app interface
-        lookup_if.query(key, got_valid, got_value, error, timeout);
+        lookup_agent.query(key, got_valid, got_value, error, timeout);
         `FAIL_IF(error);
         `FAIL_IF(timeout);
         `FAIL_IF(got_valid);
@@ -456,56 +465,56 @@ module htable_cuckoo_fast_update_core_unit_test;
         void'(std::randomize(key));
         void'(std::randomize(exp_value));
         // Insert entry
-        update_if.update(key, 1'b1, exp_value, error, timeout);
+        update_agent.update(key, 1'b1, exp_value, error, timeout);
         `FAIL_IF(error);
         `FAIL_IF(timeout);
         exp_update_stats.update += 1;
         exp_cuckoo_stats.insert_ok += 1;
         exp_cuckoo_stats.active += 1;
         // Query database from app interface
-        lookup_if.query(key, got_valid, got_value, error, timeout);
+        lookup_agent.query(key, got_valid, got_value, error, timeout);
         `FAIL_IF(error);
         `FAIL_IF(timeout);
         `FAIL_UNLESS(got_valid);
         `FAIL_UNLESS_EQUAL(got_value, exp_value);
         // Delete entry
-        update_if.update(key, 1'b0, '0, error, timeout);
+        update_agent.update(key, 1'b0, '0, error, timeout);
         `FAIL_IF(error);
         `FAIL_IF(timeout);
         exp_update_stats.update += 1;
         exp_cuckoo_stats.delete_ok += 1;
         exp_cuckoo_stats.active -= 1;
         // Wait for delete to be processed
-        update_if._wait(50);
+        update_agent.wait_n(50);
         // Query database from app interface
-        lookup_if.query(key, got_valid, got_value, error, timeout);
+        lookup_agent.query(key, got_valid, got_value, error, timeout);
         `FAIL_IF(error);
         `FAIL_IF(timeout);
         `FAIL_IF(got_valid);
         // Delete entry again (should fail)
-        update_if.update(key, 1'b0, '0, error, timeout);
+        update_agent.update(key, 1'b0, '0, error, timeout);
         `FAIL_IF(error);
         `FAIL_IF(timeout);
         exp_update_stats.update += 1;
         exp_cuckoo_stats.delete_fail += 1;
         // Wait for delete to be processed
-        update_if._wait(50);
+        update_agent.wait_n(50);
         // Insert entry again
-        update_if.update(key, 1'b1, exp_value, error, timeout);
+        update_agent.update(key, 1'b1, exp_value, error, timeout);
         `FAIL_IF(error);
         `FAIL_IF(timeout);
         exp_update_stats.update += 1;
         exp_cuckoo_stats.insert_ok += 1;
         exp_cuckoo_stats.active += 1;
         // Wait for insert to be processed
-        update_if._wait(50);
+        update_agent.wait_n(50);
         // Query database from app interface
-        lookup_if.query(key, got_valid, got_value, error, timeout);
+        lookup_agent.query(key, got_valid, got_value, error, timeout);
         `FAIL_IF(error);
         `FAIL_IF(timeout);
         `FAIL_UNLESS(got_valid);
         `FAIL_UNLESS_EQUAL(got_value, exp_value);
-        update_if._wait(50);
+        update_agent.wait_n(50);
         // Check stats
         check_stats();
     `SVTEST_END
@@ -525,14 +534,14 @@ module htable_cuckoo_fast_update_core_unit_test;
              void'(std::randomize(__value));
              entries[__key] = __value;
              // Add entry
-             update_if.update(__key, 1'b1, __value, error, timeout, 1000);
+             update_agent.update(__key, 1'b1, __value, error, timeout, 1000);
              `FAIL_IF(error);
              `FAIL_IF(timeout);
-             update_if._wait(200);
+             update_agent.wait_n(200);
          end
          foreach (entries[key]) begin
              // Query database from app interface
-             lookup_if.query(key, got_valid, got_value, error, timeout);
+             lookup_agent.query(key, got_valid, got_value, error, timeout);
              `FAIL_IF(error);
              `FAIL_IF(timeout);
              `FAIL_UNLESS(got_valid);
@@ -552,13 +561,13 @@ module htable_cuckoo_fast_update_core_unit_test;
         void'(std::randomize(key));
         void'(std::randomize(exp_value));
         for (int i = 0; i < BURST_CNT; i++) begin
-            update_if.post_update(key[i], 1'b1, exp_value[i], timeout);
+            update_agent.post_update(key[i], 1'b1, exp_value[i], timeout);
             `FAIL_IF(timeout);
         end
         #10us;
         // Query database and check that all values are returned
         for (int i = 0; i < BURST_CNT; i++) begin
-            lookup_if.query(key[i], got_valid, got_value, error, timeout);
+            lookup_agent.query(key[i], got_valid, got_value, error, timeout);
             `FAIL_IF(error);
             `FAIL_IF(timeout);
             `FAIL_UNLESS(got_valid);
@@ -580,11 +589,11 @@ module htable_cuckoo_fast_update_core_unit_test;
         for (int i = 0; i < BURST_CNT; i++) begin
             // Add new random entry (same key)
             void'(std::randomize(exp_value));
-            update_if.post_update(key, 1'b1, exp_value, timeout);
+            update_agent.post_update(key, 1'b1, exp_value, timeout);
             `FAIL_IF(timeout);
         end
         // Query database and check that most recently written value is returned
-        lookup_if.query(key, got_valid, got_value, error, timeout);
+        lookup_agent.query(key, got_valid, got_value, error, timeout);
         `FAIL_IF(error);
         `FAIL_IF(timeout);
         `FAIL_UNLESS(got_valid);

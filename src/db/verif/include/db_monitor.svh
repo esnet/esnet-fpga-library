@@ -50,7 +50,7 @@ class db_monitor #(
     // Wait for specified number of 'cycles' on the driven interface
     // [[ implements _wait() virtual method of std_verif_pkg::monitor parent class ]]
     task _wait(input int cycles);
-        db_vif._wait(cycles);
+        repeat (cycles) @(db_vif.cb);
     endtask
 
     // Receive transaction (represented as raw byte array with associated metadata)
@@ -58,16 +58,18 @@ class db_monitor #(
             output bit found,
             output VALUE_T value
         );
-        bit error;
         trace_msg("receive_raw()");
         // Receive transaction from interface
-        db_vif.receive(found, value, error);
+        @(db_vif.cb);
+        wait (db_vif.cb.ack);
+        found = db_vif.cb.valid;
+        value = db_vif.cb.value;
         trace_msg("receive_raw() Done.");
     endtask
 
     // Receive database transaction
     // [[ implements _receive() virtual method of std_verif_pkg::monitor parent class ]]
-    task _receive(output db_resp_transaction transaction);
+    task _receive(output db_resp_transaction#(KEY_T, VALUE_T) transaction);
         bit found;
         VALUE_T value;
 

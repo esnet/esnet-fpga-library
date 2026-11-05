@@ -112,11 +112,20 @@ module sar_reassembly_cache_unit_test;
 
     assign axil_if.aresetn = !srst;
 
+    // Direct access to the append/prepend database controls
+    db_verif_pkg::db_ctrl_agent #(KEY_T, VALUE_T) append_agent, prepend_agent;
+
     //===================================
     // Build
     //===================================
     function void build();
         svunit_ut = new(name);
+        append_agent = new("append_agent");
+        append_agent.ctrl_vif = ctrl_if__append;
+        append_agent.set_op_timeout(0);
+        prepend_agent = new("prepend_agent");
+        prepend_agent.ctrl_vif = ctrl_if__prepend;
+        prepend_agent.set_op_timeout(0);
 
         // Testbench environment
         env = new;
@@ -523,28 +532,30 @@ module sar_reassembly_cache_unit_test;
     task idle();
         seg_valid <= 1'b0;
         frag_ptr_dealloc_req <= 1'b0;
-        ctrl_if__append.req = 1'b0;
-        ctrl_if__prepend.req = 1'b0;
+        append_agent.idle();
+        prepend_agent.idle();
     endtask
 
     // Issue COMMAND_UNSET on the append ctrl interface for {buf_id, offset}
     task cache_delete_append(input BUF_ID_T buf_id, input OFFSET_T offset);
         KEY_T key;
         bit _error;
+        bit valid, timeout;
+        VALUE_T value;
         key.buf_id = buf_id;
         key.offset = offset;
-        ctrl_if__append._set_key(key);
-        ctrl_if__append.transact(COMMAND_UNSET, _error);
+        append_agent.unset(key, valid, value, _error, timeout);
     endtask
 
     // Issue COMMAND_UNSET on the prepend ctrl interface for {buf_id, offset}
     task cache_delete_prepend(input BUF_ID_T buf_id, input OFFSET_T offset);
         KEY_T key;
         bit _error;
+        bit valid, timeout;
+        VALUE_T value;
         key.buf_id = buf_id;
         key.offset = offset;
-        ctrl_if__prepend._set_key(key);
-        ctrl_if__prepend.transact(COMMAND_UNSET, _error);
+        prepend_agent.unset(key, valid, value, _error, timeout);
     endtask
 
     task send_seg(

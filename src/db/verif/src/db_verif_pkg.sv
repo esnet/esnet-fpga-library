@@ -5,6 +5,7 @@ package db_verif_pkg;
     
     `include "db_req_transaction.svh"
     `include "db_resp_transaction.svh"
+    `include "db_intf_agent.svh"
     `include "db_driver.svh"
     `include "db_monitor.svh"
     `include "db_model.svh"
