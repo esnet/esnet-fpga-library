@@ -197,7 +197,12 @@ module packet_write_unit_test #(
             begin
                 fork
                     nxt_descriptor_driver.send(raw_descriptor);
-                    env.inbox.put(packet);
+                    begin
+                        env.inbox.put(packet);
+                        // Wait for packet completion before reporting results.
+                        @(event_if.cb_rx iff (event_if.cb_rx.evt));
+                        driver.wait_n(2);
+                    end
                 join
             end
             begin
@@ -340,7 +345,11 @@ module packet_write_unit_test #(
                 begin
                     fork
                         nxt_descriptor_driver.send(raw_descriptor);
-                        driver.inbox.put(bad_pkt);
+                        begin
+                            driver.inbox.put(bad_pkt);
+                            @(event_if.cb_rx iff (event_if.cb_rx.evt));
+                            driver.wait_n(2);
+                        end
                     join
                 end
                 begin
