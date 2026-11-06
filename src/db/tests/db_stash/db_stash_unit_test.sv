@@ -130,6 +130,37 @@ module db_stash_unit_test;
     // Include application-specific tests
     `include "../common/app_tests.svh"
 
+    // An invalid slot must not match its old key while a new entry reuses it.
+    `SVTEST(read_invalid_slot_during_reuse)
+        VALUE_T value;
+        bit valid, error, timeout;
+
+        // Fill the stash so the replacement must use the invalidated slot.
+        for (int i = 0; i < SIZE; i++) begin
+            app_wr_agent.update(KEY_T'(i + 1), 1, VALUE_T'(i + 17), error, timeout);
+            `FAIL_IF(error);
+            `FAIL_IF(timeout);
+        end
+        app_wr_agent.update(KEY_T'(1), 0, '0, error, timeout);
+        `FAIL_IF(error);
+        `FAIL_IF(timeout);
+
+        // Start the lookup after accepting the replacement write request,
+        // while that write is still in flight through the stash pipeline.
+        app_wr_agent.post_update(KEY_T'(SIZE + 1), 1, VALUE_T'(99), timeout);
+        `FAIL_IF(timeout);
+        app_rd_agent.query(KEY_T'(1), valid, value, error, timeout);
+        `FAIL_IF(error);
+        `FAIL_IF(timeout);
+        `FAIL_IF(valid);
+
+        app_rd_agent.query(KEY_T'(SIZE + 1), valid, value, error, timeout);
+        `FAIL_IF(error);
+        `FAIL_IF(timeout);
+        `FAIL_UNLESS(valid);
+        `FAIL_UNLESS_EQUAL(value, VALUE_T'(99));
+    `SVTEST_END
+
     `SVTEST(set_iterate)
         KEY_T exp_key;
         KEY_T got_key;
