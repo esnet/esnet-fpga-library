@@ -1,28 +1,27 @@
-# esnet-fpga-library/tools/ Directory
+# Bundled tools
 
-Contains useful productivity tools for a structured FPGA design methodology.
+Git submodules provide register generation and the SystemVerilog unit-test
+framework. Initialize them from the repository root:
 
-# Directory Structure
-
+```sh
+git submodule update --init --recursive
 ```
-tools/
-├── regio/
-├── svunit/
-└── README.md
 
-regio/  - Contains the ESnet regio tool (imported as a git submodule) used to automate
-          the implementation of register map logic and software code.
+## Contents
 
-svunit/ - Contains the open-source SVunit test framework (imported as a git submodule)
-          for ASIC and FPGA developers to capture Verilog/SystemVerilog test code.
+| Tool | Purpose |
+|------|---------|
+| [Regio](regio/README.md) | ESnet-maintained register-map elaboration and generation tool, with Python register-access support |
+| [SVUnit](svunit/README.md) | SystemVerilog unit-test framework used by the library suites |
 
-README.md - This README file.
+Regio translates YAML specifications using the
+[library templates](../src/reg/regio-templates/README.md). Its own README
+describes Python setup and development commands. Generated register RTL,
+packages, and verification agents are emitted into the build output tree.
 
-```
-**NOTE: See lower level README files for more details.**
-
-
-# Known Issues
-
-- None to date.
-
+The shared [SVUnit rules](../scripts/Makefiles/svunit.mk) generate test
+runners and prepare them for the supported simulators. Use the library
+Makefiles to run tests with xsim or Verilator; the
+[repository guide](../README.md#simulation-setup) describes setup and wave
+capture. Direct upstream SVUnit invocation does not include the library's
+build integration.
