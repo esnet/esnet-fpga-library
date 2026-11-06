@@ -57,7 +57,8 @@
         // Query database and check that most recently written value is returned
         query(key, got_valid, got_value);
         `FAIL_UNLESS_EQUAL(got_valid, exp_valid);
-        `FAIL_UNLESS_EQUAL(got_value, exp_value);
+        // Miss data is unqualified; only compare values for valid entries.
+        if (exp_valid) `FAIL_UNLESS_EQUAL(got_value, exp_value);
     `SVTEST_END
 
     `SVTEST(read_modify_write)
@@ -85,7 +86,7 @@
             // Read current value
             query(key, got_valid, got_value);
             `FAIL_UNLESS_EQUAL(got_valid, exp_valid[i-1]);
-            `FAIL_UNLESS_EQUAL(got_value, exp_value[i-1]);
+            if (exp_valid[i-1]) `FAIL_UNLESS_EQUAL(got_value, exp_value[i-1]);
             // Modify value by adding random increment
             void'(std::randomize(__value));
             exp_value[i] = exp_value[i-1] + __value;
@@ -97,7 +98,7 @@
         // Check final value
         query(key, got_valid, got_value);
         `FAIL_UNLESS_EQUAL(got_valid, exp_valid[NUM_UPDATES]);
-        `FAIL_UNLESS_EQUAL(got_value, exp_value[NUM_UPDATES]);
+        if (exp_valid[NUM_UPDATES]) `FAIL_UNLESS_EQUAL(got_value, exp_value[NUM_UPDATES]);
 
     `SVTEST_END
 
