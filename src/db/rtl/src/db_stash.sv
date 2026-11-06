@@ -241,7 +241,9 @@ module db_stash #(
         end else begin
             rd_match <= 1'b0;
             for (int i = 0; i < SIZE; i++) begin
-                if (stash[i].key == db_rd_if.key) begin
+                // Deleted slots retain their keys. Do not let slot reuse
+                // turn a stale match into a hit in the response stage.
+                if (stash_vld[i] && stash[i].key == db_rd_if.key) begin
                     rd_match <= 1'b1;
                     rd_match_idx <= i;
                 end
