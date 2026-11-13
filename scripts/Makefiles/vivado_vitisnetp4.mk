@@ -269,6 +269,8 @@ $(VITISNETP4_DPI_DRV_FILE): $(VITISNETP4_XCI_FILE) | $(PROJ_XPR)
 
 _vitisnetp4_driver: $(VITISNETP4_XCI_FILE) | $(PROJ_XPR)
 	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_IP_CMD) -tclargs sw_driver $(BUILD_OPTIONS)
+	@sed -i 's/\(XIL_VITIS_NET_P4_TARGET_SW_VERSION_MINOR_NUM\s\+\)([0-9]\+)/\1($(IP_VER_VITIS_NET_P4_MINOR))/' \
+		$(COMPONENT_OUT_PATH)/$(VITISNETP4_IP_NAME)/src/sw/drivers/target/src/vitisnetp4_target.c
 	@$(MAKE) -s -C $(COMPONENT_OUT_PATH)/$(VITISNETP4_IP_NAME)/src/sw/drivers
 
 _vitisnetp4_info: _ip_info
