@@ -64,8 +64,23 @@ get_ipdef_from_ip = $(firstword $(subst =, ,$(1)))
 # Get IP core revision from IP entry
 get_ip_core_rev_from_ip = $(lastword $(subst =, , $(1)))
 
+# Get IP name (upcased) from IP entry for use as variable name suffix (e.g. "VITIS_NET_P4")
+__get_ip_name = $(call __to_upper,$(word 3,$(subst :, ,$(1))))
+
+# Extract version string (major.minor, e.g. "2.4") from IP entry (e.g. "xilinx.com:ip:vitis_net_p4:2.4=0")
+__get_ip_ver_str = $(word 1,$(subst =, ,$(lastword $(subst :, ,$(1)))))
+
+# Extract revision from IP entry (after '=', e.g. "0")
+__get_ip_rev = $(lastword $(subst =, ,$(lastword $(subst :, ,$(1)))))
+
 # Synthesize list of IP + core versions, as convenience for downstream scripts (core version format is in x_y_z format)
-get_ip_ver_list = $(foreach ip,$(1),IP_VER_$(call __to_upper, $(word 3,$(subst :, ,$(ip))))=$(subst =,_,$(subst .,_,$(lastword $(subst :, ,$(ip))))))
+# Also synthesizes _MAJOR, _MINOR, and _REV component variables for each IP
+get_ip_ver_list = \
+    $(foreach ip,$(1), \
+        IP_VER_$(call __get_ip_name,$(ip))=$(subst =,_,$(subst .,_,$(lastword $(subst :, ,$(ip))))) \
+        IP_VER_$(call __get_ip_name,$(ip))_MAJOR=$(word 1,$(subst ., ,$(call __get_ip_ver_str,$(ip)))) \
+        IP_VER_$(call __get_ip_name,$(ip))_MINOR=$(word 2,$(subst ., ,$(call __get_ip_ver_str,$(ip)))) \
+        IP_VER_$(call __get_ip_name,$(ip))_REV=$(call __get_ip_rev,$(ip)))
 
 __IP_VER_LIST = $(call get_ip_ver_list,$(VIVADO_IP))
 
