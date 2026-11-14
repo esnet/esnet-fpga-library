@@ -2,6 +2,7 @@
 // - implements a pipeline of metastability FFs to be used
 //   as the foundation of a general-purpose synchronizer library
 // - registers signal in input clock domain to prevent glitch propagation
+// - disable INPUT_REG for asynchronous inputs; clk_in/rst_in are then unused
 // - NOTE: may be insufficient on its own for synchronization
 //   Specifically, while metastability is handled, no guarantees are
 //   provided that transitions on the input are registered by the output
@@ -9,7 +10,8 @@
 //   sync_ctr modules may be more appropriate in most cases.
 module sync_meta #(
     parameter int                  DATA_WID = 1,
-    parameter logic [DATA_WID-1:0] RST_VALUE = 'x
+    parameter logic [DATA_WID-1:0] RST_VALUE = 'x,
+    parameter bit                  INPUT_REG = 1
 ) (
     // Input clock domain
     input  logic                clk_in,
@@ -26,10 +28,14 @@ module sync_meta #(
     (* ASYNC_REG = "TRUE" *)  logic [DATA_WID-1:0] __sync_ff_meta [STAGES];
 
     // Register input signal in input clock domain
-    initial __sync_ff_in = RST_VALUE;
-    always @(posedge clk_in) begin
-        if (rst_in) __sync_ff_in <= RST_VALUE;
-        else        __sync_ff_in <= sig_in;
+    if (INPUT_REG) begin : g__input_reg
+        initial __sync_ff_in = RST_VALUE;
+        always @(posedge clk_in) begin
+            if (rst_in) __sync_ff_in <= RST_VALUE;
+            else        __sync_ff_in <= sig_in;
+        end
+    end else begin : g__async_input
+        assign __sync_ff_in = sig_in;
     end
 
     initial __sync_ff_meta = '{STAGES{RST_VALUE}};
