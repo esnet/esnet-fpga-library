@@ -1,5 +1,6 @@
-# Non-project (batch-mode) build script for Versal V80.
-# Handles all phases: synth, link, opt, place, place_opt, route, route_opt, device_image.
+# Non-project (batch-mode) build script.
+# Handles synth, link, opt, place, place_opt, route, route_opt,
+# bitstream, device_image, and xsa phases.
 #
 # Usage: vivado -source procs.tcl -source build_non_proj.tcl -mode batch \
 #            -tclargs <phase> <top> [options...]
@@ -12,11 +13,13 @@
 #   -sources_tcl <file>      (synth only: repeatable)
 #   -constraints_tcl <file>  (synth only: repeatable)
 #   -constraints_xdc <file>  (link only: repeatable implementation XDC)
-#   -hook_tcl <file>         (link+impl: repeatable)
+#   -hook_tcl <file>         (link, implementation, and export: repeatable)
 #   -ip_repo <path>          (synth+link: repeatable)
 #   -out_dir <path>
 #   -jobs <n>
-#   -timestamp <val>  -userid <val>  -usr_access <val>  (silently consumed)
+#   -userid <val>           (bitstream USERID; also ::NP_USERID in export hooks)
+#   -usr_access <val>       (bitstream USR_ACCESS)
+#   -timestamp <val>        (silently consumed)
 #   -board_part <val>  -board_repo <val>  (silently consumed)
 
 # -------------------------------
@@ -38,6 +41,7 @@ set IP_REPOS        {}
 set OUT_DIR         [pwd]
 set JOBS            4
 set USERID          ""
+set USR_ACCESS      ""
 
 set i 2
 while {$i < $argc} {
@@ -97,10 +101,13 @@ while {$i < $argc} {
             set USERID [lindex $argv [expr {$i+1}]]
             incr i 2
         }
+        -usr_access {
+            set USR_ACCESS [lindex $argv [expr {$i+1}]]
+            incr i 2
+        }
         -board_part -
         -board_repo -
         -timestamp  -
-        -usr_access -
         -sources_tcl_auto -
         -constraints_tcl_auto -
         -proj_name  -
@@ -315,18 +322,34 @@ switch $PHASE {
         source_hooks $HOOK_TCL "*route_opt.post*"
     }
 
+    bitstream -
     device_image {
         open_checkpoint $OUT_DIR/${TOP}.route_opt.dcp
-        # Expose build context to hook scripts (e.g. write_device_image.pre.tcl)
+        # Expose build context to programming-artifact hooks.
         set ::NP_TOP     $TOP
         set ::NP_OUT_DIR $OUT_DIR
         set ::NP_TOP_DCP $TOP_DCP
         set ::NP_USERID  $USERID
-        source_hooks $HOOK_TCL "*write_device_image.pre*"
-        write_device_image -force $OUT_DIR/${TOP}.pdi
-        puts "Wrote: $OUT_DIR/${TOP}.pdi"
+        if {$PHASE eq "bitstream"} {
+            if {$USERID ne ""} {
+                set_property BITSTREAM.CONFIG.USERID $USERID [current_design]
+            }
+            if {$USR_ACCESS ne ""} {
+                set_property BITSTREAM.CONFIG.USR_ACCESS $USR_ACCESS [current_design]
+            }
+        }
+        source_hooks $HOOK_TCL "*write_${PHASE}.pre*"
+        if {$PHASE eq "bitstream"} {
+            write_bitstream -force -bin_file $OUT_DIR/${TOP}.bit
+            puts "Wrote: $OUT_DIR/${TOP}.bit"
+            puts "Wrote: $OUT_DIR/${TOP}.bin"
+        } else {
+            write_device_image -force $OUT_DIR/${TOP}.pdi
+            puts "Wrote: $OUT_DIR/${TOP}.pdi"
+        }
         write_debug_probes -force $OUT_DIR/${TOP}.ltx
         puts "Wrote: $OUT_DIR/${TOP}.ltx"
+        source_hooks $HOOK_TCL "*write_${PHASE}.post*"
     }
 
     xsa {
@@ -338,7 +361,7 @@ switch $PHASE {
 
     default {
         puts "ERROR: Unknown phase '$PHASE'."
-        puts "Valid phases: synth link opt place place_opt route route_opt device_image xsa"
+        puts "Valid phases: synth link opt place place_opt route route_opt bitstream device_image xsa"
         exit 2
     }
 }

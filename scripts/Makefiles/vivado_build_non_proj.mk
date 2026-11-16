@@ -1,6 +1,6 @@
 # Non-project (batch-mode) Vivado build infrastructure.
 # Supports all phases: synth, link, opt, place, place_opt,
-# route, route_opt, device_image.
+# route, route_opt, bitstream, device_image.
 #
 # Usage: include at the end of a parent Makefile after defining:
 #   TOP                   - top module name
@@ -17,6 +17,8 @@
 #   CELL_DCPS             - list of "cell:path" pairs for black_box cells
 #   CONSTRAINTS_XDC_IMPL  - implementation-only XDC files
 #   IMPL_HOOK_TCL_FILES   - hook TCL files (opt.pre, opt.post, place.pre, etc.)
+#                           Export hooks: write_bitstream.pre/post,
+#                           write_device_image.pre/post.
 
 # -----------------------------------------------
 # Configure defaults
@@ -87,21 +89,30 @@ BUILD_NP_OPTIONS = \
 __NP_SENTINEL_DIR  = $(COMPONENT_OUT_PATH)/.done
 __NP_PREV_SENTINEL :=
 
+# Track programming artifacts with the stage stamp so deleting any output
+# reruns export without repeating implementation.
+__NP_STAGE_OUTPUTS_bitstream := $(addprefix $(COMPONENT_OUT_PATH)/$(TOP),.bit .bin .ltx)
+
 define NP_STAGE_RULE
-$(__NP_SENTINEL_DIR)/$(stage): \
+$(__NP_SENTINEL_DIR)/$(stage) $(__NP_STAGE_OUTPUTS_$(stage)) $(if $(__NP_STAGE_OUTPUTS_$(stage)),&:,:) \
     $(__NP_PREV_SENTINEL) \
+    $(if $(filter bitstream,$(stage)),$(VIVADO_SCRIPTS_ROOT)/build_non_proj.tcl) \
     $(if $(strip $(__NP_PREV_SENTINEL)),,$(STAGE_DEPS)) \
     $(if $(strip $(__NP_PREV_SENTINEL)),,| _pre_synth)
 	@echo "----------------------------------------------------------"
 	@echo "Non-project build: running $(stage) for '$(TOP)' ..."
 	@mkdir -p $(COMPONENT_OUT_PATH)
 	@mkdir -p $(__NP_SENTINEL_DIR)
+	@rm -f $(__NP_SENTINEL_DIR)/$(stage)
 	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_NP_CMD) -tclargs $(stage) $(TOP) $(BUILD_NP_OPTIONS)
-	@touch $$@
+	@for output in $(__NP_STAGE_OUTPUTS_$(stage)); do \
+	    test -f "$$$$output" || { echo "Error: Missing programming artifact: $$$$output" >&2; exit 1; }; \
+	done
+	@touch $(__NP_SENTINEL_DIR)/$(stage)
 	@echo
 	@echo "Done."
 
-_np_$(stage): $(__NP_SENTINEL_DIR)/$(stage)
+_np_$(stage): $(__NP_SENTINEL_DIR)/$(stage) $(__NP_STAGE_OUTPUTS_$(stage))
 .PHONY: _np_$(stage)
 __NP_PREV_SENTINEL := $(__NP_SENTINEL_DIR)/$(stage)
 endef
