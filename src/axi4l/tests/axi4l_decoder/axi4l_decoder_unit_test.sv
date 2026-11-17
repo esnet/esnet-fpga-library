@@ -202,6 +202,31 @@ module axi4l_decoder_unit_test;
     //===================================
     `SVUNIT_TESTS_BEGIN
 
+        `SVTEST(region_upper_bound_is_exclusive)
+            region_spec_t region = '{base: 'h10000, size: 'h2000};
+            `FAIL_IF(is_addr_in_region('h0ffff, region))
+            `FAIL_UNLESS(is_addr_in_region('h10000, region))
+            `FAIL_UNLESS(is_addr_in_region('h11fff, region))
+            `FAIL_IF(is_addr_in_region('h12000, region))
+        `SVTEST_END
+
+        `SVTEST(empty_region_matches_no_addresses)
+            region_spec_t region = '{base: 'h10000, size: 0};
+            `FAIL_IF(is_addr_in_region(0, DEFAULT_REGION_SPEC))
+            `FAIL_IF(is_addr_in_region('h10000, region))
+        `SVTEST_END
+
+        `SVTEST(decode_rejects_end_of_last_region)
+            int region, offset;
+            bit error;
+            decode(98304, MEM_MAP_TOP, region, offset, error);
+            `FAIL_UNLESS(error)
+            decode(32768, MEM_MAP_TOP, region, offset, error);
+            `FAIL_IF(error)
+            `FAIL_UNLESS_EQUAL(region, 1)
+            `FAIL_UNLESS_EQUAL(offset, 0)
+        `SVTEST_END
+
         `SVTEST(hard_reset)
         `SVTEST_END
 
