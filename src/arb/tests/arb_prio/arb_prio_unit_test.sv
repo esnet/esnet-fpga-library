@@ -29,7 +29,6 @@ module arb_prio_unit_test;
     `SVUNIT_CLK_GEN(clk, 5ns);
 
     default clocking cb @(posedge clk);
-        default input #1step output #1;
         output srst, en, req, ack;
     endclocking
 

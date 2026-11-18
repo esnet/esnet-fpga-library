@@ -46,7 +46,7 @@ else
 ip:      _vitisnetp4_ip
 endif
 ip_exdes: _ip_exdes
-pre:     _ip_pre
+pre:     _compile_pre
 compile: ip_exdes _vitisnetp4_compile
 synth:   _vitisnetp4_synth
 driver:  _vitisnetp4_driver
@@ -55,7 +55,7 @@ status:  _ip_status
 upgrade: _ip_upgrade
 clean:   _vitisnetp4_clean
 
-.PHONY: all ip pre compile synth info status upgrade clean
+.PHONY: all ip ip_exdes pre compile synth info status upgrade clean
 
 # ----------------------------------------------------
 # IP project management targets
@@ -72,3 +72,9 @@ proj_clean: _ip_proj_clean
 # Import Vivado IP management targets
 # ----------------------------------------------------
 include $(SCRIPTS_ROOT)/Makefiles/vivado_vitisnetp4.mk
+
+# Export generated example headers and IP sources to source-based simulators.
+.pre: _ip_exdes _ip_sim_sources
+
+# Both generation steps update the same Vivado project; run them in order.
+_ip_example_designs.intermediate: | _ip_sim_sources

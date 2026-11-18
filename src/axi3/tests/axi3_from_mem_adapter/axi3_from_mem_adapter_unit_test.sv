@@ -1,5 +1,10 @@
 `include "svunit_defines.svh"
 
+//===================================
+// (Failsafe) timeout (per-testcase)
+//===================================
+`define SVUNIT_TIMEOUT 20ms
+
 module axi3_from_mem_adapter_unit_test;
 
     import svunit_pkg::svunit_testcase;
@@ -292,7 +297,7 @@ module axi3_from_mem_adapter_unit_test;
             end while (exp_data.size() < NUM_TRANSACTIONS);
 
             foreach (exp_data[addr]) begin
-                data_t got_data;
+                byte got_data [];
                 agent.read(addr, DATA_BYTES, got_data, error, timeout);
                 `FAIL_IF(error);
                 `FAIL_IF(timeout);

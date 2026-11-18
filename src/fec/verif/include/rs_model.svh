@@ -82,7 +82,7 @@ class rs_model #(
         logic [RS_N-1:0][SYM_SIZE-1:0] rem;
         int                            rem_len;
 
-        poly_a = { {RS_2T{SYM_SIZE{1'b0}}}, data_in };
+        poly_a = { {(RS_2T*SYM_SIZE){1'b0}}, data_in };
 
         poly_div (
             .poly_a      (poly_a),

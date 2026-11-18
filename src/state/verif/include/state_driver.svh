@@ -15,12 +15,15 @@ class state_driver #(
     //===================================
     virtual state_intf #(ID_WID, STATE_WID, UPDATE_WID) update_vif;
 
+    local state_intf_agent #(ID_T, STATE_T, UPDATE_T) __agent;
+
     //===================================
     // Methods
     //===================================
     // Constructor
     function new(input string name="state_driver");
         super.new(name);
+        this.__agent = new("driver_agent");
         // WORKAROUND-INIT-PROPS {
         //     Provide/repeat default assignments for all remaining instance properties here.
         //     Works around an apparent object initialization bug (as of Vivado 2024.2)
@@ -46,25 +49,31 @@ class state_driver #(
     // Put (driven) state update interface in idle state
     // [[ implements std_verif_pkg::.component._idle() ]]
     virtual protected task _idle();
-        update_vif.idle_tx();
+        __agent.state_vif = update_vif;
+        __agent.idle();
     endtask
 
     // Wait for interface to be ready to accept transactions (after reset/init, for example)
     task wait_ready();
+        bit timeout;
         trace_msg("wait_ready()");
-        update_vif.wait_ready();
+        __agent.state_vif = update_vif;
+        __agent.wait_ready(timeout, 0);
         trace_msg("wait_ready() Done.");
     endtask
 
-    // Send transaction (represented as raw data value)
+    // Send typed raw update data with the requested operation context.
     task send_raw(
-            input ht_packet_data_t data
+            input ID_T id, input UPDATE_T update, input bit init=0,
+            input update_ctxt_t ctxt=UPDATE_CTXT_DATAPATH
         );
-        trace_msg("send_raw()");
-        // Send transaction to interface
-        update_vif.push(data);
-        raw_vif._wait(this.__min_pkt_gap);
-        trace_msg("send_raw() Done.");
+        __agent.state_vif = update_vif;
+        case (ctxt)
+            UPDATE_CTXT_DATAPATH: __agent.update_req(id, update, init);
+            UPDATE_CTXT_CONTROL:  __agent.control_req(id, update, init);
+            UPDATE_CTXT_REAP:     __agent.reap_req(id);
+            default:              __agent.nop_req(id);
+        endcase
     endtask
 
     // Send transaction to interface
@@ -77,7 +86,7 @@ class state_driver #(
         debug_msg($sformatf("Sending:\n%s", transaction.to_string()));
 
         // Send transaction
-        update_vif.send(transaction.id, transaction.update, transaction.init);
+        send_raw(transaction.id, transaction.update, transaction.init, transaction.ctxt);
 
         trace_msg("_send() Done.");
     endtask

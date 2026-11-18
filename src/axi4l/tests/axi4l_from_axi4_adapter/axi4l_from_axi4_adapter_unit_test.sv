@@ -1,5 +1,8 @@
 `include "svunit_defines.svh"
 
+// (Failsafe) timeout
+`define SVUNIT_TIMEOUT 100ms
+
 // Unit test for axi4l_from_axi4_adapter.
 //
 // DUT: axi4l_from_axi4_adapter (wide AXI4 → 32-bit AXI4-L).
@@ -120,7 +123,7 @@ module axi4l_from_axi4_adapter_unit_test;
         automatic bit [DATA_BYTE_WID-1:0]       strb  = '0;
         wdata[lane*WORD_BYTES +: WORD_BYTES] = data;
         strb [lane*WORD_BYTES +: WORD_BYTES] = 4'hF;
-        agent.axi4_vif.write(addr, wdata, strb, resp, timeout);
+        agent.write(addr, wdata, strb, resp, timeout);
     endtask
 
     // Read a 32-bit word from the correct lane.
@@ -132,7 +135,7 @@ module axi4l_from_axi4_adapter_unit_test;
         );
         automatic int lane = int'(addr[5:2]);
         automatic bit [DATA_BYTE_WID-1:0][7:0] rdata;
-        agent.axi4_vif.read(addr, rdata, resp, timeout);
+        agent.read(addr, rdata, resp, timeout);
         data = rdata[lane*WORD_BYTES +: WORD_BYTES];
     endtask
 
@@ -148,7 +151,7 @@ module axi4l_from_axi4_adapter_unit_test;
         automatic bit [DATA_BYTE_WID-1:0]       strb  = '0;
         wdata[byte_pos] = data;
         strb [byte_pos] = 1'b1;
-        agent.axi4_vif.write(addr, wdata, strb, resp, timeout);
+        agent.write(addr, wdata, strb, resp, timeout);
     endtask
 
     // =========================================================================

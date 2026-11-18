@@ -24,11 +24,13 @@ virtual class base;
     local int __DEBUG_LEVEL = 0;
 
     //===================================
-    // Pure Virtual Methods
-    // (must be implemented by derived class)
+    // Lifecycle hooks
+    // (may be extended by derived classes)
     //===================================
     // Destructor
-    pure virtual function automatic void destroy();
+    virtual function void destroy();
+        // Derived destructors may call super.destroy().
+    endfunction
 
     //===================================
     // Methods
@@ -68,7 +70,9 @@ virtual class base;
         //     Interface for accessing this value as a string is unchanged
         //     (i.e. get_name/set_name return/accept string variables).
         // return this.__obj_name;
-        return {<<byte{this.__obj_name}};
+        string name = "";
+        foreach (this.__obj_name[i]) name = {name, $sformatf("%c", this.__obj_name[i])};
+        return name;
         // } WORKAROUND-STRING-PROP
     endfunction
 
@@ -83,7 +87,8 @@ virtual class base;
         //     Interface for accessing this value as a string is unchanged
         //     (i.e. get_name/set_name return/accept string variables).
         // this.__obj_name = name;
-        this.__obj_name = {<<byte{name}};
+        this.__obj_name = new[name.len()];
+        foreach (this.__obj_name[i]) this.__obj_name[i] = name[i];
         // } WORKAROUND-STRING-PROP
     endfunction
 

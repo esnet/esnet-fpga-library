@@ -48,7 +48,8 @@ module alloc_scatter_core #(
     localparam int  CTXT_SEL_WID = CONTEXTS > 1 ? $clog2(CONTEXTS) : 1;
     localparam type CTXT_SEL_T = logic [CTXT_SEL_WID-1:0];
 
-    localparam type DESC_T = alloc_pkg::alloc#(BUFFER_SIZE, PTR_WID, META_WID)::desc_t;
+    typedef alloc_pkg::alloc#(BUFFER_SIZE, PTR_WID, META_WID) ALLOC_T;
+    typedef ALLOC_T::desc_t DESC_T;
 
     // -----------------------------
     // Typedefs

@@ -1,5 +1,8 @@
 `include "svunit_defines.svh"
 
+// (Failsafe) timeout
+`define SVUNIT_TIMEOUT 2ms
+
 module packet_sg_core_unit_test #(
     parameter int NUM_INPUT_IFS = 1,
     parameter int NUM_OUTPUT_IFS = 1
@@ -46,8 +49,6 @@ module packet_sg_core_unit_test #(
 
     typedef packet#(META_T) PACKET_T;
 
-    localparam type DESC_T = alloc_pkg::alloc#(BUFFER_SIZE, PTR_WID, META_WID)::desc_t;
-    localparam int  DESC_WID = $bits(DESC_T);
 
     //===================================
     // DUT
@@ -180,7 +181,13 @@ module packet_sg_core_unit_test #(
     //===================================
     // Testbench
     //===================================
-    packet_component_env #(META_T) env;
+    std_verif_pkg::component_env#(
+        PACKET_T, PACKET_T,
+        packet_intf_driver#(DATA_IN_BYTE_WID, META_T),
+        packet_intf_monitor#(DATA_OUT_BYTE_WID, META_T),
+        std_verif_pkg::wire_model#(PACKET_T),
+        std_verif_pkg::event_scoreboard#(PACKET_T)
+    ) env;
 
     packet_intf_driver#(DATA_IN_BYTE_WID, META_T) driver;
     packet_intf_monitor#(DATA_OUT_BYTE_WID, META_T) monitor;
@@ -222,7 +229,11 @@ module packet_sg_core_unit_test #(
         model = new();
         scoreboard = new();
 
-        env = new("env", driver, monitor, model, scoreboard);
+        env = new("env");
+        env.driver = driver;
+        env.monitor = monitor;
+        env.model = model;
+        env.scoreboard = scoreboard;
         env.reset_vif = reset_if;
         env.build();
 
@@ -350,7 +361,7 @@ module packet_sg_core_unit_test #(
             bad_byte_data = 8'hFF ^ bad_pkt.get_byte(bad_byte_idx);
             bad_pkt.set_byte(bad_byte_idx, bad_byte_data);
             env.driver.inbox.put(bad_pkt);
-            packet_in_if[0]._wait(1000);
+            driver.wait_n(1000);
             `FAIL_UNLESS_LOG(
                 scoreboard.report(msg),
                 "Passed unexpectedly."
@@ -441,7 +452,7 @@ module packet_sg_core_unit_test #(
         `SVTEST(short_packet)
             longint unsigned cnt;
             one_short_packet(0);
-            packet_in_if[0]._wait(500);
+            driver.wait_n(500);
             `FAIL_UNLESS_EQUAL(env.scoreboard.got_processed(), 0);
             one_packet(1);
             check(1, 10us);
@@ -457,7 +468,7 @@ module packet_sg_core_unit_test #(
         `SVTEST(long_packet)
             longint unsigned cnt;
             one_long_packet(0);
-            packet_in_if[0]._wait(500);
+            driver.wait_n(500);
             `FAIL_UNLESS_EQUAL(env.scoreboard.got_processed(), 0);
             one_packet(1);
             check(1, 10us);
@@ -471,7 +482,7 @@ module packet_sg_core_unit_test #(
         // then confirm the buffer pool is healthy by sending a good packet.
         `SVTEST(recycle_single_errored)
             one_errored_packet(0);
-            packet_in_if[0]._wait(500);
+            driver.wait_n(500);
             `FAIL_UNLESS_EQUAL(env.scoreboard.got_processed(), 0);
             one_packet(1);
             check(1, 10us);
@@ -485,7 +496,7 @@ module packet_sg_core_unit_test #(
         `SVTEST(recycle_consecutive_errored)
             for (int i = 0; i < 16; i++)
                 one_errored_packet(i);
-            packet_in_if[0]._wait(2000);
+            driver.wait_n(2000);
             `FAIL_UNLESS_EQUAL(env.scoreboard.got_processed(), 0);
             one_packet(16);
             check(1, 20us);

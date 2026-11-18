@@ -1,5 +1,10 @@
 `include "svunit_defines.svh"
 
+//===================================
+// (Failsafe) timeout (per-testcase)
+//===================================
+`define SVUNIT_TIMEOUT 500us
+
 module example_top_unit_test;
     import svunit_pkg::svunit_testcase;
 
@@ -126,7 +131,7 @@ module example_top_unit_test;
         /* Place Setup Code Here */
 
         // Quiesce AXI-L control interface
-        axil_if.idle_controller();
+        axil_reg_agent.idle();
 
         // Assert/deassert reset
         reset_if.pulse(8);

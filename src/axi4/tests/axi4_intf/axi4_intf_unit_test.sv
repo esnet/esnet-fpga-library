@@ -1,5 +1,10 @@
 `include "svunit_defines.svh"
 
+//===================================
+// (Failsafe) timeout (per-testcase)
+//===================================
+`define SVUNIT_TIMEOUT 500us
+
 // Parameterized unit test module.
 // Instantiates the chosen DUT between the agent's controller interface and
 // an axi4_mem_bfm peripheral, then runs a common set of write/read tests.
@@ -142,7 +147,7 @@ module axi4_intf_unit_test #(
         // Place the 32-bit word on the correct lane
         wdata[word_idx*4 +: 4] = data;
         strb[word_idx*4 +: 4]  = 4'hF;
-        agent.axi4_vif.write(addr, wdata, strb, resp, timeout);
+        agent.write(addr, wdata, strb, resp, timeout);
         `FAIL_IF_LOG(timeout, $sformatf("Write to 0x%0x timed out", addr));
         `FAIL_UNLESS_LOG(resp === 2'b00,
             $sformatf("Write to 0x%0x: expected OKAY, got 2'b%02b", addr, resp));
@@ -157,7 +162,7 @@ module axi4_intf_unit_test #(
         automatic bit [DATA_BYTE_WID-1:0][7:0] rdata;
         automatic bit [1:0] resp;
         automatic bit       timeout;
-        agent.axi4_vif.read(addr, rdata, resp, timeout);
+        agent.read(addr, rdata, resp, timeout);
         `FAIL_IF_LOG(timeout, $sformatf("Read from 0x%0x timed out", addr));
         `FAIL_UNLESS_LOG(resp === 2'b00,
             $sformatf("Read from 0x%0x: expected OKAY, got 2'b%02b", addr, resp));
@@ -214,6 +219,52 @@ module axi4_intf_unit_test #(
                 `FAIL_UNLESS_LOG(got === exp[i],
                     $sformatf("stress[%0d]: exp=0x%08x got=0x%08x", i, exp[i], got));
             end
+        `SVTEST_END
+
+        // Exercise the inherited byte API and preserve adjacent byte lanes.
+        `SVTEST(agent_byte_access)
+            byte got_byte;
+            logic [31:0] got_word;
+
+            write_word(64'h200, 32'h44332211);
+            agent.write_byte(64'h201, 8'hAA);
+            agent.read_byte(64'h201, got_byte);
+            `FAIL_UNLESS_EQUAL(got_byte, 8'hAA);
+            read_word(64'h200, got_word);
+            `FAIL_UNLESS_EQUAL(got_word, 32'h4433AA11);
+
+            agent.write_byte(64'h203, 8'hBB);
+            read_word(64'h200, got_word);
+            `FAIL_UNLESS_EQUAL(got_word, 32'hBB33AA11);
+        `SVTEST_END
+
+        // A one-cycle deadline expires before the model can respond.
+        // Check that the canceled transfer leaves the controller quiescent.
+        `SVTEST(agent_timeout_cleanup)
+            bit [DATA_BYTE_WID-1:0][7:0] data;
+            bit [1:0] resp;
+            bit timeout;
+            logic [31:0] got_word;
+
+            agent.read(64'h300, data, resp, timeout, 1);
+            `FAIL_UNLESS(timeout);
+            `FAIL_UNLESS_EQUAL(resp, RESP_SLVERR);
+            `FAIL_IF(from_controller.cb.mon_arvalid);
+            `FAIL_IF(from_controller.cb.mon_rready);
+
+            reset();
+            agent.write(64'h300, '0, '1, resp, timeout, 1);
+            `FAIL_UNLESS(timeout);
+            `FAIL_UNLESS_EQUAL(resp, RESP_SLVERR);
+            `FAIL_IF(from_controller.cb.mon_awvalid);
+            `FAIL_IF(from_controller.cb.mon_wvalid);
+            `FAIL_IF(from_controller.cb.mon_bready);
+
+            // Reset both endpoints before traffic after an abandoned request.
+            reset();
+            write_word(64'h300, 32'hA5A55A5A);
+            read_word(64'h300, got_word);
+            `FAIL_UNLESS_EQUAL(got_word, 32'hA5A55A5A);
         `SVTEST_END
 
         // Read from an address never written — BFM returns 0 for uninitialised addresses.

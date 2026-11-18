@@ -13,7 +13,8 @@ include $(COMPONENT_ROOT)/config.mk
 # -----------------------------------------------
 all: regression
 
-regression: _regression
+regression:
+	@$(MAKE) -C vpd regression
 
 .PHONY: all regression
 

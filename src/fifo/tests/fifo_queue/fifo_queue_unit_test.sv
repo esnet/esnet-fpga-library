@@ -251,7 +251,7 @@ module fifo_queue_unit_test #(
             env.driver.send(exp_transaction);
             `FAIL_UNLESS(cb.oflow == 0);
 
-            wr_if._wait(1);
+            env.driver.wait_n(1);
 
             env.monitor.receive(got_transaction);
             match = exp_transaction.compare(got_transaction, msg);

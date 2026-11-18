@@ -41,7 +41,7 @@ module util_reset_buffer #(
     always @(posedge clk) __srst_out <= __srst[STAGES-2];
     assign srst_out = __srst_out;
 
-    initial __srstn_out = !INIT_VALUE_ACTIVE_LOW;
+    initial __srstn_out = INIT_VALUE_ACTIVE_LOW;
     always @(posedge clk) __srstn_out <= !__srst[STAGES-2];
     assign srstn_out = __srstn_out;
 

@@ -36,15 +36,15 @@ class tb_env #(
         this.scoreboard = new();
     endfunction
 
-    automatic function void reset_driver_mode();
+    function automatic void reset_driver_mode();
         this.driver.set_tx_mode(bus_verif_pkg::TX_MODE_SEND);
     endfunction
 
-    automatic function void reset_monitor_mode();
+    function automatic void reset_monitor_mode();
         this.monitor.set_rx_mode(bus_verif_pkg::RX_MODE_RECEIVE);
     endfunction
 
-    automatic function void reset();
+    function automatic void reset();
         trace_msg("reset()");
         super.reset();
         reset_driver_mode();

@@ -1,8 +1,5 @@
 package bus_verif_pkg;
 
-    `include "bus_driver.svh"
-    `include "bus_monitor.svh"
-
     // Typedefs
     typedef enum {
         TX_MODE_SEND,
@@ -18,6 +15,9 @@ package bus_verif_pkg;
         RX_MODE_FETCH_VAL,
         RX_MODE_ACK_FETCH
     } rx_mode_t;
+
+    `include "bus_driver.svh"
+    `include "bus_monitor.svh"
 
 endpackage : bus_verif_pkg
 

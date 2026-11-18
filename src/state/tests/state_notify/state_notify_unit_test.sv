@@ -3,6 +3,7 @@
 //===================================
 // (Failsafe) timeout (per-testcase)
 //===================================
+`undef SVUNIT_TIMEOUT
 `define SVUNIT_TIMEOUT 2ms
 
 module state_notify_unit_test;
@@ -205,8 +206,8 @@ module state_notify_unit_test;
         // Testbench environment
         env = new();
         env.reset_vif = reset_if;
-        env.ctrl_vif = sv_ctrl_if;
-        env.update_vif = sv_update_if;
+        env.ctrl_agent.state_vif = sv_ctrl_if;
+        env.update_agent.state_vif = sv_update_if;
 
         env.model = model;
         env.db_agent = db_agent;

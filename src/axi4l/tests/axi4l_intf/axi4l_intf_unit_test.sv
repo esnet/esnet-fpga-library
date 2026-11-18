@@ -1,5 +1,8 @@
 `include "svunit_defines.svh"
 
+// (Failsafe) timeout
+`define SVUNIT_TIMEOUT 100ms
+
 module axi4l_intf_unit_test #(
     parameter string DUT_NAME = "axi4l_intf_connector"
 );
@@ -16,6 +19,11 @@ module axi4l_intf_unit_test #(
     //===================================
     // DUT
     //===================================
+    logic aclk;
+    logic aresetn;
+    logic clk;
+    logic srst;
+
     // Interfaces
     axi4l_intf from_controller ();
     axi4l_intf to_peripheral ();
@@ -46,10 +54,6 @@ module axi4l_intf_unit_test #(
     //===================================
     // Testbench
     //===================================
-    logic aclk;
-    logic aresetn;
-    logic clk;
-    logic srst;
 
     logic        input_valid;
     logic [31:0] input_data;
@@ -359,7 +363,7 @@ module axi4l_intf_connector_unit_test;
 endmodule
 
 module axi4l_intf_cdc_unit_test;
-`AXI4L_INTF_UNIT_TEST("axi4l_intf_connector")
+`AXI4L_INTF_UNIT_TEST("axi4l_intf_cdc")
 endmodule
 
 module axi4l_pipe_unit_test;

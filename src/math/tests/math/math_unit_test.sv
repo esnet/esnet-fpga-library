@@ -1,5 +1,8 @@
 `include "svunit_defines.svh"
 
+// (Failsafe) timeout
+`define SVUNIT_TIMEOUT 1ms
+
 module math_unit_test;
     import svunit_pkg::svunit_testcase;
     import math_pkg::*;
@@ -196,11 +199,11 @@ module math_unit_test;
         );
         // +/-
         `FAIL_UNLESS_EQUAL(
-            LCM(-72, 27), -216
+            LCM(-72, 27), 216
         );
         // -/+
         `FAIL_UNLESS_EQUAL(
-            LCM(72, -27), -216
+            LCM(72, -27), 216
         );
         // -/-
         `FAIL_UNLESS_EQUAL(
@@ -210,6 +213,29 @@ module math_unit_test;
         `FAIL_UNLESS_EQUAL(
             LCM(99, 0), 0
         );
+    `SVTEST_END
+
+    `SVTEST(lcm_zero)
+        localparam int CONST_PARAM = LCM(0, 0);
+        `FAIL_UNLESS_EQUAL(CONST_PARAM, 0);
+        `FAIL_UNLESS_EQUAL(LCM(0, 99), 0);
+        `FAIL_UNLESS_EQUAL(LCM(0, -99), 0);
+        `FAIL_UNLESS_EQUAL(LCM(-99, 0), 0);
+        `FAIL_UNLESS_EQUAL(LCM(32'sh80000000, 0), 0);
+    `SVTEST_END
+
+    `SVTEST(lcm_wide_intermediate)
+        localparam int SIGNED_CONST_PARAM = LCM(-72, 27);
+        localparam int WIDE_CONST_PARAM = LCM(60000, 90000);
+        int a = 60000;
+        int b = 90000;
+        `FAIL_UNLESS_EQUAL(SIGNED_CONST_PARAM, 216);
+        `FAIL_UNLESS_EQUAL(WIDE_CONST_PARAM, 180000);
+        `FAIL_UNLESS_EQUAL(LCM(a, b), 180000);
+        `FAIL_UNLESS_EQUAL(LCM(-a, b), 180000);
+        `FAIL_UNLESS_EQUAL(LCM(a, -b), 180000);
+        `FAIL_UNLESS_EQUAL(LCM(-a, -b), 180000);
+        `FAIL_UNLESS_EQUAL(LCM(32'sh7fffffff, 32'sh7fffffff), 32'sh7fffffff);
     `SVTEST_END
 
     `SVUNIT_TESTS_END

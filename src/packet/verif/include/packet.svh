@@ -22,11 +22,11 @@ virtual class packet#(parameter type META_T = bit) extends std_verif_pkg::transa
     // Pure Virtual Methods
     // (must be implemented by derived class)
     //===================================
-    pure virtual function automatic byte_array_t to_bytes();
-    pure virtual function automatic void         from_bytes(input byte data[]);
-    pure virtual function automatic byte_array_t header();
-    pure virtual function automatic byte_array_t payload();
-    pure virtual function automatic protocol_t   payload_protocol();
+    pure virtual function byte_array_t to_bytes();
+    pure virtual function void         from_bytes(input byte data[]);
+    pure virtual function byte_array_t header();
+    pure virtual function byte_array_t payload();
+    pure virtual function protocol_t   payload_protocol();
 
     //===================================
     // Methods
@@ -53,7 +53,7 @@ virtual class packet#(parameter type META_T = bit) extends std_verif_pkg::transa
     // Copy from reference
     // [[ implements std_verif_pkg::transaction._copy() ]]
     virtual protected function automatic void _copy(input std_verif_pkg::transaction t2);
-        packet#(META_T) pkt;
+        packet_verif_pkg::packet#(META_T) pkt;
         if (!$cast(pkt, t2)) begin
             // Impossible to continue; raise fatal exception.
             $fatal(2, $sformatf("Type mismatch while copying '%s' to '%s'", t2.get_name(), this.get_name()));
@@ -66,8 +66,8 @@ virtual class packet#(parameter type META_T = bit) extends std_verif_pkg::transa
     // Duplicate packet
     //  - enhanced version of clone() that includes the upcast to packet type and
     //    allows for transaction renaming
-    virtual function automatic packet#(META_T) dup(input string name=get_name());
-        packet#(META_T) pkt;
+    virtual function automatic packet_verif_pkg::packet#(META_T) dup(input string name=get_name());
+        packet_verif_pkg::packet#(META_T) pkt;
         if (!$cast(pkt, this.clone())) begin
             // Impossible to continue; raise fatal exception.
             $fatal(2, "Dynamic cast failure during object duplication. This should never happen.");
@@ -171,7 +171,7 @@ virtual class packet#(parameter type META_T = bit) extends std_verif_pkg::transa
     // Compare packets
     // [[ implements std_verif_pkg::transaction.compare() ]]
     virtual function automatic bit compare(input std_verif_pkg::transaction t2, output string msg);
-        packet#(META_T) b;
+        packet_verif_pkg::packet#(META_T) b;
         // Cast generic transaction as packet type
         if (!$cast(b, t2)) begin
             msg = $sformatf("Transaction type mismatch. Transaction '%s' is not of type %s or has unexpected parameterization.", t2.get_name(), __CLASS_NAME);

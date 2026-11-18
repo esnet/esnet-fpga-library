@@ -1,5 +1,8 @@
 `include "svunit_defines.svh"
 
+// (Failsafe) timeout
+`define SVUNIT_TIMEOUT 2ms
+
 module axi4s_pad_unit_test;
 
     import svunit_pkg::svunit_testcase;
@@ -32,13 +35,6 @@ module axi4s_pad_unit_test;
     //===================================
     // Testbench
     //===================================
-    axi4s_component_env #(
-        DATA_BYTE_WID,
-        TID_T,
-        TDEST_T,
-        TUSER_T
-    ) env;
-
     class axi4s_pad_model#(parameter int MIN_PKT_SIZE=60) extends std_verif_pkg::model#(AXI4S_TRANSACTION_T,AXI4S_TRANSACTION_T);
         function new(string name="axi4s_pad_model");
             super.new(name);
@@ -61,6 +57,14 @@ module axi4s_pad_unit_test;
     axi4s_pad_model model;
     std_verif_pkg::event_scoreboard#(AXI4S_TRANSACTION_T) scoreboard;
 
+    std_verif_pkg::component_env#(
+        AXI4S_TRANSACTION_T, AXI4S_TRANSACTION_T,
+        axi4s_driver#(DATA_BYTE_WID,TID_T,TDEST_T,TUSER_T),
+        axi4s_monitor#(DATA_BYTE_WID,TID_T,TDEST_T,TUSER_T),
+        axi4s_pad_model#(),
+        std_verif_pkg::event_scoreboard#(AXI4S_TRANSACTION_T)
+    ) env;
+
     // Reset
     std_reset_intf reset_if (.clk(axis_in_if.aclk));
     assign reset_if.ready = !reset_if.reset;
@@ -79,10 +83,14 @@ module axi4s_pad_unit_test;
         model = new();
         scoreboard = new();
 
-        env = new("env", model, scoreboard);
+        env = new("env");
+        env.driver = new();
+        env.monitor = new();
+        env.model = model;
+        env.scoreboard = scoreboard;
         env.reset_vif = reset_if;
-        env.axis_in_vif = axis_in_if;
-        env.axis_out_vif = axis_out_if;
+        env.driver.axis_vif = axis_in_if;
+        env.monitor.axis_vif = axis_out_if;
         env.build();
 
         env.set_debug_level(0);

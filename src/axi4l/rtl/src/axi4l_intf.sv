@@ -8,10 +8,6 @@ interface axi4l_intf
     localparam int DATA_BYTE_WID = get_axi4l_bus_width_in_bytes(BUS_WIDTH);
     localparam int DATA_WID = DATA_BYTE_WID * 8;
 
-    // (Local) parameters
-    localparam int DEFAULT_WR_TIMEOUT = 256; // Default write timeout (in ACLK cycles)
-    localparam int DEFAULT_RD_TIMEOUT = 256; // Read timeout (in ACLK cycles)
-
     // Signals
     logic                     aclk;
     logic                     aresetn;
@@ -89,204 +85,20 @@ interface axi4l_intf
         output rresp
     );
 
+    // Separate nets let testbench agents sample the driven controller signals.
+    // Clocking-block input aliases are not supported by xsim.
+    wire mon_awvalid = awvalid;
+    wire mon_wvalid = wvalid;
+    wire mon_bready = bready;
+    wire mon_arvalid = arvalid;
+    wire mon_rready = rready;
+
     clocking cb @(posedge aclk);
         output awaddr, awprot, wdata, wstrb, araddr, arprot;
         input  awready, wready, bvalid, bresp, arready, rvalid, rdata, rresp;
         inout  awvalid, wvalid, bready, arvalid, rready;
+        input  mon_awvalid, mon_wvalid, mon_bready, mon_arvalid, mon_rready;
     endclocking
-
-    task idle_controller();
-        cb.awvalid <= 1'b0;
-        cb.awaddr  <=   '0;
-        cb.awprot  <= 3'h0;
-        cb.wvalid  <= 1'b0;
-        cb.wstrb   <=   '0;
-        cb.wdata   <=   '0;
-        cb.bready  <= 1'b0;
-        cb.arvalid <= 1'b0;
-        cb.araddr  <=   '0;
-        cb.arprot  <= 3'h0;
-        cb.rready  <= 1'b0;
-        @(cb);
-    endtask
-
-    task _wait(input int cycles);
-        repeat (cycles) @(cb);
-    endtask
-
-    task _read(
-            input  bit [ADDR_WID-1:0] addr,
-            output bit [DATA_WID-1:0] data,
-            output resp_t             resp
-        );
-        cb.araddr  <= addr;
-        cb.rready  <= 1'b0;
-        cb.arvalid <= 1'b1;
-        @(cb);
-        wait(cb.arvalid && cb.arready);
-        cb.arvalid <= 1'b0;
-        cb.araddr <= 'x;
-        cb.rready <= 1'b1;
-        @(cb);
-        wait(cb.rvalid && cb.rready);
-        cb.rready <= 1'b0;
-        resp = cb.rresp;
-        data = cb.rdata;
-    endtask
-
-    task read(
-            input  bit [ADDR_WID-1:0] addr,
-            output bit [DATA_WID-1:0] data,
-            output resp_t             resp,
-            output bit                timeout,
-            input  int RD_TIMEOUT = DEFAULT_RD_TIMEOUT
-        );
-        automatic bit [DATA_WID-1:0] _data = '0;
-        automatic resp_t _resp = axi4l_pkg::RESP_SLVERR;
-        automatic bit _timeout = 1'b0;
-        fork
-            begin
-                fork
-                    begin
-                        _read(addr, _data, _resp);
-                    end
-                    begin
-                        if (RD_TIMEOUT > 0) begin
-                            _wait(RD_TIMEOUT);
-                            _timeout = 1'b1;
-                        end else forever _wait(1);
-                    end
-                join_any
-                disable fork;
-            end
-        join
-        if (_timeout) idle_controller();
-        data = _data;
-        resp = _resp;
-        timeout = _timeout;
-    endtask
-
-    task read_byte(
-            input  bit [ADDR_WID-1:0] addr,
-            output byte               data,
-            output resp_t             resp,
-            output bit                timeout,
-            input  int RD_TIMEOUT = DEFAULT_RD_TIMEOUT
-        );
-        bit [ADDR_WID-1:0]           addr_aligned;
-        bit [DATA_BYTE_WID-1:0][7:0] data_shifted;
-        int                          byte_pos;
-
-        addr_aligned = (addr / DATA_BYTE_WID) * DATA_BYTE_WID;
-        byte_pos = addr % DATA_BYTE_WID;
-
-        read(addr_aligned, data_shifted, resp, timeout, RD_TIMEOUT);
-
-        data = data_shifted[byte_pos];
-    endtask
-
-    task _write(
-            input  bit [ADDR_WID-1:0]      addr,
-            input  bit [DATA_WID-1:0]      data,
-            input  bit [DATA_BYTE_WID-1:0] strb,
-            output resp_t                  resp,
-            input  bit  RANDOMIZE_AW_W_ALIGNMENT = 1'b0
-        );
-        fork
-            begin
-                if (RANDOMIZE_AW_W_ALIGNMENT) repeat($urandom % 3) @(cb);
-                // Write address transaction
-                cb.awvalid <= 1'b1;
-                cb.awaddr <= addr;
-                @(cb);
-                wait (cb.awvalid && cb.awready);
-                cb.awvalid <= 1'b0;
-                cb.awaddr <= 'x;
-            end
-            begin
-                if (RANDOMIZE_AW_W_ALIGNMENT) repeat($urandom % 3) @(cb);
-                // Write data transaction
-                cb.wvalid <= 1'b1;
-                cb.wdata <= data;
-                cb.wstrb <= strb;
-                @(cb);
-                wait (cb.wvalid && cb.wready);
-                cb.wvalid <= 1'b0;
-                cb.wdata <= 'x;
-                cb.wstrb <= 'x;
-            end
-        join
-        // Write response transaction
-        cb.bready <= 1'b1;
-        @(cb);
-        wait(cb.bvalid && cb.bready);
-        cb.bready <= 1'b0;
-        resp = cb.bresp;
-    endtask
-
-    task _write_safe(
-            input  bit [ADDR_WID-1:0]      addr,
-            input  bit [DATA_WID-1:0]      data,
-            input  bit [DATA_BYTE_WID-1:0] strb,
-            output resp_t                  resp,
-            output bit                     timeout,
-            input  int WR_TIMEOUT = DEFAULT_WR_TIMEOUT,
-            input  bit RANDOMIZE_AW_W_ALIGNMENT = 1'b0
-        );
-        automatic bit _timeout = 1'b0;
-        automatic resp_t _resp = axi4l_pkg::RESP_SLVERR;
-        fork
-            begin
-                fork
-                    begin
-                        _write(addr, data, strb, _resp, RANDOMIZE_AW_W_ALIGNMENT);
-                    end
-                    begin
-                        if (WR_TIMEOUT > 0) begin
-                            _wait(WR_TIMEOUT);
-                            _timeout = 1'b1;
-                        end else forever _wait(1);
-                    end
-                join_any
-                disable fork;
-            end
-        join
-        if (_timeout) idle_controller();
-        resp = _resp;
-        timeout = _timeout;
-    endtask
-
-    task write(
-            input  bit [ADDR_WID-1:0] addr,
-            input  bit [DATA_WID-1:0] data,
-            output resp_t             resp,
-            output bit                timeout,
-            input  int WR_TIMEOUT = DEFAULT_WR_TIMEOUT,
-            input  bit RANDOMIZE_AW_W_ALIGNMENT = 1'b0
-        );
-        _write_safe(addr, data, '1, resp, timeout, WR_TIMEOUT, RANDOMIZE_AW_W_ALIGNMENT);
-    endtask
-
-    task write_byte(
-            input  bit [ADDR_WID-1:0] addr,
-            input  byte               data,
-            output resp_t             resp,
-            output bit                timeout,
-            input  int WR_TIMEOUT = DEFAULT_WR_TIMEOUT
-        );
-        bit [ADDR_WID-1:0]      addr_aligned;
-        bit [DATA_WID-1:0]      data_shifted;
-        bit [DATA_BYTE_WID-1:0] strb;
-        int                     byte_pos;
-        addr_aligned = (addr / DATA_BYTE_WID) * DATA_BYTE_WID;
-        byte_pos = addr % DATA_BYTE_WID;
-
-        // Shift byte into proper byte lane and set strobe signal
-        strb = 1'b1 << byte_pos;
-        data_shifted = data << byte_pos*8;
-
-        _write_safe(addr_aligned, data_shifted, strb, resp, timeout, WR_TIMEOUT);
-    endtask
 
 endinterface : axi4l_intf
 

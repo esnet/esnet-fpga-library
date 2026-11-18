@@ -4,6 +4,8 @@ package alloc_verif_pkg;
 
     // Testbench class definitions
     // (declared here to enforce tb_pkg:: namespace for testbench definitions)
+    `include "alloc_store_agent.svh"
+    `include "alloc_load_agent.svh"
     `include "alloc_reg_agent.svh"
 
 endpackage : alloc_verif_pkg

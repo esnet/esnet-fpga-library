@@ -27,7 +27,7 @@ class db_model #(
         //     Works around an apparent object initialization bug (as of Vivado 2024.2)
         //     where properties are not properly allocated when they are not assigned
         //     in the constructor.
-        this.__db = {};
+        this.__db.delete();
         // } WORKAROUND-INIT-PROPS
     endfunction
 

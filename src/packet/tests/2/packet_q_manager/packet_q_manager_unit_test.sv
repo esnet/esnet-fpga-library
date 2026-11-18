@@ -1,5 +1,8 @@
 `include "svunit_defines.svh"
 
+// (Failsafe) timeout
+`define SVUNIT_TIMEOUT 2ms
+
 module packet_q_manager_unit_test #(
     parameter int NUM_INPUT_IFS = 1,
     parameter int NUM_QS = 8
@@ -31,9 +34,6 @@ module packet_q_manager_unit_test #(
     localparam int  ADDR_WID = 28; // Packet address
     localparam type ADDR_T = logic[ADDR_WID-1:0];
     localparam int  BUFFER_SIZE = 2048;
-
-    localparam type DESC_T = alloc_pkg::alloc#(BUFFER_SIZE, ADDR_WID, META_WID)::desc_t;
-    localparam int  DESC_WID = $bits(DESC_T);
 
     localparam int  MEM_DATA_BYTE_WID = 32;
     localparam int  MEM_DATA_WID = MEM_DATA_BYTE_WID * 8;
@@ -228,6 +228,7 @@ module packet_q_manager_unit_test #(
             bit deq_ok;
             int deq_size;
             desc_in = new();
+            desc_in.set_max_size(MAX_PKT_SIZE);
             desc_in.randomize();
             q = $urandom % NUM_QS;
             desc_in_q[0] = q;
@@ -252,6 +253,7 @@ module packet_q_manager_unit_test #(
             bit deq_ok;
             int deq_size;
             desc_in = new();
+            desc_in.set_max_size(MAX_PKT_SIZE);
             desc_in.randomize();
             q = $urandom % NUM_QS;
             desc_in_q[0] = q;
@@ -292,7 +294,7 @@ module packet_q_manager_unit_test #(
             bad_byte_data = 8'hFF ^ bad_pkt.get_byte(bad_byte_idx);
             bad_pkt.set_byte(bad_byte_idx, bad_byte_data);
             env.driver.inbox.put(bad_pkt);
-            packet_in_if[0]._wait(1000);
+            driver.wait_n(1000);
             `FAIL_UNLESS_LOG(
                 scoreboard.report(msg),
                 "Passed unexpectedly."

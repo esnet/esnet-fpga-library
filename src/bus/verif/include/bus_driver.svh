@@ -73,12 +73,61 @@ class bus_driver #(
         super._reset();
     endfunction
 
+    //===================================
+    // Clocking-block interface control and transfers
+    //===================================
     // Quiesce driven interface
     // [[ implements std_verif_pkg::component._idle() ]]
     protected task _idle();
-        bus_vif.idle_tx();
+        bus_vif.cb.valid <= 1'b0;
+        bus_vif.cb.data  <= '0;
     endtask
 
+    // Block for N cycles
+    task wait_n(input int cycles);
+        repeat (cycles) @(bus_vif.cb);
+    endtask
+
+    // Wait for readiness sampled on a clock edge.
+    task wait_ready();
+        @(bus_vif.cb iff (bus_vif.cb.mon_ready));
+    endtask
+
+    // Send
+    // - indicate data to send regardless of readiness
+    // - transaction is completed when both valid and
+    //   ready are asserted on a particular cycle
+    local task _bus_send(input bit [DATA_WID-1:0] data);
+        bus_vif.cb.valid <= 1'b1;
+        bus_vif.cb.data  <= data;
+        @(bus_vif.cb iff (bus_vif.cb.mon_valid && bus_vif.cb.mon_ready));
+        bus_vif.cb.valid <= 1'b0;
+    endtask
+
+    // Push
+    // - send data to interface, ignoring ready indication
+    // - transaction is completed on cycle that valid is
+    //   asserted, regardless of ready value
+    local task _bus_push(input bit [DATA_WID-1:0] data);
+        bus_vif.cb.valid <= 1'b1;
+        bus_vif.cb.data  <= data;
+        @(bus_vif.cb iff (bus_vif.cb.mon_valid));
+        bus_vif.cb.valid <= 1'b0;
+    endtask
+
+    // Push when ready
+    // - Push data to interface, but only after interface signals
+    //   readiness to receive it
+    // - transaction is completed on cycle that valid is asserted
+    local task _bus_push_when_ready(input bit [DATA_WID-1:0] data);
+        // Observe readiness after any preceding push has updated the receiver.
+        wait_ready();
+        _bus_push(data);
+    endtask
+
+    //===================================
+    // Raw-payload API
+    //===================================
     // Send data to interface
     task send_raw(DATA_T data);
         int stall_cycles = 0;
@@ -87,19 +136,22 @@ class bus_driver #(
         if (this.__stall) begin
             if (this.__stall_cycles > 0) stall_cycles = this.__stall_cycles;
             else                         stall_cycles = $urandom_range(0, this.__stall_cycles_max);
-            bus_vif.idle_tx();
-            bus_vif._wait(stall_cycles);
+            _idle();
+            wait_n(stall_cycles);
         end
         // Send transaction to interface
         case(this.__tx_mode)
-            TX_MODE_SEND:            bus_vif.send(data);
-            TX_MODE_PUSH:            bus_vif.push(data);
-            TX_MODE_PUSH_WHEN_READY: bus_vif.push_when_ready(data);
-            default:                 bus_vif.send(data);
+            TX_MODE_SEND:            _bus_send(data);
+            TX_MODE_PUSH:            _bus_push(data);
+            TX_MODE_PUSH_WHEN_READY: _bus_push_when_ready(data);
+            default:                 _bus_send(data);
         endcase
         trace_msg("send_raw() Done.");
     endtask
 
+    //===================================
+    // Transaction-object adapter
+    //===================================
     // Send bus transaction
     // [[ implements std_verif_pkg::driver._send() ]]
     protected task _send(input TRANSACTION_T transaction);

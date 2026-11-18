@@ -26,8 +26,16 @@ module fifo_async_unit_test #(
     //===================================
     // Derived parameters
     //===================================
-    localparam int MEM_WR_LATENCY = DUT.i_fifo_core.MEM_WR_LATENCY;
-    localparam int MEM_RD_LATENCY = DUT.i_fifo_core.MEM_RD_LATENCY;
+    // Match the memory specification selected by fifo_core.
+    localparam mem_pkg::spec_t MEM_SPEC = '{
+        ADDR_WID: DEPTH > 1 ? $clog2(DEPTH) : 1,
+        DATA_WID: DATA_WID,
+        ASYNC: 1,
+        RESET_FSM: 0,
+        OPT_MODE: FWFT ? mem_pkg::OPT_MODE_LATENCY : mem_pkg::OPT_MODE_DEFAULT
+    };
+    localparam int MEM_WR_LATENCY = mem_pkg::get_wr_latency(MEM_SPEC);
+    localparam int MEM_RD_LATENCY = mem_pkg::get_rd_latency(MEM_SPEC);
 
     // Adjust 'effective' FIFO depth to account for optional FWFT buffer
     localparam int __DEPTH = FWFT ? DEPTH + 1 : DEPTH;
@@ -394,8 +402,8 @@ module fifo_async_unit_test #(
             @(cb_wr);
 
             // Check that empty is deasserted immediately (once write transaction is registered by FIFO)
-            rd_if._wait(FIFO_ASYNC_LATENCY);
-            if (FWFT) rd_if._wait(MEM_RD_LATENCY);
+            env.monitor.wait_n(FIFO_ASYNC_LATENCY);
+            if (FWFT) env.monitor.wait_n(MEM_RD_LATENCY);
             `FAIL_UNLESS(cb_rd.rd_empty == 0);
 
             // Receive transaction
@@ -455,7 +463,7 @@ module fifo_async_unit_test #(
             @(cb_rd);
 
             // Allow read transaction to be registered by FIFO
-            wr_if._wait(FIFO_ASYNC_LATENCY);
+            env.driver.wait_n(FIFO_ASYNC_LATENCY);
 
             // Check that full is once again deasserted
             `FAIL_UNLESS(cb_wr.wr_full == 0);

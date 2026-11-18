@@ -16,7 +16,7 @@ module mem_ram_sp_unit_test #(
     string model_str = RAM_MODEL ? "model_" : "";
 
     // Synthesize testcase name from parameters
-    string name = $sformatf("mem_ram_sp_a%0db_d%0db_%s%s%sut", ADDR_WID, DATA_WID, rst_str, model_str);
+    string name = $sformatf("mem_ram_sp_a%0db_d%0db_%s%sut", ADDR_WID, DATA_WID, rst_str, model_str);
 
     svunit_testcase svunit_ut;
 

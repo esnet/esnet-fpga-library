@@ -1,5 +1,8 @@
 `include "svunit_defines.svh"
 
+// (Failsafe) timeout
+`define SVUNIT_TIMEOUT 2ms
+
 module packet_aggregate_unit_test;
     import svunit_pkg::svunit_testcase;
     import packet_verif_pkg::*;
@@ -37,6 +40,9 @@ module packet_aggregate_unit_test;
     packet_event_intf event_out_if (.clk);
 
     CTXT_T ctxt_sel;
+    logic ctxt_list_append_req = 1'b0;
+    CTXT_T ctxt_list_append_data = '0;
+    logic ctxt_out_ack = 1'b1;
     logic  ctxt_list_append_rdy;
     logic  ctxt_out_valid;
     CTXT_T ctxt_out;
@@ -50,7 +56,13 @@ module packet_aggregate_unit_test;
     //===================================
     // Testbench
     //===================================
-    packet_component_env #(META_T) env;
+    std_verif_pkg::component_env#(
+        PACKET_T, PACKET_T,
+        packet_intf_driver#(DATA_IN_BYTE_WID, META_T),
+        packet_intf_monitor#(DATA_OUT_BYTE_WID, META_T),
+        std_verif_pkg::wire_model#(PACKET_T),
+        std_verif_pkg::event_scoreboard#(PACKET_T)
+    ) env;
 
     for (genvar g_input = 1; g_input < NUM_INPUTS; g_input++) begin : g__input
         packet_intf_tx_term i_packet_intf_tx_term (.to_rx (packet_in_if[g_input]));
@@ -90,7 +102,11 @@ module packet_aggregate_unit_test;
         model = new();
         scoreboard = new();
 
-        env = new("env", driver, monitor, model, scoreboard);
+        env = new("env");
+        env.driver = driver;
+        env.monitor = monitor;
+        env.model = model;
+        env.scoreboard = scoreboard;
         env.reset_vif = reset_if;
         env.build();
     endfunction
@@ -176,7 +192,7 @@ module packet_aggregate_unit_test;
             bad_byte_data = 8'hFF ^ bad_pkt.get_byte(bad_byte_idx);
             bad_pkt.set_byte(bad_byte_idx, bad_byte_data);
             env.driver.inbox.put(bad_pkt);
-            packet_in_if[0]._wait(1000);
+            driver.wait_n(1000);
             `FAIL_UNLESS_LOG(
                 scoreboard.report(msg),
                 "Passed unexpectedly."

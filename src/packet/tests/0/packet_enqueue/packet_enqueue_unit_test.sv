@@ -1,5 +1,8 @@
 `include "svunit_defines.svh"
 
+// (Failsafe) timeout
+`define SVUNIT_TIMEOUT 2ms
+
 module packet_enqueue_unit_test #(
     parameter bit DROP_ERRORED = 1'b1
 );
@@ -29,7 +32,7 @@ module packet_enqueue_unit_test #(
     localparam type PTR_T  = bit[ADDR_WID  :0];
 
     localparam int  NUM_CONTEXTS = 1;
-    localparam int  CTXT_WID = $clog2(NUM_CONTEXTS);
+    localparam int  CTXT_WID = NUM_CONTEXTS > 1 ? $clog2(NUM_CONTEXTS) : 1;
     localparam type CTXT_T = logic[CTXT_WID-1:0];
 
     typedef packet#(META_T) PACKET_T;
@@ -54,6 +57,10 @@ module packet_enqueue_unit_test #(
     logic  ctxt_out_valid;
     CTXT_T ctxt_out;
 
+    CTXT_T ctxt_sel = '0;
+    logic ctxt_list_append_req = 1'b0;
+    CTXT_T ctxt_list_append_data = '0;
+    logic ctxt_out_rdy = 1'b1;
     logic ctxt_list_append_rdy;
 
     mem_wr_intf #(.ADDR_WID(ADDR_WID), .DATA_WID(DATA_WID)) mem_wr_if (.clk(clk));
@@ -84,9 +91,13 @@ module packet_enqueue_unit_test #(
     assign mem_init_done = 1'b1;
 
     // Environment
-    std_verif_pkg::component_env #(
+    std_verif_pkg::component_env#(
         PACKET_T,
-        PACKET_DESCRIPTOR_T
+        PACKET_DESCRIPTOR_T,
+        packet_intf_driver#(DATA_BYTE_WID,META_T),
+        packet_descriptor_intf_monitor#(ADDR_T,META_T),
+        packet_enqueue_model#(DATA_BYTE_WID,ADDR_T,META_T),
+        std_verif_pkg::event_scoreboard#(PACKET_DESCRIPTOR_T)
     ) env;
 
     // Driver/monitor

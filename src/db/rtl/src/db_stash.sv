@@ -137,19 +137,20 @@ module db_stash #(
         wr_value <= db_wr_if.value;
     end
 
-    // Search for match to write key
+    // Match against the state after the write committing on this edge.
+    // Ignore its old slot contents and forward its new key/index instead.
     always_ff @(posedge clk) begin
-        if (wr_match && db_wr_if.key == wr_key) begin
-            wr_match <= 1'b1;
-            wr_match_idx <= wr_match_idx;
-        end else begin
-            wr_match <= 1'b0;
-            for (int i = 0; i < SIZE; i++) begin
-                if (stash[i].key == db_wr_if.key) begin
-                    wr_match <= 1'b1;
-                    wr_match_idx <= i;
-                end
+        wr_match <= 1'b0;
+        wr_match_idx <= '0;
+        for (int i = 0; i < SIZE; i++) begin
+            if (stash_vld[i] && !(wr && wr_idx == i) && stash[i].key == db_wr_if.key) begin
+                wr_match <= 1'b1;
+                wr_match_idx <= i;
             end
+        end
+        if (wr && wr_valid && wr_key == db_wr_if.key) begin
+            wr_match <= 1'b1;
+            wr_match_idx <= wr_idx;
         end
     end
 
@@ -231,24 +232,23 @@ module db_stash #(
         rd_next <= db_rd_if.next;
     end
 
-    // Search for match to read key
+    // Use the same view as the write matcher, including pending inserts
+    // and deletes. A forwarded index must belong to an actual valid write.
     always_ff @(posedge clk) begin
         rd_match <= 1'b0;
         rd_match_idx <= '0;
-        if (wr_match && db_rd_if.key == wr_key) begin
-            rd_match <= 1'b1;
-            rd_match_idx <= wr_match_idx;
-        end else begin
-            rd_match <= 1'b0;
-            for (int i = 0; i < SIZE; i++) begin
-                if (stash[i].key == db_rd_if.key) begin
-                    rd_match <= 1'b1;
-                    rd_match_idx <= i;
-                end
+        for (int i = 0; i < SIZE; i++) begin
+            if (stash_vld[i] && !(wr && wr_idx == i) && stash[i].key == db_rd_if.key) begin
+                rd_match <= 1'b1;
+                rd_match_idx <= i;
             end
         end
+        if (wr && wr_valid && wr_key == db_rd_if.key) begin
+            rd_match <= 1'b1;
+            rd_match_idx <= wr_idx;
+        end
     end
-    
+
     // Next iterator
     initial next_rd_idx = 0;
     always @(posedge clk) begin

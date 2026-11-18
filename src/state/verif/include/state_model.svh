@@ -22,9 +22,9 @@ virtual class state_model #(
     // (must be implemented by derived class)
     //===================================
     // Calculate next state after datapath update, given previous state and update vectors
-    pure virtual function automatic STATE_T get_next_state(input update_ctxt_t ctxt, input STATE_T prev_state, input UPDATE_T update, input bit init);
+    pure virtual function STATE_T get_next_state(input update_ctxt_t ctxt, input STATE_T prev_state, input UPDATE_T update, input bit init);
     // Calculate return state, given previous state and update
-    pure virtual function automatic STATE_T get_return_state(input STATE_T prev_state, input STATE_T next_state);
+    pure virtual function STATE_T get_return_state(input STATE_T prev_state, input STATE_T next_state);
 
     //===================================
     // Methods

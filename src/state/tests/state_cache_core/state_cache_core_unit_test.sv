@@ -3,6 +3,7 @@
 //===================================
 // (Failsafe) timeout (per-testcase)
 //===================================
+`undef SVUNIT_TIMEOUT
 `define SVUNIT_TIMEOUT 20ms
 
 module state_cache_core_unit_test;
@@ -53,7 +54,7 @@ module state_cache_core_unit_test;
     KEY_T    lookup_key;
     hash_t   lookup_hash [NUM_TABLES];
 
-    KEY_T    ctrl_key  [NUM_TABLES];
+    logic [KEY_WID-1:0] ctrl_key [NUM_TABLES];
     hash_t   ctrl_hash [NUM_TABLES];
 
     logic    tbl_init [NUM_TABLES];
@@ -129,11 +130,20 @@ module state_cache_core_unit_test;
 
     assign en = 1'b1;
 
+    // Application interface agents
+    db_intf_agent #(KEY_T, RESULT_T) lookup_agent;
+    db_intf_agent #(ID_T, KEY_T) delete_agent;
+
     //===================================
     // Build
     //===================================
     function void build();
         svunit_ut = new(name);
+
+        lookup_agent = new("lookup_agent");
+        lookup_agent.db_vif = lookup_if;
+        delete_agent = new("delete_agent");
+        delete_agent.db_vif = delete_if;
 
         // Testbench environment
         env = new();
@@ -156,8 +166,8 @@ module state_cache_core_unit_test;
 
         // Put driven interfaces into quiescent state
         agent.idle();
-        lookup_if.idle();
-        delete_if.idle();
+        lookup_agent.idle();
+        delete_agent.idle();
 
         // HW reset
         env.reset_dut();
@@ -371,7 +381,7 @@ module state_cache_core_unit_test;
         logic timeout;
 
         // Allow ID allocator to queue up a 'max burst' number of IDs
-        lookup_if._wait(100);
+        lookup_agent.wait_n(100);
 
         // Randomize
         void'(std::randomize(key));
@@ -414,7 +424,7 @@ module state_cache_core_unit_test;
         logic timeout;
 
         // Allow ID allocator to queue up a 'max burst' number of IDs
-        lookup_if._wait(100);
+        lookup_agent.wait_n(100);
 
         // Randomize
         void'(std::randomize(key));
@@ -466,7 +476,7 @@ module state_cache_core_unit_test;
         bit __new;
 
         // Allow ID allocator to queue up a 'max burst' number of IDs
-        lookup_if._wait(100);
+        lookup_agent.wait_n(100);
 
         // Insert 'max burst' number of entries
         do begin
@@ -520,7 +530,7 @@ module state_cache_core_unit_test;
         bit timeout;
 
         // Allow ID allocator to queue up a 'max burst' number of IDs
-        lookup_if._wait(100);
+        lookup_agent.wait_n(100);
 
         // Generate random (unique) key
         void'(std::randomize(key));
@@ -564,7 +574,7 @@ module state_cache_core_unit_test;
         localparam int NUM_EVENTS = 2;
 
         // Allow ID allocator to queue up available IDs
-        lookup_if._wait(100);
+        lookup_agent.wait_n(100);
 
         fork
             begin
@@ -788,7 +798,7 @@ module state_cache_core_unit_test;
     endfunction
 
     task lookup_send(input KEY_T key);
-        lookup_if.send(key);
+        lookup_agent.send(key);
     endtask
 
     task lookup_receive(
@@ -799,7 +809,7 @@ module state_cache_core_unit_test;
         RESULT_T __result;
         bit error;
         if (DEBUG) `INFO("--- LOOKUP RESP ---");
-        lookup_if.receive(tracked, __result, error);
+        lookup_agent.receive(tracked, __result, error);
         `FAIL_IF(error);
         _new = __result._new;
         id = __result.id;
@@ -822,7 +832,7 @@ module state_cache_core_unit_test;
         bit error;
         if (DEBUG) `INFO($sformatf("--- LOOKUP (KEY: 0x%x) ---", key));
         // Lookup request
-        lookup_if.query(key, tracked, __result, error, timeout);
+        lookup_agent.query(key, tracked, __result, error, timeout);
         `FAIL_IF(error);
         `FAIL_IF(timeout);
         _new = __result._new;
@@ -845,7 +855,7 @@ module state_cache_core_unit_test;
         bit error;
         if (DEBUG) `INFO($sformatf("--- DELETE (ID: 0x%x) ---", id));
         // Delete request
-        delete_if.query(id, __valid, key, error, timeout);
+        delete_agent.query(id, __valid, key, error, timeout);
         `FAIL_IF(error);
         `FAIL_IF(timeout);
         `FAIL_UNLESS(__valid);

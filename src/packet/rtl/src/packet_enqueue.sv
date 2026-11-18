@@ -202,7 +202,7 @@ module packet_enqueue
                     .wr      ( ctxt_list_append_req ),
                     .wr_data ( ctxt_list_append_data ),
                     .rd      ( packet_if.vld && packet_if.rdy && packet_if.eop ),
-                    .rd_rdy  ( __ctxt_valid ),
+                    .rd_vld  ( __ctxt_valid ),
                     .rd_data ( __ctxt ),
                     .oflow   ( ),
                     .uflow   ( )

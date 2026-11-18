@@ -32,10 +32,12 @@ interface std_event_intf #(
     endtask
 
     task notify(input bit[MSG_WID-1:0] _msg);
+        // Launch on a clocking event so the payload remains valid for a full cycle.
+        @(cb);
         cb.evt <= 1'b1;
         cb.msg <= _msg;
         @(cb);
-        cb.msg <= 1'b0;
+        cb.evt <= 1'b0;
         cb.msg <= '0;
     endtask
 

@@ -2,7 +2,7 @@ class state_monitor #(
     parameter type ID_T = bit,
     parameter type STATE_T = bit,
     parameter type UPDATE_T = bit
-) extends std_verif_pkg::monitor#(state_resp#(ID_T,STATE_T));
+) extends std_verif_pkg::monitor#(state_resp#(STATE_T));
 
     local static const string __CLASS_NAME = "state_verif_pkg::state_monitor";
 
@@ -15,12 +15,15 @@ class state_monitor #(
     //===================================
     virtual state_intf #(ID_WID, STATE_WID, UPDATE_WID) update_vif;
 
+    local state_intf_agent #(ID_T, STATE_T, UPDATE_T) __agent;
+
     //===================================
     // Methods
     //===================================
     // Constructor
     function new(input string name="state_monitor");
         super.new(name);
+        this.__agent = new("monitor_agent");
         // WORKAROUND-INIT-PROPS {
         //     Provide/repeat default assignments for all remaining instance properties here.
         //     Works around an apparent object initialization bug (as of Vivado 2024.2)
@@ -51,19 +54,22 @@ class state_monitor #(
 
     // Wait for interface to be ready to accept transactions (after reset/init, for example)
     task wait_ready();
-        update_vif.wait_ready();
+        bit timeout;
+        __agent.state_vif = update_vif;
+        __agent.wait_ready(timeout, 0);
     endtask
 
     // Receive transaction from interface
     // [[ implements _receive() virtual method of std_verif_pkg::monitor parent class ]]
-    protected task _receive(output state_resp#(ID_T, STATE_T) transaction);
+    protected task _receive(output state_resp#(STATE_T) transaction);
         STATE_T rx_state;
         bit __timeout;
         static int __rx_count = 0;
 
         debug_msg("Waiting for transaction...");
 
-        update_vif.receive(rx_state, __timeout);
+        __agent.state_vif = update_vif;
+        __agent.receive_resp(rx_state, __timeout);
         
         transaction = new($sformatf("state_resp[%0d]", __rx_count++), rx_state);
 

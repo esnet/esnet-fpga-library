@@ -1,5 +1,8 @@
 `include "svunit_defines.svh"
 
+// (Failsafe) timeout
+`define SVUNIT_TIMEOUT 2ms
+
 module axi4s_intf_unit_test #(
     parameter int DUT_SELECT = 0
 );
@@ -64,9 +67,9 @@ module axi4s_intf_unit_test #(
     axi4l_intf_controller_term axi4l_to_ovfl_controller_term  (.axi4l_if(axil_to_ovfl));
     axi4l_intf_controller_term axi4l_if_controller_term       (.axi4l_if(axil_if));
 
-    logic tvalid_check = 0;
+    localparam bit tvalid_check = DUT_SELECT == 11;
 
-    bit ASYNC = 0;
+    localparam bit ASYNC = DUT_SELECT >= 7 && DUT_SELECT <= 11;
 
     generate
       case (DUT_SELECT)
@@ -81,19 +84,16 @@ module axi4s_intf_unit_test #(
 
          7: begin
                 axi4s_fifo_async #(.DEPTH(  32)) DUT (.from_tx_srst(srst), .to_rx_srst(srst), .*);
-                assign ASYNC = 1;
                `SVUNIT_CLK_GEN(aclk_out_gen, 1.0ns);  // slow to fast
             end
 
          8: begin
                 axi4s_fifo_async #(.DEPTH( 512)) DUT (.from_tx_srst(srst), .to_rx_srst(srst), .*);
-                assign ASYNC = 1;
                `SVUNIT_CLK_GEN(aclk_out_gen, 1.5ns);
             end
 
          9: begin
                 axi4s_fifo_async #(.DEPTH(8192)) DUT (.from_tx_srst(srst), .to_rx_srst(srst), .*);
-                assign ASYNC = 1;
                `SVUNIT_CLK_GEN(aclk_out_gen, 2.0ns);  // fast to slow
             end
 
@@ -102,18 +102,15 @@ module axi4s_intf_unit_test #(
                                            .axi4s_in(from_tx), .axi4s_in_srst(srst), .axi4s_out(to_rx), .axi4s_out_srst(srst),
                                            .flow_ctl_thresh('0), .flow_ctl(),
                                            .axil_to_probe(axil_to_probe), .axil_to_ovfl(axil_to_ovfl), .axil_if(axil_if) );
-                assign ASYNC = 1;
                `SVUNIT_CLK_GEN(aclk_out_gen, 2.0ns);  // fast to slow
             end
 
          11: begin
-                assign tvalid_check = 1;
 
                 axi4s_pkt_fifo_async #(.TX_THRESHOLD(512)) DUT (
                                            .axi4s_in(from_tx), .axi4s_in_srst(srst), .axi4s_out(to_rx), .axi4s_out_srst(srst),
                                            .flow_ctl_thresh('0), .flow_ctl(),
                                            .axil_to_probe(axil_to_probe), .axil_to_ovfl(axil_to_ovfl), .axil_if(axil_if) );
-                assign ASYNC = 1;
                `SVUNIT_CLK_GEN(aclk_out_gen, 1.0ns);  // slow to fast
             end
 
@@ -172,11 +169,12 @@ module axi4s_intf_unit_test #(
     //===================================
     // Testbench
     //===================================
-    axi4s_component_env #(
-        DATA_BYTE_WID,
-        TID_T,
-        TDEST_T,
-        TUSER_T
+    std_verif_pkg::component_env#(
+        AXI4S_TRANSACTION_T, AXI4S_TRANSACTION_T,
+        axi4s_driver#(DATA_BYTE_WID,TID_T,TDEST_T,TUSER_T),
+        axi4s_monitor#(DATA_BYTE_WID,TID_T,TDEST_T,TUSER_T),
+        std_verif_pkg::wire_model#(AXI4S_TRANSACTION_T),
+        std_verif_pkg::event_scoreboard#(AXI4S_TRANSACTION_T)
     ) env;
 
     // Model
@@ -232,10 +230,14 @@ module axi4s_intf_unit_test #(
         model = new();
         scoreboard = new();
 
-        env = new("env", model, scoreboard);
+        env = new("env");
+        env.driver = new();
+        env.monitor = new();
+        env.model = model;
+        env.scoreboard = scoreboard;
         env.reset_vif = reset_if;
-        env.axis_in_vif = from_tx;
-        env.axis_out_vif = to_rx;
+        env.driver.axis_vif = from_tx;
+        env.monitor.axis_vif = to_rx;
         env.build();
 
     endfunction
@@ -298,7 +300,27 @@ module axi4s_intf_unit_test #(
     `SVUNIT_TESTS_BEGIN
 
         `SVTEST(reset)
-            from_tx._wait(1);
+            env.driver.wait_n(1);
+        `SVTEST_END
+
+        // Observe accepted beats without participating in backpressure.
+        `SVTEST(passive_sample_with_backpressure)
+            byte payload[] = new[DATA_BYTE_WID+3];
+            byte observed[$];
+            AXI4S_TRANSACTION_T transaction;
+            axi4s_sample#(DATA_BYTE_WID,TID_T,TDEST_T,TUSER_T) sampler = new();
+            foreach (payload[i]) payload[i] = byte'(i+'h80);
+            transaction = AXI4S_TRANSACTION_T::create_from_bytes("sample", payload);
+            sampler.axis_vif = to_rx;
+            env.monitor.set_tpause(2);
+            fork
+                env.inbox.put(transaction);
+                sampler.capture_pkt_data(observed);
+            join
+            `FAIL_UNLESS_EQUAL(observed.size(), payload.size());
+            foreach (payload[i]) `FAIL_UNLESS_EQUAL(observed[i], payload[i]);
+            wait (scoreboard.got_processed() == 1);
+            `FAIL_IF_LOG(scoreboard.report(msg) > 0, msg);
         `SVTEST_END
 
         `SVTEST(one_packet_good)
@@ -365,7 +387,7 @@ module axi4s_intf_unit_test #(
             bad_byte_data = 8'hFF ^ bad_transaction.get_byte(bad_byte_idx);
             bad_transaction.set_byte(bad_byte_idx, bad_byte_data);
             env.driver.inbox.put(bad_transaction);
-            from_tx._wait(1000);
+            env.driver.wait_n(1000);
             `FAIL_UNLESS_LOG(
                 scoreboard.report(msg),
                 "Passed unexpectedly."

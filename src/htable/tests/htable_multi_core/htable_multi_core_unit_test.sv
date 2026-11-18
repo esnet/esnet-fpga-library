@@ -1,5 +1,8 @@
 `include "svunit_defines.svh"
 
+`undef SVUNIT_TIMEOUT
+`define SVUNIT_TIMEOUT 20ms
+
 module htable_multi_core_unit_test;
     import svunit_pkg::svunit_testcase;
     import htable_pkg::*;
@@ -112,11 +115,20 @@ module htable_multi_core_unit_test;
         end
     endfunction
 
+    // Application interface agents
+    db_intf_agent #(KEY_T, VALUE_T) lookup_agent;
+    db_intf_agent #(KEY_T, VALUE_T) update_agent;
+
     //===================================
     // Build
     //===================================
     function void build();
         svunit_ut = new(name);
+
+        lookup_agent = new("lookup_agent");
+        lookup_agent.db_vif = lookup_if;
+        update_agent = new("update_agent");
+        update_agent.db_vif = update_if;
 
         for (int i = 0; i < NUM_TABLES; i++) begin
             agent[i] = new($sformatf("db_agent[%0d]", i), SIZE);
@@ -136,8 +148,8 @@ module htable_multi_core_unit_test;
         for (int i = 0; i < NUM_TABLES; i++) begin
             agent[i].idle();
         end
-        update_if.idle();
-        lookup_if.idle();
+        update_agent.idle();
+        lookup_agent.idle();
 
         reset();
     
@@ -331,14 +343,14 @@ module htable_multi_core_unit_test;
             void'(std::randomize(exp_value));
             exp_entry = {key, exp_value};
             // Query (expect miss)
-            lookup_if.query(key, got_valid, got_value, error, timeout);
+            lookup_agent.query(key, got_valid, got_value, error, timeout);
             `FAIL_IF(error);
             `FAIL_IF(timeout);
             `FAIL_IF(got_valid);
             // Add entry
             agent[i].set(hash(key), exp_entry, error, timeout);
             // Query (expect hit)
-            lookup_if.query(key, got_valid, got_value, error, timeout);
+            lookup_agent.query(key, got_valid, got_value, error, timeout);
             `FAIL_IF(error);
             `FAIL_IF(timeout);
             `FAIL_UNLESS(got_valid);
@@ -350,7 +362,7 @@ module htable_multi_core_unit_test;
             `FAIL_UNLESS(got_valid);
             `FAIL_UNLESS_EQUAL(got_entry, exp_entry);
             // Query (expect miss)
-            lookup_if.query(key, got_valid, got_value, error, timeout);
+            lookup_agent.query(key, got_valid, got_value, error, timeout);
             `FAIL_IF(error);
             `FAIL_IF(timeout);
             `FAIL_IF(got_valid);
@@ -372,7 +384,7 @@ module htable_multi_core_unit_test;
             void'(std::randomize(key));
             void'(std::randomize(exp_value));
             // Add entry
-            update_if.update(key, 1'b1, exp_value, error, timeout);
+            update_agent.update(key, 1'b1, exp_value, error, timeout);
             if (INSERT_MODE == HTABLE_MULTI_INSERT_MODE_NONE) begin
                 `FAIL_UNLESS(timeout);
             end else begin
@@ -417,7 +429,7 @@ module htable_multi_core_unit_test;
         void'(std::randomize(key));
         void'(std::randomize(exp_value));
         // Add entry
-        update_if.update(key, 1'b1, exp_value, error, timeout);
+        update_agent.update(key, 1'b1, exp_value, error, timeout);
         if (INSERT_MODE == HTABLE_MULTI_INSERT_MODE_NONE) begin
             `FAIL_UNLESS(timeout);
         end else begin
@@ -425,7 +437,7 @@ module htable_multi_core_unit_test;
             `FAIL_IF(timeout);
         end
         // Query database from app interface
-        lookup_if.query(key, got_valid, got_value, error, timeout);
+        lookup_agent.query(key, got_valid, got_value, error, timeout);
         `FAIL_IF(error);
         `FAIL_IF(timeout);
         if (INSERT_MODE == HTABLE_MULTI_INSERT_MODE_NONE) begin
@@ -450,7 +462,7 @@ module htable_multi_core_unit_test;
         for (int i = 0; i < BURST_CNT; i++) begin
             // Add new random entry (same key)
             void'(std::randomize(exp_value));
-            update_if.post_update(key, 1'b1, exp_value, timeout);
+            update_agent.post_update(key, 1'b1, exp_value, timeout);
             if (INSERT_MODE == HTABLE_MULTI_INSERT_MODE_NONE) begin
                 `FAIL_UNLESS(timeout);
             end else begin
@@ -458,7 +470,7 @@ module htable_multi_core_unit_test;
             end
         end
         // Query database and check that most recently written value is returned
-        lookup_if.query(key, got_valid, got_value, error, timeout);
+        lookup_agent.query(key, got_valid, got_value, error, timeout);
         `FAIL_IF(error);
         `FAIL_IF(timeout);
         if (INSERT_MODE == HTABLE_MULTI_INSERT_MODE_NONE) begin

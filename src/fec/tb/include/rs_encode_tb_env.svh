@@ -10,7 +10,11 @@ class rs_encode_tb_env #(
     std_verif_pkg::raw_transaction#(PARITY_OUT_T),
     bus_verif_pkg::bus_driver#(DATA_IN_T),
     bus_verif_pkg::bus_monitor#(PARITY_OUT_T),
-    rs_model#(NUM_THREADS, raw_transaction#(DATA_IN_T), raw_transaction#(PARITY_OUT_T)),
+    fec_verif_pkg::rs_model#(
+        NUM_THREADS,
+        std_verif_pkg::raw_transaction#(DATA_IN_T),
+        std_verif_pkg::raw_transaction#(PARITY_OUT_T)
+    ),
     std_verif_pkg::raw_scoreboard#(PARITY_OUT_T)
 );
 
@@ -52,10 +56,10 @@ class rs_encode_tb_env #(
     endfunction
 
     task wait_n(input int cycles);
-        wr_vif._wait(cycles);
+        this.driver.wait_n(cycles);
     endtask
 
-    automatic function void reset();
+    function void reset();
         trace_msg("reset()");
         super.reset();
         trace_msg("reset() Done.");

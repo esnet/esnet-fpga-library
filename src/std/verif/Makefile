@@ -45,12 +45,16 @@ all: compile
 
 pre:     _compile_pre
 compile: _compile_sim
+regression: _regression
 info:    _compile_info
 clean:   _compile_clean
 
-.PHONY: all pre compile info clean
+.PHONY: all pre compile regression info clean
 
 # ----------------------------------------------------
 # Import Vivado compile targets
 # ----------------------------------------------------
 include $(SCRIPTS_ROOT)/Makefiles/vivado_compile.mk
+
+# Unit-test regression entry point.
+include $(SCRIPTS_ROOT)/Makefiles/component_base.mk

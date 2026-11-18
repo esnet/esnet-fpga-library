@@ -1,5 +1,8 @@
 `include "svunit_defines.svh"
 
+// (Failsafe) timeout
+`define SVUNIT_TIMEOUT 2ms
+
 module axi4s_mux_demux_unit_test;
 
     import svunit_pkg::svunit_testcase;
@@ -44,7 +47,30 @@ module axi4s_mux_demux_unit_test;
     // Testbench
     //===================================
     // Environment(s)
-    axi4s_component_env#(DATA_BYTE_WID, TID_T, TDEST_T, TUSER_T) env [N];
+    class test_env extends std_verif_pkg::component_env#(
+        AXI4S_TRANSACTION_T, AXI4S_TRANSACTION_T,
+        axi4s_driver#(DATA_BYTE_WID,TID_T,TDEST_T,TUSER_T),
+        axi4s_monitor#(DATA_BYTE_WID,TID_T,TDEST_T,TUSER_T),
+        std_verif_pkg::wire_model#(AXI4S_TRANSACTION_T),
+        std_verif_pkg::event_scoreboard#(AXI4S_TRANSACTION_T)
+    );
+        function new(
+            input string name,
+            input std_verif_pkg::wire_model#(AXI4S_TRANSACTION_T) model,
+            input std_verif_pkg::event_scoreboard#(AXI4S_TRANSACTION_T) scoreboard
+        );
+            super.new(name);
+            this.driver = new();
+            this.monitor = new();
+            this.model = model;
+            this.scoreboard = scoreboard;
+        endfunction
+    endclass
+    test_env env [N];
+
+    // Bind each virtual interface through its agent handle.
+    axi4s_driver#(DATA_BYTE_WID,TID_T,TDEST_T,TUSER_T) driver [N];
+    axi4s_monitor#(DATA_BYTE_WID,TID_T,TDEST_T,TUSER_T) monitor [N];
 
     // Reset
     std_reset_intf reset_if [N] (.clk);
@@ -56,8 +82,8 @@ module axi4s_mux_demux_unit_test;
             initial begin
                 wait(env[g_if] != null);
                 env[g_if].reset_vif = reset_if[g_if];
-                env[g_if].axis_in_vif = from_tx[g_if];
-                env[g_if].axis_out_vif = to_rx[g_if];
+                driver[g_if].axis_vif = from_tx[g_if];
+                monitor[g_if].axis_vif = to_rx[g_if];
                 env[g_if].build();
             end
         end : g__if
@@ -80,6 +106,8 @@ module axi4s_mux_demux_unit_test;
             model = new($sformatf("model[%0d]", i));
             scoreboard = new($sformatf("scoreboard[%0d]",i));
             env[i] = new($sformatf("env[%0d]", i), model, scoreboard);
+            driver[i] = env[i].driver;
+            monitor[i] = env[i].monitor;
         end
     endfunction
 
@@ -227,7 +255,7 @@ module axi4s_mux_demux_unit_test;
             bad_byte_data = 8'hFF ^ bad_transaction.get_byte(bad_byte_idx);
             bad_transaction.set_byte(bad_byte_idx, bad_byte_data);
             env[0].driver.inbox.put(bad_transaction);
-            from_tx[0]._wait(1000);
+            env[0].driver.wait_n(1000);
             `FAIL_UNLESS_LOG(
                 env[0].scoreboard.report(msg),
                 "Passed unexpectedly."

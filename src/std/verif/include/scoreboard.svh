@@ -24,7 +24,7 @@ virtual class scoreboard #(parameter type TRANSACTION_T = transaction) extends c
     // (must be implemented by derived class)
     //===================================
     // Post-process results
-    pure protected virtual function automatic void _postprocess();
+    pure virtual protected function void _postprocess();
 
     //===================================
     // Methods

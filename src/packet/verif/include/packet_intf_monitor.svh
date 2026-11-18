@@ -6,6 +6,7 @@ class packet_intf_monitor #(
     local static const string __CLASS_NAME = "packet_verif_pkg::packet_intf_monitor";
 
     localparam int META_WID = $bits(META_T);
+    localparam int MTY_WID = DATA_BYTE_WID > 1 ? $clog2(DATA_BYTE_WID) : 1;
 
     //===================================
     // Properties
@@ -66,20 +67,49 @@ class packet_intf_monitor #(
         super._reset();
     endfunction
 
+    //===================================
+    // Clocking-block interface control and transfers
+    //===================================
     // Put packet monitor interface in idle state
     // [[ implements std_verif_pkg::component._idle() ]]
-    virtual protected task _idle();
-        packet_vif.idle_rx();
+    protected task _idle();
+        packet_vif.cb_rx.rdy <= 1'b0;
     endtask
 
+    task flush();
+        packet_vif.cb_rx.rdy <= 1'b1;
+    endtask
+
+    task wait_n(input int cycles);
+        repeat (cycles) @(packet_vif.cb_rx);
+    endtask
+
+    task receive_beat(
+            output bit [0:DATA_BYTE_WID-1][7:0] _data,
+            output bit                _eop,
+            output bit [MTY_WID-1:0]  _mty,
+            output bit                _err,
+            output bit [META_WID-1:0] _meta
+        );
+        packet_vif.cb_rx.rdy <= 1'b1;
+        @(packet_vif.cb_rx iff (packet_vif.cb_rx.vld && packet_vif.cb_rx.mon_rx_rdy));
+        packet_vif.cb_rx.rdy <= 1'b0;
+        _data = packet_vif.cb_rx.data;
+        _eop = packet_vif.cb_rx.eop;
+        _mty = packet_vif.cb_rx.mty;
+        _err = packet_vif.cb_rx.err;
+        _meta = packet_vif.cb_rx.meta;
+    endtask
+
+    //===================================
+    // Packet assembly
+    //===================================
     // Receive transaction (represented as raw byte array with associated metadata)
     protected task _receive_raw(
             output byte   data[],
             output META_T meta,
             output bit    err
         );
-        // Parameters
-        localparam int MTY_WID = $clog2(DATA_BYTE_WID);
         // Signals
         byte __data[$];
         bit [0:DATA_BYTE_WID-1][7:0] _data;
@@ -94,10 +124,10 @@ class packet_intf_monitor #(
 
         while (!eop) begin
             if (stall()) begin
-                packet_vif.idle_rx();
-                packet_vif._wait(1);
+                _idle();
+                wait_n(1);
             end else begin
-                packet_vif.receive(_data, eop, mty, __err, meta);
+                receive_beat(_data, eop, mty, __err, meta);
                 trace_msg($sformatf("receive_raw: Received word %0d.", word_idx));
                 while (byte_idx < DATA_BYTE_WID) begin
                     if (!eop || (byte_idx < DATA_BYTE_WID - mty)) begin
@@ -118,10 +148,6 @@ class packet_intf_monitor #(
         err = __err;
         __data.delete();
         debug_msg($sformatf("receive_raw: Done. Received %0d bytes.", byte_cnt));
-    endtask
-
-    task flush();
-        packet_vif.flush();
     endtask
 
 endclass : packet_intf_monitor

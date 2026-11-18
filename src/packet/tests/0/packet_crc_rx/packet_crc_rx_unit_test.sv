@@ -1,5 +1,8 @@
 `include "svunit_defines.svh"
 
+// (Failsafe) timeout
+`define SVUNIT_TIMEOUT 2ms
+
 module packet_crc_rx_unit_test #(
     parameter crc_pkg::crc_config_t CONFIG = crc_pkg::DEFAULT_CRC,
     parameter int DATA_BYTE_WID = 8,
@@ -122,7 +125,7 @@ module packet_crc_rx_unit_test #(
         rx_if.cb_rx.rdy <= 1'b1;
         while (!eop) begin
             @(rx_if.cb_rx);
-            if (rx_if.cb_rx.vld) begin
+            if (rx_if.cb_rx.vld && rx_if.cb_rx.mon_rx_rdy) begin
                 automatic logic [0:DATA_BYTE_WID-1][7:0] word = rx_if.cb_rx.data;
                 automatic int valid = rx_if.cb_rx.eop ?
                     DATA_BYTE_WID - int'(rx_if.cb_rx.mty) : DATA_BYTE_WID;
@@ -148,8 +151,13 @@ module packet_crc_rx_unit_test #(
     task setup();
         svunit_ut.setup();
         crc_in = '0;
-        tx_if.idle_tx();
-        rx_if.idle_rx();
+        tx_if.cb_tx.vld <= 1'b0;
+        tx_if.cb_tx.data <= 'x;
+        tx_if.cb_tx.eop <= 'x;
+        tx_if.cb_tx.mty <= 'x;
+        tx_if.cb_tx.err <= 'x;
+        tx_if.cb_tx.meta <= 'x;
+        rx_if.cb_rx.rdy <= 1'b0;
         reset_if.pulse(8);
         reset_if._wait(8);
     endtask

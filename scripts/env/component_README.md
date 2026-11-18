@@ -1,41 +1,36 @@
 # MY_COMPONENT_NAME
 
-Description of component functionality goes here.
+Describe the component's purpose, main capabilities, and dependencies.
 
-## Unit Tests
+## Contents
 
-This library contains unit tests implemented using the open-source SVUnit test
-framework (https://github.com/svunit).
+| Component | Description |
+|-----------|-------------|
+| `MY_COMPONENT_MODULE` | Describe the provided module, interface, package, or agent |
 
-SVUnit is managed within the repository as a submodule and no separate installation
-or setup is required.
+## Interface and operation
 
-### Vivado Simulator Support
+Describe the important interface contracts: clock and reset, signal
+directions, transfer acceptance/completion, backpressure, payload stability,
+address or byte ordering, and packet/transaction boundaries where relevant.
+Explain configuration parameters and integration constraints. Link to a
+shared interface guide when the component reuses an existing protocol.
 
-In addition, this library contains Makefiles that support running the unit
-tests using Xilinx's Vivado Simulator. Vivado is not supported natively by
-SVUnit so the 'runSVUnit' script cannot be used directly. To execute the unit
-tests using the Vivado simulator:
+## Verification
 
-1. Configure Vivado. For example:
+Summarize the test capability and representative configurations at a high
+level. Describe relevant coverage limits; leave test counts and detailed
+case lists to the testbenches. Omit unsupported commands and adapt the
+paths below to the actual test layout.
+
+```sh
+# Individual testbench
+make -C tests/MY_COMPONENT_MODULE/
+
+# All tests (when provided by the component Makefile)
+make regression
 ```
-source ${XILINX_VIVADO}/settings64.sh
-```
 
-2. Execute appropriate Makefile
-
-    Running make in one of the test directories (i.e. tests/\[testbench_name\]/) executes
-    the unit tests contained within that testbench.
-
-    ```
-    make all
-    ```
-
-    Running make at the root of the library or in the tests/regression directory
-    executes all of the testcases contained in all of the testbenches.
-
-    Waves (Vivado *.wdb format)
-    can be logged by passing 'waves=ON' to the make command. Example:
-    ```
-    make all waves=ON
-    ```
+Pass `waves=ON` to capture a waveform, or `SEED=N` to fix the random seed.
+Simulator setup and selection follow the enclosing repository's test
+procedure. Document component-specific restrictions here.

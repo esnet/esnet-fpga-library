@@ -75,13 +75,77 @@ class axi4s_driver #(
         this.set_min_gap(0);
     endfunction
 
+    //===================================
+    // Clocking-block interface control and transfers
+    //===================================
     // Quiesce AXI-S interface
     // [[ implements std_verif_pkg::component._idle() ]]
-    virtual protected task _idle();
-        super._idle();
-        axis_vif.idle_tx();
+    protected task _idle();
+        axis_vif.cb_tx.tvalid <= 1'b0;
+        axis_vif.cb_tx.tlast  <= 1'b0;
+        axis_vif.cb_tx.tkeep  <= '0;
+        axis_vif.cb_tx.tdata  <= '0;
+        axis_vif.cb_tx.tid    <= '0;
+        axis_vif.cb_tx.tdest  <= '0;
+        axis_vif.cb_tx.tuser  <= '0;
     endtask
 
+    task wait_n(input int cycles);
+        repeat (cycles) @(axis_vif.cb);
+    endtask
+
+    task send_beat(
+            input bit [DATA_BYTE_WID-1:0][7:0] _tdata,
+            input bit [DATA_BYTE_WID-1:0]      _tkeep,
+            input bit                          _tlast,
+            input bit [TID_WID-1:0]            _tid=0,
+            input bit [TDEST_WID-1:0]          _tdest=0,
+            input bit [TUSER_WID-1:0]          _tuser=0,
+            input int twait = 0
+        );
+        if (twait > 0) begin
+            axis_vif.cb_tx.tvalid <= 1'b0;
+            wait_n(twait);
+        end
+        axis_vif.cb_tx.tvalid <= 1'b1;
+        axis_vif.cb_tx.tlast <= _tlast;
+        axis_vif.cb_tx.tkeep <= _tkeep;
+        axis_vif.cb_tx.tdata <= _tdata;
+        axis_vif.cb_tx.tid <= _tid;
+        axis_vif.cb_tx.tdest <= _tdest;
+        axis_vif.cb_tx.tuser <= _tuser;
+        @(axis_vif.cb_tx iff (axis_vif.cb_tx.mon_tx_tvalid && axis_vif.cb_tx.tready));
+        axis_vif.cb_tx.tvalid <= 1'b0;
+        axis_vif.cb_tx.tlast <= 1'b0;
+    endtask
+
+    task wait_ready(
+            output bit _timeout,
+            input  int TIMEOUT=0
+        );
+        automatic bit __timeout = 1'b0;
+        fork
+            begin
+                fork
+                    begin
+                        @(axis_vif.cb_tx iff (axis_vif.cb_tx.tready));
+                    end
+                    begin
+                        if (TIMEOUT > 0) begin
+                            wait_n(TIMEOUT);
+                            __timeout = 1'b1;
+                        end else wait(0);
+                    end
+                join_any
+                disable fork;
+            end
+        join
+        _timeout = __timeout;
+    endtask
+
+    //===================================
+    // Packet assembly
+    //===================================
     // Send transaction (represented as raw byte array with associated metadata)
     protected task _send_raw(
             const ref byte data [],
@@ -109,7 +173,7 @@ class axi4s_driver #(
             if ((byte_idx == DATA_BYTE_WID) || (__data.size() == 0)) begin
                 if (__data.size() == 0) tlast = 1'b1;
                 trace_msg($sformatf("send_raw: Sending word %0d.", word_idx));
-                axis_vif.send(tdata, tkeep, tlast, tid, tdest, tuser, this.__twait);
+                send_beat(tdata, tkeep, tlast, tid, tdest, tuser, this.__twait);
                 tdata = '1;
                 tkeep = 0;
                 byte_idx = 0;
@@ -117,8 +181,8 @@ class axi4s_driver #(
             end
         end
         debug_msg("send_raw: Done.");
-        axis_vif.idle_tx();
-        axis_vif._wait(this.__min_pkt_gap);
+        idle();
+        wait_n(this.__min_pkt_gap);
     endtask
 
     // Send packet

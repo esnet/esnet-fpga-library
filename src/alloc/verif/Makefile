@@ -23,6 +23,8 @@ SRC_LIST_FILES =
 #   (see $SCRIPTS_ROOT/Makefiles/templates/dependencies.mk)
 # ----------------------------------------------------
 SUBCOMPONENTS = \
+    alloc.rtl \
+    alloc.regio.rtl \
     alloc.regio.verif \
     std.verif \
     reg.verif

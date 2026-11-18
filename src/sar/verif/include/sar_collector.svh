@@ -119,6 +119,7 @@ class sar_collector #(
     // [[ implements std_verif_pkg::collector._process() ]]
     protected task _process(input SEGMENT_T transaction);
         int key = int'(transaction.buf_id);
+        int segment_offset = int'(transaction.offset);
         sar_collector_ctx ctx;
 
         trace_msg("_process()");
@@ -129,7 +130,7 @@ class sar_collector #(
 
         // Grow byte buffer to accommodate this segment if needed
         begin
-            int needed = int'(transaction.offset) + transaction.data.size();
+            int needed = segment_offset + transaction.data.size();
             if (needed > ctx.data.size()) begin
                 byte tmp[];
                 tmp = new[needed](ctx.data);
@@ -139,13 +140,13 @@ class sar_collector #(
 
         // Copy segment bytes into buffer at the correct offset
         for (int i = 0; i < transaction.data.size(); i++)
-            ctx.data[int'(transaction.offset) + i] = transaction.data[i];
+            ctx.data[segment_offset + i] = transaction.data[i];
         ctx.rcvd_len += transaction.data.size();
 
         // Record total length from the last segment's offset + size
         if (transaction.last) begin
             ctx.got_last  = 1'b1;
-            ctx.total_len = int'(transaction.offset) + transaction.data.size();
+            ctx.total_len = segment_offset + transaction.data.size();
         end
 
         // Emit complete frame when all bytes and the last flag have been received

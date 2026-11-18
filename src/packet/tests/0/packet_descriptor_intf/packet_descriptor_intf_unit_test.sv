@@ -1,5 +1,8 @@
 `include "svunit_defines.svh"
 
+// (Failsafe) timeout
+`define SVUNIT_TIMEOUT 2ms
+
 module packet_descriptor_intf_unit_test #(
     parameter string DUT_SELECT = "packet_descriptor_intf_connector"
 );
@@ -25,6 +28,7 @@ module packet_descriptor_intf_unit_test #(
     //===================================
     logic clk;
     logic srst;
+    logic en = 1'b1;
 
     logic from_tx_srst;
     logic to_rx_srst;
@@ -43,9 +47,13 @@ module packet_descriptor_intf_unit_test #(
     //===================================
     // Testbench
     //===================================
-    std_verif_pkg::component_env #(
+    std_verif_pkg::component_env#(
         PACKET_DESCRIPTOR_T,
-        PACKET_DESCRIPTOR_T
+        PACKET_DESCRIPTOR_T,
+        packet_descriptor_intf_driver#(ADDR_T,META_T),
+        packet_descriptor_intf_monitor#(ADDR_T,META_T),
+        std_verif_pkg::wire_model#(PACKET_DESCRIPTOR_T),
+        std_verif_pkg::event_scoreboard#(PACKET_DESCRIPTOR_T)
     ) env;
 
     // Driver/monitor
@@ -136,6 +144,7 @@ module packet_descriptor_intf_unit_test #(
     task one_packet(int id=0);
         PACKET_DESCRIPTOR_T packet_descriptor;
         packet_descriptor = new($sformatf("pkt_%0d", id));
+        packet_descriptor.set_max_size(from_tx.MAX_PKT_SIZE);
         packet_descriptor.randomize();
         env.inbox.put(packet_descriptor);
     endtask
@@ -174,7 +183,7 @@ module packet_descriptor_intf_unit_test #(
             bad_packet = packet.dup("trans_0_bad");
             bad_packet.addr++;
             env.driver.inbox.put(bad_packet);
-            from_tx._wait(1000);
+            driver.wait_n(1000);
             `FAIL_UNLESS_LOG(
                 scoreboard.report(msg),
                 "Passed unexpectedly."

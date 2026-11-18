@@ -46,186 +46,17 @@ interface db_intf #(
         output next_key
     );
 
+    // Sample the driven request independently of its clocking-block output.
+    logic mon_req;
+    assign mon_req = req;
+
     clocking cb @(posedge clk);
         output key, next;
         input rdy, ack, error, next_key;
-        inout req, valid, value;
+        output req;
+        input mon_req;
+        inout valid, value;
     endclocking
-
-    task _wait(input int cycles);
-        repeat(cycles) @(cb);
-    endtask
-
-    task idle();
-        cb.req <= 1'b0;
-    endtask
-
-    task send(
-            input bit [KEY_WID-1:0] _key
-        );
-        cb.req <= 1'b1;
-        cb.key <= _key;
-        cb.next <= 1'b0;
-        @(cb);
-        wait (cb.req && cb.rdy);
-        cb.req <= 1'b0;
-    endtask
-
-    task wait_ack(
-            output bit _error
-        );
-        @(cb);
-        wait(cb.ack);
-        _error = cb.error;
-    endtask
-
-    task receive(
-            output bit _valid,
-            output bit [VALUE_WID-1:0] _value,
-            output bit _error
-        );
-        wait_ack(_error);
-        _valid = cb.valid;
-        _value = cb.value;
-    endtask
-
-    task _query(
-            input bit [KEY_WID-1:0] _key,
-            output bit _valid,
-            output bit [VALUE_WID-1:0] _value,
-            output bit _error
-        );
-        send(_key);
-        receive(_valid, _value, _error);
-    endtask
-
-    task query(
-            input bit [KEY_WID-1:0] _key,
-            output bit _valid,
-            output bit [VALUE_WID-1:0] _value,
-            output bit _error,
-            output bit _timeout,
-            input int TIMEOUT=64
-        );
-        automatic bit __timeout = 1'b0;
-        fork
-            begin
-                fork
-                    begin
-                        _query(_key, _valid, _value, _error);
-                    end
-                    begin
-                        if (TIMEOUT > 0) begin
-                            _wait(TIMEOUT);
-                            __timeout = 1'b1;
-                        end else forever _wait(1);
-                    end
-                join_any
-                disable fork;
-            end
-        join
-        _timeout = __timeout;
-    endtask
-
-    task _post_update(
-            input bit [KEY_WID-1:0] _key,
-            input bit _valid,
-            input bit [VALUE_WID-1:0] _value
-        );
-        cb.valid <= _valid;
-        cb.value <= _value;
-        cb.next <= 1'b0;
-        send(_key);
-    endtask
-
-    task post_update(
-            input bit [KEY_WID-1:0] _key,
-            input bit _valid,
-            input bit [VALUE_WID-1:0] _value,
-            output bit _timeout,
-            input int TIMEOUT=64
-        );
-        automatic bit __timeout = 1'b0;
-        fork
-            begin
-                fork
-                    begin
-                        _post_update(_key, _valid, _value);
-                    end
-                    begin
-                        if (TIMEOUT > 0) begin
-                            _wait(TIMEOUT);
-                            __timeout = 1'b1;
-                        end else forever _wait(1);
-                    end
-                join_any
-                disable fork;
-            end
-        join
-        _timeout = __timeout;
-    endtask
-
-    task _update(
-            input bit [KEY_WID-1:0] _key,
-            input bit _valid,
-            input bit [VALUE_WID-1:0] _value,
-            output bit _error
-        );
-        _post_update(_key, _valid, _value);
-        wait_ack(_error);
-    endtask
-
-    task update(
-            input bit [KEY_WID-1:0] _key,
-            input bit _valid,
-            input bit [VALUE_WID-1:0] _value,
-            output bit _error,
-            output bit _timeout,
-            input int TIMEOUT=64
-        );
-        automatic bit __timeout = 1'b0;
-        fork
-            begin
-                fork
-                    begin
-                        _update(_key, _valid, _value, _error);
-                    end
-                    begin
-                        if (TIMEOUT > 0) begin
-                            _wait(TIMEOUT);
-                            __timeout = 1'b1;
-                        end else forever _wait(1);
-                    end
-                join_any
-                disable fork;
-            end
-        join
-        _timeout = __timeout;
-    endtask
-
-    task wait_ready(
-            output bit timeout,
-            input int TIMEOUT=32
-        );
-        automatic bit _timeout = 1'b0;
-        fork
-            begin
-                fork
-                    begin
-                        wait(cb.rdy);
-                    end
-                    begin
-                        if (TIMEOUT > 0) begin
-                            _wait(TIMEOUT);
-                            _timeout = 1'b1;
-                        end else forever _wait(1);
-                    end
-                join_any
-                disable fork;
-            end
-        join
-        timeout = _timeout;
-    endtask
 
 endinterface : db_intf
 
@@ -718,7 +549,7 @@ module db_intf_demux #(
     parameter int  NUM_TRANSACTIONS = 32,
     parameter bit  WR_RD_N = 1'b0,
     // Derived parameters (don't override)
-    parameter int  SEL_WID = NUM_IFS > 1 ?clog2(NUM_IFS) : 1
+    parameter int  SEL_WID = NUM_IFS > 1 ? $clog2(NUM_IFS) : 1
 ) (
     input logic               clk,
     input logic               srst,
@@ -767,7 +598,7 @@ module db_intf_demux #(
             end
 
             // Maintain context for open transactions
-            fifo_cxt #(
+            fifo_ctxt #(
                 .DATA_WID ( SEL_WID ),
                 .DEPTH    ( NUM_TRANSACTIONS )
             ) i_fifo_ctxt (
@@ -842,13 +673,20 @@ module db_intf_rr_demux #(
     db_intf.requester  to_responder [NUM_IFS]
 );
     // Parameters
-    localparam int SEL_WID = NUM_IFS > 1 ?clog2(NUM_IFS) : 1;
+    localparam int SEL_WID = NUM_IFS > 1 ? $clog2(NUM_IFS) : 1;
 
     // Signals
     logic [SEL_WID-1:0] demux_sel;
 
     initial demux_sel = 0;
-    always @(posedge clk) if (from_requester.req && from_requester.rdy) demux_sel <= demux_sel + 1;
+    // Restart at the first destination and wrap at the configured count.
+    always @(posedge clk) begin
+        if (srst) demux_sel <= 0;
+        else if (from_requester.req && from_requester.rdy) begin
+            if (demux_sel == NUM_IFS-1) demux_sel <= 0;
+            else                       demux_sel <= demux_sel + 1;
+        end
+    end
 
     // Base demux component
     db_intf_demux        #(

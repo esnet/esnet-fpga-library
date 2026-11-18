@@ -122,25 +122,30 @@ virtual class db_agent #(
             output bit              _timeout,
             input  int              TIMEOUT=0
         );
+        // Copy child-process results out only after the timeout race completes.
+        bit error;
+        bit timeout;
         trace_msg($sformatf("transact(command=%s)", _command.name()));
         fork
             begin
                 fork
                     begin
-                        _error = 1'b0;
-                        _transact(_command, _error);
+                        error = 1'b0;
+                        _transact(_command, error);
                     end
                     begin
-                        _timeout = 1'b0;
+                        timeout = 1'b0;
                         if (TIMEOUT > 0) begin
                             wait_n(TIMEOUT);
-                            _timeout = 1'b1;
+                            timeout = 1'b1;
                         end else wait(0);
                     end
                 join_any
                 disable fork;
             end
         join
+        _error = error;
+        _timeout = timeout;
         assert (_error == 0)   else info_msg($sformatf("Error detected during '%s' transaction.", _command.name));
         assert (_timeout == 0) else error_msg($sformatf("'%s' transaction timed out.", _command.name));
         trace_msg("transact() Done.");

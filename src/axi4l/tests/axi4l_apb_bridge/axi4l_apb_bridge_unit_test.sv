@@ -1,5 +1,8 @@
 `include "svunit_defines.svh"
 
+// (Failsafe) timeout
+`define SVUNIT_TIMEOUT 100ms
+
 module axi4l_apb_bridge_unit_test;
     import svunit_pkg::svunit_testcase;
     import axi4l_verif_pkg::*;
@@ -41,7 +44,6 @@ module axi4l_apb_bridge_unit_test;
 
     // Connect reset interface
     assign axi4l_if.aresetn = !reset_if.reset;
-    assign apb_if.presetn = !reset_if.reset;
     assign reset_if.ready = !reset_if.reset;
 
     // Agents
@@ -79,7 +81,7 @@ module axi4l_apb_bridge_unit_test;
         svunit_ut.setup();
         /* Place Setup Code Here */
 
-        axi4l_if.idle_controller();
+        reg_agent.idle();
 
         reset();
 

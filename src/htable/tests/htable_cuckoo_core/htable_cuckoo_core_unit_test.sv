@@ -1,5 +1,8 @@
 `include "svunit_defines.svh"
 
+`undef SVUNIT_TIMEOUT
+`define SVUNIT_TIMEOUT 20ms
+
 module htable_cuckoo_core_unit_test;
     import svunit_pkg::svunit_testcase;
     import db_pkg::*;
@@ -118,11 +121,17 @@ module htable_cuckoo_core_unit_test;
 
     assign en = 1'b1;
 
+    // Application interface agents
+    db_intf_agent #(KEY_T, VALUE_T) lookup_agent;
+
     //===================================
     // Build
     //===================================
     function void build();
         svunit_ut = new(name);
+
+        lookup_agent = new("lookup_agent");
+        lookup_agent.db_vif = lookup_if;
 
         axil_reg_agent = new();
         axil_reg_agent.axil_vif = axil_if;
@@ -144,7 +153,7 @@ module htable_cuckoo_core_unit_test;
 
         axil_reg_agent.idle();
         agent.idle();
-        lookup_if.idle();
+        lookup_agent.idle();
 
         reset();
 
@@ -330,7 +339,7 @@ module htable_cuckoo_core_unit_test;
         exp_stats.insert_ok += 1;
         exp_stats.active += 1;
         // Query database from app interface
-        lookup_if.query(key, got_valid, got_value, error, timeout);
+        lookup_agent.query(key, got_valid, got_value, error, timeout);
         `FAIL_IF(error);
         `FAIL_IF(timeout);
         `FAIL_UNLESS(got_valid);
@@ -364,7 +373,7 @@ module htable_cuckoo_core_unit_test;
         foreach(entries[key]) begin
             bit got_valid;
             VALUE_T got_value;
-            lookup_if.query(key, got_valid, got_value, error, timeout);
+            lookup_agent.query(key, got_valid, got_value, error, timeout);
             `FAIL_IF(error);
             `FAIL_IF(timeout);
             `FAIL_UNLESS(got_valid);
@@ -399,7 +408,7 @@ module htable_cuckoo_core_unit_test;
         foreach(entries[key]) begin
             bit got_valid;
             VALUE_T got_value;
-            lookup_if.query(key, got_valid, got_value, error, timeout);
+            lookup_agent.query(key, got_valid, got_value, error, timeout);
             `FAIL_IF(error);
             `FAIL_IF(timeout);
             `FAIL_UNLESS(got_valid);
@@ -434,7 +443,7 @@ module htable_cuckoo_core_unit_test;
         foreach(entries[key]) begin
             bit got_valid;
             VALUE_T got_value;
-            lookup_if.query(key, got_valid, got_value, error, timeout);
+            lookup_agent.query(key, got_valid, got_value, error, timeout);
             `FAIL_IF(error);
             `FAIL_IF(timeout);
             `FAIL_UNLESS(got_valid);
@@ -478,7 +487,7 @@ module htable_cuckoo_core_unit_test;
         end
         // Check
         foreach(entries[key]) begin
-            lookup_if.query(key, got_valid, got_value, error, timeout);
+            lookup_agent.query(key, got_valid, got_value, error, timeout);
             `FAIL_IF(error);
             `FAIL_IF(timeout);
             `FAIL_UNLESS(got_valid);
@@ -495,14 +504,14 @@ module htable_cuckoo_core_unit_test;
         exp_stats.insert_fail += 1;
         // Check again and ensure that the original NUM_TABLES keys remain in the table
         foreach(entries[key]) begin
-            lookup_if.query(key, got_valid, got_value, error, timeout);
+            lookup_agent.query(key, got_valid, got_value, error, timeout);
             `FAIL_IF(error);
             `FAIL_IF(timeout);
             `FAIL_UNLESS(got_valid);
             `FAIL_UNLESS_EQUAL(got_value, entries[key]);
         end
         // Check that new entry is not in the table
-        lookup_if.query(keys[NUM_TABLES], got_valid, got_value, error, timeout);
+        lookup_agent.query(keys[NUM_TABLES], got_valid, got_value, error, timeout);
         `FAIL_IF(error);
         `FAIL_IF(timeout);
         `FAIL_IF(got_valid);
@@ -513,7 +522,8 @@ module htable_cuckoo_core_unit_test;
 
     `SVTEST(stash_hit)
         KEY_T keys [NUM_TABLES+1];
-        VALUE_T entries [KEY_T];
+        // Keep expected values beside keys, including every displaced entry.
+        VALUE_T values [NUM_TABLES+1];
         bit error;
         bit timeout;
 
@@ -527,13 +537,14 @@ module htable_cuckoo_core_unit_test;
         `FAIL_IF(timeout);
         exp_stats.insert_ok += 1;
         exp_stats.active += 1;
-        entries[keys[0]] = __value;
+        values[0] = __value;
         // Generate and insert NUM_TABLES-1 additional keys:
         // Each key is different than first but with same hash values
         for (int i = 1; i < NUM_TABLES; i++) begin
             void'(std::randomize(__value));
             void'(std::randomize(keys[i]));
             keys[i][NUM_TABLES*HASH_WID-1:0] = keys[0][NUM_TABLES*HASH_WID-1:0];
+            values[i] = __value;
             // Add key
             agent.set(keys[i], __value, error, timeout);
             `FAIL_IF(error);
@@ -542,14 +553,14 @@ module htable_cuckoo_core_unit_test;
             exp_stats.active += 1;
         end
         // Check
-        foreach(entries[key]) begin
+        for (int i = 0; i < NUM_TABLES; i++) begin
             bit got_valid;
             VALUE_T got_value;
-            lookup_if.query(key, got_valid, got_value, error, timeout);
+            lookup_agent.query(keys[i], got_valid, got_value, error, timeout);
             `FAIL_IF(error);
             `FAIL_IF(timeout);
             `FAIL_UNLESS(got_valid);
-            `FAIL_UNLESS_EQUAL(got_value, entries[key]);
+            `FAIL_UNLESS_EQUAL(got_value, values[i]);
         end
         // 'Disable' cuckoo insertion loop detection
         reg_agent.set_cuckoo_ops_limit('1);
@@ -562,7 +573,7 @@ module htable_cuckoo_core_unit_test;
         void'(std::randomize(__value));
         void'(std::randomize(keys[NUM_TABLES]));
         keys[NUM_TABLES][NUM_TABLES*HASH_WID-1:0] = keys[0][NUM_TABLES*HASH_WID-1:0];
-        entries[keys[NUM_TABLES]] = __value;
+        values[NUM_TABLES] = __value;
         fork
             begin
                 fork
@@ -572,18 +583,18 @@ module htable_cuckoo_core_unit_test;
                     end
                     begin
                         // Wait until the insertion is in progress
-                        lookup_if._wait(100);
+                        lookup_agent.wait_n(100);
                         for (int i = 0; i < 1000; i++) begin
                             // Cycle through 'inserted' keys, check that all lookup requests are successful
                             // while the keys are constantly shuffled during the cuckoo insertion
-                            foreach(entries[key]) begin
+                            for (int j = 0; j <= NUM_TABLES; j++) begin
                                 bit got_valid;
                                 VALUE_T got_value;
-                                lookup_if.query(key, got_valid, got_value, error, timeout);
+                                lookup_agent.query(keys[j], got_valid, got_value, error, timeout);
                                 `FAIL_IF(error);
                                 `FAIL_IF(timeout);
                                 `FAIL_UNLESS(got_valid);
-                                `FAIL_UNLESS_EQUAL(got_value, entries[key]);
+                                `FAIL_UNLESS_EQUAL(got_value, values[j]);
                             end
                         end
                     end

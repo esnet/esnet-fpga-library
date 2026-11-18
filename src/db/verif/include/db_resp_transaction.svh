@@ -80,7 +80,7 @@ class db_resp_transaction#(
             msg = $sformatf("KEY mismatch. A: 0x%x, B: 0x%x.", this.key, b.key);
             return 0;
         end else if (this.status !== b.status) begin
-            msg = $sformatf("STATUS mismatch. A: %x, B: %x.", this.status.name(), b.status.name());
+            msg = $sformatf("STATUS mismatch. A: %s, B: %s.", this.status.name(), b.status.name());
             return 0;
         end else if (this.found !== b.found) begin
             msg = $sformatf("FOUND mismatch. A: %x, B: %x.", this.found, b.found);

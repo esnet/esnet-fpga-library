@@ -75,7 +75,9 @@ module fec_err_inject
     always_ff @(posedge clk) if (data_out_ready) begin
         for (int i=0; i<NUM_CW; i++)
             for (int j=0; j<RS_N; j++)
-                data_out[i][out_idx[j]] <= data_pipe[0][i][j];
+                // Erased symbols have a sentinel index outside the output word.
+                if (out_idx[j] < RS_K)
+                    data_out[i][out_idx[j]] <= data_pipe[0][i][j];
 
         data_out_valid <= valid_pipe[0];
         err_loc_out   <= err_loc_pipe[0];

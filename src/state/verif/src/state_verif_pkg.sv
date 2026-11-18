@@ -14,6 +14,9 @@ package state_verif_pkg;
 
     `include "state_req.svh"
     `include "state_resp.svh"
+    `include "state_intf_agent.svh"
+    `include "state_check_agent.svh"
+    `include "state_event_agent.svh"
     `include "state_driver.svh"
     `include "state_monitor.svh"
 

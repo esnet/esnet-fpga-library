@@ -1,5 +1,8 @@
 `include "svunit_defines.svh"
 
+// (Failsafe) timeout
+`define SVUNIT_TIMEOUT 2ms
+
 module packet_write_unit_test #(
     parameter bit DROP_ERRORED  = 1'b1,
     parameter bit COMPUTE_CKSUM = 1'b0
@@ -71,9 +74,13 @@ module packet_write_unit_test #(
     assign mem_init_done = 1'b1;
 
     // Environment
-    std_verif_pkg::component_env #(
+    std_verif_pkg::component_env#(
         PACKET_T,
-        PACKET_DESCRIPTOR_T
+        PACKET_DESCRIPTOR_T,
+        packet_intf_driver#(DATA_BYTE_WID,META_T),
+        packet_descriptor_intf_monitor#(ADDR_T,META_T),
+        packet_write_model#(DATA_BYTE_WID,ADDR_T,META_T,COMPUTE_CKSUM),
+        std_verif_pkg::event_scoreboard#(PACKET_DESCRIPTOR_T)
     ) env;
 
     // Driver/monitor
@@ -190,7 +197,12 @@ module packet_write_unit_test #(
             begin
                 fork
                     nxt_descriptor_driver.send(raw_descriptor);
-                    env.inbox.put(packet);
+                    begin
+                        env.inbox.put(packet);
+                        // Wait for packet completion before reporting results.
+                        @(event_if.cb_rx iff (event_if.cb_rx.evt));
+                        driver.wait_n(2);
+                    end
                 join
             end
             begin
@@ -333,7 +345,11 @@ module packet_write_unit_test #(
                 begin
                     fork
                         nxt_descriptor_driver.send(raw_descriptor);
-                        driver.inbox.put(bad_pkt);
+                        begin
+                            driver.inbox.put(bad_pkt);
+                            @(event_if.cb_rx iff (event_if.cb_rx.evt));
+                            driver.wait_n(2);
+                        end
                     join
                 end
                 begin

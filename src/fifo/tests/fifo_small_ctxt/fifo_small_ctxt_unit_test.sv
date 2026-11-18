@@ -247,7 +247,7 @@ module fifo_small_ctxt_unit_test #(
             env.driver.send(exp_transaction);
             `FAIL_UNLESS(cb.oflow == 0);
 
-            wr_if._wait(1);
+            env.driver.wait_n(1);
 
             env.monitor.receive(got_transaction);
             match = exp_transaction.compare(got_transaction, msg);
@@ -287,7 +287,7 @@ module fifo_small_ctxt_depth1_unit_test;
 endmodule
 
 // 3-entry FIFO (small)
-module fifo_ctxt_depth3_unit_test;
+module fifo_small_ctxt_depth3_unit_test;
 `FIFO_SMALL_CTXT_UNIT_TEST(3)
 endmodule
 

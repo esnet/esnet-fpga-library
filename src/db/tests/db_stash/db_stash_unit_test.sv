@@ -1,5 +1,8 @@
 `include "svunit_defines.svh"
 
+`undef SVUNIT_TIMEOUT
+`define SVUNIT_TIMEOUT 20ms
+
 module db_stash_unit_test;
     import svunit_pkg::svunit_testcase;
     import db_pkg::*;
@@ -50,6 +53,7 @@ module db_stash_unit_test;
     // Testbench
     //===================================
     db_ctrl_agent #(KEY_T, VALUE_T) agent;
+    db_intf_agent #(KEY_T, VALUE_T) app_wr_agent, app_rd_agent;
     std_reset_intf reset_if (.clk);
 
     // Assign clock (250MHz)
@@ -66,6 +70,10 @@ module db_stash_unit_test;
         svunit_ut = new(name);
 
         agent = new("db_agent", SIZE);
+        app_wr_agent = new("app_wr_agent");
+        app_wr_agent.db_vif = app_wr_if;
+        app_rd_agent = new("app_rd_agent");
+        app_rd_agent.db_vif = app_rd_if;
         agent.ctrl_vif = ctrl_if;
         agent.info_vif = info_if;
  
@@ -79,8 +87,8 @@ module db_stash_unit_test;
         svunit_ut.setup();
         
         agent.idle();
-        app_wr_if.idle();
-        app_rd_if.idle();
+        app_wr_agent.idle();
+        app_rd_agent.idle();
 
         reset();
     
@@ -121,6 +129,185 @@ module db_stash_unit_test;
     `include "../common/ctrl_tests.svh"
     // Include application-specific tests
     `include "../common/app_tests.svh"
+
+    // An invalid slot must not match its old key while a new entry reuses it.
+    `SVTEST(read_invalid_slot_during_reuse)
+        VALUE_T value;
+        bit valid, error, timeout;
+
+        // Fill the stash so the replacement must use the invalidated slot.
+        for (int i = 0; i < SIZE; i++) begin
+            app_wr_agent.update(KEY_T'(i + 1), 1, VALUE_T'(i + 17), error, timeout);
+            `FAIL_IF(error);
+            `FAIL_IF(timeout);
+        end
+        app_wr_agent.update(KEY_T'(1), 0, '0, error, timeout);
+        `FAIL_IF(error);
+        `FAIL_IF(timeout);
+
+        // Start the lookup after accepting the replacement write request,
+        // while that write is still in flight through the stash pipeline.
+        app_wr_agent.post_update(KEY_T'(SIZE + 1), 1, VALUE_T'(99), timeout);
+        `FAIL_IF(timeout);
+        app_rd_agent.query(KEY_T'(1), valid, value, error, timeout);
+        `FAIL_IF(error);
+        `FAIL_IF(timeout);
+        `FAIL_IF(valid);
+
+        app_rd_agent.query(KEY_T'(SIZE + 1), valid, value, error, timeout);
+        `FAIL_IF(error);
+        `FAIL_IF(timeout);
+        `FAIL_UNLESS(valid);
+        `FAIL_UNLESS_EQUAL(value, VALUE_T'(99));
+    `SVTEST_END
+
+    // An idle control-port key must not forward a stale write match.
+    `SVTEST(read_invalid_slot_during_control_reuse)
+        VALUE_T value;
+        bit valid, error, timeout;
+
+        for (int i = 0; i < SIZE; i++) begin
+            app_wr_agent.update(KEY_T'(i + 1), 1, VALUE_T'(i + 17), error, timeout);
+            `FAIL_IF(error);
+            `FAIL_IF(timeout);
+        end
+        agent.unset(KEY_T'(1), valid, value, error, timeout);
+        `FAIL_IF(error);
+        `FAIL_IF(timeout);
+        `FAIL_UNLESS(valid);
+
+        app_wr_agent.post_update(KEY_T'(SIZE + 1), 1, VALUE_T'(99), timeout);
+        `FAIL_IF(timeout);
+        // Move the read one cycle later than the original reuse test.
+        app_wr_agent.wait_n(1);
+        app_rd_agent.query(KEY_T'(1), valid, value, error, timeout);
+        `FAIL_IF(error);
+        `FAIL_IF(timeout);
+        `FAIL_IF_LOG(valid, $sformatf("Invalidated key returned replacement value 0x%h", value));
+    `SVTEST_END
+
+    // A pipelined write match must not overwrite an unrelated valid entry.
+    `SVTEST(read_valid_slot_during_stale_write_match)
+        VALUE_T value;
+        bit valid, error, timeout;
+
+        for (int i = 0; i < SIZE; i++) begin
+            app_wr_agent.update(KEY_T'(i + 1), 1, VALUE_T'(i + 17), error, timeout);
+            `FAIL_IF(error);
+            `FAIL_IF(timeout);
+        end
+        app_wr_agent.update(KEY_T'(1), 0, '0, error, timeout);
+        `FAIL_IF(error);
+        `FAIL_IF(timeout);
+
+        // The first write consumes the only free slot. The second must
+        // report full rather than follow its match to the old invalid key.
+        fork
+            begin
+                bit first_timeout, second_timeout;
+                app_wr_agent.post_update(KEY_T'(SIZE + 1), 1, VALUE_T'(99), first_timeout);
+                app_wr_agent.post_update(KEY_T'(1), 1, VALUE_T'(77), second_timeout);
+                `FAIL_IF(first_timeout);
+                `FAIL_IF(second_timeout);
+            end
+            begin
+                bit first_error, second_error;
+                app_wr_agent.wait_ack(first_error);
+                app_wr_agent.wait_ack(second_error);
+                `FAIL_IF(first_error);
+                `FAIL_UNLESS(second_error);
+            end
+        join
+        app_rd_agent.query(KEY_T'(SIZE + 1), valid, value, error, timeout);
+        `FAIL_IF(error);
+        `FAIL_IF(timeout);
+        `FAIL_UNLESS(valid);
+        `FAIL_UNLESS_LOG(value === VALUE_T'(99), $sformatf("Preserved entry returned 0x%h, expected 0x%h", value, VALUE_T'(99)));
+    `SVTEST_END
+
+    // A first insertion must forward its index to an adjacent same-key write.
+    `SVTEST(consecutive_same_key_inserts)
+        VALUE_T value;
+        bit valid, error, timeout;
+
+        fork
+            begin
+                bit first_timeout, second_timeout;
+                app_wr_agent.post_update(KEY_T'(1), 1, VALUE_T'(11), first_timeout);
+                app_wr_agent.post_update(KEY_T'(1), 1, VALUE_T'(22), second_timeout);
+                `FAIL_IF(first_timeout);
+                `FAIL_IF(second_timeout);
+            end
+            begin
+                bit first_error, second_error;
+                app_wr_agent.wait_ack(first_error);
+                app_wr_agent.wait_ack(second_error);
+                `FAIL_IF(first_error);
+                `FAIL_IF(second_error);
+            end
+        join
+        `FAIL_UNLESS_EQUAL(status_if.fill, 1);
+        app_rd_agent.query(KEY_T'(1), valid, value, error, timeout);
+        `FAIL_IF(error);
+        `FAIL_IF(timeout);
+        `FAIL_UNLESS(valid);
+        `FAIL_UNLESS_EQUAL(value, VALUE_T'(22));
+    `SVTEST_END
+
+    // A pending deletion frees the slot for the next same-key insertion.
+    `SVTEST(consecutive_delete_reinsert)
+        VALUE_T value;
+        bit valid, error, timeout;
+
+        for (int i = 0; i < SIZE; i++) begin
+            app_wr_agent.update(KEY_T'(i + 1), 1, VALUE_T'(i + 17), error, timeout);
+            `FAIL_IF(error);
+            `FAIL_IF(timeout);
+        end
+        fork
+            begin
+                bit first_timeout, second_timeout;
+                app_wr_agent.post_update(KEY_T'(1), 0, '0, first_timeout);
+                app_wr_agent.post_update(KEY_T'(1), 1, VALUE_T'(77), second_timeout);
+                `FAIL_IF(first_timeout);
+                `FAIL_IF(second_timeout);
+            end
+            begin
+                bit first_error, second_error;
+                app_wr_agent.wait_ack(first_error);
+                app_wr_agent.wait_ack(second_error);
+                `FAIL_IF(first_error);
+                `FAIL_IF(second_error);
+            end
+        join
+        `FAIL_UNLESS_EQUAL(status_if.fill, SIZE);
+        app_rd_agent.query(KEY_T'(1), valid, value, error, timeout);
+        `FAIL_IF(error);
+        `FAIL_IF(timeout);
+        `FAIL_UNLESS(valid);
+        `FAIL_UNLESS_EQUAL(value, VALUE_T'(77));
+    `SVTEST_END
+
+    // Reads accepted on a write's commit edge see the inserted/deleted state.
+    `SVTEST(read_during_insert_delete)
+        VALUE_T value;
+        bit valid, error, timeout;
+
+        app_wr_agent.post_update(KEY_T'(1), 1, VALUE_T'(33), timeout);
+        `FAIL_IF(timeout);
+        app_rd_agent.query(KEY_T'(1), valid, value, error, timeout);
+        `FAIL_IF(error);
+        `FAIL_IF(timeout);
+        `FAIL_UNLESS(valid);
+        `FAIL_UNLESS_EQUAL(value, VALUE_T'(33));
+
+        app_wr_agent.post_update(KEY_T'(1), 0, '0, timeout);
+        `FAIL_IF(timeout);
+        app_rd_agent.query(KEY_T'(1), valid, value, error, timeout);
+        `FAIL_IF(error);
+        `FAIL_IF(timeout);
+        `FAIL_IF(valid);
+    `SVTEST_END
 
     `SVTEST(set_iterate)
         KEY_T exp_key;

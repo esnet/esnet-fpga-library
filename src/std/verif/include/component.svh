@@ -18,6 +18,7 @@ virtual class component extends base;
     local bit __FINALIZE = 1'b0;
     local bit __AUTOSTART = 1'b1;
     local bit __BUILD_DONE = 1'b0;
+    local int unsigned __run_id = 0;
 
     local enum {STOPPED, RUNNING, DEFUNCT} __state;
 
@@ -26,9 +27,9 @@ virtual class component extends base;
     // (must be implemented by derived class)
     //===================================
     // Build component (instantiate subcomponents, connect interfaces, etc.)
-    pure virtual protected function automatic void _build();
+    pure virtual protected function void _build();
     // Reset component state
-    pure virtual function automatic void _reset();
+    pure virtual function void _reset();
     // Quiesce all interfaces
     pure virtual protected task _idle();
     // Perform any necessary initialization, etc. and block until component is ready for processing
@@ -53,6 +54,7 @@ virtual class component extends base;
         __BUILD_DONE = 1'b0;
         __FINALIZE = 1'b0;
         __AUTOSTART = 1'b1;
+        __run_id = 0;
         // } WORKAROUND-INIT-PROPS
     endfunction
 
@@ -63,6 +65,7 @@ virtual class component extends base;
         foreach (__SUBCOMPONENTS[i]) __SUBCOMPONENTS[i].destroy();
         __SUBCOMPONENTS.delete();
         __LOCK = null;
+        __run_id++;
         super.destroy();
         __state = DEFUNCT;
         trace_msg("destroy() Done.");
@@ -173,34 +176,30 @@ virtual class component extends base;
 
     // Start component execution (run loop)
     virtual task run();
+        automatic int unsigned run_id;
         trace_msg("run()");
         if (is_running()) stop();
+        run_id = ++__run_id;
         fork
             begin
-                fork
-                    begin
-                        __autostart();
-                        // WORKAROUND-NAMED-EVENTS {
-                        //     Persistent trigger not supported officially;
-                        //     Also, as of Vivado 2024.2 use of named events
-                        //     appears to have issues.
-                        // wait(__start.triggered);
-                        wait(__state == RUNNING);
-                        // } WORKAROUND-NAMED-EVENTS
-                        _run();
-                        wait(0); 
+                // A stop or replacement run may arrive before this process
+                // starts, or while it waits for an explicit start().
+                if (run_id == __run_id) begin
+                    __autostart();
+                    wait (__state == RUNNING || run_id != __run_id);
+                    if (run_id == __run_id) begin
+                        fork
+                            begin
+                                _run();
+                                wait (0);
+                            end
+                            begin
+                                wait (__state == STOPPED || run_id != __run_id);
+                            end
+                        join_any
+                        disable fork;
                     end
-                    begin
-                        // WORKAROUND-NAMED-EVENTS {
-                        //     Persistent trigger not supported officially;
-                        //     Also, as of Vivado 2024.2 use of named events
-                        //     appears to have issues.
-                        // wait(__stop.triggered);
-                        wait(__state == STOPPED);
-                        // } WORKAROUND-NAMED-EVENTS
-                    end
-                join_any
-                disable fork;
+                end
             end
         join_none;
         foreach (__SUBCOMPONENTS[i]) __SUBCOMPONENTS[i].run();
@@ -232,6 +231,7 @@ virtual class component extends base;
         // -> __stop;
         // } WORKAROUND-NAMED-EVENTS
         foreach (__SUBCOMPONENTS[i]) __SUBCOMPONENTS[i].stop();
+        __run_id++;
         __state = STOPPED;
         if (__FINALIZE) destroy();
         trace_msg("stop() Done.");

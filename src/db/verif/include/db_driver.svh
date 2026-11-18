@@ -45,21 +45,20 @@ class db_driver #(
     // Put (driven) database update interface in idle state
     // [[ implements std_verif_pkg::driver.idle() ]]
     task idle();
-        db_vif.idle();
+        db_vif.cb.req <= 1'b0;
     endtask
 
     // Wait for specified number of 'cycles' on the driven interface
     // [[ implements std_verif_pkg::driver._wait() ]]
     task _wait(input int cycles);
-        db_vif._wait(cycles);
+        repeat (cycles) @(db_vif.cb);
     endtask
 
     // Wait for interface to be ready to accept transactions (after reset/init, for example)
     // [[ implements std_verif_pkg::driver.wait_ready() ]]
     task wait_ready();
-        automatic bit no_timeout;
         trace_msg("wait_ready()");
-        db_vif.wait_ready(no_timeout, 0);
+        wait (db_vif.cb.rdy);
         trace_msg("wait_ready() Done.");
     endtask
 
@@ -68,13 +67,17 @@ class db_driver #(
         );
         trace_msg("send_raw()");
         // Send transaction to interface
-        db_vif.send(key);
+        db_vif.cb.req <= 1'b1;
+        db_vif.cb.key <= key;
+        db_vif.cb.next <= 1'b0;
+        @(db_vif.cb iff (db_vif.cb.mon_req && db_vif.cb.rdy));
+        db_vif.cb.req <= 1'b0;
         trace_msg("send_raw() Done.");
     endtask
 
     // Send database transaction
     // [[ implements std_verif_pkg::driver._send() ]]
-    task _send(input db_req_transaction transaction);
+    task _send(input db_req_transaction#(KEY_T, VALUE_T) transaction);
         trace_msg("_send()");
         info_msg($sformatf("Sending transaction '%s'", transaction.get_name()));
 

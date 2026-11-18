@@ -3,6 +3,7 @@
 //===================================
 // (Failsafe) timeout (per-testcase)
 //===================================
+`undef SVUNIT_TIMEOUT
 `define SVUNIT_TIMEOUT 5ms
 
 module sar_verif_unit_test;
@@ -47,29 +48,43 @@ module sar_verif_unit_test;
     assign reset_if.ready = !reset_if.reset;
 
     //===================================
-    // Packet interface — wire between segment driver and monitor
+    // Segment driver -> packet adapters -> segment monitor
     //===================================
     packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_WID(META_WID))     pkt_if (.clk(clk));
-    packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_WID(SEG_META_WID)) seg_if (.clk(clk));
+    packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_WID(SEG_META_WID)) seg_tx_if (.clk(clk));
+    packet_intf #(.DATA_BYTE_WID(DATA_BYTE_WID), .META_WID(SEG_META_WID)) seg_rx_if (.clk(clk));
 
     BUF_ID_T packet_buf_id;
     OFFSET_T packet_offset;
     logic    packet_last;
 
-    // Shim: seg_tx_if (wide meta) → packet_in_if (narrow meta) + sideband
+    // Shim: seg_tx_if (wide meta) → pkt_if (narrow meta) + sideband
     sar_segment_to_packet #(
         .BUF_ID_WID   ( BUF_ID_WID ),
         .OFFSET_WID   ( OFFSET_WID ),
         .PKT_META_WID ( META_WID   )
-    ) i_seg_to_pkt (.*);
+    ) i_seg_to_pkt (
+        .seg_if ( seg_tx_if ),
+        .pkt_if,
+        .packet_buf_id,
+        .packet_offset,
+        .packet_last
+    );
 
-    // Shim: packet_out_if (narrow meta) + sideband → seg_rx_if (wide meta)
+    // Shim: pkt_if (narrow meta) + sideband → seg_rx_if (wide meta)
     // clk/srst needed to latch sideband on first word (DUT may update before eop)
     sar_segment_from_packet #(
         .BUF_ID_WID   ( BUF_ID_WID ),
         .OFFSET_WID   ( OFFSET_WID ),
         .PKT_META_WID ( META_WID   )
-    ) i_pkt_from_seg (.*);
+    ) i_pkt_from_seg (
+        .clk, .srst,
+        .seg_if ( seg_rx_if ),
+        .pkt_if,
+        .packet_buf_id,
+        .packet_offset,
+        .packet_last
+    );
 
     //===================================
     // Components
@@ -92,10 +107,10 @@ module sar_verif_unit_test;
         scoreboard = new("scoreboard");
 
         seg_pkt_driver = new("seg_pkt_driver");
-        seg_pkt_driver.packet_vif = seg_if;
+        seg_pkt_driver.packet_vif = seg_tx_if;
 
         seg_pkt_monitor = new("seg_pkt_monitor");
-        seg_pkt_monitor.packet_vif = seg_if;
+        seg_pkt_monitor.packet_vif = seg_rx_if;
 
         env = new("sar_component_env");
         env.reset_vif = reset_if;

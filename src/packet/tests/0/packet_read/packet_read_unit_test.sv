@@ -1,5 +1,8 @@
 `include "svunit_defines.svh"
 
+// (Failsafe) timeout
+`define SVUNIT_TIMEOUT 2ms
+
 //
 // packet_read testbench.
 //
@@ -103,6 +106,9 @@ module packet_read_tb #(
 
     `SVUNIT_CLK_GEN(clk, 1.5ns);
 
+    // Descriptor stimulus agent.
+    packet_verif_pkg::packet_descriptor_intf_driver#(ADDR_T, META_T, MAX_PKT_SIZE) descriptor_driver;
+
     //===================================
     // Helpers
     //===================================
@@ -192,12 +198,14 @@ module packet_read_tb #(
     //===================================
     function void build();
         svunit_ut = new(name);
+        descriptor_driver = new();
+        descriptor_driver.packet_descriptor_vif = descriptor_if;
     endfunction
 
     task setup();
         svunit_ut.setup();
-        descriptor_if.idle_tx();
-        if (!IGNORE_RDY) packet_if.idle_rx();
+        descriptor_driver.idle();
+        if (!IGNORE_RDY) packet_if.cb_rx.rdy <= 1'b0;
         reset_if.pulse(8);
         reset_if._wait(8);
     endtask
@@ -218,7 +226,7 @@ module packet_read_tb #(
             tx = rand_bytes(256);
             preload_mem(tx, '0);
             fork
-                descriptor_if.send(._addr('0), ._size(256));
+                descriptor_driver.send_raw(._addr('0), ._size(256));
                 recv_packet(rx, rx_err, timeout);
             join
             `FAIL_IF_LOG(timeout, "Timed out waiting for packet.");
@@ -235,7 +243,7 @@ module packet_read_tb #(
             tx = rand_bytes(100);
             preload_mem(tx, '0);
             fork
-                descriptor_if.send(._addr('0), ._size(100));
+                descriptor_driver.send_raw(._addr('0), ._size(100));
                 recv_packet(rx, rx_err, timeout);
             join
             `FAIL_IF_LOG(timeout, "Timed out.");
@@ -254,7 +262,7 @@ module packet_read_tb #(
                 tx = rand_bytes(PKT_LEN);
                 preload_mem(tx, ADDR_T'(p * WORDS));
                 fork
-                    descriptor_if.send(._addr(ADDR_T'(p * WORDS)), ._size(PKT_LEN));
+                    descriptor_driver.send_raw(._addr(ADDR_T'(p * WORDS)), ._size(PKT_LEN));
                     recv_packet(rx, rx_err, timeout);
                 join
                 `FAIL_IF_LOG(timeout, $sformatf("Timed out on packet %0d.", p));
@@ -275,7 +283,7 @@ module packet_read_tb #(
                 cksum = reference_cksum(tx);
                 preload_mem(tx, '0);
                 fork
-                    descriptor_if.send(._addr('0), ._size(256), ._cksum(cksum));
+                    descriptor_driver.send_raw(._addr('0), ._size(256), ._cksum(cksum));
                     recv_packet(rx, rx_err, timeout);
                 join
                 `FAIL_IF_LOG(timeout, "Timed out.");
@@ -295,7 +303,7 @@ module packet_read_tb #(
                 cksum = reference_cksum(tx) ^ 16'h0001;
                 preload_mem(tx, '0);
                 fork
-                    descriptor_if.send(._addr('0), ._size(256), ._cksum(cksum));
+                    descriptor_driver.send_raw(._addr('0), ._size(256), ._cksum(cksum));
                     recv_packet(rx, rx_err, timeout);
                 join
                 `FAIL_IF_LOG(timeout, "Timed out.");
@@ -313,7 +321,7 @@ module packet_read_tb #(
                 tx = rand_bytes(256);
                 preload_mem(tx, '0);
                 fork
-                    descriptor_if.send(._addr('0), ._size(256), ._cksum(16'h0000));
+                    descriptor_driver.send_raw(._addr('0), ._size(256), ._cksum(16'h0000));
                     recv_packet(rx, rx_err, timeout);
                 join
                 `FAIL_IF_LOG(timeout, "Timed out.");
@@ -333,14 +341,14 @@ module packet_read_tb #(
                 cksum = reference_cksum(tx);
                 preload_mem(tx, '0);
                 fork
-                    descriptor_if.send(._addr('0), ._size(128), ._cksum(cksum ^ 16'hffff));
+                    descriptor_driver.send_raw(._addr('0), ._size(128), ._cksum(cksum ^ 16'hffff));
                     recv_packet(rx, err_bad, timeout);
                 join
                 `FAIL_IF_LOG(timeout, "Timed out on bad-cksum packet.");
                 `FAIL_UNLESS_LOG(err_bad, "Bad cksum did not raise err.");
 
                 fork
-                    descriptor_if.send(._addr('0), ._size(128), ._cksum(cksum));
+                    descriptor_driver.send_raw(._addr('0), ._size(128), ._cksum(cksum));
                     recv_packet(rx, err_good, timeout);
                 join
                 `FAIL_IF_LOG(timeout, "Timed out on good-cksum packet.");
@@ -357,7 +365,7 @@ module packet_read_tb #(
             cksum = CHECK_CKSUM ? reference_cksum(tx) : 16'h0;
             preload_mem(tx, '0);
             fork
-                descriptor_if.send(._addr('0), ._size(128), ._err(1'b1), ._cksum(cksum));
+                descriptor_driver.send_raw(._addr('0), ._size(128), ._err(1'b1), ._cksum(cksum));
                 recv_packet(rx, rx_err, timeout);
             join
             `FAIL_IF_LOG(timeout, "Timed out.");
@@ -375,7 +383,7 @@ module packet_read_tb #(
                 cksum = CHECK_CKSUM ? reference_cksum(tx) : 16'h0;
                 preload_mem(tx, '0);
                 fork
-                    descriptor_if.send(._addr('0), ._size(lengths[i]), ._cksum(cksum));
+                    descriptor_driver.send_raw(._addr('0), ._size(lengths[i]), ._cksum(cksum));
                     recv_packet(rx, rx_err, timeout);
                 join
                 `FAIL_IF_LOG(timeout, $sformatf("Timed out at length %0d.", lengths[i]));
@@ -407,7 +415,7 @@ module packet_read_tb #(
                 begin
                     addr = 0;
                     for (int i = 0; i < lengths.size(); i++) begin
-                        descriptor_if.send(._addr(ADDR_T'(addr)), ._size(lengths[i]),
+                        descriptor_driver.send_raw(._addr(ADDR_T'(addr)), ._size(lengths[i]),
                                            ._cksum(16'h0));
                         addr += (lengths[i] + DATA_BYTE_WID - 1) / DATA_BYTE_WID;
                     end

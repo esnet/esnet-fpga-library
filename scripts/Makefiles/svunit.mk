@@ -44,7 +44,16 @@ SRC_LIST_FILES += $(SVUNIT_FILE_LIST)
 # ----------------------------------------------------
 # Elaboration config
 # ----------------------------------------------------
+ifeq ($(SIM),verilator)
+# Share waveform capture and failure reporting across SVUnit environments.
+TOP = svunit_verilator_top
+SRC_FILES += $(SCRIPTS_ROOT)/svunit/svunit_verilator_top.sv
+ifeq ($(waves),ON)
+override PLUSARGS += WAVES
+endif
+else
 TOP = $(COMPONENT_NAME).$(SVUNIT_TOP_MODULE)
+endif
 
 # ----------------------------------------------------
 # Targets

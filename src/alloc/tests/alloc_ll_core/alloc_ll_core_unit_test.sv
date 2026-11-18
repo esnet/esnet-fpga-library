@@ -37,6 +37,8 @@ module alloc_ll_core_unit_test #(
 
     logic   init_done;
 
+    logic [PTR_WID:0] BUFFERS = 0;
+
     logic                      store_req;
     logic                      store_rdy;
     logic   [LIST_SEL_WID-1:0] store_list_sel;

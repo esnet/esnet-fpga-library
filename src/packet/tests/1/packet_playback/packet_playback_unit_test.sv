@@ -1,5 +1,8 @@
 `include "svunit_defines.svh"
 
+// (Failsafe) timeout
+`define SVUNIT_TIMEOUT 2ms
+
 module packet_playback_unit_test;
 
     import svunit_pkg::svunit_testcase;
@@ -45,7 +48,13 @@ module packet_playback_unit_test;
     axi4l_reg_agent reg_agent;
 
     // Environment
-    packet_component_env #(META_T) env;
+    std_verif_pkg::component_env#(
+        PACKET_T, PACKET_T,
+        packet_playback_driver#(META_T),
+        packet_intf_monitor#(DATA_BYTE_WID,META_T),
+        std_verif_pkg::wire_model#(PACKET_T),
+        std_verif_pkg::event_scoreboard#(PACKET_T)
+    ) env;
 
     // Driver
     packet_playback_driver#(META_T) driver;
@@ -97,7 +106,11 @@ module packet_playback_unit_test;
         scoreboard = new();
 
         // Environment
-        env = new("env", driver, monitor, model, scoreboard);
+        env = new("env");
+        env.driver = driver;
+        env.monitor = monitor;
+        env.model = model;
+        env.scoreboard = scoreboard;
         env.reset_vif = reset_if;
         env.build();
 

@@ -13,7 +13,7 @@ virtual class packet_monitor#(
     // Pure Virtual Methods
     // (to be implemented by derived class)
     //===================================
-    pure protected virtual task _receive_raw(output byte data[], output META_T meta, output bit err);
+    pure virtual protected task _receive_raw(output byte data[], output META_T meta, output bit err);
 
     //===================================
     // Methods

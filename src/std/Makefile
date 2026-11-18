@@ -13,7 +13,9 @@ include $(COMPONENT_ROOT)/config.mk
 # -----------------------------------------------
 all: regression
 
-regression: _regression
+regression:
+	@$(MAKE) -C tests/regression
+	@$(MAKE) -C verif regression
 
 .PHONY: all regression
 

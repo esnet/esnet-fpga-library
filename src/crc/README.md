@@ -1,7 +1,7 @@
 # CRC
 
-Parallel and serial hardware CRC engines, configurable to any standard CRC
-algorithm.  All modules share a common configuration interface defined in
+Parallel hardware CRC engines and a software reference model for configurable
+CRC algorithms. All RTL modules share a configuration interface defined in
 `crc_pkg` and use the same data-bus byte-order convention.
 
 ## Contents
@@ -71,6 +71,10 @@ input logic [0:DATA_BYTES-1][7:0] data
 **`data[0]` is the first byte of the message** (network / big-endian byte
 order).  `data[DATA_BYTES-1]` is the last byte processed in a full beat.
 
+For `crc_accum` and `crc_trim`, the empty-byte count width is
+`MTY_WID = (DATA_BYTES > 1) ? $clog2(DATA_BYTES) : 1`. This retains a
+one-bit port for single-byte data paths, where the count must be zero.
+
 This byte-order convention is independent of the REFIN/REFOUT algorithm
 parameters, which control *bit* reflection within each byte and within the
 final CRC register, respectively.  For example, Ethernet CRC-32 (REFIN=1,
@@ -123,7 +127,7 @@ DATA_BYTES    1                  Width of the data bus, in bytes
 | `clk` | in | Clock |
 | `srst` | in | Synchronous reset — resets state to `CONFIG.INIT` |
 | `en` | in | Enable — process current beat and advance state |
-| `mty[$clog2(DATA_BYTES)-1:0]` | in | Empty bytes at the end of this beat; 0 = all bytes valid |
+| `mty[MTY_WID-1:0]` | in | Empty bytes at the end of this beat; 0 = all bytes valid |
 | `data[0:DATA_BYTES-1][7:0]` | in | Input data (byte 0 = first byte of message) |
 | `crc[WIDTH-1:0]` | out | Combinatorial accumulated CRC (valid each `en` cycle) |
 | `check` | out | Combinatorial; asserts when accumulated register equals `CONFIG.RESIDUE` — i.e. a complete message with its appended FCS was received without error.  Sample on the EOP beat. |
@@ -169,9 +173,9 @@ DATA_BYTES    1                  Width of the data bus `mty` is relative to, in 
 | Port | Direction | Description |
 |------|-----------|-------------|
 | `crc_in[WIDTH-1:0]` | in | Fully formatted CRC computed as if the trailing `mty` bytes were zero-valued data, not empty |
-| `mty[$clog2(DATA_BYTES)-1:0]` | in | Number of trailing zero-padded bytes to remove, in `[0, DATA_BYTES-1]` |
+| `mty[MTY_WID-1:0]` | in | Number of trailing zero-padded bytes to remove, in `[0, DATA_BYTES-1]` |
 | `crc[WIDTH-1:0]` | out | Corrected, fully formatted CRC |
-| `check` | out | Asserts when the corrected CRC equals `CONFIG.RESIDUE` |
+| `check` | out | Asserts when the corrected CRC before XOROUT equals `CONFIG.RESIDUE` |
 
 **Typical use:** pair with `crc_accum` driven with `mty` tied to `0` and the
 true trailing empty bytes of a partial beat zero-masked externally before
@@ -188,6 +192,17 @@ pipelining `crc_trim` into its own cycle.
 same REFIN, REFOUT, and XOROUT logic as the RTL.  Testbenches use it to
 generate expected values for comparison.
 
+The SVUnit suites exercise stateless calculation, multi-beat accumulation,
+and trailing zero-byte correction against the reference model. Examples
+include reflected and non-reflected algorithms, narrow and wide data paths,
+partial final beats, reset between packets, and enable stalls. They also
+check known catalogue values and residue detection after an appended FCS.
+Trim tests compare the zero-padded accumulation and correction path with
+accumulation over the actual valid bytes.
+
+The suites cover representative algorithms and data widths rather than
+every possible configuration.
+
 Unit tests live under `tests/` and can be run individually or as a regression:
 
 ```sh
@@ -198,5 +213,4 @@ make -C tests/crc_accum/
 make regression
 ```
 
-Pass `waves=ON` to capture a waveform (`*.wdb`), or `SEED=N` to fix the
-random seed.
+Pass `waves=ON` to capture a waveform, or `SEED=N` to fix the random seed.

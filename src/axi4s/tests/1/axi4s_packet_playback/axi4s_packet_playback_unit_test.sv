@@ -1,5 +1,8 @@
 `include "svunit_defines.svh"
 
+// (Failsafe) timeout
+`define SVUNIT_TIMEOUT 20ms
+
 module axi4s_packet_playback_unit_test;
 
     import svunit_pkg::svunit_testcase;
@@ -47,9 +50,6 @@ module axi4s_packet_playback_unit_test;
     // Register agent
     axi4l_reg_agent reg_agent;
 
-    // Environment
-    std_verif_pkg::component_env#(PACKET_T,AXI4S_TRANSACTION_T) env;
-
     // Driver
     packet_playback_driver#(META_T) driver;
 
@@ -80,10 +80,20 @@ module axi4s_packet_playback_unit_test;
     // Scoreboard
     std_verif_pkg::event_scoreboard#(AXI4S_TRANSACTION_T) scoreboard;
 
+    // Environment
+    std_verif_pkg::component_env#(
+        PACKET_T,AXI4S_TRANSACTION_T,
+        packet_playback_driver#(META_T),
+        axi4s_monitor#(DATA_BYTE_WID,TID_T,TDEST_T,TUSER_T),
+        packet_to_axi4s_model,
+        std_verif_pkg::event_scoreboard#(AXI4S_TRANSACTION_T)
+    ) env;
+
     // Reset
     std_reset_intf reset_if (.clk(clk));
     assign srst = reset_if.reset;
     assign reset_if.ready = !srst;
+    assign axil_if.aresetn = !srst;
 
     // Assign clock (333MHz)
     `SVUNIT_CLK_GEN(clk, 1.5ns);

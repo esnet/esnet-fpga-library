@@ -9,7 +9,7 @@ class rs_decode_tb_env #(
     std_verif_pkg::raw_transaction#(DATA_T),
     bus_verif_pkg::bus_driver#(DATA_T),
     bus_verif_pkg::bus_monitor#(DATA_T),
-    wire_model#(raw_transaction#(DATA_T)),
+    std_verif_pkg::wire_model#(std_verif_pkg::raw_transaction#(DATA_T)),
     std_verif_pkg::raw_scoreboard#(DATA_T)
 );
 
@@ -50,10 +50,10 @@ class rs_decode_tb_env #(
     endfunction
 
     task wait_n(input int cycles);
-        wr_vif._wait(cycles);
+        this.driver.wait_n(cycles);
     endtask
 
-    automatic function void reset();
+    function void reset();
         trace_msg("reset()");
         super.reset();
         trace_msg("reset() Done.");

@@ -243,8 +243,8 @@ module htable_multi_core
             ) i_db_intf_rr_wr_demux (
                 .clk ( clk ),
                 .srst ( srst ),
-                .db_if_from_requester ( update_if ),
-                .db_if_to_responder   ( update_if__tbl )
+                .from_requester ( update_if ),
+                .to_responder   ( update_if__tbl )
             );
         end : g__htable_multi_ins_mode_round_robin
         else if (INSERT_MODE == HTABLE_MULTI_INSERT_MODE_BROADCAST) begin : g__htable_multi_ins_mode_broadcast
