@@ -70,7 +70,7 @@ _ip_proj_create: | $(PROJ_XPR)
 # Launch IP project in GUI (for interactive inspection/modification of IP)
 _ip_proj: $(PROJ_XPR)
 	@make -s ip
-	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_IP_CMD_GUI) -tclargs gui $(BUILD_OPTIONS) &
+	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_IP_CMD_GUI) -log $(COMPONENT_NAME).gui.log -tclargs gui $(BUILD_OPTIONS) &
 
 _ip_proj_clean: _vivado_clean_logs
 	@$(call __rm_rf,$(PROJ_DIR))
@@ -80,7 +80,7 @@ _ip_proj_clean: _vivado_clean_logs
 $(PROJ_XPR): | $(COMPONENT_OUT_PATH)
 	@echo "----------------------------------------------------------"
 	@echo "Creating IP project ($(COMPONENT_NAME)) ..."
-	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_IP_CMD) -tclargs create_proj $(BUILD_OPTIONS)
+	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_IP_CMD) -log $(COMPONENT_NAME).create_proj.log -tclargs create_proj $(BUILD_OPTIONS)
 	@echo
 	@echo "Done."
 
@@ -142,7 +142,7 @@ $(IP_XCI_PROXY_DIR)/.refreshed: $(IP_XCI_PROXY_REFRESH_FILES) | $(PROJ_XPR) $(IP
 				mv $(IP_XCI_PROXY_DIR)/$$ip $(IP_XCI_PROXY_DIR)/$$ip.old; \
 		fi; \
 	done
-	@cd $(IP_XCI_PROXY_DIR) && $(VIVADO_MANAGE_IP_CMD) -tclargs create_ip $(BUILD_OPTIONS) $(foreach ip,$(subst .refresh__,,$(notdir $?)),-ip_tcl $(IP_SRC_DIR)/$(ip).tcl)
+	@cd $(IP_XCI_PROXY_DIR) && $(VIVADO_MANAGE_IP_CMD) -log $(COMPONENT_NAME).create_ip.log -tclargs create_ip $(BUILD_OPTIONS) $(foreach ip,$(subst .refresh__,,$(notdir $?)),-ip_tcl $(IP_SRC_DIR)/$(ip).tcl)
 	@resultString="\nUpdate summary:\n"; \
 	for ip in $(subst .refresh__,,$(notdir $?)); do \
 	resultString="$$resultString\t$$ip:"; \
@@ -152,14 +152,14 @@ $(IP_XCI_PROXY_DIR)/.refreshed: $(IP_XCI_PROXY_REFRESH_FILES) | $(PROJ_XPR) $(IP
 			0) \
 				resultString="$$resultString No change.\n";;\
 			1) \
-				cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_IP_CMD) -tclargs remove_ip $(BUILD_OPTIONS) -ip_xci $(COMPONENT_OUT_PATH)/$$ip/$$ip.xci; \
+				cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_IP_CMD) -log $(COMPONENT_NAME).remove_ip.log -tclargs remove_ip $(BUILD_OPTIONS) -ip_xci $(COMPONENT_OUT_PATH)/$$ip/$$ip.xci; \
 				$(call __rm_rf_sh,$$ip,$(COMPONENT_OUT_PATH)/$$ip); \
 				mkdir -p $(COMPONENT_OUT_PATH)/$$ip; \
 				cp $(IP_XCI_PROXY_DIR)/$$ip/$$ip.xci $(COMPONENT_OUT_PATH)/$$ip/$$ip.xci; \
 				resultString="$$resultString XCI updated.\n";; \
 			2) \
 				if [ -f $(COMPONENT_OUT_PATH)/$$ip/$$ip.xci ]; then \
-					cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_IP_CMD) -tclargs remove_ip $(BUILD_OPTIONS) -ip_xci $(COMPONENT_OUT_PATH)/$$ip/$$ip.xci; \
+					cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_IP_CMD) -log $(COMPONENT_NAME).remove_ip.log -tclargs remove_ip $(BUILD_OPTIONS) -ip_xci $(COMPONENT_OUT_PATH)/$$ip/$$ip.xci; \
 					$(call __rm_rf_sh,$$ip,$(COMPONENT_OUT_PATH)/$$ip); \
 				fi; \
 				mkdir -p $(COMPONENT_OUT_PATH)/$$ip; \
@@ -197,17 +197,17 @@ _ip_exdes: $(IP_EXAMPLE_DESIGNS)
 _ip_reset: ip | $(PROJ_XPR)
 	@echo "----------------------------------------------------------"
 	@echo "Reset IP output products ($(COMPONENT_NAME)) ..."
-	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_IP_CMD) -tclargs reset $(BUILD_OPTIONS)
+	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_IP_CMD) -log $(COMPONENT_NAME).reset.log -tclargs reset $(BUILD_OPTIONS)
 	@echo
 	@echo "Done."
 
 # Report on IP status (version, upgrade availability, etc)
 _ip_status: ip | $(PROJ_XPR)
-	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_IP_CMD) -tclargs status $(BUILD_OPTIONS)
+	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_IP_CMD) -log $(COMPONENT_NAME).status.log -tclargs status $(BUILD_OPTIONS)
 
 # Upgrade IP
 _ip_upgrade: ip | $(PROJ_XPR)
-	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_IP_CMD) -tclargs upgrade $(BUILD_OPTIONS)
+	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_IP_CMD) -log $(COMPONENT_NAME).upgrade.log -tclargs upgrade $(BUILD_OPTIONS)
 
 _ip_pre: ;
 
@@ -235,7 +235,7 @@ $(IP_DCP_FILES): _ip_dcp_files.intermediate ;
 _ip_dcp_files.intermediate: $(IP_XCI_FILES) | $(PROJ_XPR)
 	@echo "----------------------------------------------------------"
 	@echo "Synthesize IP ($(COMPONENT_NAME)) ..."
-	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_IP_CMD) -tclargs synth $(BUILD_OPTIONS)
+	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_IP_CMD) -log $(COMPONENT_NAME).synth.log -tclargs synth $(BUILD_OPTIONS)
 	@echo
 
 .INTERMEDIATE: _ip_dcp_files.intermediate
@@ -277,7 +277,7 @@ $(__IP_SIM_SRC_FILES) $(__IP_SIM_INC_DIRS): _ip_sim_sources.intermediate ;
 _ip_sim_sources.intermediate: $(IP_XCI_FILES) | $(PROJ_XPR)
 	@echo "----------------------------------------------------------"
 	@echo "Generate IP simulation output products ($(COMPONENT_NAME)) ..."
-	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_IP_CMD) -tclargs sim $(BUILD_OPTIONS)
+	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_IP_CMD) -log $(COMPONENT_NAME).sim.log -tclargs sim $(BUILD_OPTIONS)
 	@echo
 	@echo "Done."
 
@@ -300,7 +300,7 @@ $(IP_EXAMPLE_DESIGNS): _ip_example_designs.intermediate ;
 _ip_example_designs.intermediate: $(IP_XCI_FILES) | $(PROJ_XPR)
 	@echo "----------------------------------------------------------"
 	@echo "Generate IP example designs ($(COMPONENT_NAME)) ..."
-	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_IP_CMD) -tclargs exdes $(BUILD_OPTIONS)
+	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_IP_CMD) -log $(COMPONENT_NAME).exdes.log -tclargs exdes $(BUILD_OPTIONS)
 	@echo
 	@echo "Done."
 

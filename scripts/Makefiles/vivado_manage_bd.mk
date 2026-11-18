@@ -70,7 +70,7 @@ _bd_proj_create: | $(PROJ_XPR)
 # Launch IP project in GUI (for interactive inspection/modification of IP)
 _bd_proj: $(PROJ_XPR)
 	@make -s bd
-	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_BD_CMD_GUI) -tclargs gui $(BUILD_OPTIONS) &
+	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_BD_CMD_GUI) -log $(COMPONENT_NAME).gui.log -tclargs gui $(BUILD_OPTIONS) &
 
 _bd_proj_clean: _vivado_clean_logs
 	@$(call __rm_rf,$(PROJ_DIR))
@@ -80,7 +80,7 @@ _bd_proj_clean: _vivado_clean_logs
 $(PROJ_XPR): | $(COMPONENT_OUT_PATH)
 	@echo "----------------------------------------------------------"
 	@echo "Creating BD project ($(COMPONENT_NAME)) ..."
-	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_BD_CMD) -tclargs create_proj $(BUILD_OPTIONS)
+	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_BD_CMD) -log $(COMPONENT_NAME).create_proj.log -tclargs create_proj $(BUILD_OPTIONS)
 	@echo
 	@echo "Done."
 
@@ -142,7 +142,7 @@ $(BD_PROXY_DIR)/.refreshed: $(BD_PROXY_REFRESH_FILES) | $(PROJ_XPR) $(BD_PROXY_D
 				mv $(BD_PROXY_DIR)/$$bd $(BD_PROXY_DIR)/$$bd.old; \
 		fi; \
 	done
-	@cd $(BD_PROXY_DIR) && $(VIVADO_MANAGE_BD_CMD) -tclargs create_bd $(BUILD_OPTIONS) $(foreach bd,$(subst .refresh__,,$(notdir $?)),-bd_tcl $(BD_SRC_DIR)/$(bd).tcl)
+	@cd $(BD_PROXY_DIR) && $(VIVADO_MANAGE_BD_CMD) -log $(COMPONENT_NAME).create_bd.log -tclargs create_bd $(BUILD_OPTIONS) $(foreach bd,$(subst .refresh__,,$(notdir $?)),-bd_tcl $(BD_SRC_DIR)/$(bd).tcl)
 	@resultString="\nUpdate summary:\n"; \
 	for bd in $(subst .refresh__,,$(notdir $?)); do \
 	resultString="$$resultString\t$$bd:"; \
@@ -152,14 +152,14 @@ $(BD_PROXY_DIR)/.refreshed: $(BD_PROXY_REFRESH_FILES) | $(PROJ_XPR) $(BD_PROXY_D
 			0) \
 				resultString="$$resultString No change.\n";;\
 			1) \
-				cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_BD_CMD) -tclargs remove_bd $(BUILD_OPTIONS) -bd_file $(COMPONENT_OUT_PATH)/$$bd/$$bd.bd; \
+				cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_BD_CMD) -log $(COMPONENT_NAME).remove_bd.log -tclargs remove_bd $(BUILD_OPTIONS) -bd_file $(COMPONENT_OUT_PATH)/$$bd/$$bd.bd; \
 				$(call __rm_rf_sh,$$bd,$(COMPONENT_OUT_PATH)/$$bd); \
 				mkdir -p $(COMPONENT_OUT_PATH)/$$bd; \
 				cp $(BD_PROXY_DIR)/$$bd/$$bd.bd $(COMPONENT_OUT_PATH)/$$bd/$$bd.bd; \
 				resultString="$$resultString BD updated.\n";; \
 			2) \
 				if [ -f $(COMPONENT_OUT_PATH)/$$bd/$$bd.bd ]; then \
-					cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_BD_CMD) -tclargs remove_bd $(BUILD_OPTIONS) -bd_file $(COMPONENT_OUT_PATH)/$$bd/$$bd.bd; \
+					cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_BD_CMD) -log $(COMPONENT_NAME).remove_bd.log -tclargs remove_bd $(BUILD_OPTIONS) -bd_file $(COMPONENT_OUT_PATH)/$$bd/$$bd.bd; \
 					$(call __rm_rf_sh,$$bd,$(COMPONENT_OUT_PATH)/$$bd); \
 				fi; \
 				mkdir -p $(COMPONENT_OUT_PATH)/$$bd; \
@@ -194,13 +194,13 @@ $(BD_FILES): $(BD_PROXY_DIR)/.refreshed
 _bd_reset: bd | $(PROJ_XPR)
 	@echo "----------------------------------------------------------"
 	@echo "Reset BD output products ($(COMPONENT_NAME)) ..."
-	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_BD_CMD) -tclargs reset $(BUILD_OPTIONS) $(foreach bdfile,$(BD_FILES),-bd_file $(bdfile))
+	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_BD_CMD) -log $(COMPONENT_NAME).reset.log -tclargs reset $(BUILD_OPTIONS) $(foreach bdfile,$(BD_FILES),-bd_file $(bdfile))
 	@echo
 	@echo "Done."
 
 # Report on BD status (version, upgrade availability, etc)
 _bd_status: bd | $(PROJ_XPR)
-	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_BD_CMD) -tclargs status $(BUILD_OPTIONS)
+	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_BD_CMD) -log $(COMPONENT_NAME).status.log -tclargs status $(BUILD_OPTIONS)
 
 # Upgrade BD IP (not supported)
 _bd_upgrade:
@@ -230,7 +230,7 @@ $(BD_DCP_FILES): _bd_dcp_files.intermediate ;
 _bd_dcp_files.intermediate: $(BD_FILES) | $(PROJ_XPR)
 	@echo "----------------------------------------------------------"
 	@echo "Synthesize BD ($(COMPONENT_NAME)) ..."
-	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_BD_CMD) -tclargs synth $(BUILD_OPTIONS) $(foreach bdfile,$(BD_FILES),-bd_file $(bdfile))
+	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_BD_CMD) -log $(COMPONENT_NAME).synth.log -tclargs synth $(BUILD_OPTIONS) $(foreach bdfile,$(BD_FILES),-bd_file $(bdfile))
 	@echo
 
 .INTERMEDIATE: _bd_dcp_files.intermediate
@@ -272,7 +272,7 @@ $(__BD_SIM_SRC_FILES) $(__BD_SIM_INC_DIRS): _bd_sim_sources.intermediate ;
 _bd_sim_sources.intermediate: $(BD_FILES) | $(PROJ_XPR)
 	@echo "----------------------------------------------------------"
 	@echo "Generate BD simulation output products ($(COMPONENT_NAME)) ..."
-	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_BD_CMD) -tclargs sim $(BUILD_OPTIONS) $(foreach bdfile,$(BD_FILES),-bd_file $(bdfile))
+	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_BD_CMD) -log $(COMPONENT_NAME).sim.log -tclargs sim $(BUILD_OPTIONS) $(foreach bdfile,$(BD_FILES),-bd_file $(bdfile))
 	@echo
 	@echo "Done."
 

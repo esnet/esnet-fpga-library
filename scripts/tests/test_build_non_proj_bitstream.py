@@ -20,6 +20,8 @@ SCRIPT = Path(__file__).resolve()
 def mock_vivado(root, args):
     root = Path(root)
     phase = args[args.index("-tclargs") + 1]
+    log = root / "out" / args[args.index("-log") + 1]
+    log.write_text(f"phase={phase}\n")
     with (root / "events").open("a") as stream:
         stream.write(phase + "\n")
     out = root / "out"
@@ -218,6 +220,19 @@ class IncrementalExportTest(unittest.TestCase):
                 fixture.run()
                 self.assertEqual(fixture.events, ["pre"])
                 self.assertEqual(stamp.stat().st_mtime_ns, previous)
+
+    def test_phase_logs_survive_later_stages_and_export_retries(self):
+        fixture = self.fixture()
+        fixture.run()
+        route_log = fixture.out / "shell.route_opt.log"
+        export_log = fixture.out / "shell.bitstream.log"
+        self.assertEqual(route_log.read_text(), "phase=route_opt\n")
+        self.assertEqual(export_log.read_text(), "phase=bitstream\n")
+        before = route_log.stat().st_mtime_ns
+        (fixture.out / "shell.bit").unlink()
+        fixture.run()
+        self.assertEqual(route_log.stat().st_mtime_ns, before)
+        self.assertEqual(export_log.read_text(), "phase=bitstream\n")
 
     def test_missing_artifact_reruns_only_export(self):
         for jobs in (1, 4):

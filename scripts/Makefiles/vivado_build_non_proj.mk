@@ -104,7 +104,7 @@ $(__NP_SENTINEL_DIR)/$(stage) $(__NP_STAGE_OUTPUTS_$(stage)) $(if $(__NP_STAGE_O
 	@mkdir -p $(COMPONENT_OUT_PATH)
 	@mkdir -p $(__NP_SENTINEL_DIR)
 	@rm -f $(__NP_SENTINEL_DIR)/$(stage)
-	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_NP_CMD) -tclargs $(stage) $(TOP) $(BUILD_NP_OPTIONS)
+	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_NP_CMD) -log $(TOP).$(stage).log -tclargs $(stage) $(TOP) $(BUILD_NP_OPTIONS)
 	@for output in $(__NP_STAGE_OUTPUTS_$(stage)); do \
 	    test -f "$$$$output" || { echo "Error: Missing programming artifact: $$$$output" >&2; exit 1; }; \
 	done
