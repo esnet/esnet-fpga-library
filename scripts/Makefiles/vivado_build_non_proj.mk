@@ -171,3 +171,6 @@ _build_info: _np_info
 # Include compile infrastructure
 # -----------------------------------------------
 include $(SCRIPTS_ROOT)/Makefiles/vivado_compile.mk
+
+# Validation is separate from build stages and never rebuilds the checkpoint.
+include $(SCRIPTS_ROOT)/Makefiles/vivado_validate.mk

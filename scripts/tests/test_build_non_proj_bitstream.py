@@ -166,7 +166,7 @@ class MakeFixture:
         toolchain = self.root / "toolchain"
         (toolchain / "Makefiles").mkdir(parents=True)
         (toolchain / "vivado").mkdir()
-        for name in ("vivado_build_non_proj.mk", "vivado_base.mk"):
+        for name in ("vivado_build_non_proj.mk", "vivado_base.mk", "vivado_validate.mk"):
             shutil.copyfile(SCRIPTS / "Makefiles" / name, toolchain / "Makefiles" / name)
         shutil.copyfile(RUNNER, toolchain / "vivado/build_non_proj.tcl")
         (toolchain / "Makefiles/vivado_compile.mk").write_text(
