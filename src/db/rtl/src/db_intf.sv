@@ -46,7 +46,10 @@ interface db_intf #(
         output next_key
     );
 
-    // Sample the driven request independently of its clocking-block output.
+`ifndef SYNTHESIS
+    // Verification clocking blocks
+    // Separate nets let testbench agents sample driven signals.
+    // Clocking-block input aliases are not supported by xsim.
     logic mon_req;
     assign mon_req = req;
 
@@ -57,6 +60,7 @@ interface db_intf #(
         input mon_req;
         inout valid, value;
     endclocking
+`endif
 
 endinterface : db_intf
 

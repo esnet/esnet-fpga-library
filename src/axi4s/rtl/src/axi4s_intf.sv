@@ -61,7 +61,10 @@ interface axi4s_intf #(
         input  tuser
     );
 
-    // Sample driven handshake signals through separate clocking-block inputs.
+`ifndef SYNTHESIS
+    // Verification clocking blocks
+    // Separate nets let testbench agents sample driven signals.
+    // Clocking-block input aliases are not supported by xsim.
     logic mon_tx_tvalid, mon_rx_tready;
     assign mon_tx_tvalid = tvalid;
     assign mon_rx_tready = tready;
@@ -79,6 +82,7 @@ interface axi4s_intf #(
     clocking cb @(posedge aclk);
         input tvalid, tready, tdata, tkeep, tlast, tid, tdest, tuser;
     endclocking
+`endif
 
 
 endinterface : axi4s_intf

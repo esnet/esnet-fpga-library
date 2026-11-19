@@ -40,7 +40,10 @@ interface packet_descriptor_intf #(
         input  cksum
     );
 
-    // Sample driven handshake signals through separate clocking-block inputs.
+`ifndef SYNTHESIS
+    // Verification clocking blocks
+    // Separate nets let testbench agents sample driven signals.
+    // Clocking-block input aliases are not supported by xsim.
     logic mon_tx_vld, mon_rx_rdy;
     assign mon_tx_vld = vld;
     assign mon_rx_rdy = rdy;
@@ -54,6 +57,7 @@ interface packet_descriptor_intf #(
         input vld, addr, size, err, meta, cksum, mon_rx_rdy;
         output rdy;
     endclocking
+`endif
 
 
 endinterface : packet_descriptor_intf

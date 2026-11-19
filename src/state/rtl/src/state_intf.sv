@@ -40,7 +40,10 @@ interface state_intf #(
         output state
     );
 
-    // Sample the driven request independently of its clocking-block output.
+`ifndef SYNTHESIS
+    // Verification clocking blocks
+    // Separate nets let testbench agents sample driven signals.
+    // Clocking-block input aliases are not supported by xsim.
     logic mon_req;
     assign mon_req = req;
 
@@ -50,6 +53,7 @@ interface state_intf #(
         output req;
         input mon_req;
     endclocking
+`endif
 
 endinterface : state_intf
 

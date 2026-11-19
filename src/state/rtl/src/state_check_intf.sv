@@ -32,10 +32,13 @@ interface state_check_intf #(
         output msg
     );
 
+`ifndef SYNTHESIS
+    // Verification clocking blocks
     clocking cb @(posedge clk);
         output state;
         input ack, active, notify, msg;
         inout req;
     endclocking
+`endif
 
 endinterface : state_check_intf

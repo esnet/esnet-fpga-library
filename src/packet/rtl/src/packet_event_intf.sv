@@ -23,6 +23,8 @@ interface packet_event_intf (
         input  status
     );
 
+`ifndef SYNTHESIS
+    // Verification clocking blocks
     clocking cb_tx @(posedge clk);
         output evt, size, status;
     endclocking
@@ -57,5 +59,6 @@ interface packet_event_intf (
         cb_tx.size <= 'x;
         cb_tx.status <= STATUS_UNDEFINED;
     endtask
+`endif
 
 endinterface : packet_event_intf
