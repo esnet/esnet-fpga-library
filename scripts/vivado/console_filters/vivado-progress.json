@@ -1,0 +1,27 @@
+{
+  "progress": [
+    "^(?:Non-project build:|Phase '.+' complete\\.|Running (?:OOC )?synthesis:)",
+    "^(?:Create/update|Synthesize|Creating) (?:IP|BD)\\b",
+    "^(?:Command: |# )?(?:synth_design|opt_design|place_design|phys_opt_design|route_design|write_bitstream|write_device_image|write_hw_platform|launch_runs|wait_on_runs?)\\b",
+    "^(?:Starting |Ending |Finished (?!Parsing XDC File)|Phase [0-9]+\\b)",
+    "^(?:synth_design|opt_design|place_design|phys_opt_design|route_design|write_bitstream|write_device_image|write_hw_platform): Time",
+    "^\\[[^\\]]+\\].*\\b(?:started|finished|launched)\\b",
+    "^INFO: \\[[^\\]]+\\] (?:Launching|Waiting for|Creating Manage IP|Opening existing Manage IP|Use existing (?:IP )?build|Nothing to build)",
+    "^Executing implementation using strategy:",
+    "^\\s*(?:WNS\\(ns\\).*WHS\\(ns\\)|All user specified timing constraints are met\\.|Timing constraints are not met\\.)",
+    "^\\s*-?[0-9]+\\.[0-9]+\\s+-?[0-9]+\\.[0-9]+\\s+[0-9]+\\s+[0-9]+\\s+-?[0-9]+\\.[0-9]+\\s+-?[0-9]+\\.[0-9]+\\s+[0-9]+\\s+[0-9]+\\s+-?[0-9]+\\.[0-9]+\\s+-?[0-9]+\\.[0-9]+\\s+[0-9]+\\s+[0-9]+\\s*$",
+    "^Wrote: .+\\.(?:dcp|bit|bin|ltx|pdi|xsa)$",
+    "^INFO: \\[Common 17-206\\] Exiting Vivado"
+  ],
+  "diagnostics": [
+    "^(?:CRITICAL WARNING|ERROR|FATAL)\\b",
+    "^WARNING:(?!\\s*\\[)",
+    "^make(?:\\[[0-9]+\\])?: \\*\\*\\*",
+    "^(?:Traceback |Segmentation fault|Aborted\\b)"
+  ],
+  "warning": {
+    "pattern": "^WARNING:\\s*\\[(?P<id>[^\\]]+)\\]",
+    "limit": 3
+  },
+  "continuation": "^(?:[ \\t]+\\S|[ \\t]*$)"
+}

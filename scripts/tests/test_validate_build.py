@@ -210,7 +210,7 @@ class RunnerTests(unittest.TestCase):
 
     def test_logged_command_propagates_failure_and_preserves_output(self):
         path = self.root / "logged/phase.log"
-        result = subprocess.run([sys.executable, str(ROOT / "run_logged.py"), "--log", str(path), "--", sys.executable, "-c", "import sys; print('CRITICAL WARNING: [X-1] text'); sys.exit(7)"], capture_output=True, text=True)
+        result = subprocess.run([sys.executable, str(Path(__file__).resolve().parents[1] / "run_logged.py"), "--log", str(path), "--", sys.executable, "-c", "import sys; print('CRITICAL WARNING: [X-1] text'); sys.exit(7)"], capture_output=True, text=True)
         self.assertEqual(result.returncode, 7)
         self.assertIn("CRITICAL WARNING", result.stdout)
         self.assertTrue(path.read_text().endswith("BUILD_EXIT_CODE=7\n"))

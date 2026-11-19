@@ -39,12 +39,8 @@ Vivado phase/operation logs and synthesis `runme.log` files. Rotated
 incomplete transcripts, critical-warning message suppression, and having
 no inspectable build logs fail the integrity check.
 
-Capture commands while preserving their exit status with:
-
-```sh
-python3 "$SCRIPTS_ROOT/vivado/validation/run_logged.py" \
-  --log output/export.log -- make image
-```
+Capture command transcripts with the generic [logged command runner](../../run_logged.md).
+Its optional console filtering leaves the full transcript unchanged.
 
 The caller decides which stages and dependency logs establish complete
 coverage of its build. The framework cannot detect an omitted dependency
