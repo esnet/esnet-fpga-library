@@ -34,12 +34,13 @@ the transcript. Each wrapper records the output received from its direct
 command; avoid nesting filtered wrappers when an outer transcript must
 contain the original tool output.
 
-The Vivado profile keeps build phases, key tool commands, timing summaries,
-critical warnings, errors, and diagnostic continuations visible. It prints
-the first three ordinary warnings per message ID, announces suppression,
+The Vivado profile keeps custom build banners, key tool commands, inline and
+final timing summaries, license status, critical warnings, errors, and
+diagnostic continuations visible. It prints the first three ordinary
+warnings per message ID, announces suppression,
 and summarizes total/omitted occurrences when the command finishes.
-Warnings without an ID are always shown. Routine INFO output and per-cell
-constraint-loading chatter stay in the full transcript.
+License warnings and warnings without an ID are always shown. Routine INFO
+output and per-cell constraint-loading chatter stay in the full transcript.
 
 In filtered mode, `--heartbeat SECONDS` prints elapsed time and the latest
 milestone after that much time without console output (default: 60;

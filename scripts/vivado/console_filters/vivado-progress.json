@@ -2,6 +2,11 @@
   "progress": [
     "^(?:Non-project build:|Phase '.+' complete\\.|Running (?:OOC )?synthesis:)",
     "^(?:Create/update|Synthesize|Creating) (?:IP|BD)\\b",
+    "^(?:Creating|Compiling|Elaborating|Synthesizing|Optimizing|Linking|Building|Packaging|Exporting|Installing|Writing|Preparing|Generating|Generate|Pre-generating|Reset|Resetting|Refresh|Refreshing)\\b",
+    "^(?:Running \\S+_design\\b|Synthesis (?:for|products for)\\b|Optimization of\\b)",
+    "^(?:INFO:\\s*\\[[^\\]]+\\]\\s+.*\\bTiming Summary\\b|\\s*(?:Design )?Timing Summary\\b)",
+    "(?i)^INFO:\\s*\\[[^\\]]+\\].*\\blicen[cs](?:e|ed|ing)\\b",
+    "(?i)^(?:Attempting to get a licen[cs]e\\b|Licen[cs](?:e|ing)\\b|No licen[cs]e file needed\\b)",
     "^(?:Command: |# )?(?:synth_design|opt_design|place_design|phys_opt_design|route_design|write_bitstream|write_device_image|write_hw_platform|launch_runs|wait_on_runs?)\\b",
     "^(?:Starting |Ending |Finished (?!Parsing XDC File)|Phase [0-9]+\\b)",
     "^(?:synth_design|opt_design|place_design|phys_opt_design|route_design|write_bitstream|write_device_image|write_hw_platform): Time",
@@ -15,6 +20,7 @@
   ],
   "diagnostics": [
     "^(?:CRITICAL WARNING|ERROR|FATAL)\\b",
+    "(?i)^WARNING:\\s*(?:\\[[^\\]]+\\]\\s*)?.*\\blicen[cs](?:e|ed|ing)\\b",
     "^WARNING:(?!\\s*\\[)",
     "^make(?:\\[[0-9]+\\])?: \\*\\*\\*",
     "^(?:Traceback |Segmentation fault|Aborted\\b)"

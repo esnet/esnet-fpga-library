@@ -45,9 +45,19 @@ each warning ID that exceeded its limit gets total and omitted counts.
 Limits apply across the entire command, including recursive child builds.
 
 The supplied Vivado profile never rate-limits critical warnings, errors,
-or warnings without a message ID. Custom profiles own their own diagnostic
-policy. A failing command also gets an unfiltered, bounded tail replay so
-unexpected failure output remains available in the console.
+license warnings, or warnings without a message ID. Custom profiles own
+their own diagnostic policy. A failing command also gets an unfiltered,
+bounded tail replay so unexpected failure output remains available in the
+console.
+
+The profile displays custom script and Make stage-banner text, including
+compilation, synthesis, linking, IP generation, and image export. Decorative
+separator rows remain in the transcript. Vivado's inline placement, routing,
+and physical-optimization timing summaries are shown, including setup and
+hold slack values and `N/A` entries, alongside the final timing table and
+timing-met status. Per-net optimization detail remains in the transcript.
+License acquisition attempts, checkout and release messages, and IP-license
+checks are also displayed.
 
 Filtering does not decide command success or waive validation findings.
 Enablement in CI and transcript artifact publication belong to the calling

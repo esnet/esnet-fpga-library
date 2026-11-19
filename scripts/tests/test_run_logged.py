@@ -71,6 +71,76 @@ class LoggedConsoleTests(unittest.TestCase):
         self.assertNotIn(line, result.stdout)
         self.assertIn(line, self.log.read_text())
 
+    def test_inline_timing_summaries_remain_visible_without_per_net_detail(self):
+        lines = [
+            "INFO: [Physopt 32-619] Estimated Timing Summary | WNS=-0.209 | TNS=-27.778 |",
+            "INFO: [Place 30-746] Post Placement Timing Summary WNS=-0.040. For the most accurate timing information please run report_timing.",
+            "INFO: [Place 46-19] Post Replication Timing Summary WNS=0.501. For the most accurate timing information please run report_timing.",
+            "INFO: [Route 35-416] Intermediate Timing Summary | WNS=-0.049 | TNS=-0.672 | WHS=N/A | THS=N/A |",
+            "INFO: [Route 35-57] Estimated Timing Summary | WNS=0.003 | TNS=0.000 | WHS=0.005 | THS=0.000 |",
+            "INFO: [Physopt 32-669] Post Physical Optimization Timing Summary | WNS=-0.227 | TNS=-356.384 | WHS=0.000 | THS=0.000 |",
+            "Design Timing Summary",
+            "Timing constraints are not met.",
+        ]
+        detail = "INFO: [Physopt 32-952] Improved path group WNS = -0.098. Path group: clk. Processed net: nested/cell/net."
+        result = self.filtered("print(" + repr("\n".join(lines + [detail])) + ")")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        for line in lines:
+            self.assertIn(line, result.stdout)
+        self.assertNotIn(detail, result.stdout)
+        self.assertIn(detail, self.log.read_text())
+
+    def test_custom_build_banner_text_remains_visible(self):
+        lines = [
+            "Creating OOC project output/proj.xpr ...",
+            "Creating build project (core__stub__build) ...",
+            "Compiling synthesis library 'core__stub__build' ...",
+            "Compiling simulation library 'axi4l__rtl' ...",
+            "Synthesizing core ...",
+            "Synthesizing IP xilinx_qdma_ecc ...",
+            "Synthesize BD (xilinx__alveo__versal__bd) ...",
+            "Synthesis for core is up to date.",
+            "Synthesis products for xilinx_qdma_ecc are up to date.",
+            "Optimizing core ...",
+            "Optimization of core is up to date.",
+            "Running route_design on core ...",
+            "Running route_design for 'core' ...",
+            "Generate IP simulation output products (xilinx__qdma__ip) ...",
+            "Generating XCI for xilinx_qdma_ecc ...",
+            "Generating bitstream for core ...",
+            "Generating device image for core ...",
+            "Generating flash image for core ...",
+            "Pre-generating BD output products...",
+            "Elaborating top-level regio IR: output.yaml",
+            "Linking design: top=core part=part",
+            "Building core regio for core.stub.regio ...",
+            "Reset IP output products (xilinx__qdma__ip) ...",
+        ]
+        separator = "----------------------------------------------------------"
+        result = self.filtered("print(" + repr("\n".join([separator, *lines])) + ")")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        for line in lines:
+            self.assertIn(line, result.stdout)
+        self.assertNotIn(separator, result.stdout)
+        self.assertIn(separator, self.log.read_text())
+
+    def test_license_status_and_repeated_license_warnings_remain_visible(self):
+        lines = [
+            "Attempting to get a license for feature 'Synthesis' and/or device 'xcv80'",
+            "INFO: [Common 17-349] Got license for feature 'Synthesis' and/or device 'xcv80'",
+            "INFO: [Common 17-83] Releasing license: Synthesis",
+            "INFO: [IP_Flow 19-1] IP 'example' is licensed for implementation.",
+            "License keys found for xilinx.com:ip:example:1.0: example_feature.",
+            "No license file needed for xilinx.com:ip:clk_wiz:6.0.",
+        ]
+        warnings = [f"WARNING: [License 1-1] License unavailable for IP instance {i}" for i in range(5)]
+        result = self.filtered("print(" + repr("\n".join(lines + warnings)) + ")")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        for line in lines + warnings:
+            self.assertIn(line, result.stdout)
+        self.assertNotIn("Further warnings", result.stdout)
+        self.assertEqual(self.log.read_text(), "\n".join(lines + warnings) + "\n\nBUILD_EXIT_CODE=0\n")
+
     def test_warning_limit_counts_messages_and_suppresses_their_context(self):
         source = "for i in range(8):\n print(f'WARNING: [RULE-1] occurrence {i}')\n print(f'  details {i}')\n"
         result = self.filtered(source)
