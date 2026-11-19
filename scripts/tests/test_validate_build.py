@@ -150,7 +150,7 @@ class RunnerTests(unittest.TestCase):
         self.fake.write_text("#!" + sys.executable + "\nimport pathlib,sys\nout=pathlib.Path(sys.argv[sys.argv.index('-tclargs')+2])\nreports=" + repr(REPORTS) + "\nfor name,text in reports.items(): (out/(name+'.rpt')).write_text(text)\n(out/'report_status.tsv').write_text('checkpoint\\tOK\\n'+''.join(name+'\\tOK\\n' for name in reports))\n")
         self.fake.chmod(0o755)
 
-    def run_validator(self):
+    def run_validator(self, *extra):
         command = [sys.executable, str(ROOT / "validate_build.py"), "--checkpoint", str(self.checkpoint),
                    "--output-dir", str(self.output), "--name", "design-a", "--vivado", str(self.fake),
                    "--log-root", "products=" + str(self.ip)]
@@ -159,9 +159,29 @@ class RunnerTests(unittest.TestCase):
         for label, path in [(phase, self.build / f"validation-inputs/{phase}.log") for phase in ("image", "reg_package", "p4_driver")] + [("ip", self.ip / "validation-inputs/ip.log")]:
             if self.include_transcripts:
                 command += ["--transcript", label + "=" + str(path)]
-        result = subprocess.run(command, text=True, capture_output=True)
+        result = subprocess.run(command + list(extra), text=True, capture_output=True)
         self.assertTrue((self.output / "junit.xml").is_file(), result.stdout + result.stderr)
         return result, json.loads((self.output / "summary.json").read_text())
+
+    def test_reference_waivers_are_forwarded_without_losing_argument_boundaries(self):
+        path = self.root / "waiver with spaces.xdc"
+        path.write_text("# scoped waiver\n")
+        capture = self.root / "arguments.json"
+        self.fake.write_text(self.fake.read_text().replace("import pathlib,sys", "import pathlib,sys,json\npathlib.Path(" + repr(str(capture)) + ").write_text(json.dumps(sys.argv))"))
+        result, _ = self.run_validator("--waiver-ref", f"ram_block={path}",
+                                       "--waiver-ref", f"fifo_block={path}")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        args = json.loads(capture.read_text())
+        self.assertEqual(args[args.index("-tclargs") + 3:],
+                         ["-waiver-ref", "ram_block", str(path), "-waiver-ref", "fifo_block", str(path)])
+
+    def test_missing_reference_waiver_file_fails_before_vivado(self):
+        self.fake.chmod(0o644)
+        result, summary = self.run_validator("--waiver-ref", f"ram_block={self.root / 'missing.xdc'}")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertTrue(any(f["id"] == "inputs" and "Missing native waiver file" in f["detail"]
+                            for f in summary["findings"]))
+        self.assertFalse((self.output / "transcript.log").exists())
 
     def test_complete_build_passes_and_writes_junit(self):
         result, summary = self.run_validator()

@@ -127,6 +127,27 @@ discovery. CLI equivalents are repeated `--waivers` and `--waiver-tcl`
 arguments. This permits distinct waivers for different builds using the
 same source design, as well as shared exceptions.
 
+Module- or IP-owned waiver files can be registered independently of these
+build scopes using `VALIDATION_WAIVER_REFS`, a list of `REF=PATH` mappings:
+
+```make
+VALIDATION_WAIVER_REFS += fifo_core=$(CURDIR)/ip/fifo_core.waivers.xdc
+```
+
+The equivalent CLI option is repeatable:
+
+```sh
+--waiver-ref fifo_core=/path/to/fifo_core.waivers.xdc
+```
+
+Vivado loads each file with `read_xdc -ref REF`, applying its relative
+queries to every instance of that reference, including uniquified instances.
+Use `create_waiver -scoped` in these files and constrain both endpoints to
+reviewed paths inside the module. Reference mappings are explicit; validation
+does not automatically discover waiver files from component dependencies.
+A missing file or a reference with no instances fails report collection.
+Omit the mapping for builds that do not instantiate the module.
+
 Use Vivado `create_waiver` commands in XDC files for CDC, DRC, and methodology.
 Scope them to reviewed paths or objects, with an owner and explanation.
 Files are loaded into the validation session without modifying the saved

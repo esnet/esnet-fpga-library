@@ -1,5 +1,5 @@
 # Generate reports from the routed checkpoint without rebuilding the design.
-# args: checkpoint output-directory ?native-waiver-file ...?
+# args: checkpoint output-directory ?native-waiver-file ...? ?-waiver-ref reference file ...?
 set_param general.maxThreads 4
 set checkpoint [lindex $argv 0]
 set output [lindex $argv 1]
@@ -20,14 +20,14 @@ if {[catch {open_checkpoint $checkpoint} message]} {
     exit 1
 }
 puts $status "checkpoint\tOK"
-foreach waiver [lrange $argv 2 end] {
-    # Waivers belong to the validation session, not the checkpoint on disk.
-    if {[catch {read_xdc $waiver} message]} {
-        puts $status "waivers\tERROR\t[string map {\n { } \t { }} $message]"
-        close $status
-        exit 1
-    }
+# Waivers belong to the validation session, not the checkpoint on disk.
+source [file join [file dirname [info script]] load_waivers.tcl]
+if {[catch {load_validation_waivers {*}[lrange $argv 2 end]} message]} {
+    puts $status "waivers\tERROR\t[string map {\n { } \t { }} $message]"
+    close $status
+    exit 1
 }
+
 run_report check_timing {check_timing -verbose -file $output/check_timing.rpt}
 run_report timing {report_timing_summary -check_timing_verbose -report_unconstrained -file $output/timing.rpt}
 run_report bus_skew {report_bus_skew -file $output/bus_skew.rpt}

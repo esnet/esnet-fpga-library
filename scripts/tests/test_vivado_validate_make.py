@@ -89,6 +89,20 @@ include {MAKEFILE}
         args = json.loads(capture.read_text())
         self.assertEqual(args[args.index("-tclargs") + 3:], [str(self.waiver_dir / "build-b.xdc")])
 
+    def test_reference_scoped_waivers_can_be_combined_with_global_waivers(self):
+        global_path = self.waiver_dir / "common.xdc"
+        scoped_path = self.waiver_dir / "ram.xdc"
+        global_path.write_text("# global waivers\n")
+        scoped_path.write_text("# reference-scoped waivers\n")
+        capture = self.root / "arguments.json"
+        self.fake.write_text(self.fake.read_text().replace("import pathlib,sys", "import pathlib,sys,json\npathlib.Path(" + repr(str(capture)) + ").write_text(json.dumps(sys.argv))"))
+        result, _ = self.run_make(f"VALIDATION_WAIVER_REFS=ram_block={scoped_path} fifo_block={scoped_path}")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        args = json.loads(capture.read_text())
+        self.assertEqual(args[args.index("-tclargs") + 3:],
+                         [str(global_path), "-waiver-ref", "ram_block", str(scoped_path),
+                          "-waiver-ref", "fifo_block", str(scoped_path)])
+
     def test_missing_explicit_freshness_input_is_a_failure(self):
         result, summary = self.run_make(f"VALIDATION_INPUTS={self.root}/missing.dcp")
         self.assertNotEqual(result.returncode, 0)

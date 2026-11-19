@@ -272,6 +272,8 @@ def main(argv=None):
     parser.add_argument("--name", default=None, help="Build label for JUnit and waiver selection; defaults to the checkpoint stem")
     parser.add_argument("--waivers", type=Path, action="append", default=[])
     parser.add_argument("--waiver-tcl", type=Path, action="append", default=[])
+    parser.add_argument("--waiver-ref", type=named_path, action="append", default=[], metavar="REF=PATH",
+                        help="Native waiver XDC applied to all instances of a module reference")
     parser.add_argument("--vivado", default="vivado")
     args = parser.parse_args(argv)
     output = args.output_dir.resolve()
@@ -292,7 +294,7 @@ def main(argv=None):
         (output / name).unlink(missing_ok=True)
     try:
         waivers = load_waivers(args.waivers)
-        for path in args.waiver_tcl:
+        for path in args.waiver_tcl + [path for _, path in args.waiver_ref]:
             if not path.is_file():
                 raise ValueError(f"Missing native waiver file {path}")
         if not args.checkpoint.is_file():
@@ -310,6 +312,8 @@ def main(argv=None):
         command = [args.vivado, "-mode", "batch", "-notrace", "-nojournal", "-log", str(output / "vivado.log"),
                    "-source", str(Path(__file__).with_name("report_build.tcl")), "-tclargs",
                    str(args.checkpoint.resolve()), str(output), *(str(p.resolve()) for p in args.waiver_tcl)]
+        for reference, path in args.waiver_ref:
+            command += ["-waiver-ref", reference, str(path.resolve())]
         with (output / "transcript.log").open("w") as log:
             result = subprocess.run(command, stdout=log, stderr=subprocess.STDOUT)
         if result.returncode:
