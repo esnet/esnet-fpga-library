@@ -35,13 +35,14 @@ class ConsoleFilter:
     def __init__(self, path):
         config = json.loads(path.read_text())
         required = {"progress", "diagnostics"}
-        if not isinstance(config, dict) or not required <= config.keys() or config.keys() - (required | {"warning", "continuation"}):
-            raise ValueError("filter requires progress and diagnostics lists; optional fields are warning and continuation")
-        for key in required:
-            if not isinstance(config[key], list) or any(not isinstance(p, str) or not p for p in config[key]):
+        if not isinstance(config, dict) or not required <= config.keys() or config.keys() - (required | {"warning", "continuation", "suppress"}):
+            raise ValueError("filter requires progress and diagnostics lists; optional fields are warning, continuation, and suppress")
+        for key in required | {"suppress"}:
+            if not isinstance(config.get(key, []), list) or any(not isinstance(p, str) or not p for p in config.get(key, [])):
                 raise ValueError(f"{key} must be a list of nonempty regular expressions")
         self.progress = [re.compile(p) for p in config["progress"]]
         self.diagnostics = [re.compile(p) for p in config["diagnostics"]]
+        self.suppress = [re.compile(p) for p in config.get("suppress", [])]
         continuation = config.get("continuation")
         if continuation is not None and (not isinstance(continuation, str) or not continuation):
             raise ValueError("continuation must be a nonempty regular expression")
@@ -79,6 +80,9 @@ class ConsoleFilter:
             self.context, self.context_visible = True, visible
             if self.counts[key] == self.limit + 1:
                 notice = f"Further warnings with ID {key} will be counted; see the complete transcript."
+        elif any(pattern.search(text) for pattern in self.suppress):
+            self.context = False
+            visible = False
         elif any(pattern.search(text) for pattern in self.progress):
             self.last_progress = text.strip()[:240]
             self.context = False

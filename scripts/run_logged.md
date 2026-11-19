@@ -40,7 +40,10 @@ diagnostic continuations visible. It prints the first three ordinary
 warnings per message ID, announces suppression,
 and summarizes total/omitted occurrences when the command finishes.
 License warnings and warnings without an ID are always shown. Routine INFO
-output and per-cell constraint-loading chatter stay in the full transcript.
+output, per-cell constraint-loading chatter, and routine constraint-application
+completion messages stay in the full transcript. These routine lines are
+also hidden when indented after a diagnostic; constraint warnings, errors,
+and timing-violation summaries retain the policies above.
 
 In filtered mode, `--heartbeat SECONDS` prints elapsed time and the latest
 milestone after that much time without console output (default: 60;

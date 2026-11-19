@@ -29,5 +29,10 @@
     "pattern": "^WARNING:\\s*\\[(?P<id>[^\\]]+)\\]",
     "limit": 3
   },
-  "continuation": "^(?:[ \\t]+\\S|[ \\t]*$)"
+  "continuation": "^(?:[ \\t]+\\S|[ \\t]*$)",
+  "suppress": [
+    "(?i)^\\s*(?:Finished\\s+)?(?:Parsing|Reading)\\s+XDC\\s+File\\b",
+    "(?i)^\\s*(?:Loading|Applying|Finished Applying)\\s+(?:(?:custom|synthesis|implementation)\\s+)?(?:XDC\\s+(?:Timing\\s+)?)?constraints?\\b",
+    "^\\s*Finished (?:Constraint Validation|applying 'set_property' XDC Constraints)\\b"
+  ]
 }

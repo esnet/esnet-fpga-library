@@ -65,11 +65,49 @@ class LoggedConsoleTests(unittest.TestCase):
         for line in lines:
             self.assertIn(line, result.stdout)
 
-    def test_per_cell_constraint_loading_chatter_is_hidden(self):
-        line = "Finished Parsing XDC File [very/long/ip/constraint/path.xdc] for cell nested/cell"
-        result = self.filtered("print(" + repr(line) + ")")
-        self.assertNotIn(line, result.stdout)
-        self.assertIn(line, self.log.read_text())
+    def test_constraint_loading_chatter_is_hidden_even_after_diagnostics(self):
+        chatter = [
+            "Parsing XDC File [custom/synth.xdc] for cell nested/cell",
+            "Finished Parsing XDC File [custom/synth.xdc] for cell nested/cell",
+            "  Parsing XDC File [custom/synth.xdc] for cell nested/cell",
+            "  Finished Parsing XDC File [custom/synth.xdc] for cell nested/cell",
+            "Loading constraints: custom/constraints.tcl",
+            "Loading synthesis XDC: custom/synth.xdc",
+            "Applying custom constraints: custom/synth.xdc",
+            "Finished Applying XDC Timing Constraints : Time (s): cpu = 00:00:01",
+            "Finished applying 'set_property' XDC Constraints : Time (s): cpu = 00:00:01",
+            "Finished Constraint Validation : Time (s): cpu = 00:00:01",
+        ]
+        lines = []
+        for line in chatter:
+            lines += ["CRITICAL WARNING: [Constraints 18-1] diagnostic", "  offending pin detail", line]
+        lines += ["WARNING: [Timing 38-1] constraint violated", "  failing endpoint",
+                  "ERROR: [Constraints 18-2] invalid custom constraint", "  failure detail",
+                  "Timing constraints are not met.", "Finished Timing Optimization"]
+        result = self.filtered("print(" + repr("\n".join(lines)) + ")")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        for line in chatter:
+            self.assertNotIn(line, result.stdout)
+            self.assertIn(line, self.log.read_text())
+        for line in ("offending pin detail", "constraint violated", "failing endpoint",
+                     "invalid custom constraint", "failure detail", "Timing constraints are not met.",
+                     "Finished Timing Optimization"):
+            self.assertIn(line, result.stdout)
+
+    def test_suppression_cannot_override_diagnostics_or_warning_limits(self):
+        profile = json.loads(PROFILE.read_text())
+        profile["suppress"] = [".*"]
+        path = self.root / "suppress-all.json"
+        path.write_text(json.dumps(profile))
+        lines = ["CRITICAL WARNING: [X-1] important", "ERROR: [X-2] invalid constraint"]
+        lines += [f"WARNING: [X-3] warning {i}" for i in range(5)]
+        result = self.child("print(" + repr("\n".join(lines)) + ")", "--console-filter", path, "--heartbeat", "0")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        for line in lines[:5]:
+            self.assertIn(line, result.stdout)
+        for line in lines[5:]:
+            self.assertNotIn(line, result.stdout)
+        self.assertIn("Warning X-3: 5 occurrences; 2 omitted", result.stdout)
 
     def test_inline_timing_summaries_remain_visible_without_per_net_detail(self):
         lines = [
@@ -280,6 +318,7 @@ class LoggedConsoleTests(unittest.TestCase):
                      {"progress": [], "diagnostics": [], "unknown": 1},
                      {"progress": [], "diagnostics": [], "warning": {"pattern": "WARNING", "limit": 3}},
                      {"progress": [], "diagnostics": [], "warning": {"pattern": "(?P<id>x)", "limit": True}}]
+        documents += [dict(progress=[], diagnostics=[], suppress=value) for value in ("x", [1], [""], ["["])]
         for document in documents:
             bad.write_text(json.dumps(document))
             result = self.child("raise RuntimeError('child must not run')", "--console-filter", bad)

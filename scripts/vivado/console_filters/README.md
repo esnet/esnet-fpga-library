@@ -24,8 +24,8 @@ supply their own rules:
 }
 ```
 
-`progress` and `diagnostics` are required lists. `warning` and
-`continuation` are optional. Invalid fields, types, or patterns are rejected
+`progress` and `diagnostics` are required lists. `warning`, `continuation`,
+and `suppress` are optional. Invalid fields, types, or patterns are rejected
 before opening the log or launching the command.
 
 Rules are evaluated in this order:
@@ -34,11 +34,15 @@ Rules are evaluated in this order:
 2. `warning`: count the message by its named `id` capture and display the
    first `limit` occurrences. Its continuation lines follow the same
    visibility decision. `limit` must be a positive integer.
-3. `progress`: display the line and remember it as the latest milestone.
-4. `continuation`: after a diagnostic or warning, display or omit matching
+3. `suppress`: omit matching routine lines, even if they match `progress`
+   or look like diagnostic continuations, and end the previous context.
+   This optional list of regular expressions cannot override diagnostics
+   or warning classification.
+4. `progress`: display the line and remember it as the latest milestone.
+5. `continuation`: after a diagnostic or warning, display or omit matching
    continuation lines with that message. Another recognized message starts
    a new context; an unrelated non-continuation line ends the old context.
-5. Everything else: omit from the console, retaining it in the transcript.
+6. Everything else: omit from the console, retaining it in the transcript.
 
 The first omitted warning occurrence produces a notice. At completion,
 each warning ID that exceeded its limit gets total and omitted counts.
@@ -57,7 +61,11 @@ and physical-optimization timing summaries are shown, including setup and
 hold slack values and `N/A` entries, alongside the final timing table and
 timing-met status. Per-net optimization detail remains in the transcript.
 License acquisition attempts, checkout and release messages, and IP-license
-checks are also displayed.
+checks are also displayed. Routine constraint-file loading/parsing and
+constraint-application completion messages are suppressed, including
+indented status lines following a diagnostic. Constraint warnings and errors
+retain the diagnostic and warning policies above; timing-violation summaries
+remain visible. The transcript retains all constraint output.
 
 Filtering does not decide command success or waive validation findings.
 Enablement in CI and transcript artifact publication belong to the calling
