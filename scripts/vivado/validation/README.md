@@ -82,6 +82,35 @@ hash, inspected logs, findings, JSON waiver accounting, and native waived
 CDC counts. JUnit has a separate test case for each check category.
 Exit status is nonzero if any unwaived finding remains.
 
+## Console summaries and saved results
+
+Validation always prints an overall PASS/FAIL and the per-category results
+when it completes. Replay the same summary without Vivado or a checkpoint:
+
+```sh
+python3 scripts/vivado/validation/validate_build.py \
+  --summary-only --output-dir output/validation
+```
+
+Replay returns the saved validation status and leaves artifacts unchanged.
+Missing, malformed, inconsistent, or incomplete passing summaries fail.
+JUnit results must also be present. Optionally supply `--status-file PATH`
+to require a collection completion file whose content is `0`. The caller
+owns writing this file after collection and choosing a path that identifies
+the expected producer, so stale results cannot satisfy a new collection.
+
+For a build-job summary, use the separate reporting script:
+
+```sh
+python3 scripts/vivado/build_summary.py --name accelerator-a --status success \
+  --timing-report output/validation/timing.rpt
+```
+
+It prints the build status and final routed setup, hold, and pulse-width
+timing table. Failed builds and missing or invalid reports show timing as
+unavailable. This reporting command does not change the build's exit status;
+validation owns the policy for accepting timing and other findings.
+
 ## Waiver selection
 
 Waivers are owned by the design using the library. None ship enabled.

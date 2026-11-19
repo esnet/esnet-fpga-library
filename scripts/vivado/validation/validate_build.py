@@ -201,9 +201,54 @@ def named_path(value):
     return name, Path(path)
 
 
+def print_summary(output, summary, collection_error=None):
+    print(f"\nValidation summary ({summary['name']})")
+    passed = summary["passed"] and collection_error is None
+    print("Validation: " + ("PASS" if passed else "FAIL"))
+    if collection_error:
+        print(collection_error)
+    for category in CATEGORIES:
+        count = sum(f["count"] for f in summary["findings"] if f["category"] == category)
+        state = "FAIL" if count else "PASS" if summary["checked"].get(category) else "INCOMPLETE"
+        print(f"{category}: {state} ({count} unwaived findings)")
+    if summary["unused_waivers"]:
+        print("Unused waivers: " + ", ".join(summary["unused_waivers"]))
+    print(f"Results: {output / 'summary.json'}")
+    return 0 if passed else 1
+
+
+def saved_summary(output, status_file=None):
+    try:
+        collection_error = None
+        if status_file is not None:
+            status = status_file.read_text().strip()
+            if status != "0":
+                collection_error = f"Validation collection exit status: {status!r}; see build log"
+        if not (output / "junit.xml").is_file() or not (output / "junit.xml").stat().st_size:
+            raise ValueError("Missing or empty JUnit results")
+        summary = json.loads((output / "summary.json").read_text())
+        if (not isinstance(summary["name"], str) or type(summary["passed"]) is not bool
+                or not isinstance(summary["findings"], list)
+                or not isinstance(summary["unused_waivers"], list)
+                or any(type(summary["checked"][category]) is not bool for category in CATEGORIES)
+                or summary["passed"] != (not summary["findings"])):
+            raise ValueError("Invalid validation summary")
+        for item in summary["findings"]:
+            if item["category"] not in CATEGORIES or type(item["count"]) is not int or item["count"] < 1:
+                raise ValueError("Invalid validation finding")
+        if summary["passed"] and not all(summary["checked"].values()):
+            raise ValueError("Passing summary contains incomplete checks")
+        return print_summary(output, summary, collection_error)
+    except (OSError, ValueError, KeyError, TypeError) as error:
+        print(f"Validation: FAIL (saved summary unavailable or invalid: {error})")
+        return 1
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--checkpoint", type=Path, required=True)
+    parser.add_argument("--checkpoint", type=Path)
+    parser.add_argument("--summary-only", action="store_true", help="Print saved results and return their status without invoking Vivado")
+    parser.add_argument("--status-file", type=Path, help="Require a successful collection status file when replaying a saved summary")
     parser.add_argument("--input", type=Path, action="append", default=[], help="Required input that must not be newer than the checkpoint")
     parser.add_argument("--log", type=named_path, action="append", default=[], metavar="NAME=PATH", help="Required build log")
     parser.add_argument("--transcript", type=named_path, action="append", default=[], metavar="NAME=PATH", help="Required run_logged.py transcript with a successful exit marker")
@@ -215,6 +260,12 @@ def main(argv=None):
     parser.add_argument("--vivado", default="vivado")
     args = parser.parse_args(argv)
     output = args.output_dir.resolve()
+    if args.summary_only:
+        return saved_summary(output, args.status_file)
+    if args.status_file is not None:
+        parser.error("--status-file requires --summary-only")
+    if args.checkpoint is None:
+        parser.error("--checkpoint is required unless --summary-only is used")
     summary = dict(name=args.name or args.checkpoint.stem, checkpoint=str(args.checkpoint.resolve()),
                    timestamp=datetime.now(timezone.utc).isoformat(), findings=[], waived=[], unused_waivers=[])
     findings = summary["findings"]
@@ -313,14 +364,7 @@ def main(argv=None):
     summary["logs"] = [str(p) for p, _ in logs]
     summary["passed"] = not summary["findings"]
     write_results(output, summary)
-    for category in CATEGORIES:
-        count = sum(f["count"] for f in summary["findings"] if f["category"] == category)
-        state = "FAIL" if count else "PASS" if summary["checked"].get(category) else "INCOMPLETE"
-        print(f"{category}: {state} ({count} unwaived findings)")
-    if summary["unused_waivers"]:
-        print("Unused waivers: " + ", ".join(summary["unused_waivers"]))
-    print(f"Results: {output / 'summary.json'}")
-    return 0 if summary["passed"] else 1
+    return print_summary(output, summary)
 
 
 if __name__ == "__main__":

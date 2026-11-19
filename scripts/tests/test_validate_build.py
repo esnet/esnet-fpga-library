@@ -144,6 +144,48 @@ class RunnerTests(unittest.TestCase):
         self.assertTrue(summary["passed"])
         self.assertEqual(ET.parse(self.output / "junit.xml").getroot().get("failures"), "0")
 
+    def test_saved_summary_replays_results_without_vivado_or_modifying_artifacts(self):
+        for failed in (False, True):
+            with self.subTest(failed=failed):
+                if failed:
+                    (self.build / "validation-inputs/image.log").write_text("CRITICAL WARNING: [TEST-1] warning\nBUILD_EXIT_CODE=0\n")
+                original, _ = self.run_validator()
+                artifacts = {p.name: (p.read_bytes(), p.stat().st_mtime_ns) for p in self.output.iterdir()}
+                self.fake.chmod(0o644)  # Replaying must not execute the report tool.
+                replay = subprocess.run([sys.executable, str(ROOT / "validate_build.py"), "--summary-only",
+                                         "--output-dir", str(self.output)], capture_output=True, text=True)
+                self.assertEqual(replay.returncode, original.returncode, replay.stdout + replay.stderr)
+                self.assertEqual(replay.stdout, original.stdout)
+                self.assertEqual(artifacts, {p.name: (p.read_bytes(), p.stat().st_mtime_ns) for p in self.output.iterdir()})
+                self.fake.chmod(0o755)
+
+    def test_collection_failure_preserves_category_summary_and_fails_gate(self):
+        self.run_validator()
+        status = self.root / "collection.exitcode"
+        status.write_text("2\n")
+        result = subprocess.run([sys.executable, str(ROOT / "validate_build.py"), "--summary-only",
+                                 "--output-dir", str(self.output), "--status-file", str(status)],
+                                capture_output=True, text=True)
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("Validation: FAIL", result.stdout)
+        self.assertIn("collection exit status: '2'", result.stdout)
+        self.assertIn("timing: PASS", result.stdout)
+
+    def test_missing_malformed_and_inconsistent_saved_results_fail(self):
+        self.run_validator()
+        path = self.output / "summary.json"
+        valid = json.loads(path.read_text())
+        for content in ("", "{}", "[]", json.dumps(dict(valid, passed=False)),
+                        json.dumps(dict(valid, checked={}))):
+            with self.subTest(content=content):
+                path.write_text(content)
+                result = subprocess.run([sys.executable, str(ROOT / "validate_build.py"), "--summary-only",
+                                         "--output-dir", str(self.output)], capture_output=True, text=True)
+                self.assertEqual(result.returncode, 1, result.stderr)
+                self.assertIn("Validation: FAIL", result.stdout)
+        path.unlink()
+        self.assertEqual(v.saved_summary(self.output), 1)
+
     def test_empty_log_root_cannot_claim_warning_completeness(self):
         self.include_transcripts = False
         result, summary = self.run_validator()
