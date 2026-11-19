@@ -24,7 +24,9 @@ module sync_meta #(
 );
     localparam int STAGES = sync_pkg::RETIMING_STAGES;
 
-    (* DONT_TOUCH = "TRUE" *) logic [DATA_WID-1:0] __sync_ff_in;
+    // Preserve the registered CDC boundary during synthesis, but allow unused
+    // chains to be removed when consumers are optimized away after linking.
+    (* KEEP = "TRUE" *)      logic [DATA_WID-1:0] __sync_ff_in;
     (* ASYNC_REG = "TRUE" *)  logic [DATA_WID-1:0] __sync_ff_meta [STAGES];
 
     // Register input signal in input clock domain

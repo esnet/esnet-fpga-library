@@ -173,3 +173,9 @@ make regression
 ```
 
 Pass `waves=ON` to capture a waveform, or `SEED=N` to fix the random seed.
+
+OOC synthesis jobs live under `build/` and run through the library's synth
+CI matrix. `build/sync_meta__unused` removes one consumer after synthesis
+and optimization, then checks that its unused CDC chain is removed while
+the live registered Gray-code boundary and three-stage synchronizer remain.
+Run it with `make -C build/sync_meta__unused/` using the normal part configuration.
