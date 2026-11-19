@@ -67,7 +67,22 @@ def coverage_findings(text):
         name, count = section[1], int(section[2])
         if count:
             detail = text[section.end():sections[i + 1].start() if i + 1 < len(sections) else len(text)].strip()
-            results.append(finding("constraints", name, detail, count))
+            if name in ("no_input_delay", "no_output_delay"):
+                # Vivado's heading also counts ports with explicit false paths
+                # or output clocks. Only the first group lacks timing coverage.
+                direction = "input" if name == "no_input_delay" else "output"
+                port = r"input ports?" if direction == "input" else r"ports?"
+                missing = re.search(r"There (?:is|are) (\d+) " + port +
+                                    " with no " + direction + r" delay specified\.", detail)
+                classified = re.findall(r"There (?:is|are) (\d+) " + port + " with no " + direction +
+                                        r" delay(?: specified\.| but user has a false path constraint|"
+                                        r" but with a timing clock defined on it or propagating through it)", detail)
+                if not missing or sum(map(int, classified)) != count:
+                    raise ValueError(f"Unrecognized {name} coverage breakdown")
+                count = int(missing[1])
+                detail = re.split(r"\n\s*There (?:is|are) \d+", detail, maxsplit=1)[0].strip()
+            if count:
+                results.append(finding("constraints", name, detail, count))
     return results
 
 

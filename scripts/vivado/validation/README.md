@@ -69,7 +69,10 @@ routing without routing errors. Bus-skew constraints with no applicable
 paths, such as tied-off signals, may report `NA`.
 
 Constraint-coverage findings and CDC Warning/Critical findings fail unless
-waived. DRC and methodology Error/Critical Warning findings also fail.
+waived. For missing I/O delays, ports explicitly covered by false paths and
+outputs carrying defined clocks are excluded from the failure count; Vivado
+keeps these ports visible in the full coverage report. DRC and methodology
+Error/Critical Warning findings also fail.
 Informational CDC findings and ordinary DRC/methodology warnings remain
 visible in the full reports without failing validation. Missing or
 unrecognized reports fail the integrity check. Unavailable checks appear

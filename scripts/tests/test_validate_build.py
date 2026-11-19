@@ -88,6 +88,31 @@ class ParserTests(unittest.TestCase):
         self.assertIn("path/CCLK", result[0]["detail"])
         self.assertEqual(result[0]["count"], 1)
 
+    def test_io_coverage_excludes_false_paths_and_output_clocks(self):
+        for direction in ("input", "output"):
+            with self.subTest(direction=direction):
+                port = "input port" if direction == "input" else "port"
+                text = (f"1. checking no_{direction}_delay (6)\n------------------------\n"
+                        f" There is 1 {port} with no {direction} delay specified. (HIGH)\n\nuntimed_pin\n\n"
+                        f" There are 5 {port}s with no {direction} delay but user has a false path constraint. (MEDIUM)\n\nasync_pin\n")
+                result = v.coverage_findings(text)
+                self.assertEqual(len(result), 1)
+                self.assertEqual(result[0]["count"], 1)
+                self.assertIn("untimed_pin", result[0]["detail"])
+                self.assertNotIn("async_pin", result[0]["detail"])
+                covered = text.replace(f"There is 1 {port} with", f"There are 0 {port}s with").replace("There are 5", "There are 6")
+                self.assertEqual(v.coverage_findings(covered), [])
+        clock_output = ("1. checking no_output_delay (1)\n------------------------\n"
+                        "There are 0 ports with no output delay specified.\n"
+                        "There is 1 port with no output delay but with a timing clock defined on it or propagating through it\nclock_out\n")
+        self.assertEqual(v.coverage_findings(clock_output), [])
+
+    def test_io_coverage_requires_a_valid_missing_delay_breakdown(self):
+        for body in ("unrecognized report", "There are 7 input ports with no input delay specified.",
+                     "There are 0 input ports with no input delay specified."):
+            with self.subTest(body=body), self.assertRaises(ValueError):
+                v.coverage_findings("1. checking no_input_delay (6)\n------------------------\n" + body)
+
     def test_waivers_are_bounded_and_match_build_message_and_source(self):
         waiver = dict(name="known", category="critical_warnings", id="TEST-1", detail="Reviewed warning", source="ip", max_count=1, reason="Reviewed behavior", builds=["design-a"])
         item = v.finding("critical_warnings", "TEST-1", "Reviewed warning", source="ip")
