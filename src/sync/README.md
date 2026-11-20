@@ -109,6 +109,24 @@ destination may skip values when the source is faster. With `DECODE_OUT=1`, `cnt
 destination register. With `DECODE_OUT=0`, it is the synchronized Gray value;
 the reset value is Gray-encoded as well.
 
+The opt-in [CDC waiver file](build/sync_ctr/waivers.xdc) applies only to
+registered Gray transfers inside `sync_ctr`. Vivado reports these as CDC-6
+because the structural check does not prove Gray transitions; AMD's
+[`XPM_CDC_GRAY`](https://docs.amd.com/r/2025.2-English/ug953-vivado-7series-libraries/XPM_CDC_GRAY)
+also supplies a CDC-6 waiver. Register this file for the
+`sync_ctr` reference through `VALIDATION_WAIVER_REFS` when validating a
+caller that obeys the source-transition and reset contracts. It leaves
+general `sync_meta` buses and later synchronizer stages outside the waiver.
+The source-period max-delay and minimum-clock-period bus-skew constraints
+remain required; the waiver changes CDC reporting only.
+
+The `build/sync_ctr__cdc` OOC regression checks both output modes, source
+registration, three direct `ASYNC_REG` stages, and active max-delay/skew
+bounds, and exercises the default one-bit width. It verifies that the two
+Gray bus crossings are waived and an unrelated multi-bit `sync_meta`
+crossing remains unwaived. RTL simulation tests cover
+reset values, Gray transitions, and transfers at different clock ratios.
+
 ### `sync_areset` and `sync_reset` — Reset transfer
 
 | Parameter | Default | Description |
