@@ -150,10 +150,14 @@ manually.
 
 `scripts/Makefiles/vivado_compile.mk` generates a `synth/constraints.tcl`
 file in the component's output directory. The synthesis job loads this
-script, which checks the synthesis source list and reads the corresponding
-XDC files with `read_xdc -ref <module>`. Reference scoping applies each
-constraint to instances of that module, including those nested inside the
-other synchronizers. For example, `sync_ctr` inherits the constraints on
+script, which registers itself as a `LATE` Tcl constraint file. During
+elaboration it checks the actual design hierarchy, including parameterized
+instances and the top-level module, and registers only the corresponding
+XDC files with `read_xdc -ref <module>`, also with `LATE` processing. This
+places clock-dependent constraints after clock definitions without loading
+constraints for modules that are merely listed among the sources. Reference
+scoping applies each constraint to instances of that module, including those
+nested inside the other synchronizers. For example, `sync_ctr` inherits the constraints on
 its `sync_meta` instance, and `sync_reset` inherits those on `sync_areset`.
 Both project and non-project build flows load the generated script.
 
@@ -228,3 +232,8 @@ CI matrix. `build/sync_meta__unused` removes one consumer after synthesis
 and optimization, then checks that its unused CDC chain is removed while
 the live registered Gray-code boundary and three-stage synchronizer remain.
 Run it with `make -C build/sync_meta__unused/` using the normal part configuration.
+
+`build/sync_meta__constraints` checks automatic reference selection when
+unused synchronizer sources and a disabled generate branch are present. It
+also verifies that the 8 ns delay and 2.9 ns skew bounds survive checkpoint
+reload and optimization. Run `make -C build/sync_meta__constraints/ opt`.
