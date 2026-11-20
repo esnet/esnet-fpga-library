@@ -103,6 +103,24 @@ include {MAKEFILE}
                          [str(global_path), "-waiver-ref", "ram_block", str(scoped_path),
                           "-waiver-ref", "fifo_block", str(scoped_path)])
 
+    def test_make_forwards_named_evidence_and_configuration_failures_remain_visible(self):
+        self.build_log.write_text("CRITICAL WARNING: [RULE-1] Reviewed condition\nBUILD_EXIT_CODE=0\n")
+        artifact = self.root / "configuration.txt"
+        artifact.write_text("OUTPUT_REG=1")
+        age = self.checkpoint.stat().st_mtime_ns - 1
+        os.utime(artifact, ns=(age, age))
+        waiver = dict(name="guarded", category="critical_warnings", id="RULE-1", source="synthesis",
+                      detail="Reviewed condition", max_count=1, reason="Output register present",
+                      evidence=[dict(input="configuration", pattern="OUTPUT_REG=1")])
+        (self.waiver_dir / "common.json").write_text(json.dumps({"waivers": [waiver]}))
+        result, summary = self.run_make(f"VALIDATION_WAIVER_INPUTS=configuration={artifact}")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertTrue(summary["waiver_evidence"][0]["passed"])
+        result, summary = self.run_make()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertFalse(summary["waived"])
+        self.assertTrue(any(f["id"] == "waiver_evidence" for f in summary["findings"]))
+
     def test_missing_explicit_freshness_input_is_a_failure(self):
         result, summary = self.run_make(f"VALIDATION_INPUTS={self.root}/missing.dcp")
         self.assertNotEqual(result.returncode, 0)

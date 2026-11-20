@@ -2,6 +2,7 @@
 import argparse
 from datetime import datetime, timezone
 import hashlib
+import io
 import json
 import math
 from pathlib import Path
@@ -9,6 +10,8 @@ import re
 import subprocess
 import sys
 import xml.etree.ElementTree as ET
+import zipfile
+import zlib
 
 CATEGORIES = ("integrity", "timing", "routing", "constraints", "critical_warnings", "cdc", "drc", "methodology")
 REPORTS = ("check_timing", "timing", "bus_skew", "routing", "cdc", "cdc_waived", "drc", "methodology", "waivers")
@@ -115,13 +118,25 @@ def load_waivers(paths):
             raise ValueError(f"Invalid waiver file {path}")
         for waiver in data["waivers"]:
             required = {"name", "category", "id", "detail", "source", "max_count", "reason"}
-            if not isinstance(waiver, dict) or set(waiver) - (required | {"builds"}) or not required <= set(waiver):
+            if not isinstance(waiver, dict) or set(waiver) - (required | {"builds", "evidence"}) or not required <= set(waiver):
                 raise ValueError(f"Invalid waiver fields in {path}")
             if any(not isinstance(waiver[key], str) for key in required - {"max_count"}):
                 raise ValueError("Waiver identifiers, patterns, and rationale must be strings")
             if "builds" in waiver and (not isinstance(waiver["builds"], list) or not waiver["builds"]
                     or any(not isinstance(build, str) for build in waiver["builds"])):
                 raise ValueError("Waiver builds must be a nonempty list of build names")
+            if "evidence" in waiver:
+                if not isinstance(waiver["evidence"], list) or not waiver["evidence"]:
+                    raise ValueError("Waiver evidence must be a nonempty list")
+                for check in waiver["evidence"]:
+                    if (not isinstance(check, dict) or not {"input", "pattern"} <= set(check)
+                            or set(check) - {"input", "pattern", "member"}
+                            or any(not isinstance(value, str) or not value.strip() for value in check.values())):
+                        raise ValueError("Evidence requires an input name, pattern, and optional ZIP member")
+                    try:
+                        re.compile(check["pattern"])
+                    except re.error as error:
+                        raise ValueError(f"Invalid evidence pattern: {error}") from error
             if waiver["category"] not in ("constraints", "critical_warnings"):
                 raise ValueError("Use native Vivado waivers for CDC/DRC/methodology; timing cannot be waived")
             if not waiver["reason"].strip() or not waiver["name"].strip():
@@ -137,6 +152,50 @@ def load_waivers(paths):
                 raise ValueError(f"Duplicate waiver {waiver['name']}")
             waivers.append(waiver)
     return waivers
+
+
+def check_waiver_evidence(waivers, inputs, checkpoint, name):
+    """Check declared build artifacts; missing, newer, or ambiguous evidence fails closed."""
+    paths = {}
+    for label, path in inputs:
+        if label in paths:
+            raise ValueError(f"Duplicate waiver input {label}")
+        paths[label] = path
+    records, errors, eligible = [], [], []
+    for waiver in waivers:
+        if name not in waiver.get("builds", [name]):
+            eligible.append(waiver)
+            continue
+        valid = True
+        for check in waiver.get("evidence", []):
+            record = dict(waiver=waiver["name"], **check, passed=False)
+            try:
+                path = paths.get(check["input"])
+                if path is None:
+                    raise ValueError(f"No path supplied for waiver input {check['input']}")
+                record["path"] = str(path.resolve())
+                if path.stat().st_mtime_ns > checkpoint.stat().st_mtime_ns:
+                    raise ValueError(f"Waiver input {path} is newer than the routed checkpoint")
+                data = path.read_bytes()
+                record["sha256"] = hashlib.sha256(data).hexdigest()
+                if "member" in check:
+                    with zipfile.ZipFile(io.BytesIO(data)) as archive:
+                        if archive.namelist().count(check["member"]) != 1:
+                            raise ValueError(f"Expected exactly one ZIP member {check['member']}")
+                        data = archive.read(check["member"])
+                text = data.decode("utf-8")
+                count = sum(1 for _ in re.finditer(check["pattern"], text))
+                if count != 1:
+                    raise ValueError(f"Evidence pattern matched {count} times; expected exactly once")
+                record["passed"] = True
+            except (OSError, ValueError, KeyError, zipfile.BadZipFile, RuntimeError, EOFError, zlib.error) as error:
+                valid = False
+                record["error"] = str(error)
+                errors.append(finding("integrity", "waiver_evidence", f"{waiver['name']} ({check['input']}): {error}", source=check["input"]))
+            records.append(record)
+        if valid:
+            eligible.append(waiver)
+    return eligible, records, errors
 
 
 def apply_waivers(findings, waivers, name):
@@ -180,10 +239,28 @@ def log_findings(paths):
             match = MESSAGE.match(line)
             if match:
                 detail = [match[3]]
-                for continuation in lines[index + 1:]:
-                    if not continuation.strip() or not continuation[:1].isspace():
-                        break
-                    detail.append(continuation.strip())
+                following = index + 1
+                if match[2] == "Vivado 12-1790":
+                    while following < len(lines) and not lines[following].strip():
+                        following += 1
+                    if following < len(lines) and lines[following] == "Evaluation cores found in this design:":
+                        detail.append(lines[following])
+                        following += 1
+                        while following < len(lines):
+                            continuation = lines[following]
+                            if continuation.strip() and not continuation[:1].isspace():
+                                break
+                            if continuation.strip():
+                                detail.append(continuation.strip())
+                            following += 1
+                        # A truncated feature list must never match a complete-list waiver.
+                        if following == len(lines) or not lines[following].startswith("Resolution:"):
+                            detail.append("[Incomplete evaluation license details]")
+                else:
+                    for continuation in lines[following:]:
+                        if not continuation.strip() or not continuation[:1].isspace():
+                            break
+                        detail.append(continuation.strip())
                 results.append(finding("critical_warnings", match[2] or match[1], "\n".join(detail), source=label))
             suppression = re.search(r"suppress|limit.*reached", line, re.I)
             if suppression and ("CRITICAL WARNING" in line or "[Common 17-14]" in line):
@@ -270,6 +347,8 @@ def main(argv=None):
     parser.add_argument("--log-root", type=named_path, action="append", default=[], metavar="NAME=PATH", help="Directory of active Vivado operation/run logs to inspect recursively")
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--name", default=None, help="Build label for JUnit and waiver selection; defaults to the checkpoint stem")
+    parser.add_argument("--waiver-input", type=named_path, action="append", default=[], metavar="NAME=PATH",
+                        help="Generated artifact used by JSON waiver evidence checks; must not be newer than the checkpoint")
     parser.add_argument("--waivers", type=Path, action="append", default=[])
     parser.add_argument("--waiver-tcl", type=Path, action="append", default=[])
     parser.add_argument("--waiver-ref", type=named_path, action="append", default=[], metavar="REF=PATH",
@@ -379,7 +458,18 @@ def main(argv=None):
     summary["checked"]["integrity"] = True
     summary["checked"]["critical_warnings"] = not any(f["category"] == "integrity" and f["id"] in
                                                         ("build_log", "unreadable_log", "suppressed_messages") for f in findings)
-    summary["findings"], summary["waived"], summary["unused_waivers"] = apply_waivers(findings, waivers, summary["name"])
+    eligible = []
+    summary["waiver_evidence"] = []
+    try:
+        eligible, summary["waiver_evidence"], errors = check_waiver_evidence(
+            waivers, args.waiver_input, args.checkpoint, summary["name"])
+        findings.extend(errors)
+    except ValueError as error:
+        findings.append(finding("integrity", "waiver_evidence", str(error)))
+    summary["findings"], summary["waived"], _ = apply_waivers(findings, eligible, summary["name"])
+    used = {item["waiver"] for item in summary["waived"]}
+    summary["unused_waivers"] = [w["name"] for w in waivers
+                                   if w["name"] not in used and summary["name"] in w.get("builds", [summary["name"]])]
     summary["logs"] = [str(p) for p, _ in logs]
     summary["passed"] = not summary["findings"]
     write_results(output, summary)

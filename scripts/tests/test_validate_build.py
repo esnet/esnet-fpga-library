@@ -8,6 +8,7 @@ import sys
 import tempfile
 import unittest
 import xml.etree.ElementTree as ET
+import zipfile
 
 ROOT = Path(__file__).resolve().parents[1] / "vivado/validation"
 spec = importlib.util.spec_from_file_location("validator", ROOT / "validate_build.py")
@@ -122,6 +123,38 @@ class ParserTests(unittest.TestCase):
             self.assertEqual(len(v.apply_waivers([changed], [waiver], "design-a")[0]), 1)
         self.assertEqual(len(v.apply_waivers([item], [waiver], "design-b")[0]), 1)
 
+    def test_evidence_schema_rejects_empty_ambiguous_and_invalid_checks(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "waivers.json"
+            waiver = dict(name="guarded", category="critical_warnings", id="x", detail="x",
+                          source="x", max_count=1, reason="Reviewed")
+            for evidence in ([], {}, ["file"], [{}], [{"input": "ip", "pattern": "["}],
+                             [{"input": "ip", "pattern": "x", "member": ""}],
+                             [{"input": "ip", "pattern": "x", "unknown": "x"}]):
+                path.write_text(json.dumps({"waivers": [dict(waiver, evidence=evidence)]}))
+                with self.subTest(evidence=evidence), self.assertRaises(ValueError):
+                    v.load_waivers([path])
+
+    def test_license_feature_list_survives_paragraphs_without_swallowing_next_message(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "build.log"
+            block = ("CRITICAL WARNING: [Vivado 12-1790] License warning\n\n"
+                     "Evaluation cores found in this design:\n"
+                     "    IP core 'first':\n        IP feature 'base' bought\n\n"
+                     "    IP core 'second':\n        IP feature 'extra' design_linking\n\n")
+            path.write_text(block + "Resolution: Regenerate the cores.\nINFO: [TEST-0] Done\n"
+                            "CRITICAL WARNING: [TEST-1] Other warning\n    Continued\n")
+            findings = v.log_findings([(path, "image")])
+            self.assertEqual(len(findings), 2)
+            self.assertEqual(findings[0]["detail"], "License warning\nEvaluation cores found in this design:\n"
+                             "IP core 'first':\nIP feature 'base' bought\nIP core 'second':\nIP feature 'extra' design_linking")
+            self.assertEqual(findings[1]["detail"], "Other warning\nContinued")
+            for suffix in ("", "INFO: [TEST-0] Unexpected termination\n"):
+                path.write_text(block + suffix)
+                self.assertIn("Incomplete evaluation license details", v.log_findings([(path, "image")])[0]["detail"])
+            path.write_text("CRITICAL WARNING: [Vivado 12-1790] License warning\n\nINFO: [TEST-0] Done\n")
+            self.assertEqual(v.log_findings([(path, "image")])[0]["detail"], "License warning")
+
     def test_invalid_waiver_cannot_hide_timing_or_report_errors(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "waivers.json"
@@ -182,6 +215,67 @@ class RunnerTests(unittest.TestCase):
         self.assertTrue(any(f["id"] == "inputs" and "Missing native waiver file" in f["detail"]
                             for f in summary["findings"]))
         self.assertFalse((self.output / "transcript.log").exists())
+
+    def test_generated_artifact_evidence_controls_waivers_and_records_provenance(self):
+        artifact = self.root / "generated IP.dcp"
+        check = dict(input="memory", member="memory_stub.v", pattern="READ_LATENCY=2[,}]")
+        waiver = dict(name="guarded", category="critical_warnings", id="TEST-1", detail="Reviewed warning",
+                      source="image", max_count=1, reason="Safe in this configuration", evidence=[check])
+        path = self.root / "waivers.json"
+        path.write_text(json.dumps({"waivers": [waiver]}))
+        (self.build / "validation-inputs/image.log").write_text("CRITICAL WARNING: [TEST-1] Reviewed warning\nBUILD_EXIT_CODE=0\n")
+        for damage in (None, "no_input", "missing_file", "newer", "wrong_config", "ambiguous",
+                       "missing_member", "invalid_zip", "corrupt_payload", "invalid_utf8", "duplicate_input"):
+            with self.subTest(damage=damage):
+                contents = b"READ_LATENCY=2,"
+                if damage == "wrong_config":
+                    contents = b"READ_LATENCY=1,"
+                elif damage == "ambiguous":
+                    contents *= 2
+                elif damage == "invalid_utf8":
+                    contents = b"\xff"
+                with zipfile.ZipFile(artifact, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+                    archive.writestr("other.v" if damage == "missing_member" else "memory_stub.v", contents)
+                if damage == "corrupt_payload":
+                    data = bytearray(artifact.read_bytes())
+                    data[30 + len("memory_stub.v")] = 0xff  # Invalid DEFLATE block type.
+                    artifact.write_bytes(data)
+                if damage == "invalid_zip":
+                    artifact.write_bytes(b"Not a checkpoint")
+                # Inputs are normally older than the final checkpoint.
+                age = self.checkpoint.stat().st_mtime_ns + (1 if damage == "newer" else -1)
+                os.utime(artifact, ns=(age, age))
+                if damage == "missing_file":
+                    artifact.unlink()
+                extra = [] if damage == "no_input" else ["--waiver-input", f"memory={artifact}"]
+                if damage == "duplicate_input":
+                    extra *= 2
+                result, summary = self.run_validator("--waivers", str(path), *extra)
+                if damage is None:
+                    self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                    self.assertEqual(len(summary["waived"]), 1)
+                    record = summary["waiver_evidence"][0]
+                    self.assertTrue(record["passed"])
+                    self.assertEqual(record["path"], str(artifact))
+                    self.assertEqual(len(record["sha256"]), 64)
+                else:
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertFalse(summary["waived"])
+                    self.assertIn("guarded", summary["unused_waivers"])
+                    self.assertEqual({f["id"] for f in summary["findings"]}, {"TEST-1", "waiver_evidence"})
+        # Plain text evidence is supported without a ZIP member.
+        waiver["evidence"] = [dict(input="memory", pattern="READ_LATENCY=2[,}]")]
+        path.write_text(json.dumps({"waivers": [waiver]}))
+        artifact.write_text("READ_LATENCY=2,")
+        age = self.checkpoint.stat().st_mtime_ns - 1
+        os.utime(artifact, ns=(age, age))
+        self.assertEqual(self.run_validator("--waivers", str(path), "--waiver-input", f"memory={artifact}")[0].returncode, 0)
+        # A waiver scoped to another build must not require its evidence here.
+        waiver["builds"] = ["another-build"]
+        path.write_text(json.dumps({"waivers": [waiver]}))
+        result, summary = self.run_validator("--waivers", str(path))
+        self.assertEqual({f["id"] for f in summary["findings"]}, {"TEST-1"})
+        self.assertFalse(summary["waiver_evidence"])
 
     def test_complete_build_passes_and_writes_junit(self):
         result, summary = self.run_validator()

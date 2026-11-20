@@ -180,6 +180,49 @@ within a source count once. The optional `builds` list restricts a waiver
 to exact build names. Names must be unique and rationale is required.
 Unused JSON waivers are reported.
 
+### Configuration evidence for JSON waivers
+
+A waiver can require checks against generated build artifacts before it is
+eligible. Supply named paths using `VALIDATION_WAIVER_INPUTS` in Make or
+repeated `--waiver-input NAME=PATH` options. Add an optional `evidence` list
+to the waiver, for example:
+
+```json
+"evidence": [
+  {
+    "input": "memory-ip",
+    "member": "memory_stub.v",
+    "pattern": "READ_LATENCY=2[,}]"
+  }
+]
+```
+
+Each check requires an input name and a Python regular expression. An
+optional `member` selects an exact text member inside a ZIP archive, such
+as a generated IP checkpoint. Without `member`, the input is a UTF-8 text
+file. The pattern must match exactly once, using `re.finditer` with no
+implicit flags; use inline flags if needed. All checks must pass.
+
+For waivers selected for this build, evidence is checked even if no warning
+matches. Missing inputs or members, unreadable or malformed artifacts,
+ambiguous matches, configuration mismatches, and artifacts newer than the
+routed checkpoint fail integrity and disable the affected waiver. Duplicate
+input names fail integrity and disable JSON waivers. Inactive build-scoped
+waivers do not require evidence. JSON records each check, its result, the
+resolved artifact path, and the artifact SHA-256 hash in `waiver_evidence`.
+Failed checks also appear as `waiver_evidence` integrity findings.
+
+The caller must name the generated artifacts used by the build; the
+framework does not infer their relationship to the routed netlist. Use
+metadata from generated inputs rather than source configuration defaults.
+Timestamp checks reject newer evidence but do not prove netlist provenance.
+
+Vivado evaluation-license messages (`Vivado 12-1790`) retain their complete
+multi-paragraph core/feature listing up to `Resolution:`. An interrupted
+listing is marked incomplete. Match the full reviewed listing, not just
+the generic warning header, so additional cores or changed license types
+remain visible.
+
 Constraint exceptions use category `constraints`, a `check_timing` ID such
 as `no_clock`, an empty source, and the complete section detail. The count
 is the number of affected objects. Identify the reviewed objects and set
