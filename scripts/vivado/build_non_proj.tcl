@@ -20,7 +20,8 @@
 #   -userid <val>           (bitstream USERID; also ::NP_USERID in export hooks)
 #   -usr_access <val>       (bitstream USR_ACCESS)
 #   -timestamp <val>        (silently consumed)
-#   -board_part <val>  -board_repo <val>  (silently consumed)
+#   -board_part <val>       (board context for IP constraints)
+#   -board_repo <path>      (additional board repository)
 
 # -------------------------------
 # COMMAND-LINE ARGUMENTS
@@ -29,6 +30,8 @@ set PHASE [lindex $argv 0]
 set TOP   [lindex $argv 1]
 
 set PART            ""
+set BOARD_PART      ""
+set BOARD_REPO      ""
 set OOC             0
 set TOP_DCP         ""
 set CELL_DCPS       {}
@@ -105,8 +108,14 @@ while {$i < $argc} {
             set USR_ACCESS [lindex $argv [expr {$i+1}]]
             incr i 2
         }
-        -board_part -
-        -board_repo -
+        -board_part {
+            set BOARD_PART [lindex $argv [expr {$i+1}]]
+            incr i 2
+        }
+        -board_repo {
+            set BOARD_REPO [lindex $argv [expr {$i+1}]]
+            incr i 2
+        }
         -timestamp  -
         -sources_tcl_auto -
         -constraints_tcl_auto -
@@ -150,9 +159,41 @@ proc setup_ip_repos {ip_repos} {
     update_ip_catalog -quiet
 }
 
+# Board context must be available before IP sources or constraints are read.
+proc setup_board_repository {board_repo} {
+    if {[string trim $board_repo] eq ""} { return }
+    if {![file isdirectory $board_repo]} {
+        error "Board repository does not exist: $board_repo"
+    }
+    set repositories [get_param board.repoPaths]
+    if {[lsearch -exact $repositories $board_repo] < 0} {
+        set_param board.repoPaths [linsert $repositories 0 $board_repo]
+    }
+}
+
+proc setup_board_part {board_part part} {
+    if {[string trim $board_part] eq ""} { return }
+    set board [get_board_parts -quiet $board_part]
+    if {[llength $board] != 1} {
+        error "Board part is unavailable or ambiguous: $board_part"
+    }
+    set board_device [get_property PART_NAME $board]
+    if {$part ne "" && ![string equal -nocase $part $board_device]} {
+        error "Board part '$board_part' selects device '$board_device', but '$part' was requested"
+    }
+    puts "Setting board part: $board_part"
+    set_property board_part $board_part [current_project]
+}
+
+proc open_build_checkpoint {path} {
+    open_checkpoint $path
+    setup_board_part $::BOARD_PART $::PART
+}
+
 # -------------------------------
 # Phase dispatch
 # -------------------------------
+setup_board_repository $BOARD_REPO
 file mkdir $OUT_DIR
 
 switch $PHASE {
@@ -166,6 +207,7 @@ switch $PHASE {
             create_project -in_memory
         }
 
+        setup_board_part $BOARD_PART $PART
         setup_ip_repos $IP_REPOS
 
         # Load auto-generated and user sources (read_bd, add_file, etc.)
@@ -232,6 +274,7 @@ switch $PHASE {
             create_project -in_memory
         }
 
+        setup_board_part $BOARD_PART $PART
         setup_ip_repos $IP_REPOS
 
         # Read top-level DCP (shell synth result — full-device, core as black_box)
@@ -277,7 +320,7 @@ switch $PHASE {
     }
 
     opt {
-        open_checkpoint $OUT_DIR/${TOP}.link.dcp
+        open_build_checkpoint $OUT_DIR/${TOP}.link.dcp
         source_hooks $HOOK_TCL "*opt.pre*"
         opt_design
         source_hooks $HOOK_TCL "*opt.post*"
@@ -286,7 +329,7 @@ switch $PHASE {
     }
 
     place {
-        open_checkpoint $OUT_DIR/${TOP}.opt.dcp
+        open_build_checkpoint $OUT_DIR/${TOP}.opt.dcp
         set NP_PLACE_OPTS {}
         source_hooks $HOOK_TCL "*place.pre*"
         place_design {*}$NP_PLACE_OPTS
@@ -295,7 +338,7 @@ switch $PHASE {
     }
 
     place_opt {
-        open_checkpoint $OUT_DIR/${TOP}.place.dcp
+        open_build_checkpoint $OUT_DIR/${TOP}.place.dcp
         set NP_PLACE_OPT_OPTS {}
         source_hooks $HOOK_TCL "*place_opt.pre*"
         phys_opt_design {*}$NP_PLACE_OPT_OPTS
@@ -304,7 +347,7 @@ switch $PHASE {
     }
 
     route {
-        open_checkpoint $OUT_DIR/${TOP}.place_opt.dcp
+        open_build_checkpoint $OUT_DIR/${TOP}.place_opt.dcp
         set NP_ROUTE_OPTS {}
         source_hooks $HOOK_TCL "*route.pre*"
         route_design {*}$NP_ROUTE_OPTS
@@ -313,7 +356,7 @@ switch $PHASE {
     }
 
     route_opt {
-        open_checkpoint $OUT_DIR/${TOP}.route.dcp
+        open_build_checkpoint $OUT_DIR/${TOP}.route.dcp
         set NP_ROUTE_OPT_OPTS {}
         source_hooks $HOOK_TCL "*route_opt.pre*"
         phys_opt_design {*}$NP_ROUTE_OPT_OPTS
@@ -324,7 +367,7 @@ switch $PHASE {
 
     bitstream -
     device_image {
-        open_checkpoint $OUT_DIR/${TOP}.route_opt.dcp
+        open_build_checkpoint $OUT_DIR/${TOP}.route_opt.dcp
         # Expose build context to programming-artifact hooks.
         set ::NP_TOP     $TOP
         set ::NP_OUT_DIR $OUT_DIR
@@ -353,7 +396,7 @@ switch $PHASE {
     }
 
     xsa {
-        open_checkpoint $OUT_DIR/${TOP}.route_opt.dcp
+        open_build_checkpoint $OUT_DIR/${TOP}.route_opt.dcp
         write_hw_platform -fixed -force -minimal \
             -file $OUT_DIR/${TOP}.xsa
         puts "Wrote: $OUT_DIR/${TOP}.xsa"

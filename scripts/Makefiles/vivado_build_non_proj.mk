@@ -62,6 +62,8 @@ __CELL_DCP_ARGS = $(foreach cd,$(CELL_DCPS), \
 
 BUILD_NP_OPTIONS = \
     -part $(PART) \
+    $(if $(strip $(BOARD_PART)),-board_part "$(BOARD_PART)") \
+    $(if $(strip $(BOARD_REPO)),-board_repo "$(abspath $(BOARD_REPO))") \
     -ooc $(OOC) \
     $(foreach tcl,$(SOURCES_TCL_AUTO),-sources_tcl $(tcl)) \
     $(foreach tcl,$(SOURCES_TCL_USER),-sources_tcl $(tcl)) \
