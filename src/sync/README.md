@@ -172,10 +172,41 @@ they are separate from the automatically applied CDC constraints.
 
 ## Verification
 
+### Handshake payload CDC waiver
+
+`build/sync_bus/waivers.xdc` is an opt-in validation waiver loaded with
+`read_xdc -ref sync_bus`. It covers only `CDC-15` paths from the accepted
+source payload registers to the destination payload registers. It excludes
+the request/acknowledgment controls and enable-controlled buses outside
+`sync_bus`, even if they use the same internal register names.
+
+An input transfer is accepted on `req_in && rdy_in`. Its payload is held
+while the synchronized request reaches the destination and until the
+acknowledgment returns; subsequent input changes cannot overwrite that
+accepted payload. This protocol supports both two-phase and four-phase
+handshakes. Initialize both domains before traffic and coordinate their
+resets when abandoning an in-flight transfer; the waiver does not establish
+safety for independently resetting one side during a transfer.
+
+Keep the payload max-delay and bus-skew bounds active: both are the
+destination-clock period multiplied by the request synchronizer's retiming
+stage count. Request and acknowledgment synchronizer constraints still
+apply. The waiver changes reporting, not timing or RTL behavior.
+
+`make -C build/sync_bus__cdc/` runs the OOC checks for both handshake modes,
+scalar/vector payloads and opposite clock ratios. It checks direct payload
+connections, registered three-stage request/acknowledgment synchronizers,
+delay/skew bounds before and after waiver loading, and an unrelated
+enable-controlled bus that must remain unwaived.
+
+### Simulation
+
 SVUnit tests cover the RTL modules, including scalar and vector
 synchronization, input and output resets, and all reset-polarity combinations.
-Event tests exercise both handshake modes. Bus and level tests check transfer
-values, sustained requests, and ordered sampling under backpressure. Counter
+Event and bus tests exercise both handshake modes. Bus tests cover faster,
+slower and equal destination clocks, varying input data during backpressure
+to check source-payload stability and ordered delivery. Level tests check
+transfer values and sustained requests. Counter
 tests check Gray and binary outputs, wraparound, and equal, faster, and slower
 destination clocks. Most testbenches randomize the source and destination
 clock periods independently.
