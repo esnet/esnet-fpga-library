@@ -37,6 +37,13 @@ VIVADO_MANAGE_BD_CMD_GUI = $(VIVADO_MANAGE_BD_CMD_BASE) -mode gui
 # Configure build options
 # -----------------------------------------------
 BUILD_JOBS ?= 4
+# Optional component-owned Tcl script to configure generated BD products in
+# the parent project before launching synthesis. Sourced for each BD in this
+# component, with bd, bd_file and synth_run identifying the current design.
+# Must be idempotent. Its timestamp participates in cache invalidation.
+# Changes to project/file properties are preserved in the managed project;
+# remove them in the script or recreate the project when dropping the setup.
+BD_SYNTH_SETUP_TCL ?=
 
 # Format as optional arguments
 BUILD_OPTIONS = \
@@ -44,6 +51,7 @@ BUILD_OPTIONS = \
     $(VIVADO_PART_CONFIG) \
     $(foreach bd,$(BD_LIST),-bd $(bd)) \
 	$(foreach iprepo,$(IP_REPO_PATHS),-ip_repo $(iprepo)) \
+    $(if $(BD_SYNTH_SETUP_TCL),-synth_setup_tcl $(abspath $(BD_SYNTH_SETUP_TCL))) \
     -jobs $(BUILD_JOBS)
 
 # -----------------------------------------------
@@ -227,7 +235,7 @@ $(BD_DCP_FILES): _bd_dcp_files.intermediate ;
 		test -f $$dcp_file && touch $$dcp_file || false; \
 	done
 
-_bd_dcp_files.intermediate: $(BD_FILES) | $(PROJ_XPR)
+_bd_dcp_files.intermediate: $(BD_FILES) $(BD_SYNTH_SETUP_TCL) $(VIVADO_SCRIPTS_ROOT)/manage_bd.tcl | $(PROJ_XPR)
 	@echo "----------------------------------------------------------"
 	@echo "Synthesize BD ($(COMPONENT_NAME)) ..."
 	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_MANAGE_BD_CMD) -log $(COMPONENT_NAME).synth.log -tclargs synth $(BUILD_OPTIONS) $(foreach bdfile,$(BD_FILES),-bd_file $(bdfile))
