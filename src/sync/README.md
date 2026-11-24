@@ -109,6 +109,24 @@ destination may skip values when the source is faster. With `DECODE_OUT=1`, `cnt
 destination register. With `DECODE_OUT=0`, it is the synchronized Gray value;
 the reset value is Gray-encoded as well.
 
+The opt-in [CDC waiver file](build/sync_ctr/waivers.xdc) applies only to
+registered Gray transfers inside `sync_ctr`. Vivado reports these as CDC-6
+because the structural check does not prove Gray transitions; AMD's
+[`XPM_CDC_GRAY`](https://docs.amd.com/r/2025.2-English/ug953-vivado-7series-libraries/XPM_CDC_GRAY)
+also supplies a CDC-6 waiver. Register this file for the
+`sync_ctr` reference through `VALIDATION_WAIVER_REFS` when validating a
+caller that obeys the source-transition and reset contracts. It leaves
+general `sync_meta` buses and later synchronizer stages outside the waiver.
+The source-period max-delay and minimum-clock-period bus-skew constraints
+remain required; the waiver changes CDC reporting only.
+
+The `build/sync_ctr__cdc` OOC regression checks both output modes, source
+registration, three direct `ASYNC_REG` stages, and active max-delay/skew
+bounds, and exercises the default one-bit width. It verifies that the two
+Gray bus crossings are waived and an unrelated multi-bit `sync_meta`
+crossing remains unwaived. RTL simulation tests cover
+reset values, Gray transitions, and transfers at different clock ratios.
+
 ### `sync_areset` and `sync_reset` — Reset transfer
 
 | Parameter | Default | Description |
@@ -132,10 +150,14 @@ manually.
 
 `scripts/Makefiles/vivado_compile.mk` generates a `synth/constraints.tcl`
 file in the component's output directory. The synthesis job loads this
-script, which checks the synthesis source list and reads the corresponding
-XDC files with `read_xdc -ref <module>`. Reference scoping applies each
-constraint to instances of that module, including those nested inside the
-other synchronizers. For example, `sync_ctr` inherits the constraints on
+script, which registers itself as a `LATE` Tcl constraint file. During
+elaboration it checks the actual design hierarchy, including parameterized
+instances and the top-level module, and registers only the corresponding
+XDC files with `read_xdc -ref <module>`, also with `LATE` processing. This
+places clock-dependent constraints after clock definitions without loading
+constraints for modules that are merely listed among the sources. Reference
+scoping applies each constraint to instances of that module, including those
+nested inside the other synchronizers. For example, `sync_ctr` inherits the constraints on
 its `sync_meta` instance, and `sync_reset` inherits those on `sync_areset`.
 Both project and non-project build flows load the generated script.
 
@@ -154,10 +176,41 @@ they are separate from the automatically applied CDC constraints.
 
 ## Verification
 
+### Handshake payload CDC waiver
+
+`build/sync_bus/waivers.xdc` is an opt-in validation waiver loaded with
+`read_xdc -ref sync_bus`. It covers only `CDC-15` paths from the accepted
+source payload registers to the destination payload registers. It excludes
+the request/acknowledgment controls and enable-controlled buses outside
+`sync_bus`, even if they use the same internal register names.
+
+An input transfer is accepted on `req_in && rdy_in`. Its payload is held
+while the synchronized request reaches the destination and until the
+acknowledgment returns; subsequent input changes cannot overwrite that
+accepted payload. This protocol supports both two-phase and four-phase
+handshakes. Initialize both domains before traffic and coordinate their
+resets when abandoning an in-flight transfer; the waiver does not establish
+safety for independently resetting one side during a transfer.
+
+Keep the payload max-delay and bus-skew bounds active: both are the
+destination-clock period multiplied by the request synchronizer's retiming
+stage count. Request and acknowledgment synchronizer constraints still
+apply. The waiver changes reporting, not timing or RTL behavior.
+
+`make -C build/sync_bus__cdc/` runs the OOC checks for both handshake modes,
+scalar/vector payloads and opposite clock ratios. It checks direct payload
+connections, registered three-stage request/acknowledgment synchronizers,
+delay/skew bounds before and after waiver loading, and an unrelated
+enable-controlled bus that must remain unwaived.
+
+### Simulation
+
 SVUnit tests cover the RTL modules, including scalar and vector
 synchronization, input and output resets, and all reset-polarity combinations.
-Event tests exercise both handshake modes. Bus and level tests check transfer
-values, sustained requests, and ordered sampling under backpressure. Counter
+Event and bus tests exercise both handshake modes. Bus tests cover faster,
+slower and equal destination clocks, varying input data during backpressure
+to check source-payload stability and ordered delivery. Level tests check
+transfer values and sustained requests. Counter
 tests check Gray and binary outputs, wraparound, and equal, faster, and slower
 destination clocks. Most testbenches randomize the source and destination
 clock periods independently.
@@ -173,3 +226,14 @@ make regression
 ```
 
 Pass `waves=ON` to capture a waveform, or `SEED=N` to fix the random seed.
+
+OOC synthesis jobs live under `build/` and run through the library's synth
+CI matrix. `build/sync_meta__unused` removes one consumer after synthesis
+and optimization, then checks that its unused CDC chain is removed while
+the live registered Gray-code boundary and three-stage synchronizer remain.
+Run it with `make -C build/sync_meta__unused/` using the normal part configuration.
+
+`build/sync_meta__constraints` checks automatic reference selection when
+unused synchronizer sources and a disabled generate branch are present. It
+also verifies that the 8 ns delay and 2.9 ns skew bounds survive checkpoint
+reload and optimization. Run `make -C build/sync_meta__constraints/ opt`.

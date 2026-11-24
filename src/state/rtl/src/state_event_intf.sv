@@ -22,8 +22,11 @@ interface state_event_intf #(
         input msg
     );
 
+`ifndef SYNTHESIS
+    // Verification clocking blocks
     clocking cb @(posedge clk);
         output evt, id, msg;
     endclocking
+`endif
 
 endinterface : state_event_intf

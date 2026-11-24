@@ -1,6 +1,6 @@
 # Non-project (batch-mode) Vivado build infrastructure.
 # Supports all phases: synth, link, opt, place, place_opt,
-# route, route_opt, device_image.
+# route, route_opt, bitstream, device_image.
 #
 # Usage: include at the end of a parent Makefile after defining:
 #   TOP                   - top module name
@@ -17,6 +17,8 @@
 #   CELL_DCPS             - list of "cell:path" pairs for black_box cells
 #   CONSTRAINTS_XDC_IMPL  - implementation-only XDC files
 #   IMPL_HOOK_TCL_FILES   - hook TCL files (opt.pre, opt.post, place.pre, etc.)
+#                           Export hooks: write_bitstream.pre/post,
+#                           write_device_image.pre/post.
 
 # -----------------------------------------------
 # Configure defaults
@@ -60,6 +62,8 @@ __CELL_DCP_ARGS = $(foreach cd,$(CELL_DCPS), \
 
 BUILD_NP_OPTIONS = \
     -part $(PART) \
+    $(if $(strip $(BOARD_PART)),-board_part "$(BOARD_PART)") \
+    $(if $(strip $(BOARD_REPO)),-board_repo "$(abspath $(BOARD_REPO))") \
     -ooc $(OOC) \
     $(foreach tcl,$(SOURCES_TCL_AUTO),-sources_tcl $(tcl)) \
     $(foreach tcl,$(SOURCES_TCL_USER),-sources_tcl $(tcl)) \
@@ -87,21 +91,30 @@ BUILD_NP_OPTIONS = \
 __NP_SENTINEL_DIR  = $(COMPONENT_OUT_PATH)/.done
 __NP_PREV_SENTINEL :=
 
+# Track programming artifacts with the stage stamp so deleting any output
+# reruns export without repeating implementation.
+__NP_STAGE_OUTPUTS_bitstream := $(addprefix $(COMPONENT_OUT_PATH)/$(TOP),.bit .bin .ltx)
+
 define NP_STAGE_RULE
-$(__NP_SENTINEL_DIR)/$(stage): \
+$(__NP_SENTINEL_DIR)/$(stage) $(__NP_STAGE_OUTPUTS_$(stage)) $(if $(__NP_STAGE_OUTPUTS_$(stage)),&:,:) \
     $(__NP_PREV_SENTINEL) \
+    $(if $(filter bitstream,$(stage)),$(VIVADO_SCRIPTS_ROOT)/build_non_proj.tcl) \
     $(if $(strip $(__NP_PREV_SENTINEL)),,$(STAGE_DEPS)) \
     $(if $(strip $(__NP_PREV_SENTINEL)),,| _pre_synth)
 	@echo "----------------------------------------------------------"
 	@echo "Non-project build: running $(stage) for '$(TOP)' ..."
 	@mkdir -p $(COMPONENT_OUT_PATH)
 	@mkdir -p $(__NP_SENTINEL_DIR)
-	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_NP_CMD) -tclargs $(stage) $(TOP) $(BUILD_NP_OPTIONS)
-	@touch $$@
+	@rm -f $(__NP_SENTINEL_DIR)/$(stage)
+	@cd $(COMPONENT_OUT_PATH) && $(VIVADO_NP_CMD) -log $(TOP).$(stage).log -tclargs $(stage) $(TOP) $(BUILD_NP_OPTIONS)
+	@for output in $(__NP_STAGE_OUTPUTS_$(stage)); do \
+	    test -f "$$$$output" || { echo "Error: Missing programming artifact: $$$$output" >&2; exit 1; }; \
+	done
+	@touch $(__NP_SENTINEL_DIR)/$(stage)
 	@echo
 	@echo "Done."
 
-_np_$(stage): $(__NP_SENTINEL_DIR)/$(stage)
+_np_$(stage): $(__NP_SENTINEL_DIR)/$(stage) $(__NP_STAGE_OUTPUTS_$(stage))
 .PHONY: _np_$(stage)
 __NP_PREV_SENTINEL := $(__NP_SENTINEL_DIR)/$(stage)
 endef
@@ -160,3 +173,6 @@ _build_info: _np_info
 # Include compile infrastructure
 # -----------------------------------------------
 include $(SCRIPTS_ROOT)/Makefiles/vivado_compile.mk
+
+# Validation is separate from build stages and never rebuilds the checkpoint.
+include $(SCRIPTS_ROOT)/Makefiles/vivado_validate.mk

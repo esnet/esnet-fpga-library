@@ -54,6 +54,10 @@ interface apb_intf
         output pslverr
     );
 
+`ifndef SYNTHESIS
+    // Verification clocking blocks
+    // Separate nets let testbench agents sample driven signals.
+    // Clocking-block input aliases are not supported by xsim.
     wire mon_psel = psel;
     wire mon_penable = penable;
 
@@ -62,6 +66,7 @@ interface apb_intf
         input  pready, prdata, pslverr;
         input  mon_psel, mon_penable;
     endclocking
+`endif
 
 endinterface : apb_intf
 

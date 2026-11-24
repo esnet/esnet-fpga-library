@@ -148,6 +148,34 @@ environment built from bus agents and the standard verification classes.
 
 ## Verification
 
+### Xilinx FIFO payload CDC waiver
+
+`build/fifo_core/waivers.xdc` is an opt-in validation waiver, loaded with
+`read_xdc -ref fifo_core`. It waives only `CDC-15` paths from distributed
+RAM write-clock pins to that RAM's read-data registers inside `fifo_core`.
+Generic RAM instances and FIFO pointer/control crossings remain visible.
+BRAM FIFOs have no corresponding fabric payload crossing.
+
+The FIFO protocol makes these payload crossings safe: synchronized pointers
+prevent reads of unwritten entries and writes over unread entries. In FWFT
+mode, a prefetched word is captured in the read-domain output register before
+its storage slot can be reused. Initialize both clock domains and allow
+reset/readiness to settle before traffic. If overflow or underflow protection
+is disabled, the caller must enforce the corresponding full/empty rules.
+
+The waiver does not change timing constraints. Pointer max-delay/bus-skew
+bounds and read-domain address-to-data timing must remain active. The RAM's
+write-clock-to-read-register false path alone does not establish CDC safety.
+
+`make -C build/fifo_core/` runs the OOC fixture through optimization and
+validation using the configured part. Its post-optimization checks cover
+standard/FWFT LUTRAM and BRAM, scalar data, a synchronous FIFO, retained
+pointer/address timing, and a generic dual-clock RAM that must remain
+unwaived. Expected CDC findings in this negative control remain in the
+reports; the hook checks their boundaries explicitly.
+
+### Simulation
+
 The base SVUnit suites exercise reset, ordered data readback, empty/full
 boundaries, and overflow protection across standard, FWFT, small, context,
 queue, and prefetch implementations. Examples include non-power-of-two

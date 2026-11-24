@@ -114,6 +114,15 @@ gtkwave src/arb/tests/arb_rr/run_41/waves.fst
 Wave capture is optional and can substantially increase runtime and disk
 usage for large suites.
 
+## Build validation
+
+The [Vivado validation framework](scripts/vivado/validation/README.md) checks
+an existing routed checkpoint and caller-selected logs, with JSON/JUnit
+results and per-build waiver selection. Non-project builds expose a
+separate `validate` target; other flows can include `vivado_validate.mk`.
+The caller owns its design-specific paths, log coverage, waiver data, and
+CI policy.
+
 ## Simulation scope
 
 Unit tests verify functional behavior for the configurations described by

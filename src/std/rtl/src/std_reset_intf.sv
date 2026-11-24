@@ -25,14 +25,18 @@ interface std_reset_intf #(
         output ready
     );
 
+`ifndef SYNTHESIS
+    // Verification clocking blocks
     clocking cb @(posedge clk);
         input ready;
         output reset;
     endclocking
+`endif
 
     // Initialization
     initial reset = INIT_VALUE;
 
+`ifndef SYNTHESIS
     task _wait(input int cycles);
         repeat (cycles) @(cb);
     endtask
@@ -83,5 +87,6 @@ interface std_reset_intf #(
         deassert_sync();
         @(cb);
     endtask
+`endif
 
 endinterface : std_reset_intf

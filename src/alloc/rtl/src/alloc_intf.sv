@@ -78,9 +78,10 @@ interface alloc_intf #(
         output err
     );
 
-    //===================================
+`ifndef SYNTHESIS
     // Verification clocking blocks
-    //===================================
+    // Separate nets let testbench agents sample driven signals.
+    // Clocking-block input aliases are not supported by xsim.
     wire mon_req = req;
     wire mon_vld = vld;
     wire mon_ack = ack;
@@ -98,6 +99,7 @@ interface alloc_intf #(
         input  mon_req, mon_ack;
         inout  req, ack;
     endclocking
+`endif
 
 endinterface : alloc_intf
 

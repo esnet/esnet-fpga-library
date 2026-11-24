@@ -18,6 +18,8 @@ interface std_event_intf #(
         input msg
     );
 
+`ifndef SYNTHESIS
+    // Verification clocking blocks
     clocking cb @(posedge clk);
         output evt, msg;
     endclocking
@@ -40,5 +42,6 @@ interface std_event_intf #(
         cb.evt <= 1'b0;
         cb.msg <= '0;
     endtask
+`endif
 
 endinterface : std_event_intf

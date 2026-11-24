@@ -43,6 +43,8 @@ interface mem_intf #(
         output rd_ack
     );
 
+`ifndef SYNTHESIS
+    // Verification clocking blocks
     clocking cb @(posedge clk);
         output rst, wr, addr, wr_data;
         input rdy, rd_data, wr_ack, rd_ack;
@@ -91,6 +93,7 @@ interface mem_intf #(
         wait(cb.rd_ack);
         _data = cb.rd_data;
     endtask
+`endif
 
 endinterface : mem_intf
 

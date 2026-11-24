@@ -16,6 +16,7 @@ array set OPTIONS {
     -bd                   {}
     -bd_tcl               {}
     -bd_file              {}
+    -synth_setup_tcl         ""
 }
 
 for {set i 1} {$i < $argc} {incr i 2} {
@@ -34,6 +35,11 @@ for {set i 1} {$i < $argc} {incr i 2} {
 # Reformat options (flatten array, remove dash, convert to uppercase)
 foreach {argName argValue} [array get OPTIONS] {
     set [string toupper [string range $argName 1 end]] $argValue
+}
+
+if {$SYNTH_SETUP_TCL ne ""} {
+    if {![file isfile $SYNTH_SETUP_TCL]} {error "Missing BD synthesis setup script: $SYNTH_SETUP_TCL"}
+    set SYNTH_SETUP_TCL [file normalize $SYNTH_SETUP_TCL]
 }
 
 # -------------------------------
@@ -110,11 +116,12 @@ if {$PHASE == "create_proj"} {
             update_ip_catalog
             # Add IP that is not yet managed by the project
             foreach bd $BD {
-                if {[lsearch -exact [get_bd_designs -quiet] $bd] < 0} {
-                    if {[file exists "$bd/$bd.bd"]} {
-                        read_bd $bd/$bd.bd
-                        puts "Added $bd to the BD project."
-                    }
+                # A reopened project already owns its BD files even when the
+                # diagrams are not open and get_bd_designs returns no objects.
+                set bd_path [file normalize [file join $bd ${bd}.bd]]
+                if {[llength [get_files -quiet -all $bd_path]] == 0 && [file exists $bd_path]} {
+                    read_bd $bd_path
+                    puts "Added $bd to the BD project."
                 }
             }
         }
@@ -152,8 +159,15 @@ if {$PHASE == "create_proj"} {
                 set bd [file rootname [file tail ${bd_file}]]
                 set synth_run ${bd}_synth_1
                 vivadoProcs::set_top ${bd}
+                set setup_newer 0
                 if {[llength [get_runs $synth_run]] > 0} {
-                    if {[get_property CURRENT_STEP [get_runs $synth_run]] == "synth_design" && [get_property NEEDS_REFRESH [get_runs $synth_run]] == 0} {
+                    set checkpoint [file join [get_property DIRECTORY [get_runs $synth_run]] ${bd}.dcp]
+                    if {$SYNTH_SETUP_TCL ne ""} {
+                        if {![file exists $checkpoint] || [file mtime $SYNTH_SETUP_TCL] >= [file mtime $checkpoint]} {
+                            set setup_newer 1
+                        }
+                    }
+                    if {[get_property STATUS [get_runs $synth_run]] eq "synth_design Complete!" && [file exists $checkpoint] && [get_property NEEDS_REFRESH [get_runs $synth_run]] == 0 && !$setup_newer} {
                         puts "Synthesis products for $bd are up to date."
                     } else {
                         puts "Synthesizing BD $bd ..."
@@ -169,7 +183,18 @@ if {$PHASE == "create_proj"} {
                     vivadoProcs::config_synth_run ${bd}_synth_1 1
                     lappend synth_runs ${bd}_synth_1
                 }
-                launch_runs -jobs 1 ${bd}_synth_1
+                # Configure generated products in the parent project. Vivado's
+                # run TCL.PRE hook executes before its sources have been added.
+                if {$SYNTH_SETUP_TCL ne ""} {
+                    source $SYNTH_SETUP_TCL
+                    if {[get_property NEEDS_REFRESH [get_runs $synth_run]]} {
+                        reset_run $synth_run
+                        if {[lsearch -exact $synth_runs $synth_run] < 0} {lappend synth_runs $synth_run}
+                    }
+                }
+                if {[lsearch -exact $synth_runs $synth_run] >= 0} {
+                    launch_runs -jobs 1 $synth_run
+                }
             }
             if {[llength $synth_runs] > 0} {
                 wait_on_runs $synth_runs

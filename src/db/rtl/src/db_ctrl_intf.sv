@@ -51,11 +51,14 @@ interface db_ctrl_intf #(
         output get_value
     );
 
+`ifndef SYNTHESIS
+    // Verification clocking blocks
     clocking cb @(posedge clk);
         output command, key, set_value;
         input rdy, ack, status, get_valid, get_key, get_value;
         inout req;
     endclocking
+`endif
 
 endinterface : db_ctrl_intf
 

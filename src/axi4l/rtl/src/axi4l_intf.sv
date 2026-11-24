@@ -85,7 +85,9 @@ interface axi4l_intf
         output rresp
     );
 
-    // Separate nets let testbench agents sample the driven controller signals.
+`ifndef SYNTHESIS
+    // Verification clocking blocks
+    // Separate nets let testbench agents sample driven signals.
     // Clocking-block input aliases are not supported by xsim.
     wire mon_awvalid = awvalid;
     wire mon_wvalid = wvalid;
@@ -99,6 +101,7 @@ interface axi4l_intf
         inout  awvalid, wvalid, bready, arvalid, rready;
         input  mon_awvalid, mon_wvalid, mon_bready, mon_arvalid, mon_rready;
     endclocking
+`endif
 
 endinterface : axi4l_intf
 

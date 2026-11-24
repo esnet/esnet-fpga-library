@@ -33,9 +33,12 @@ interface pci_vpd_intf (
         output rd_vld
     );
 
+`ifndef SYNTHESIS
+    // Verification clocking blocks
     clocking cb @(posedge clk);
         output req, wr_rd_n, addr, wr_data;
         input  rd_data, rd_vld;
     endclocking
+`endif
 
 endinterface : pci_vpd_intf

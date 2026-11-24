@@ -79,10 +79,10 @@ interface axi4_intf
     logic                          rvalid;
     logic                          rready;
 
-    // ------------------------------------------------------------------
-    // Clocking block — controller perspective
-    // ------------------------------------------------------------------
-    // Sample controller-driven handshake signals through input views.
+`ifndef SYNTHESIS
+    // Verification clocking blocks
+    // Separate nets let testbench agents sample driven signals.
+    // Clocking-block input aliases are not supported by xsim.
     wire mon_awvalid = awvalid;
     wire mon_wvalid = wvalid;
     wire mon_bready = bready;
@@ -100,6 +100,7 @@ interface axi4_intf
         input  arready, rid, rdata, rresp, rlast, ruser, rvalid;
         input  mon_awvalid, mon_wvalid, mon_bready, mon_arvalid, mon_rready;
     endclocking
+`endif
 
     modport controller (
         input  aclk,

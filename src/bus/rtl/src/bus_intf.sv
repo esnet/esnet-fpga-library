@@ -29,7 +29,10 @@ interface bus_intf #(
         input  data
     );
 
-    // Sample driven signals separately for verification agents.
+`ifndef SYNTHESIS
+    // Verification clocking blocks
+    // Separate nets let testbench agents sample driven signals.
+    // Clocking-block input aliases are not supported by xsim.
     wire mon_valid = valid;
     wire mon_ready = ready;
     wire [DATA_WID-1:0] mon_data = data;
@@ -38,6 +41,7 @@ interface bus_intf #(
         inout valid, ready, data;
         input mon_valid, mon_ready, mon_data;
     endclocking
+`endif
 
 endinterface : bus_intf
 

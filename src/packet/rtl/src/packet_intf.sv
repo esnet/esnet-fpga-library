@@ -48,10 +48,10 @@ interface packet_intf #(
         input  meta
     );
 
-    // mon_* signals are combinational mirrors of output-driven signals,
-    // declared as separate nets so they can be listed as clocking block
-    // inputs (sampled in the preponed region). The `input mon = sig` alias
-    // syntax inside a clocking block is not supported by xsim.
+`ifndef SYNTHESIS
+    // Verification clocking blocks
+    // Separate nets let testbench agents sample driven signals.
+    // Clocking-block input aliases are not supported by xsim.
     logic mon_tx_vld, mon_rx_rdy;
     assign mon_tx_vld = vld;
     assign mon_rx_rdy = rdy;
@@ -65,6 +65,7 @@ interface packet_intf #(
         input vld, data, eop, mty, err, meta, mon_rx_rdy;
         output rdy;
     endclocking
+`endif
 
 
 endinterface : packet_intf

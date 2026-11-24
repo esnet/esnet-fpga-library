@@ -1,9 +1,15 @@
 `include "svunit_defines.svh"
 
-module sync_bus_unit_test;
+module sync_bus_unit_test #(
+    parameter sync_pkg::handshake_mode_t HANDSHAKE_MODE = sync_pkg::HANDSHAKE_MODE_4PHASE,
+    parameter time CLK_IN_PERIOD = 7ns,
+    parameter time CLK_OUT_PERIOD = 11ns
+);
     import svunit_pkg::svunit_testcase;
 
-    string name = "sync_bus_ut";
+    string name = $sformatf("sync_bus_%0dphase_%0d_%0d_ut",
+        HANDSHAKE_MODE == sync_pkg::HANDSHAKE_MODE_4PHASE ? 4 : 2,
+        CLK_IN_PERIOD, CLK_OUT_PERIOD);
     svunit_testcase svunit_ut;
 
     localparam DATA_WID = 32;
@@ -26,14 +32,15 @@ module sync_bus_unit_test;
 
     sync_bus #(
         .DATA_WID  ( DATA_WID ),
-        .RST_VALUE ( RST_VALUE )
+        .RST_VALUE ( RST_VALUE ),
+        .HANDSHAKE_MODE ( HANDSHAKE_MODE )
     ) DUT (.*);
 
     //===================================
     // Testbench
     //===================================
-    time clk_in_period = $urandom_range(3,12)*1ns;
-    time clk_out_period = $urandom_range(3,12)*1ns;
+    time clk_in_period = CLK_IN_PERIOD;
+    time clk_out_period = CLK_OUT_PERIOD;
 
     `SVUNIT_CLK_GEN(clk_in, clk_in_period);
     `SVUNIT_CLK_GEN(clk_out, clk_out_period);
@@ -180,18 +187,30 @@ module sync_bus_unit_test;
         `SVTEST(backpressure)
             DATA_T samples_in [$];
             DATA_T samples_out [$];
+            bit source_changed_while_blocked = 0;
 
             fork begin
                 fork
                     begin
                         DATA_T _data_in;
+                        DATA_T held_data = RST_VALUE;
                         @(cb_in);
                         void'(std::randomize(_data_in));
                         cb_in.req_in <= 1'b1;
                         cb_in.data_in <= _data_in;
                         repeat (10000) begin
                             @(cb_in);
-                            if (cb_in.mon_req_in && cb_in.rdy_in) samples_in.push_back(_data_in);
+                            if (cb_in.mon_req_in && cb_in.rdy_in) begin
+                                samples_in.push_back(_data_in);
+                                held_data = _data_in;
+                            end
+                            // Vary inputs even while blocked; the accepted
+                            // source payload must stay held until the next request.
+                            void'(std::randomize(_data_in));
+                            cb_in.data_in <= _data_in;
+                            #1ps;
+                            if (DUT.__sync_ff_bus_data_in !== held_data)
+                                source_changed_while_blocked = 1;
                         end
                         cb_in.req_in <= 1'b0;
                         wait_for_sync();
@@ -209,6 +228,7 @@ module sync_bus_unit_test;
 
             // Check that list of output samples is identical
             // (matching length and order) to list of input samples
+            `FAIL_IF(source_changed_while_blocked);
             `FAIL_UNLESS_EQUAL(samples_in.size(), samples_out.size());
             foreach (samples_in[i]) begin
                 `FAIL_UNLESS_EQUAL(samples_in[i], samples_out[i]);
@@ -246,3 +266,40 @@ module sync_bus_unit_test;
     endtask
 
 endmodule
+
+// Delegate parameterized cases using the same SVUnit pattern as the FIFO tests.
+`define SYNC_BUS_UNIT_TEST(MODE, IN_PERIOD, OUT_PERIOD) \
+    import svunit_pkg::svunit_testcase; \
+    svunit_testcase svunit_ut; \
+    sync_bus_unit_test #(MODE, IN_PERIOD, OUT_PERIOD) test(); \
+    function void build(); \
+        test.build(); \
+        svunit_ut = test.svunit_ut; \
+    endfunction \
+    function void __register_tests(); \
+        test.__register_tests(); \
+    endfunction \
+    task run(); \
+        test.run(); \
+    endtask
+
+module sync_bus_four_fast_source_unit_test;
+    `SYNC_BUS_UNIT_TEST(sync_pkg::HANDSHAKE_MODE_4PHASE, 7ns, 11ns)
+endmodule
+module sync_bus_two_fast_source_unit_test;
+    `SYNC_BUS_UNIT_TEST(sync_pkg::HANDSHAKE_MODE_2PHASE, 7ns, 11ns)
+endmodule
+module sync_bus_four_fast_dest_unit_test;
+    `SYNC_BUS_UNIT_TEST(sync_pkg::HANDSHAKE_MODE_4PHASE, 13ns, 5ns)
+endmodule
+module sync_bus_two_fast_dest_unit_test;
+    `SYNC_BUS_UNIT_TEST(sync_pkg::HANDSHAKE_MODE_2PHASE, 13ns, 5ns)
+endmodule
+module sync_bus_four_equal_clocks_unit_test;
+    `SYNC_BUS_UNIT_TEST(sync_pkg::HANDSHAKE_MODE_4PHASE, 8ns, 8ns)
+endmodule
+module sync_bus_two_equal_clocks_unit_test;
+    `SYNC_BUS_UNIT_TEST(sync_pkg::HANDSHAKE_MODE_2PHASE, 8ns, 8ns)
+endmodule
+
+`undef SYNC_BUS_UNIT_TEST

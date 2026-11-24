@@ -33,7 +33,7 @@ package reg_pkg;
     function bit is_addr_in_region(input int addr, input region_spec_t region);
         automatic int ADDR_LO = region.base;
         automatic int ADDR_HI = region.base + region.size;
-        return (addr inside {[ADDR_LO:ADDR_HI]});
+        return (addr >= ADDR_LO) && (addr < ADDR_HI);
     endfunction
 
     function void decode (
