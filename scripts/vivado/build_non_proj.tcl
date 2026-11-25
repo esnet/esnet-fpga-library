@@ -1,6 +1,6 @@
 # Non-project (batch-mode) build script.
 # Handles synth, link, opt, place, place_opt, route, route_opt,
-# bitstream, device_image, and xsa phases.
+# bitstream, flash, device_image, and xsa phases.
 #
 # Usage: vivado -source procs.tcl -source build_non_proj.tcl -mode batch \
 #            -tclargs <phase> <top> [options...]
@@ -22,6 +22,9 @@
 #   -timestamp <val>        (silently consumed)
 #   -board_part <val>       (board context for IP constraints)
 #   -board_repo <path>      (additional board repository)
+#   -cfgmem_size <MiB>      (flash capacity)
+#   -cfgmem_interface <val> (flash interface, e.g. SPIx4)
+#   -cfgmem_load_address <val> (bitstream address in flash)
 
 # -------------------------------
 # COMMAND-LINE ARGUMENTS
@@ -45,6 +48,9 @@ set OUT_DIR         [pwd]
 set JOBS            4
 set USERID          ""
 set USR_ACCESS      ""
+set CFGMEM_SIZE     ""
+set CFGMEM_INTERFACE ""
+set CFGMEM_LOAD_ADDRESS ""
 
 set i 2
 while {$i < $argc} {
@@ -110,6 +116,18 @@ while {$i < $argc} {
         }
         -board_part {
             set BOARD_PART [lindex $argv [expr {$i+1}]]
+            incr i 2
+        }
+        -cfgmem_size {
+            set CFGMEM_SIZE [lindex $argv [expr {$i+1}]]
+            incr i 2
+        }
+        -cfgmem_interface {
+            set CFGMEM_INTERFACE [lindex $argv [expr {$i+1}]]
+            incr i 2
+        }
+        -cfgmem_load_address {
+            set CFGMEM_LOAD_ADDRESS [lindex $argv [expr {$i+1}]]
             incr i 2
         }
         -board_repo {
@@ -395,6 +413,19 @@ switch $PHASE {
         source_hooks $HOOK_TCL "*write_${PHASE}.post*"
     }
 
+    flash {
+        foreach setting {CFGMEM_SIZE CFGMEM_INTERFACE CFGMEM_LOAD_ADDRESS} {
+            if {[set $setting] eq ""} {error "Flash export requires $setting"}
+        }
+        set bitfile [file join $OUT_DIR ${TOP}.bit]
+        if {![file isfile $bitfile]} {error "Missing flash input bitstream: $bitfile"}
+        write_cfgmem -force -format mcs -size $CFGMEM_SIZE \
+            -interface $CFGMEM_INTERFACE \
+            -loadbit [list up $CFGMEM_LOAD_ADDRESS $bitfile] \
+            -file [file join $OUT_DIR ${TOP}.mcs]
+        puts "Wrote: $OUT_DIR/${TOP}.mcs"
+    }
+
     xsa {
         open_build_checkpoint $OUT_DIR/${TOP}.route_opt.dcp
         write_hw_platform -fixed -force -minimal \
@@ -404,7 +435,7 @@ switch $PHASE {
 
     default {
         puts "ERROR: Unknown phase '$PHASE'."
-        puts "Valid phases: synth link opt place place_opt route route_opt bitstream device_image xsa"
+        puts "Valid phases: synth link opt place place_opt route route_opt bitstream flash device_image xsa"
         exit 2
     }
 }

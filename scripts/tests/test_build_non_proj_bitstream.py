@@ -25,10 +25,15 @@ def mock_vivado(root, args):
     with (root / "events").open("a") as stream:
         stream.write(phase + "\n")
     out = root / "out"
+    if phase == "flash":
+        for option, expected in (("-cfgmem_size", "128"), ("-cfgmem_interface", "SPIx4"),
+                                 ("-cfgmem_load_address", "0x01002000")):
+            if option not in args or args[args.index(option) + 1] != expected:
+                raise SystemExit(f"Missing or incorrect flash option: {option}")
     if phase == "route_opt":
         (out / "shell.route_opt.dcp").write_text("routed checkpoint")
     else:
-        for suffix in ("bit", "bin", "ltx"):
+        for suffix in (("mcs",) if phase == "flash" else ("bit", "bin", "ltx")):
             if suffix != os.environ.get("OMIT_ARTIFACT"):
                 (out / f"shell.{suffix}").write_text(suffix)
         if os.environ.get("FAIL_EXPORT") == "1":
