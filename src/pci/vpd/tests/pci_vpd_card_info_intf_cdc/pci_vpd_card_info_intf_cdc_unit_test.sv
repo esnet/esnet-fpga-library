@@ -1,6 +1,13 @@
 `include "svunit_defines.svh"
 `define SVUNIT_TIMEOUT 1ms
 
+`ifndef PROVIDER_HALF_NS
+`define PROVIDER_HALF_NS 10
+`endif
+`ifndef CONSUMER_HALF_NS
+`define CONSUMER_HALF_NS 7
+`endif
+
 module pci_vpd_card_info_intf_cdc_unit_test;
     import svunit_pkg::svunit_testcase;
 
