@@ -2,6 +2,7 @@
 interface pci_vpd_card_info_intf (
     input logic clk
 );
+    logic       srst;
     logic       vld;
     logic       error;
     logic [8:0] len;
@@ -12,6 +13,7 @@ interface pci_vpd_card_info_intf (
 
     modport provider (
         input  clk,
+        output srst,
         output vld,
         output error,
         output len,
@@ -23,6 +25,7 @@ interface pci_vpd_card_info_intf (
 
     modport consumer (
         input  clk,
+        input  srst,
         input  vld,
         input  error,
         input  len,
@@ -35,12 +38,12 @@ interface pci_vpd_card_info_intf (
 `ifndef SYNTHESIS
     clocking cb_provider @(posedge clk);
         input  rd, rd_addr;
-        output vld, error, len, rd_data, rd_vld;
+        output srst, vld, error, len, rd_data, rd_vld;
     endclocking
 
     clocking cb_consumer @(posedge clk);
         output rd, rd_addr;
-        input  vld, error, len, rd_data, rd_vld;
+        input  srst, vld, error, len, rd_data, rd_vld;
     endclocking
 `endif
 endinterface : pci_vpd_card_info_intf
