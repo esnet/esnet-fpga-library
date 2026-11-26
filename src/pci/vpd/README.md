@@ -1,8 +1,8 @@
 # PCI Vital Product Data
 
 Definitions and verification infrastructure for PCI Vital Product Data
-(VPD). The library provides resource-header helpers, a byte-access
-interface, a resource-reading agent, and VPD-R record parsing and display
+(VPD). The library provides resource-header helpers, byte-access and
+initialization interfaces, a resource-reading agent, and VPD-R record parsing and display
 functions. It does not implement a PCI configuration-space controller or
 VPD storage device.
 
@@ -12,6 +12,8 @@ VPD storage device.
 |-----------|-------------|
 | `pci_vpd_pkg` | Small/large resource headers, supported tags, and header helpers |
 | `pci_vpd_intf` | Clocked byte request and read-response interface |
+| `pci_vpd_card_info_intf` | Read-only card-info cache request/response interface |
+| `pci_vpd_ctrl_intf` | Free-running VPD clock/reset and initialization control/status |
 | `pci_vpd_agent` | Abstract byte transport with resource reading and cached VPD data |
 | `pci_vpd_intf_agent` | Clocking-block transport for `pci_vpd_intf` |
 | `pci_vpd_verif_pkg` | Resource/record types, lookup, VPD-R parsing, and formatting helpers |
@@ -60,6 +62,26 @@ Issue one transaction at a time. There is no ready signal, write
 acknowledgement, error response, or response identifier. The peripheral
 must accept each requested write and return a read byte with `rd_vld`.
 Reset behavior belongs to the connected peripheral.
+
+## Card information and initialization
+
+`pci_vpd_card_info_intf` describes a read-only byte cache. The `provider`
+drives `vld`, `error`, the nine-bit `len`, and byte responses (`rd_data`,
+`rd_vld`). The `consumer` drives byte requests (`rd`, nine-bit `rd_addr`).
+The provider keeps the cache and length stable while valid. Issue one read
+at a time and sample returned data only when `rd_vld` is asserted. The
+interface does not define the cache's record encoding.
+
+`pci_vpd_ctrl_intf` groups the free-running `clk`, active-high synchronous
+`srst`, diagnostic `init_done_mask`, and initialization status. Its
+`controller` supplies clock/reset/mask; the `peripheral` supplies `init_done`,
+`init_error`, `init_timeout`, `init_early_read`, and 14-bit `init_time_ms`.
+Card-info transfers and initialization control/status share this clock
+domain. Reset is independent of PCIe configuration-interface reset.
+
+These interfaces carry signals only. Clock frequency, function count and
+provider enablement remain configuration parameters of connected modules.
+Verification clocking blocks are excluded from synthesis.
 
 ## Agents and resource reading
 
