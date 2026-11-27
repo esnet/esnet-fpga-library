@@ -1,6 +1,6 @@
 # Non-project (batch-mode) Vivado build infrastructure.
 # Supports all phases: synth, link, opt, place, place_opt,
-# route, route_opt, bitstream, device_image.
+# route, route_opt, bitstream, flash, device_image.
 #
 # Usage: include at the end of a parent Makefile after defining:
 #   TOP                   - top module name
@@ -19,6 +19,11 @@
 #   IMPL_HOOK_TCL_FILES   - hook TCL files (opt.pre, opt.post, place.pre, etc.)
 #                           Export hooks: write_bitstream.pre/post,
 #                           write_device_image.pre/post.
+#
+# Flash-phase variables (required when BUILD_STAGES includes flash):
+#   CFGMEM_SIZE           - flash capacity in MiB
+#   CFGMEM_INTERFACE      - configuration interface (e.g. SPIx4)
+#   CFGMEM_LOAD_ADDRESS   - bitstream load address in flash
 
 # -----------------------------------------------
 # Configure defaults
@@ -80,6 +85,11 @@ BUILD_NP_OPTIONS = \
     -userid $(BITSTREAM_USERID) \
     -usr_access $(BITSTREAM_USERID)
 
+BUILD_NP_OPTIONS += \
+    $(if $(strip $(CFGMEM_SIZE)),-cfgmem_size $(CFGMEM_SIZE)) \
+    $(if $(strip $(CFGMEM_INTERFACE)),-cfgmem_interface $(CFGMEM_INTERFACE)) \
+    $(if $(strip $(CFGMEM_LOAD_ADDRESS)),-cfgmem_load_address $(CFGMEM_LOAD_ADDRESS))
+
 # -----------------------------------------------
 # Stage targets
 #
@@ -94,11 +104,14 @@ __NP_PREV_SENTINEL :=
 # Track programming artifacts with the stage stamp so deleting any output
 # reruns export without repeating implementation.
 __NP_STAGE_OUTPUTS_bitstream := $(addprefix $(COMPONENT_OUT_PATH)/$(TOP),.bit .bin .ltx)
+__NP_STAGE_OUTPUTS_flash := $(COMPONENT_OUT_PATH)/$(TOP).mcs
+__NP_STAGE_INPUTS_flash := $(COMPONENT_OUT_PATH)/$(TOP).bit
 
 define NP_STAGE_RULE
 $(__NP_SENTINEL_DIR)/$(stage) $(__NP_STAGE_OUTPUTS_$(stage)) $(if $(__NP_STAGE_OUTPUTS_$(stage)),&:,:) \
     $(__NP_PREV_SENTINEL) \
-    $(if $(filter bitstream,$(stage)),$(VIVADO_SCRIPTS_ROOT)/build_non_proj.tcl) \
+    $(if $(filter bitstream flash,$(stage)),$(VIVADO_SCRIPTS_ROOT)/build_non_proj.tcl) \
+    $(__NP_STAGE_INPUTS_$(stage)) \
     $(if $(strip $(__NP_PREV_SENTINEL)),,$(STAGE_DEPS)) \
     $(if $(strip $(__NP_PREV_SENTINEL)),,| _pre_synth)
 	@echo "----------------------------------------------------------"

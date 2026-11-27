@@ -11,6 +11,8 @@
 #           - LIB_ROOT (location of library root dir)
 #           - LIB_OUTPUT_ROOT (location of library output root dir)
 # ----------------------------------------------------
+REGIO_MAKEFILE := $(lastword $(MAKEFILE_LIST))
+
 __COMPONENT_BASE_NAME = $(subst .,_,$(COMPONENT_BASE))
 
 # ----------------------------------------------------
@@ -96,19 +98,22 @@ _reg_clean: _reg_compile_clean
 	@-rm -f $(REGIO_COMPONENT_ROOT)/config.mk
 	@[ ! -d $(LIB_OUTPUT_ROOT) ] || find $(LIB_OUTPUT_ROOT) -type d -empty -delete 2>/dev/null
 
-$(REGIO_RTL_SRC_OUTPUT_DIR)/%_reg_blk.sv: %.yaml | $(REGIO_RTL_SRC_OUTPUT_DIR)
+$(REGIO_RTL_SRC_OUTPUT_DIR)/%_reg_blk.sv: %.yaml $(REGIO_MAKEFILE) $(SCRIPTS_ROOT)/regio/write_depfile.py | $(REGIO_RTL_SRC_OUTPUT_DIR)
 	@echo -n "Generating RTL for: $*.yaml ... "
-	@$(REGIO_ELABORATE_CMD) -f block $*.yaml | $(REGIO_GENERATE_SRC_CMD) -f block -
+	@$(REGIO_ELABORATE_CMD) --loaded-paths $@.inputs -f block $*.yaml | $(REGIO_GENERATE_SRC_CMD) -f block -
+	@python3 $(SCRIPTS_ROOT)/regio/write_depfile.py --target "$@" --target-dir-variable REGIO_RTL_SRC_OUTPUT_DIR --paths "$@.inputs" --output "$@.d"
 	@echo "Done."
 
-$(REGIO_RTL_SRC_OUTPUT_DIR)/%_decoder.sv: %_decoder.yaml | $(REGIO_RTL_SRC_OUTPUT_DIR)
+$(REGIO_RTL_SRC_OUTPUT_DIR)/%_decoder.sv: %_decoder.yaml $(REGIO_MAKEFILE) $(SCRIPTS_ROOT)/regio/write_depfile.py | $(REGIO_RTL_SRC_OUTPUT_DIR)
 	@echo -n "Generating RTL for: $*_decoder.yaml ... "
-	@$(REGIO_ELABORATE_CMD) -f decoder $*_decoder.yaml | $(REGIO_GENERATE_SRC_CMD) -f decoder -
+	@$(REGIO_ELABORATE_CMD) --loaded-paths $@.inputs -f decoder $*_decoder.yaml | $(REGIO_GENERATE_SRC_CMD) -f decoder -
+	@python3 $(SCRIPTS_ROOT)/regio/write_depfile.py --target "$@" --target-dir-variable REGIO_RTL_SRC_OUTPUT_DIR --paths "$@.inputs" --output "$@.d"
 	@echo "Done."
 
-$(REGIO_VERIF_HEADERS_OUTPUT_DIR)/%_reg_blk_agent.svh: %.yaml | $(REGIO_VERIF_HEADERS_OUTPUT_DIR)
+$(REGIO_VERIF_HEADERS_OUTPUT_DIR)/%_reg_blk_agent.svh: %.yaml $(REGIO_MAKEFILE) $(SCRIPTS_ROOT)/regio/write_depfile.py | $(REGIO_VERIF_HEADERS_OUTPUT_DIR)
 	@echo -n "Generating verification headers for: $*.yaml ... "
-	@$(REGIO_ELABORATE_CMD) -f block $*.yaml | $(REGIO_GENERATE_HEADERS_CMD) -f block -
+	@$(REGIO_ELABORATE_CMD) --loaded-paths $@.inputs -f block $*.yaml | $(REGIO_GENERATE_HEADERS_CMD) -f block -
+	@python3 $(SCRIPTS_ROOT)/regio/write_depfile.py --target "$@" --target-dir-variable REGIO_VERIF_HEADERS_OUTPUT_DIR --paths "$@.inputs" --output "$@.d"
 	@echo "Done."
 
 $(REG_VERIF_PACKAGE_OBJ): $(REG_VERIF_HEADER_OBJS) | $(REGIO_VERIF_PACKAGE_OUTPUT_DIR)
@@ -124,6 +129,13 @@ $(REG_VERIF_PACKAGE_OBJ): $(REG_VERIF_HEADER_OBJS) | $(REGIO_VERIF_PACKAGE_OUTPU
 	@echo "" >> $(REG_VERIF_PACKAGE_OBJ)
 	@echo "endpackage : $(__COMPONENT_BASE_NAME)_reg_verif_pkg" >> $(REG_VERIF_PACKAGE_OBJ)
 	@echo "Done."
+
+# Regio resolves transitive !include paths during elaboration. Track them for
+# RTL and verification headers as well as their direct YAML source. Refresh old
+# cached outputs once if they predate dependency-file generation.
+REGIO_GENERATED_TARGETS = $(REG_BLOCK_OBJS) $(REG_DECODER_OBJS) $(REG_VERIF_HEADER_OBJS)
+-include $(wildcard $(addsuffix .d,$(REGIO_GENERATED_TARGETS)))
+$(foreach target,$(REGIO_GENERATED_TARGETS),$(if $(wildcard $(target).d),,$(eval $(target): FORCE)))
 
 # Always regenerate IR artifacts, regardless of file timestamps.
 #

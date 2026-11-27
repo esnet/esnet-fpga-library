@@ -1,8 +1,8 @@
 # PCI Vital Product Data
 
 Definitions and verification infrastructure for PCI Vital Product Data
-(VPD). The library provides resource-header helpers, a byte-access
-interface, a resource-reading agent, and VPD-R record parsing and display
+(VPD). The library provides resource-header helpers, byte-access and
+card-info interfaces, a resource-reading agent, and VPD-R record parsing and display
 functions. It does not implement a PCI configuration-space controller or
 VPD storage device.
 
@@ -12,12 +12,14 @@ VPD storage device.
 |-----------|-------------|
 | `pci_vpd_pkg` | Small/large resource headers, supported tags, and header helpers |
 | `pci_vpd_intf` | Clocked byte request and read-response interface |
+| `pci_vpd_card_info_intf` | Read-only card-info cache request/response interface |
+| `pci_vpd_card_info_intf_cdc` | Coherent card-info status and byte-read clock crossing |
 | `pci_vpd_agent` | Abstract byte transport with resource reading and cached VPD data |
 | `pci_vpd_intf_agent` | Clocking-block transport for `pci_vpd_intf` |
 | `pci_vpd_verif_pkg` | Resource/record types, lookup, VPD-R parsing, and formatting helpers |
 
 `pci.vpd.pkg` has no component dependencies. `pci.vpd.rtl` uses that
-package, and `pci.vpd.verif` also uses the shared standard verification
+package and the synchronizer library, and `pci.vpd.verif` also uses the shared standard verification
 infrastructure and [string helpers](../../string/README.md).
 
 ## Resource headers
@@ -60,6 +62,31 @@ Issue one transaction at a time. There is no ready signal, write
 acknowledgement, error response, or response identifier. The peripheral
 must accept each requested write and return a read byte with `rd_vld`.
 Reset behavior belongs to the connected peripheral.
+
+## Card information and initialization
+
+`pci_vpd_card_info_intf` describes a read-only byte cache. The `provider`
+drives synchronous provider reset `srst`, `vld`, `error`, the nine-bit `len`, and byte responses (`rd_data`,
+`rd_vld`). The `consumer` drives byte requests (`rd`, nine-bit `rd_addr`).
+The provider keeps the cache and length stable while valid. Issue one read
+at a time and sample returned data only when `rd_vld` is asserted. The
+interface does not define the cache's record encoding. Providers own
+acquisition timeouts and cleanup; consumers may stop waiting independently.
+A provider reset invalidates its outstanding reads and published cache.
+
+`pci_vpd_card_info_intf_cdc` connects a provider interface to a consumer
+interface in another clock domain. It transfers valid/error/length coherently
+and uses separate handshakes for read addresses and pulse-valid byte responses.
+The consumer supplies its local reset through `consumer_srst`. Either reset
+flushes the handshake endpoints. A consumer reset drains an outstanding
+provider response before dispatching a new read, preventing a late byte from
+satisfying a subsequent request. No cancellation signal crosses to the provider.
+`build/pci_vpd_card_info_intf_cdc` provides an OOC synthesis build; its tests
+cover status, all nine-bit addresses, delayed responses and independent resets.
+
+These interfaces carry signals only. Clock frequency, function count and
+provider enablement remain configuration parameters of connected modules.
+Verification clocking blocks are excluded from synthesis.
 
 ## Agents and resource reading
 

@@ -114,6 +114,16 @@ gtkwave src/arb/tests/arb_rr/run_41/waves.fst
 Wave capture is optional and can substantially increase runtime and disk
 usage for large suites.
 
+## Non-project flash export
+
+Designs using `scripts/Makefiles/vivado_build_non_proj.mk` can append `flash`
+after `bitstream` in `BUILD_STAGES`. Set `CFGMEM_SIZE` (capacity in MiB),
+`CFGMEM_INTERFACE` (for example, `SPIx4`), and `CFGMEM_LOAD_ADDRESS` in the
+design's build configuration. `_np_flash` writes `<top>.mcs` from the existing
+`<top>.bit` using `write_cfgmem`; it does not open a checkpoint. The Make
+rules track the MCS output and regenerate it if missing. Its flash-phase
+log is preserved separately from the bitstream log.
+
 ## Build validation
 
 The [Vivado validation framework](scripts/vivado/validation/README.md) checks

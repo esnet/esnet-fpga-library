@@ -23,6 +23,7 @@ SRC_LIST_FILES =
 #   (see $SCRIPTS_ROOT/Makefiles/templates/dependencies.mk)
 # ----------------------------------------------------
 SUBCOMPONENTS = \
+    sync.rtl \
     pci.vpd.pkg
 
 EXT_LIBS =
